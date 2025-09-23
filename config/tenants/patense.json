@@ -1,0 +1,16 @@
+{
+  "slug": "patense",
+  "v": 5,
+  "vars": {
+    "--primary": "#004C3F",
+    "--primary-dark": "#003B31",
+    "--on-primary": "#ffffff",
+    "--surface": "#ffffff",
+    "--surface-alt": "#f6f7fb",
+    "--text": "#0b1220",
+    "--text-muted": "#5f6b7a",
+    "--c-border": "rgba(0,0,0,0.08)"
+  },
+  "logo": "https://app.progem.com.br/progem/api/downloads/empresa/274/arquivo?nome=ea3aa504-e9fd-4f19-9021-eebd659ca841_Marca_Dagua_Logo_Funeraria_Patense.png",
+  "domain": "patense.com.br"
+}

@@ -1,0 +1,107 @@
+/* === TOKENS BASE (sobrescritos pelo theme-inline.js gerado do tenant) === */
+:root{
+  --primary:#0066ff;
+  --primary-dark:#004dc7;
+  --on-primary:#ffffff;
+
+  --surface:#ffffff;
+  --surface-alt:#f9fafb;
+
+  --text:#0b1220;
+  --text-muted:#6b7280;
+
+  --c-border: rgba(0,0,0,.08);
+
+  --primary-08: color-mix(in srgb, var(--primary) 8%, transparent);
+  --primary-12: color-mix(in srgb, var(--primary) 12%, transparent);
+  --primary-20: color-mix(in srgb, var(--primary) 20%, transparent);
+  --primary-33: color-mix(in srgb, var(--primary) 33%, transparent);
+  --primary-66: color-mix(in srgb, var(--primary) 66%, transparent);
+}
+
+/* base */
+html,body{ background:var(--surface); color:var(--text); }
+
+/* helpers */
+.text-muted{ color:var(--text-muted); }
+.bg-surface{ background:var(--surface); }
+.bg-surface-alt{ background:var(--surface-alt); }
+.border-default{ border-color:var(--c-border); }
+.text-primary{ color:var(--primary); }
+.bg-primary{ background:var(--primary); }
+
+/* === BOTÕES NO TEMA (usam as variáveis do tenant) === */
+.btn-primary{
+  display:inline-flex; align-items:center; justify-content:center;
+  gap:.5rem; padding:.5rem 1.25rem;
+  font-weight:600; font-size:.875rem; line-height:1rem;
+  border-radius:9999px;
+  background:var(--primary);
+  color:var(--on-primary);
+  border:1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+  transition:background .15s ease, box-shadow .15s ease, transform .05s ease;
+}
+.btn-primary:hover{ background: color-mix(in srgb, var(--primary) 90%, black); }
+.btn-primary:active{ transform: translateY(1px); }
+
+/* botão secundário com borda que também respeita o tenant */
+.btn-outline{
+  display:inline-flex; align-items:center; justify-content:center;
+  gap:.5rem; padding:.5rem 1.25rem;
+  font-weight:600; font-size:.875rem; line-height:1rem;
+  border-radius:9999px;
+  border:1px solid var(--c-border);
+  color:var(--primary);
+  background:transparent;
+  transition:background .15s ease, border-color .15s ease;
+}
+.btn-outline:hover{
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 25%, transparent);
+}
+
+/* cartões */
+.card{
+  background:var(--surface);
+  border:1px solid var(--c-border);
+  border-radius:1rem;
+}
+
+/* inputs básicos */
+.input{
+  width:100%;
+  border:1px solid var(--c-border);
+  background:var(--surface);
+  color:var(--text);
+  border-radius:.75rem;
+  padding:.5rem .75rem;
+}
+.input:focus{
+  outline: none;
+  box-shadow: 0 0 0 3px var(--primary-12);
+  border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+}
+.label{ display:block; font-weight:600; margin-bottom:.25rem; color:var(--text); }
+
+/* === Dark (opcional, segue sua base) === */
+@media (prefers-color-scheme: dark){
+  body{ background:#0b1220; color:#e7edf6; }
+  .card{ background:#111827; border:1px solid rgba(255,255,255,.14); }
+  .card:hover{ background:#132036; }
+  .border-default{ border-color: rgba(255,255,255,.16); }
+  .text-muted{ color:#c9d5e1; }
+}
+
+body.theme-dark, html.theme-dark{
+  color-scheme: dark;
+  background:#0b1220; color:#e7edf6;
+}
+body.theme-dark .card, html.theme-dark .card{
+  background:#111827; border:1px solid rgba(255,255,255,.14);
+}
+body.theme-dark .border-default, html.theme-dark .border-default{
+  border-color: rgba(255,255,255,.16);
+}
+body.theme-dark .text-muted, html.theme-dark .text-muted{
+  color:#c9d5e1;
+}
