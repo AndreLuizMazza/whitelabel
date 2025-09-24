@@ -1,5 +1,5 @@
 {
-  "name": "progem-site-integrado",
+  "name": "whitelabel",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -50,6 +50,6 @@
     "cross-env": "^7.0.3"
   },
   "engines": {
-    "node": "18.x"
+    "node": "22.x"
   }
 }
