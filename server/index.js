@@ -548,17 +548,6 @@ app.get('/_debug/tenant', (req, res) => {
 app.get('/health', (_, res) => res.json({ ok: true }));
 
 
-/* ===== DEBUG / Health (aceita com e sem /api) ===== */
-app.get(['/api/_debug/tenant', '/_debug/tenant'], (req, res) => {
-  const incoming = {
-    'x-progem-id': req.header('x-progem-id') || req.header('X-Progem-ID') || null,
-    'x-device-id': req.header('x-device-id') || req.header('X-Device-ID') || null,
-    authorization: req.header('authorization') ? 'present' : 'missing',
-  };
-  res.json({ tenantId: TENANT_ID, base: BASE, incoming });
-});
-
-app.get(['/api/health', '/health'], (_, res) => res.json({ ok: true }));
 
 /* ===== Execução local vs Vercel =====
    - Local/dev: sobe servidor na porta
