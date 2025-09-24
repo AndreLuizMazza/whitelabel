@@ -1,13 +1,6 @@
 {
-  "version": 2,
-  "functions": {
-    "api/**.js": { "runtime": "nodejs18.x" }
-  },
-  "buildCommand": "npm run build:tenant",
-  "outputDirectory": "dist",
-  "routes": [
-    { "src": "^/api/(.*)$", "dest": "/api/$1" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/(.*)", "destination": "/" }
   ]
 }
