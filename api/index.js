@@ -1,8 +1,6 @@
-import app from '../server/index.js';
-
-// encaminha qualquer /api/* para o Express
-export default app;
+import app from '../server/index.js'
+export default app
 
 export const config = {
-  api: { bodyParser: false },
-};
+  api: { bodyParser: false }
+}
