@@ -3,15 +3,19 @@ import express from 'express'
 
 const router = express.Router()
 
-// Lado servidor (.env) — NUNCA exponha no frontend
+// Somente no servidor (nunca expose no front)
 const API_BASE = (process.env.NALAPIDE_API_BASE || process.env.VITE_NALAPIDE_BASE || '').replace(/\/+$/, '')
-const API_KEY  = process.env.NALAPIDE_API_KEY || process.env.VITE_NALAPIDE_API_KEY || ''
+const RAW_KEY  = process.env.NALAPIDE_API_KEY || process.env.VITE_NALAPIDE_API_KEY || ''
 
 if (!API_BASE) console.warn('[NaLapide] NALAPIDE_API_BASE ausente. Configure no .env do BFF')
-if (!API_KEY)  console.warn('[NaLapide] NALAPIDE_API_KEY ausente. Configure no .env do BFF (ex.: "Bearer xxx")')
+if (!RAW_KEY)  console.warn('[NaLapide] NALAPIDE_API_KEY ausente. Configure no .env do BFF')
 
-// Log pequeno de boot
-console.log('[NaLapide BFF] base=', API_BASE ? API_BASE : '(ausente)')
+const AUTH_HEADER = RAW_KEY.toLowerCase().startsWith('bearer ')
+  ? { name: 'Authorization', value: RAW_KEY }     // exemplo: "Bearer xxx"
+  : { name: 'x-api-key',     value: RAW_KEY }     // exemplo: "abc123"
+
+// log de boot
+console.log('[NaLapide BFF] base=', API_BASE || '(ausente)', '| header=', AUTH_HEADER.name)
 
 function short(s, n = 60) {
   if (!s) return ''
@@ -19,31 +23,22 @@ function short(s, n = 60) {
   return str.length > n ? str.slice(0, n) + '…' : str
 }
 
-// Encaminhador simples
 async function forward(req, res, path) {
   try {
-    if (!API_BASE) {
-      return res.status(500).json({ error: 'NALAPIDE_BASE_MISSING', message: 'Configure NALAPIDE_API_BASE no .env (BFF)' })
-    }
-    if (!API_KEY) {
-      return res.status(500).json({ error: 'NALAPIDE_KEY_MISSING', message: 'Configure NALAPIDE_API_KEY no .env (BFF)' })
-    }
+    if (!API_BASE) return res.status(500).json({ error: 'NALAPIDE_BASE_MISSING', message: 'Configure NALAPIDE_API_BASE no .env (BFF)' })
+    if (!RAW_KEY)  return res.status(500).json({ error: 'NALAPIDE_KEY_MISSING',  message: 'Configure NALAPIDE_API_KEY no .env (BFF)' })
 
-    // Monta URL e query params vindos do cliente
+    // monta URL + query
     const urlObj = new URL(`${API_BASE}${path}`)
     const params = new URLSearchParams()
 
-    // Copia todos os params do Express (req.query)
     for (const [k, v] of Object.entries(req.query || {})) {
       if (Array.isArray(v)) v.forEach(val => params.append(k, String(val)))
       else if (v != null) params.set(k, String(v))
     }
 
-    // Regra: na listagem de óbitos (/obitos), se não vier "publico",
-    // forçamos publico=true para retornar apenas registros públicos.
-    if (path === '/obitos' && !params.has('publico')) {
-      params.set('publico', 'true')
-    }
+    // regra: listagem pública
+    if (path === '/obitos' && !params.has('publico')) params.set('publico', 'true')
 
     urlObj.search = params.toString()
     const url = urlObj.toString()
@@ -52,8 +47,9 @@ async function forward(req, res, path) {
     const tenant = req.headers['x-tenant-slug'] || req.query.tenant || req.body?.tenant
 
     const headers = {
+      'Accept': 'application/json',
       'Content-Type': 'application/json',
-      'Authorization': API_KEY, // ex.: "Bearer abc..."
+      [AUTH_HEADER.name]: AUTH_HEADER.value,
       ...(tenant ? { 'x-tenant': tenant } : {})
     }
 
@@ -62,13 +58,13 @@ async function forward(req, res, path) {
       init.body = JSON.stringify(req.body || {})
     }
 
-    console.log('[NaLapide BFF] →', req.method, url, '| tenant=', tenant || '-', '| auth=', short(API_KEY, 24))
-    const r = await fetch(url, init)
+    console.log('[NaLapide BFF] →', req.method, url, '| tenant=', tenant || '-', `| ${AUTH_HEADER.name}=`, short(AUTH_HEADER.value, 24))
 
+    const r = await fetch(url, init)
     const ct = r.headers.get('content-type') || 'application/json'
     const txt = await r.text()
-    console.log('[NaLapide BFF] ←', r.status, ct)
 
+    console.log('[NaLapide BFF] ←', r.status, ct)
     res.status(r.status).type(ct).send(txt)
   } catch (err) {
     console.error('[NaLapide BFF] ERRO:', err)
@@ -77,9 +73,18 @@ async function forward(req, res, path) {
 }
 
 /** Rotas BFF -> NaLápide */
-router.get('/memorial',                 (req, res) => forward(req, res, '/obitos'))
-router.get('/memorial/:slug',           (req, res) => forward(req, res, `/obitos/${encodeURIComponent(req.params.slug)}`))
-router.post('/memorial/:id/reactions',  (req, res) => forward(req, res, `/obitos/${encodeURIComponent(req.params.id)}/reacoes`))
-router.post('/leads',                   (req, res) => forward(req, res, '/interacoes'))
+router.get('/_proxy/health', (req, res) => {
+  res.json({
+    ok: true,
+    base: API_BASE,
+    authHeader: AUTH_HEADER.name,
+    hasKey: Boolean(RAW_KEY)
+  })
+})
+
+router.get('/memorial',                (req, res) => forward(req, res, '/obitos'))
+router.get('/memorial/:slug',          (req, res) => forward(req, res, `/obitos/${encodeURIComponent(req.params.slug)}`))
+router.post('/memorial/:id/reactions', (req, res) => forward(req, res, `/obitos/${encodeURIComponent(req.params.id)}/reacoes`))
+router.post('/leads',                  (req, res) => forward(req, res, '/interacoes'))
 
 export default router
