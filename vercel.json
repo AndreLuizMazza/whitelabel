@@ -1,15 +1,6 @@
 {
-  "version": 2,
-
-  // faça a build do Vite com o TENANT
-  "buildCommand": "TENANT=${TENANT} npm run build:tenant",
-
-  // a saída do Vite
-  "outputDirectory": "dist",
-
-  // SPA fallback + API para a Serverless Function
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/(.*)", "destination": "/" }
   ]
 }
