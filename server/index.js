@@ -1,4 +1,3 @@
-// server/index.js
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -25,14 +24,17 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
+// logger simples (ajuda a ver o path real na Vercel)
+app.use((req, _res, next) => {
+  console.log('[REQ]', req.method, req.url, '| path=', req.path);
+  next();
+});
+
 /* ===== Ambiente ===== */
 const isProd = process.env.NODE_ENV === 'production';
 const isVercel = !!process.env.VERCEL;
 
-/* ===== Trust Proxy seguro
-   - Em produção atrás de um proxy (Vercel): use TRUST_PROXY=1
-   - Em desenvolvimento/local: deixe vazio (false)
-*/
+/* ===== Trust Proxy seguro ===== */
 const TRUST_PROXY = (process.env.TRUST_PROXY || (isProd ? '1' : '0')).trim();
 if (TRUST_PROXY === '0' || TRUST_PROXY === '' || TRUST_PROXY.toLowerCase() === 'false') {
   app.set('trust proxy', false);
@@ -51,6 +53,21 @@ const OAUTH_SCOPE =
 const OAUTH_CLIENT_ID = process.env.OAUTH_CLIENT_ID || '';
 const OAUTH_CLIENT_SECRET = process.env.OAUTH_CLIENT_SECRET || '';
 
+/* ===== Rotas de Health/Debug (aceitam com e sem /api) ===== */
+app.get(['/api/health', '/health'], (_req, res) => res.json({ ok: true }));
+app.get(['/api/_debug/tenant', '/_debug/tenant'], (req, res) => {
+  const incoming = {
+    'x-progem-id': req.header('x-progem-id') || req.header('X-Progem-ID') || null,
+    'x-device-id': req.header('x-device-id') || req.header('X-Device-ID') || null,
+    authorization: req.header('authorization') ? 'present' : 'missing',
+  };
+  res.json({
+    tenantId: TENANT_ID || null,
+    base: BASE,
+    incoming,
+  });
+});
+
 /* ===== Segurança e compressão ===== */
 app.use(
   helmet({
@@ -68,14 +85,13 @@ function parseList(env) {
 }
 
 const ALLOWLIST = [
-  process.env.FRONTEND_URL,
-  ...parseList(process.env.CORS_ORIGINS),
+  process.env.FRONTEND_URL,                  // ex.: https://whitelabel-xxx.vercel.app
+  ...parseList(process.env.CORS_ORIGINS),    // outras origens que você queira liberar
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5174',
   'http://localhost:3000',
-  'https://whitelabel-lyart.vercel.app',
 ].filter(Boolean);
 
 // permite subdomínios vercel.app, domínios whitelabel, etc.
@@ -116,7 +132,7 @@ app.use((_, res, next) => {
 app.use(cors(corsOptionsDelegate));
 app.options('*', cors(corsOptionsDelegate));
 
-/* ===== Rate limit (seguro c/ trust proxy configurado acima) ===== */
+/* ===== Rate limit ===== */
 const limiter = rateLimit({
   windowMs: 60_000,
   max: 60,
@@ -534,25 +550,7 @@ app.patch('/api/v1/app/me', async (req, res) => {
   }
 });
 
-/* ===== DEBUG / Health ===== */
-app.get('/_debug/tenant', (req, res) => {
-  const incoming = {
-    'x-progem-id': req.header('X-Progem-ID') || req.header('x-progem-id') || null,
-    'x-device-id': req.header('X-Device-ID') || req.header('x-device-id') || null,
-    authorization: req.header('authorization') ? 'present' : 'missing',
-  };
-  console.log('[BFF][DEBUG] tenant(from .env)=', TENANT_ID, '| incoming=', incoming);
-  res.json({ tenantId: TENANT_ID, base: BASE, incoming });
-});
-
-app.get('/health', (_, res) => res.json({ ok: true }));
-
-
-
-/* ===== Execução local vs Vercel =====
-   - Local/dev: sobe servidor na porta
-   - Vercel: exporta o app (Serverless Function usa /api/index.js)
-*/
+/* ===== Execução local vs Vercel ===== */
 if (!isVercel) {
   app.listen(PORT, () => {
     console.log(`API proxy on http://localhost:${PORT}`);

@@ -1,4 +1,3 @@
-// api/index.js
 import app from '../server/index.js';
 
 // Exporta o Express para a Vercel como Serverless Function
