@@ -558,4 +558,11 @@ if (!isVercel) {
   });
 }
 
+// 404 logger para rotas /api que não bateram em nenhuma handler
+app.use('/api', (req, res) => {
+  console.error('[BFF][404]', req.method, req.originalUrl)
+  res.status(404).json({ error: 'Not Found', path: req.originalUrl })
+})
+
+
 export default app;
