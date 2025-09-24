@@ -1,8 +1,9 @@
+// api/[...all].js
 import app from '../server/index.js';
 
-// Exporta o Express para a Vercel como Serverless Function
+// Reaproveita o seu Express para QUALQUER rota que comece com /api/
 export default app;
 
 export const config = {
-  api: { bodyParser: false }
+  api: { bodyParser: false },
 };
