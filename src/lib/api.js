@@ -1,10 +1,13 @@
+// src/lib/api.js
 import axios from 'axios'
 
 let tokenProvider = null
 export function setAuthTokenProvider(fn) { tokenProvider = fn }
 
-// usa a URL do BFF e remove barra(s) final(is); fallback local
-const baseURL = (import.meta.env.VITE_BFF_BASE || 'http://localhost:8787').replace(/\/+$/, '')
+// Em dev, a BFF local; em produção, use o próprio domínio via /api
+const baseURL = import.meta.env.DEV
+  ? 'http://localhost:8787'
+  : '/api'
 
 const api = axios.create({
   baseURL,
