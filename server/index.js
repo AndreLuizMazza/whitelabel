@@ -85,13 +85,14 @@ function parseList(env) {
 }
 
 const ALLOWLIST = [
-  process.env.FRONTEND_URL,                  // ex.: https://whitelabel-xxx.vercel.app
-  ...parseList(process.env.CORS_ORIGINS),    // outras origens que você queira liberar
+  process.env.FRONTEND_URL,
+  ...parseList(process.env.CORS_ORIGINS),
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:5174',
   'http://127.0.0.1:5174',
   'http://localhost:3000',
+  'https://whitelabel-lyart.vercel.app'
 ].filter(Boolean);
 
 // permite subdomínios vercel.app, domínios whitelabel, etc.
