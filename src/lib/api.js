@@ -1,13 +1,13 @@
-// src/lib/api.js
 import axios from 'axios'
 
 let tokenProvider = null
 export function setAuthTokenProvider(fn) { tokenProvider = fn }
 
-// Em dev, a BFF local; em produção, use o próprio domínio via /api
-const baseURL = import.meta.env.VITE_BFF_BASE 
-  ? 'http://localhost:8787'
-  : '/api'
+// ✅ Em produção usa '/api' (Serverless na Vercel)
+// ✅ Em desenvolvimento usa VITE_BFF_BASE ou fallback local
+const baseURL = import.meta.env.PROD
+  ? '/api'
+  : (import.meta.env.VITE_BFF_BASE || 'http://localhost:8787')
 
 const api = axios.create({
   baseURL,
