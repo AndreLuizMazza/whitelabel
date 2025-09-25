@@ -5,26 +5,16 @@ import { Menu, X } from 'lucide-react'
 import useAuth from '@/store/auth'
 import useTenant from '@/store/tenant'
 import ThemeToggle from './ThemeToggle.jsx'
-import MegaMenuPlanos from './menus/MegaMenuPlanos.jsx'
-import { planosItems, planosCta } from '@/data/planosItems'
 
+// Resolve logo do tenant
 function cssVarUrlOrNull(name = '--tenant-logo') {
   try {
     const v = getComputedStyle(document.documentElement).getPropertyValue(name)?.trim()
-    if (!v) return null
-    // espera algo como: url("https://...") ou url(https://...)
     const m = v.match(/^url\((['"]?)(.*?)\1\)$/i)
     return m?.[2] || null
   } catch { return null }
 }
 
-/** Resolve URL da logo (ordem de prioridade):
- *  1) store (empresa.logo / logoUrl / logo_path)
- *  2) window.__TENANT__.logo (inline)
- *  3) localStorage('tenant_empresa').logo
- *  4) CSS var --tenant-logo (extraída como URL)
- *  5) '/img/logo.png' (fallback)
- */
 function resolveTenantLogoUrl() {
   try {
     const st = useTenant.getState?.()
@@ -45,8 +35,7 @@ function resolveTenantLogoUrl() {
     }
   } catch {}
 
-  const fromCssVar = cssVarUrlOrNull('--tenant-logo')
-  return fromCssVar || '/img/logo.png'
+  return cssVarUrlOrNull('--tenant-logo') || '/img/logo.png'
 }
 
 export default function Navbar() {
@@ -69,8 +58,8 @@ export default function Navbar() {
   const linkClass = ({ isActive }) =>
     'relative pl-4 pr-3 py-2 flex items-center whitespace-nowrap rounded-md transition-colors duration-150 ' +
     (isActive
-      ? 'text-primary font-semibold bg-[color-mix(in_srgb,var(--primary)_12%,transparent)]'
-      : 'text-[var(--text)] hover:text-primary hover:bg-[var(--surface)]')
+      ? 'text-[var(--nav-active-color)] font-semibold bg-[var(--nav-active-bg)]'
+      : 'text-[var(--text)] hover:text-[var(--text)] hover:bg-[var(--nav-hover-bg)]')
 
   const ActiveBar = ({ isActive }) =>
     isActive ? <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded bg-[var(--primary)]" /> : null
@@ -95,7 +84,10 @@ export default function Navbar() {
             {({ isActive }) => (<><ActiveBar isActive={isActive} /> Home</>)}
           </NavLink>
 
-          <MegaMenuPlanos />
+          {/* MegaMenu removido — link simples para Planos */}
+          <NavLink to="/planos" className={linkClass}>
+            {({ isActive }) => (<><ActiveBar isActive={isActive} /> Planos</>)}
+          </NavLink>
 
           <NavLink to="/beneficios" className={linkClass}>
             {({ isActive }) => (<><ActiveBar isActive={isActive} /> Clube de Benefícios</>)}
@@ -140,34 +132,12 @@ export default function Navbar() {
               {({ isActive }) => (<><ActiveBar isActive={isActive} /> Home</>)}
             </NavLink>
 
-            <details className="rounded-md">
-              <summary className="cursor-pointer select-none px-4 py-2 text-[var(--text)] hover:bg-[var(--surface)] rounded-md whitespace-nowrap">
-                Planos
-              </summary>
-              <div className="pl-2 pr-1 pb-2 space-y-1">
-                {planosItems
-                  .filter(it => (typeof it.predicate === 'function' ? it.predicate(empresa) : true))
-                  .map(it => (
-                    <Link
-                      key={it.id}
-                      to={it.to}
-                      className="block px-4 py-2 rounded hover:bg-[var(--surface)] whitespace-nowrap"
-                    >
-                      {it.title}
-                    </Link>
-                  ))}
-                <Link
-                  to={planosCta.to}
-                  className="block px-4 py-2 rounded hover:bg-[var(--surface)] text-primary whitespace-nowrap"
-                >
-                  {planosCta.label}
-                </Link>
-              </div>
-            </details>
-
-            <NavLink to="/beneficios" className={linkClass}>
-              {({ isActive }) => (<><ActiveBar isActive={isActive} /> Clube de Benefícios</>)}
+            {/* MegaMenu removido — link simples para Planos */}
+            <NavLink to="/planos" className={linkClass}>
+              {({ isActive }) => (<><ActiveBar isActive={isActive} /> Planos</>)}
             </NavLink>
+
+
 
             <NavLink to="/memorial" className={linkClass}>
               {({ isActive }) => (<><ActiveBar isActive={isActive} /> Memorial</>)}
@@ -177,6 +147,10 @@ export default function Navbar() {
               {({ isActive }) => (<><ActiveBar isActive={isActive} /> Unidades</>)}
             </NavLink>
 
+            <NavLink to="/beneficios" className={linkClass}>
+              {({ isActive }) => (<><ActiveBar isActive={isActive} /> Clube de Benefícios</>)}
+            </NavLink>
+            
             <NavLink to="/contratos" className={linkClass}>
               {({ isActive }) => (<><ActiveBar isActive={isActive} /> 2° Via</>)}
             </NavLink>

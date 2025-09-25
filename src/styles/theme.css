@@ -17,6 +17,11 @@
   --primary-20: color-mix(in srgb, var(--primary) 20%, transparent);
   --primary-33: color-mix(in srgb, var(--primary) 33%, transparent);
   --primary-66: color-mix(in srgb, var(--primary) 66%, transparent);
+
+  /* nav defaults */
+  --nav-hover-bg: color-mix(in srgb, var(--primary) 10%, transparent);
+  --nav-active-bg: color-mix(in srgb, var(--primary) 18%, transparent);
+  --nav-active-color: var(--primary);
 }
 
 /* base */
@@ -44,7 +49,7 @@ html,body{ background:var(--surface); color:var(--text); }
 .btn-primary:hover{ background: color-mix(in srgb, var(--primary) 90%, black); }
 .btn-primary:active{ transform: translateY(1px); }
 
-/* botão secundário com borda que também respeita o tenant */
+/* botão secundário */
 .btn-outline{
   display:inline-flex; align-items:center; justify-content:center;
   gap:.5rem; padding:.5rem 1.25rem;
@@ -67,7 +72,7 @@ html,body{ background:var(--surface); color:var(--text); }
   border-radius:1rem;
 }
 
-/* inputs básicos */
+/* inputs */
 .input{
   width:100%;
   border:1px solid var(--c-border);
@@ -83,18 +88,25 @@ html,body{ background:var(--surface); color:var(--text); }
 }
 .label{ display:block; font-weight:600; margin-bottom:.25rem; color:var(--text); }
 
-/* === DARK MODE: guiado SOMENTE por classe (ThemeToggle / initTheme.js) === */
+/* === Dark mode === */
+@media (prefers-color-scheme: dark){
+  body{ background:#0b1220; color:#e7edf6; }
+  .card{ background:#111827; border:1px solid rgba(255,255,255,.14); }
+  .card:hover{ background:#132036; }
+  .border-default{ border-color: rgba(255,255,255,.16); }
+  .text-muted{ color:#c9d5e1; }
+}
+
 body.theme-dark, html.theme-dark{
   color-scheme: dark;
-  background:#0b1220; 
-  color:#e7edf6;
+  background:#0b1220; color:#e7edf6;
+
+  --nav-hover-bg: color-mix(in srgb, var(--primary) 18%, transparent);
+  --nav-active-bg: color-mix(in srgb, var(--primary) 30%, transparent);
+  --nav-active-color: var(--on-primary);
 }
 body.theme-dark .card, html.theme-dark .card{
-  background:#111827; 
-  border:1px solid rgba(255,255,255,.14);
-}
-body.theme-dark .card:hover, html.theme-dark .card:hover{
-  background:#132036;
+  background:#111827; border:1px solid rgba(255,255,255,.14);
 }
 body.theme-dark .border-default, html.theme-dark .border-default{
   border-color: rgba(255,255,255,.16);
