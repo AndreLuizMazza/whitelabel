@@ -83,21 +83,18 @@ html,body{ background:var(--surface); color:var(--text); }
 }
 .label{ display:block; font-weight:600; margin-bottom:.25rem; color:var(--text); }
 
-/* === Dark (opcional, segue sua base) === */
-@media (prefers-color-scheme: dark){
-  body{ background:#0b1220; color:#e7edf6; }
-  .card{ background:#111827; border:1px solid rgba(255,255,255,.14); }
-  .card:hover{ background:#132036; }
-  .border-default{ border-color: rgba(255,255,255,.16); }
-  .text-muted{ color:#c9d5e1; }
-}
-
+/* === DARK MODE: guiado SOMENTE por classe (ThemeToggle / initTheme.js) === */
 body.theme-dark, html.theme-dark{
   color-scheme: dark;
-  background:#0b1220; color:#e7edf6;
+  background:#0b1220; 
+  color:#e7edf6;
 }
 body.theme-dark .card, html.theme-dark .card{
-  background:#111827; border:1px solid rgba(255,255,255,.14);
+  background:#111827; 
+  border:1px solid rgba(255,255,255,.14);
+}
+body.theme-dark .card:hover, html.theme-dark .card:hover{
+  background:#132036;
 }
 body.theme-dark .border-default, html.theme-dark .border-default{
   border-color: rgba(255,255,255,.16);
