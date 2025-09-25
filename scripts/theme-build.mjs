@@ -17,47 +17,46 @@ const outPath = resolve("public/theme-inline.js");
 try {
   const raw = await readFile(cfgPath, "utf8");
   const cfg = JSON.parse(raw);
-  const vars = cfg.vars || {};
-  const logo = cfg.logo || null;
-  const slug = cfg.slug || TENANT;
 
-  // IMPORTANTÍSSIMO:
-  // - expomos window.__TENANT__
-  // - aplicamos vars no :root ANTES do React
-  // - salvamos snapshot compatível com initTheme (tenant_empresa / tenant_vars)
   const js = `
-/* Gerado automaticamente a partir de config/tenants/${slug}.json */
+/* Gerado de config/tenants/${cfg.slug || TENANT}.json */
 window.__TENANT__ = ${JSON.stringify(cfg)};
 
 (function(){
   try {
     var docEl = document.documentElement;
-    var style = docEl && docEl.style ? docEl.style : null;
+    var style = docEl && docEl.style;
     var t = window.__TENANT__ || {};
-    var vars = t.vars || {};
+    var light = t.vars || {};
+    var dark  = t.varsDark || null;
 
-    if (style && vars) {
-      for (var k in vars) {
-        if (Object.prototype.hasOwnProperty.call(vars, k)) {
-          style.setProperty(k, String(vars[k]));
-        }
+    // detecta tema (system/light/dark)
+    var choice = 'system';
+    try { choice = localStorage.getItem('ui_theme') || 'system'; } catch(_){}
+    var prefersDark = false;
+    try { prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch(_){}
+    var mode = (choice === 'system') ? (prefersDark ? 'dark' : 'light') : choice;
+
+    // escolhe vars
+    var chosen = (mode === 'dark' && dark) ? Object.assign({}, light, dark) : light;
+
+    // aplica
+    if (style && chosen) {
+      for (var k in chosen) if (Object.prototype.hasOwnProperty.call(chosen, k)) {
+        style.setProperty(k, String(chosen[k]));
       }
     }
-
-    if (${JSON.stringify(Boolean(logo))}) {
-      style && style.setProperty('--tenant-logo', 'url("${logo}")');
-    }
-
-    if (docEl) {
-      docEl.setAttribute('data-tenant', ${JSON.stringify(slug)});
+    if (docEl){
+      docEl.setAttribute('data-tenant', t.slug || '${TENANT}');
+      docEl.setAttribute('data-theme', mode);
       docEl.setAttribute('data-theme-ready', '1');
     }
 
-    // cache compatível com initTheme anti-cache (v e slug contam!)
+    // cache
     try {
       localStorage.setItem('tenant_empresa', JSON.stringify(t));
-      localStorage.setItem('tenant_vars', JSON.stringify(vars || {}));
-    } catch (_) {}
+      localStorage.setItem('tenant_vars', JSON.stringify(chosen || {}));
+    } catch(_){}
   } catch (e) { try { console.warn('theme-inline failed', e); } catch(_){} }
 })();
 `.trim();

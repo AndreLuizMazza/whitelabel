@@ -3,15 +3,16 @@ import { create } from 'zustand'
 const fallbackPrimary = '#0EA5E9'
 
 // aplica as vars do tenant no :root
+// src/store/tenant.js (só troque esta função)
 function applyTenantVars(empresa) {
-  const vars = empresa?.vars || {}
-  const root = document.documentElement
-  try {
-    Object.entries(vars).forEach(([k, v]) => {
-      if (k && v != null) root.style.setProperty(k, String(v))
-    })
-  } catch {}
+  const choice = localStorage.getItem('ui_theme') || 'system';
+  const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches;
+  const mode = choice === 'system' ? (prefersDark ? 'dark' : 'light') : choice;
+  const vars = mode === 'dark' && empresa?.varsDark ? { ...(empresa?.vars||{}), ...empresa.varsDark } : (empresa?.vars||{});
+  const root = document.documentElement;
+  try { Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, String(v))); } catch {}
 }
+
 
 const useTenant = create((set) => ({
   empresa: null,

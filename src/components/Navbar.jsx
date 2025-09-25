@@ -8,13 +8,45 @@ import ThemeToggle from './ThemeToggle.jsx'
 import MegaMenuPlanos from './menus/MegaMenuPlanos.jsx'
 import { planosItems, planosCta } from '@/data/planosItems'
 
-function getTenantLogoCss() {
+function cssVarUrlOrNull(name = '--tenant-logo') {
   try {
-    const raw = localStorage.getItem('tenant_theme_snapshot')
-    if (!raw) return null
-    const { logo } = JSON.parse(raw)
-    return logo ? `url("${logo}")` : null
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name)?.trim()
+    if (!v) return null
+    // espera algo como: url("https://...") ou url(https://...)
+    const m = v.match(/^url\((['"]?)(.*?)\1\)$/i)
+    return m?.[2] || null
   } catch { return null }
+}
+
+/** Resolve URL da logo (ordem de prioridade):
+ *  1) store (empresa.logo / logoUrl / logo_path)
+ *  2) window.__TENANT__.logo (inline)
+ *  3) localStorage('tenant_empresa').logo
+ *  4) CSS var --tenant-logo (extraída como URL)
+ *  5) '/img/logo.png' (fallback)
+ */
+function resolveTenantLogoUrl() {
+  try {
+    const st = useTenant.getState?.()
+    const fromStore = st?.empresa?.logo || st?.empresa?.logoUrl || st?.empresa?.logo_path
+    if (fromStore) return fromStore
+  } catch {}
+
+  try {
+    const inline = window.__TENANT__
+    if (inline?.logo) return inline.logo
+  } catch {}
+
+  try {
+    const raw = localStorage.getItem('tenant_empresa')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed?.logo) return parsed.logo
+    }
+  } catch {}
+
+  const fromCssVar = cssVarUrlOrNull('--tenant-logo')
+  return fromCssVar || '/img/logo.png'
 }
 
 export default function Navbar() {
@@ -26,7 +58,7 @@ export default function Navbar() {
   const empresa = useTenant(s => s.empresa)
 
   const nome = empresa?.nomeFantasia || 'Logo'
-  const inlineBg = getTenantLogoCss() || 'var(--tenant-logo, url(/img/logo.png))'
+  const logoUrl = resolveTenantLogoUrl()
   const isLogged = isAuthenticated() || !!token || !!user
   const areaDest = isLogged ? '/area' : '/login'
 
@@ -48,14 +80,12 @@ export default function Navbar() {
       <div className="container-max flex items-center justify-between py-3 gap-4">
         {/* Logo */}
         <Link to="/" className="flex items-center h-10 md:h-12 lg:h-14" aria-label={nome}>
-          <div
-            className="h-10 md:h-12 lg:h-14 w-[9.5rem] md:w-[10.5rem] lg:w-[12rem]"
-            style={{
-              backgroundImage: inlineBg,
-              backgroundRepeat: 'no-repeat',
-              backgroundPosition: 'left center',
-              backgroundSize: 'contain',
-            }}
+          <img
+            src={logoUrl}
+            alt={nome}
+            className="h-10 md:h-12 lg:h-14 w-auto max-w-[12rem] object-contain"
+            loading="eager"
+            decoding="async"
           />
         </Link>
 
