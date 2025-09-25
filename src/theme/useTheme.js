@@ -1,34 +1,24 @@
+// src/theme/useTheme.js (corrigido)
 import { useEffect, useState } from 'react'
+import { applyTheme, resolveTheme } from '@/theme/initTheme'
 
-export const THEME_KEY = 'ui_theme' // 'system' | 'light' | 'dark'
-
-function applyTheme(choice) {
-  const html = document.documentElement
-  const mql = window.matchMedia('(prefers-color-scheme: dark)')
-
-  html.classList.remove('dark', 'theme-dark', 'theme-light')
-
-  if (choice === 'dark') {
-    html.classList.add('dark', 'theme-dark')
-  } else if (choice === 'light') {
-    html.classList.add('theme-light')
-  } else {
-    // system
-    if (mql.matches) html.classList.add('dark', 'theme-dark')
-  }
-}
-
-/** Hook controlando tema com persistência e aplicação no <html> */
 export function useTheme() {
-  const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem(THEME_KEY) || 'system' } catch { return 'system' }
-  })
+  const [theme, setTheme] = useState(resolveTheme()) // 'system' | 'light' | 'dark'
 
   useEffect(() => {
     applyTheme(theme)
+  }, [theme])
+
+  // quando em "system", reagir a mudanças do SO
+  useEffect(() => {
+    if (theme !== 'system') return
     try {
-      if (theme === 'system') localStorage.removeItem(THEME_KEY)
-      else localStorage.setItem(THEME_KEY, theme)
+      const mql = window.matchMedia('(prefers-color-scheme: dark)')
+      const onChange = () => applyTheme('system')
+      mql.addEventListener ? mql.addEventListener('change', onChange) : mql.addListener(onChange)
+      return () => {
+        mql.removeEventListener ? mql.removeEventListener('change', onChange) : mql.removeListener(onChange)
+      }
     } catch {}
   }, [theme])
 

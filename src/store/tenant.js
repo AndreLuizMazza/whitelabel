@@ -13,7 +13,6 @@ function applyTenantVars(empresa) {
   try { Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, String(v))); } catch {}
 }
 
-
 const useTenant = create((set) => ({
   empresa: null,
   clientTokenReady: false,

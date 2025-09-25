@@ -88,15 +88,16 @@ html,body{ background:var(--surface); color:var(--text); }
 }
 .label{ display:block; font-weight:600; margin-bottom:.25rem; color:var(--text); }
 
-/* === Dark mode === */
+/* === Dark mode via sistema (aplica só se usuário não escolheu "light") === */
 @media (prefers-color-scheme: dark){
-  body{ background:#0b1220; color:#e7edf6; }
-  .card{ background:#111827; border:1px solid rgba(255,255,255,.14); }
-  .card:hover{ background:#132036; }
-  .border-default{ border-color: rgba(255,255,255,.16); }
-  .text-muted{ color:#c9d5e1; }
+  :root:not([data-theme="light"]) body{ background:#0b1220; color:#e7edf6; }
+  :root:not([data-theme="light"]) .card{ background:#111827; border:1px solid rgba(255,255,255,.14); }
+  :root:not([data-theme="light"]) .card:hover{ background:#132036; }
+  :root:not([data-theme="light"]) .border-default{ border-color: rgba(255,255,255,.16); }
+  :root:not([data-theme="light"]) .text-muted{ color:#c9d5e1; }
 }
 
+/* === Dark mode explícito === */
 body.theme-dark, html.theme-dark{
   color-scheme: dark;
   background:#0b1220; color:#e7edf6;
@@ -114,3 +115,16 @@ body.theme-dark .border-default, html.theme-dark .border-default{
 body.theme-dark .text-muted, html.theme-dark .text-muted{
   color:#c9d5e1;
 }
+
+/* === Dark mode via sistema (aplica só se usuário não escolheu "light") === */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) body{ background:#0b1220; color:#e7edf6; }
+  :root:not([data-theme="light"]) .card{ background:#111827; border:1px solid rgba(255,255,255,.14); }
+  :root:not([data-theme="light"]) .card:hover{ background:#132036; }
+  :root:not([data-theme="light"]) .border-default{ border-color: rgba(255,255,255,.16); }
+  :root:not([data-theme="light"]) .text-muted{ color:#c9d5e1; }
+}
+
+/* === Dark mode explícito === */
+body.theme-dark, html.theme-dark{ /* … */ }
+/* … */
