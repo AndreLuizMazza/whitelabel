@@ -2,178 +2,91 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '@/lib/api.js'
+import { pick, money, getMensal } from '@/lib/planUtils.js'
 import {
-  pick,
-  money,
-  encontrarFaixaPorIdade,
-  isIsento,
-  getMensal,
-} from '@/lib/planUtils.js'
-import { Sparkles, CheckCircle2, ShieldCheck, Clock3 } from 'lucide-react'
+  Sparkles, CheckCircle2, Clock3,
+  AlertTriangle, Plus, Trash2, Minus, Plus as PlusIcon, MessageCircle
+} from 'lucide-react'
 import CTAButton from '@/components/ui/CTAButton'
 
-/* ========= Placeholder refinado ========= */
-const PH_LIGHT =
-  `data:image/svg+xml;utf8,` +
-  encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
-  <path d="M24 4l16 9v11c0 11-7 20-16 20S8 35 8 24V13l16-9z"
-    stroke="#64748b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M16 24l6 6 10-10"
-    stroke="#64748b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-`)
-const PH_DARK =
-  `data:image/svg+xml;utf8,` +
-  encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
-  <path d="M24 4l16 9v11c0 11-7 20-16 20S8 35 8 24V13l16-9z"
-    stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M16 24l6 6 10-10"
-    stroke="#cbd5e1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-`)
-
-/* ========= Benefícios (estáticos por enquanto) ========= */
-const BENEFICIOS_EXEMPLO = [
-  { icon: '🕊️', title: 'Cobertura funeral completa', desc: 'Assistência em todas as etapas, incluindo preparação, cerimônia e sepultamento.' },
-  { icon: '🚑', title: 'Translado 24h', desc: 'Remoção e transporte do corpo em todo o território nacional.' },
-  { icon: '📄', title: 'Documentação inclusa', desc: 'Apoio em registro de óbito, certidões e demais burocracias.' },
-  { icon: '👨‍👩‍👧', title: 'Assistência familiar', desc: 'Cobertura estendida ao cônjuge, filhos e dependentes cadastrados.' },
-  { icon: '📞', title: 'Atendimento 24 horas', desc: 'Central de suporte sempre disponível para emergências.' },
-  { icon: '💳', title: 'Pagamento seguro', desc: 'Processamento de pagamentos com segurança e sem fidelidade.' },
+/* ---------- Parentescos (fallback enum completo) ---------- */
+const PARENTESCOS_ENUM = [
+  ['CONJUGE','Cônjuge'], ['COMPANHEIRO','Companheiro(a)'], ['FILHO','Filho(a)'],
+  ['PAI','Pai'], ['MAE','Mãe'], ['IRMAO','Irmã(o)'], ['AVO','Avô(ó)'], ['TITULAR','Titular'],
+  ['RESPONSAVEL','Responsável'], ['TIO','Tio(a)'], ['SOBRINHO','Sobrinho(a)'], ['PRIMO','Primo(a)'],
+  ['NETO','Neto(a)'], ['BISNETO','Bisneto(a)'], ['PADRASTO','Padrasto'], ['MADRASTRA','Madrasta'],
+  ['AFILHADO','Afilhado(a)'], ['ENTEADA','Enteado(a)'], ['SOGRO','Sogro(a)'], ['GENRO','Genro'],
+  ['NORA','Nora'], ['CUNHADO','Cunhado(a)'], ['BISAVO','Bisavô(ó)'], ['MADRINHA','Madrinha'],
+  ['PADRINHO','Padrinho'], ['AMIGO','Amigo(a)'], ['AGREGADO','Agregado'], ['DEPENDENTE','Dependente'],
+  ['COLABORADOR','Colaborador'], ['EX_CONJUGE','Ex Cônjuge'], ['EX_TITULAR','Ex Titular'], ['EX_RESPONSAVEL','Ex Responsável'],
 ]
+const PARENTESCOS_OPTIONS = PARENTESCOS_ENUM.map(([value,label])=>({value,label}))
+const parentescoLabel = (val) => PARENTESCOS_OPTIONS.find(o=>o.value===String(val))?.label || String(val)
 
-/* ---------- Toast simples ---------- */
+/* ---------- WhatsApp helper ---------- */
+const WHATS_NUMBER = (() => {
+  try {
+    const env = import.meta?.env?.VITE_WHATSAPP || window.__WHATSAPP__
+    return env ? String(env).replace(/\D/g, '') : ''
+  } catch { return '' }
+})()
+function openWhatsApp(message) {
+  const text = encodeURIComponent(message || '')
+  const url = WHATS_NUMBER ? `https://wa.me/${WHATS_NUMBER}?text=${text}` : `https://wa.me/?text=${text}`
+  window.open(url, '_blank', 'noopener')
+}
+
+/* ---------- Toast ---------- */
 function Toast({ show, message }) {
   return (
-    <div
-      className={`pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center transition-opacity duration-200 ${show ? 'opacity-100' : 'opacity-0'}`}
-      aria-live="polite"
-      aria-atomic="true"
-    >
-      <div
-        className="pointer-events-auto rounded-full px-4 py-2 text-sm shadow-lg border"
-        style={{
-          background: 'var(--c-surface)',
-          borderColor: 'var(--c-border)',
-          color: 'var(--c-text)',
-        }}
-      >
+    <div className={`pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center transition-opacity duration-200 ${show ? 'opacity-100' : 'opacity-0'}`} aria-live="polite" aria-atomic="true">
+      <div className="pointer-events-auto rounded-full px-4 py-2 text-sm shadow-lg border" style={{background:'var(--c-surface)',borderColor:'var(--c-border)',color:'var(--c-text)'}}>
         {message}
       </div>
     </div>
   )
 }
 
-/* ---------- Linha de dependente ---------- */
-function DepRow({
-  value,
-  index,
-  parentescos,
-  onChange,
-  onRemove,
-  faixaDep,
-  isento,
-}) {
-  const step = (delta) => {
-    const next = Math.max(0, Math.min(120, Number(value.idade || 0) + delta))
-    onChange(index, { idade: next })
-  }
-  const valorFaixa = isento ? 0 : Number(faixaDep?.valor || 0)
+/* ---------- Linha dependente ---------- */
+function DepRow({ d, i, onChange, onRemove, idadeMinDep, idadeMaxDep, parentescosValues }) {
+  const idadeNum = d.idade === '' ? NaN : Number(d.idade)
+  const foraLimite =
+    (Number.isFinite(idadeMinDep) && Number.isFinite(idadeNum) && idadeNum < Number(idadeMinDep)) ||
+    (Number.isFinite(idadeMaxDep) && Number.isFinite(idadeNum) && idadeNum > Number(idadeMaxDep))
 
   return (
-    <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div
-            className="h-10 w-10 grid place-items-center rounded-xl"
-            style={{
-              background: 'color-mix(in srgb, var(--primary) 14%, transparent)',
-              color: 'var(--on-primary, #fff)',
-              border: '1px solid color-mix(in srgb, var(--primary) 20%, transparent)',
-            }}
-            aria-hidden
-          >
-            👪
-          </div>
-
-          <div className="grid w-full gap-2 md:grid-cols-[180px,1fr,auto]">
-            <label className="sr-only" htmlFor={`parentesco-${index}`}>Parentesco</label>
-            <select
-              id={`parentesco-${index}`}
-              className="input h-10"
-              value={value.parentesco}
-              onChange={(e) => onChange(index, { parentesco: e.target.value })}
-            >
-              {parentescos.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-
-            {/* Stepper de idade */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => step(-1)}
-                className="rounded-full h-10 w-10 grid place-items-center border border-[var(--c-border)] hover:bg-[var(--c-surface-alt)]"
-                aria-label="Diminuir idade"
-              >−</button>
-              <label className="sr-only" htmlFor={`idade-${index}`}>Idade</label>
-              <input
-                id={`idade-${index}`}
-                className="input h-10 w-24 text-center"
-                type="number"
-                min="0"
-                max="120"
-                value={value.idade}
-                onChange={(e) => onChange(index, { idade: Number(e.target.value) })}
-              />
-              <button
-                type="button"
-                onClick={() => step(+1)}
-                className="rounded-full h-10 w-10 grid place-items-center border border-[var(--c-border)] hover:bg-[var(--c-surface-alt)]"
-                aria-label="Aumentar idade"
-              >+</button>
-            </div>
-
-            {/* Valor (faixa) */}
-            <div className="flex items-center justify-end gap-2">
-              {isento ? (
-                <span
-                  className="rounded-full px-2.5 py-1 text-xs font-medium"
-                  style={{
-                    background: 'color-mix(in srgb, var(--primary) 16%, transparent)',
-                    color: 'var(--on-primary, #fff)',
-                    border: '1px solid color-mix(in srgb, var(--primary) 20%, transparent)',
-                  }}
-                  title="Isento pelas regras do plano"
-                >
-                  Isento
-                </span>
-              ) : null}
-              <span className="rounded-full px-3 py-1 text-sm font-semibold ring-1 ring-[var(--c-border)]">
-                {money(valorFaixa)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <CTAButton
-          variant="ghost"
-          className="shrink-0"
-          onClick={() => onRemove(index)}
-          aria-label={`Remover dependente ${index + 1}`}
+    <div className="rounded-xl border border-[var(--c-border)] p-3 flex flex-col gap-2">
+      <div className="grid gap-2 md:grid-cols-[1fr,200px,140px,auto] md:items-center">
+        <input
+          className="input h-11"
+          placeholder="Nome (opcional)"
+          value={d.nome || ''}
+          onChange={(e)=>onChange(i, { nome: e.target.value })}
+        />
+        <select
+          className="input h-11"
+          value={d.parentesco || (parentescosValues?.[0] ?? 'FILHO')}
+          onChange={(e)=>onChange(i, { parentesco: e.target.value })}
         >
-          Remover
+          {(parentescosValues?.length ? parentescosValues : PARENTESCOS_OPTIONS.map(o=>o.value)).map(v=>(
+            <option key={v} value={v}>{parentescoLabel(v)}</option>
+          ))}
+        </select>
+        <input
+          className={`input h-11 ${foraLimite ? 'ring-1 ring-red-500 focus:ring-red-500' : ''}`}
+          type="number" min="0" max="120" placeholder="Idade"
+          value={d.idade ?? ''} onChange={(e)=>onChange(i, { idade: e.target.value === '' ? '' : Number(e.target.value) })}
+        />
+        <CTAButton variant="ghost" onClick={()=>onRemove(i)} title="Remover dependente" className="h-11 justify-between px-3">
+          <span>Remover</span>
+          <Trash2 size={16} />
         </CTAButton>
       </div>
-
-      {faixaDep ? (
-        <p className="mt-2 text-xs text-[var(--c-muted)]">
-          Faixa <b>{faixaDep.idadeMinima ?? faixaDep.idade_minima}–{faixaDep.idadeMaxima ?? faixaDep.idade_maxima}</b>
+      {foraLimite && (
+        <p className="text-xs inline-flex items-center gap-1 text-red-600">
+          <AlertTriangle size={14}/> Idade fora do limite deste plano para dependentes.
         </p>
-      ) : null}
+      )}
     </div>
   )
 }
@@ -182,231 +95,128 @@ export default function PlanoDetalhe() {
   const { id } = useParams()
   const navigate = useNavigate()
 
-  // estado base
   const [plano, setPlano] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   // simulador
   const [idadeTitular, setIdadeTitular] = useState(30)
-  const [dependentes, setDependentes] = useState([])
+  const [deps, setDeps] = useState([])
 
   const simRef = useRef(null)
   const resumoRef = useRef(null)
-  const addLockRef = useRef(false)
 
-  // cupom (lê da URL se existir)
   const [cupom, setCupom] = useState(() => {
-    try {
-      const qs = new URLSearchParams(window.location.search)
-      return qs.get('cupom') || qs.get('coupon') || ''
-    } catch {
-      return ''
-    }
+    try { const qs = new URLSearchParams(window.location.search); return qs.get('cupom') || qs.get('coupon') || '' } catch { return '' }
   })
 
-  // toasts
   const [toast, setToast] = useState({ show: false, message: '' })
   const triggerToast = (message) => {
     setToast({ show: true, message })
     window.clearTimeout(triggerToast._t)
-    triggerToast._t = window.setTimeout(() => setToast({ show: false, message: '' }), 1800)
+    triggerToast._t = window.setTimeout(() => setToast({ show: false, message: '' }), 1400)
   }
 
-  // ===== tema e imagem =====
-  const [isDark, setIsDark] = useState(false)
-  const [imgSrc, setImgSrc] = useState('')
-  const [imgLoaded, setImgLoaded] = useState(false)
-  const imgRef = useRef(null)
-
-  // detecta tema
-  useEffect(() => {
-    const update = () => {
-      try {
-        const byClass = document.documentElement.classList?.contains('dark')
-        const byMedia = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches
-        setIsDark(Boolean(byClass || byMedia))
-      } catch {}
-    }
-    update()
-    const mql = window.matchMedia?.('(prefers-color-scheme: dark)')
-    const onChange = () => update()
-    try { mql?.addEventListener('change', onChange) } catch { mql?.addListener?.(onChange) }
-    const mo = new MutationObserver(update)
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-    return () => {
-      try { mql?.removeEventListener('change', onChange) } catch { mql?.removeListener?.(onChange) }
-      mo.disconnect()
-    }
-  }, [])
-
-  // busca do plano
+  // fetch
   async function fetchPlano(planId) {
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
     try {
-      const { data } = await api.get(`/api/v1/planos/${planId}`, {
-        transformRequest: [(d, headers) => { try { delete headers.Authorization } catch {}; return d }],
-      })
+      const { data } = await api.get(`/api/v1/planos/${planId}`, { transformRequest: [(d, headers) => { try { delete headers.Authorization } catch {}; return d }] })
       setPlano(data)
     } catch {
       try {
         const { data } = await api.get(`/api/v1/planos/${planId}`, { headers: { Authorization: '' } })
         setPlano(data)
       } catch (err) {
-        console.error(err)
-        setError(`Falha ao carregar o plano (id: ${planId}).`)
+        console.error(err); setError(`Falha ao carregar o plano (id: ${planId}).`)
       }
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
   useEffect(() => { if (id) fetchPlano(id) }, [id])
 
-  // define imagem
-  useEffect(() => {
-    const foto = pick(plano || {}, 'foto')
-    const placeholder = isDark ? PH_DARK : PH_LIGHT
-    const next = (foto && String(foto).trim()) || placeholder
-    setImgSrc(next)
-  }, [plano, isDark])
-
-  // fade-in em cache-hit
-  useEffect(() => {
-    setImgLoaded(false)
-    const idAnim = requestAnimationFrame(() => {
-      const el = imgRef.current
-      if (el && el.complete && el.naturalWidth > 0) setImgLoaded(true)
-    })
-    return () => cancelAnimationFrame(idAnim)
-  }, [imgSrc])
-
-  const handleImgError = () => {
-    const ph = isDark ? PH_DARK : PH_LIGHT
-    if (imgSrc !== ph) setImgSrc(ph)
-    else setImgLoaded(true)
-  }
-
-  // --------- Cálculos base ----------
+  // preços
   const baseMensal = useMemo(() => getMensal(plano), [plano])
   const valorAdesao = Number(pick(plano || {}, 'valorAdesao', 'valor_adesao') || 0)
   const numDepsIncl = Number(pick(plano || {}, 'numeroDependentes', 'numero_dependentes') || 0)
   const valorIncrementalAnual = Number(pick(plano || {}, 'valorIncremental', 'valor_incremental') || 0)
   const valorIncrementalMensal = useMemo(() => valorIncrementalAnual / 12, [valorIncrementalAnual])
-  const faixasDep = pick(plano || {}, 'faixasEtarias', 'faixas_etarias') || []
-  const faixasTit = pick(plano || {}, 'faixasEtariasTitular', 'faixas_etarias_titular') || []
-  const isencoes = pick(plano || {}, 'isencoes') || []
-  const unidadeCarencia = pick(plano || {}, 'unidadeCarencia', 'unidade_carencia') || 'DIAS'
-  const periodoCarencia = pick(plano || {}, 'periodoCarencia', 'periodo_carencia') || 0
-  const parentescosAll = pick(plano || {}, 'parentescos') || ['CONJUGE', 'FILHO', 'PAI', 'MAE']
-  const parentescos = Array.isArray(parentescosAll)
-    ? parentescosAll.filter((p) => String(p).toUpperCase() !== 'TITULAR')
-    : ['FILHO']
 
-  const faixaTit = useMemo(() => encontrarFaixaPorIdade(faixasTit, idadeTitular), [faixasTit, idadeTitular])
-  const custoTitularFaixa = Number(faixaTit?.valor || 0)
-  const custoTitular = baseMensal + custoTitularFaixa
+  // limites
+  const idadeMinTit = pick(plano || {}, 'idadeMinimaTitular', 'idade_minima_titular')
+  const idadeMaxTit = pick(plano || {}, 'idadeMaximaTitular', 'idade_maxima_titular')
+  const idadeMinDep = pick(plano || {}, 'idadeMinimaDependente', 'idade_minima_dependente')
+  const idadeMaxDep = pick(plano || {}, 'idadeMaximaDependente', 'idade_maxima_dependente')
 
-  const custosDependentes = useMemo(() => {
-    return dependentes.map((d) => {
-      const faixa = encontrarFaixaPorIdade(faixasDep, Number(d.idade || 0))
-      const isento = isIsento(isencoes, Number(d.idade || 0), d.parentesco)
-      const valorFaixa = isento ? 0 : Number(faixa?.valor || 0)
-      return { ...d, valorFaixa, isento, faixa }
-    })
-  }, [dependentes, faixasDep, isencoes])
+  // parentescos
+  const parentescosAPI = pick(plano || {}, 'parentescos') || []
+  const parentescosValues = (Array.isArray(parentescosAPI) && parentescosAPI.length)
+    ? parentescosAPI.map(String)
+    : PARENTESCOS_OPTIONS.map(o=>o.value)
 
-  const somaFaixasDep = useMemo(
-    () => custosDependentes.reduce((acc, d) => acc + d.valorFaixa, 0),
-    [custosDependentes]
-  )
-
-  const extrasCount = Math.max(0, dependentes.length - Number(numDepsIncl))
-  const custoIncrementalExtras = extrasCount * valorIncrementalMensal
-  const totalMensal = custoTitular + somaFaixasDep + custoIncrementalExtras
+  const qtdDeps = deps.length
+  const excedentes = Math.max(0, qtdDeps - Number(numDepsIncl))
+  const custoExcedentes = excedentes * valorIncrementalMensal
+  const totalMensal = (baseMensal || 0) + custoExcedentes
   const totalAnual = totalMensal * 12
 
-  // ===== Actions =====
-  function addDependente() {
-    if (addLockRef.current) return
-    addLockRef.current = true
-    setDependentes((prev) => [
-      ...prev,
-      { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, parentesco: parentescos[0] || 'FILHO', idade: 0 },
-    ])
-    triggerToast('Dependente adicionado')
-    setTimeout(() => (addLockRef.current = false), 200)
-  }
-  function updDependente(i, patch) {
-    setDependentes((prev) => {
-      const copy = prev.slice()
-      copy[i] = { ...copy[i], ...patch }
-      return copy
-    })
-  }
-  function delDependente(i) {
-    setDependentes((prev) => {
-      const copy = prev.slice()
-      copy.splice(i, 1)
-      triggerToast('Dependente removido')
-      return copy
-    })
-  }
+  const titularForaLimite =
+    (Number.isFinite(idadeMinTit) && idadeTitular < Number(idadeMinTit)) ||
+    (Number.isFinite(idadeMaxTit) && idadeTitular > Number(idadeMaxTit))
+
+  const depForaLimiteCount = deps.filter(d=>{
+    const idade = Number(d.idade)
+    if (!Number.isFinite(idade)) return false
+    if (Number.isFinite(idadeMinDep) && idade < Number(idadeMinDep)) return true
+    if (Number.isFinite(idadeMaxDep) && idade > Number(idadeMaxDep)) return true
+    return false
+  }).length
 
   const simRefScroll = () => simRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   const resumoRefScroll = () => resumoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
-  /** CTA → Checkout + tracking (add_to_cart) */
-  const handleContratar = () => {
-    const cents = Math.round(Number(totalMensal || 0) * 100)
-    try {
-      window.dataLayer = window.dataLayer || []
-      window.dataLayer.push({
-        event: 'add_to_cart',
-        currency: 'BRL',
-        value: Number(totalMensal || 0),
-        value_cents: cents,
-        coupon: cupom || undefined,
-        items: [
-          {
-            item_id: String(id),
-            item_name: pick(plano || {}, 'nome') || '',
-            price: Number(totalMensal || 0),
-            price_cents: cents,
-            quantity: 1,
-            dependentes_informados: dependentes.length,
-          },
-        ],
-      })
-    } catch {}
-    const params = new URLSearchParams({
-      plano: String(id),
-      total_mensal: String(cents), // centavos
-      deps: String(dependentes.length),
+  // dependentes
+  const addDep = () => {
+    setDeps(prev => [...prev, { nome:'', parentesco: parentescosValues[0] ?? 'FILHO', idade:'' }])
+    triggerToast('Dependente adicionado')
+  }
+  const removeDep = (i) => {
+    setDeps(prev => prev.filter((_,idx)=> idx!==i))
+    triggerToast('Dependente removido')
+  }
+  const updDep = (i, patch) => {
+    setDeps(prev => prev.map((d,idx)=> idx===i ? { ...d, ...patch } : d))
+  }
+  const stepDeps = (delta) => {
+    setDeps(prev => {
+      const next = [...prev]
+      if (delta > 0) for (let k=0;k<delta;k++) next.push({ nome:'', parentesco: parentescosValues[0] ?? 'FILHO', idade:'' })
+      if (delta < 0) for (let k=delta;k<0;k++) next.pop()
+      return next
     })
-    if (cupom) params.set('cupom', cupom.trim())
-    navigate(`/checkout?${params.toString()}`)
   }
 
-  // ===== Renders =====
+  // CTA cadastro
+  const handleContinuar = () => {
+    if (titularForaLimite) return
+    const payload = { plano: String(id), idadeTitular, qtdDependentes: qtdDeps, dependentes: deps, cupom: cupom || '' }
+    const params = new URLSearchParams({ p: btoa(encodeURIComponent(JSON.stringify(payload))) })
+    navigate(`/cadastro?${params.toString()}`)
+  }
+
   if (loading) {
     return (
       <section className="section">
         <div className="container-max space-y-4">
           <div className="h-6 w-48 animate-pulse rounded bg-[var(--c-surface)]" />
+          <div className="h-24 rounded-2xl animate-pulse bg-[var(--c-surface)]" />
           <div className="grid gap-6 md:grid-cols-[1.2fr,1fr]">
             <div className="h-72 rounded-2xl animate-pulse bg-[var(--c-surface)]" />
-            <div className="space-y-4">
-              <div className="h-7 w-3/4 rounded animate-pulse bg-[var(--c-surface)]" />
-              <div className="h-5 w-2/3 rounded animate-pulse bg-[var(--c-surface)]" />
-              <div className="h-24 rounded animate-pulse bg-[var(--c-surface)]" />
-            </div>
+            <div className="h-72 rounded-2xl animate-pulse bg-[var(--c-surface)]" />
           </div>
         </div>
       </section>
     )
   }
-
   if (error) {
     return (
       <section className="section">
@@ -417,7 +227,6 @@ export default function PlanoDetalhe() {
       </section>
     )
   }
-
   if (!plano) return null
 
   return (
@@ -433,44 +242,42 @@ export default function PlanoDetalhe() {
           </button>
         </div>
 
-        {/* HERO */}
-        <div className="grid gap-8 md:grid-cols-[1.2fr,1fr]">
-          <div className="rounded-2xl bg-[var(--c-surface)]">
-            <div className="h-72 w-full p-4 flex items-center justify-center">
-              <img
-                ref={imgRef}
-                src={imgSrc || (isDark ? PH_DARK : PH_LIGHT)}
-                alt={plano.nome}
-                className={`max-h-full max-w-full object-contain transition-opacity duration-300 ease-out ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
-                onLoad={() => setImgLoaded(true)}
-                onError={handleImgError}
-                loading="lazy"
-                decoding="async"
-              />
+        {/* CABEÇALHO */}
+        <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+            <h1 className="text-3xl font-extrabold tracking-tight">{plano.nome}</h1>
+            <div className="inline-flex items-center gap-2 rounded-full px-5 h-12 border border-[var(--c-border)] bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]">
+              <span className="text-sm">Base mensal</span>
+              <span className="text-xl font-extrabold">{money(baseMensal)}</span>
             </div>
           </div>
 
-          <div className="flex flex-col justify-center">
-            <h1 className="text-3xl font-extrabold tracking-tight">{plano.nome}</h1>
-
-            <p className="mt-2 text-lg">
-              {money(baseMensal)} <span className="text-sm">/mês (base)</span>
-            </p>
-
-            <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
-              <div><span>Dependentes incluídos: </span><strong>{numDepsIncl}</strong></div>
-              <div><span>+ por dependente: </span><strong>{money(valorIncrementalMensal)}</strong></div>
-              <div><span>Carência: </span><strong>{periodoCarencia} {unidadeCarencia}</strong></div>
+          {/* Badges */}
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
+              <span className="text-sm">Incluídos</span><strong>{numDepsIncl}</strong>
             </div>
+            <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
+              <span className="text-sm">+ por dependente</span><strong>{money(valorIncrementalMensal)}</strong>
+            </div>
+            <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
+              <span className="text-sm">Titular</span>
+              <strong>{Number.isFinite(idadeMinTit)?`${idadeMinTit}+`: '—'}{Number.isFinite(idadeMaxTit)?` até ${idadeMaxTit}`:''} anos</strong>
+            </div>
+            <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
+              <span className="text-sm">Adesão única</span><strong>{money(valorAdesao)}</strong>
+            </div>
+          </div>
 
-            {/* CTA topo */}
-            <div
-              className="mt-6 rounded-2xl p-4"
-              style={{
-                background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
-                border: '1px solid color-mix(in srgb, var(--primary) 35%, transparent)',
-              }}
-            >
+          {/* Banda informativa */}
+          <div
+            className="mt-4 rounded-2xl p-4"
+            style={{
+              background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--primary) 35%, transparent)',
+            }}
+          >
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="flex items-start gap-3">
                 <div
                   className="rounded-full p-2 text-white"
@@ -479,229 +286,156 @@ export default function PlanoDetalhe() {
                 >
                   <Sparkles size={16} />
                 </div>
-                <div className="flex-1">
-                  <p className="font-semibold">Simule o plano em segundos</p>
-                  <p className="text-sm">Informe a idade do titular e adicione dependentes para ver o valor exato.</p>
-                </div>
-                <CTAButton onClick={() => simRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
-                  Simular agora
-                </CTAButton>
+                <p className="text-sm leading-relaxed">
+                  Informe a <b>idade do titular</b> e a <b>quantidade de dependentes</b>. Se quiser,
+                  identifique cada um para <b>pré-validação</b>.
+                </p>
               </div>
 
-              <ul className="mt-3 flex flex-wrap gap-4 text-xs">
-                <li className="inline-flex items-center gap-1"><ShieldCheck size={14} /> Sem fidelidade</li>
-                <li className="inline-flex items-center gap-1"><Clock3 size={14} /> Ativação rápida</li>
-                <li className="inline-flex items-center gap-1"><CheckCircle2 size={14} /> Pagamento seguro</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* ========= Benefícios estáticos ========= */}
-        <div className="mt-10">
-          <h2 className="text-2xl font-bold mb-4">Benefícios inclusos</h2>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {BENEFICIOS_EXEMPLO.map((b, i) => (
-              <div
-                key={i}
-                className="flex items-start gap-3 rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4"
+              <CTAButton
+                onClick={simRefScroll}
+                aria-label="Começar simulação"
+                className="h-11 w-full md:w-auto"
               >
-                <div className="text-xl" aria-hidden>{b.icon}</div>
-                <div>
-                  <p className="font-semibold">{b.title}</p>
-                  <p className="text-sm text-[var(--c-text)]">{b.desc}</p>
-                </div>
-              </div>
-            ))}
+                Começar simulação
+              </CTAButton>
+            </div>
+
+            <ul className="mt-3 flex flex-wrap gap-4 text-xs">
+              <li className="inline-flex items-center gap-1"><Clock3 size={14} /> Ativação rápida</li>
+              <li className="inline-flex items-center gap-1"><CheckCircle2 size={14} /> Pagamento seguro</li>
+            </ul>
           </div>
         </div>
 
-        {/* ---------- SIMULADOR ---------- */}
-        <div ref={simRef} className="mt-10 grid gap-6 md:grid-cols-3">
+        {/* ---------- SIMULADOR + RESUMO ---------- */}
+        <div ref={simRef} className="mt-8 grid gap-6 md:grid-cols-3">
           {/* Simulador */}
           <div className="md:col-span-2 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-lg font-semibold">Simulador de contratação</h3>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full px-3 py-1 text-xs ring-1 ring-[var(--c-border)]">Informados: <b>{dependentes.length}</b></span>
-                <span className="rounded-full px-3 py-1 text-xs ring-1 ring-[var(--c-border)]">Incluídos: <b>{numDepsIncl}</b></span>
-                <span
-                  className="rounded-full px-3 py-1 text-xs"
-                  style={{
-                    background:'color-mix(in srgb, var(--primary) 12%, transparent)',
-                    border:'1px solid color-mix(in srgb, var(--primary) 20%, transparent)'
-                  }}
-                >
-                  Excedentes: <b>{Math.max(0, dependentes.length - numDepsIncl)}</b>
-                </span>
-                <CTAButton onClick={addDependente} className="ml-1">Adicionar dependente</CTAButton>
-              </div>
-            </div>
+            <h3 className="text-lg font-semibold">Simulador</h3>
 
-            {/* Campos de topo */}
             <div className="mt-5 grid gap-4 md:grid-cols-3">
+              {/* Idade do titular */}
               <div>
                 <label className="label">Idade do titular</label>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIdadeTitular((v) => Math.max(0, v - 1))}
-                    className="rounded-full h-10 w-10 grid place-items-center border border-[var(--c-border)] hover:bg-[var(--c-surface-alt)]"
-                    aria-label="Diminuir idade do titular"
-                  >−</button>
-                  <input
-                    className="input h-10 w-24 text-center"
-                    type="number"
-                    min="0"
-                    max="120"
-                    value={idadeTitular}
-                    onChange={(e) => setIdadeTitular(Number(e.target.value))}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setIdadeTitular((v) => Math.min(120, v + 1))}
-                    className="rounded-full h-10 w-10 grid place-items-center border border-[var(--c-border)] hover:bg-[var(--c-surface-alt)]"
-                    aria-label="Aumentar idade do titular"
-                  >+</button>
+                  <button type="button" onClick={() => setIdadeTitular((v) => Math.max(0, v - 1))} className="rounded-full h-11 w-11 grid place-items-center border border-[var(--c-border)] hover:bg-[var(--c-surface-alt)]" aria-label="Diminuir idade do titular"><Minus size={16}/></button>
+                  <input className={`input h-11 w-24 text-center ${titularForaLimite ? 'ring-1 ring-red-500 focus:ring-red-500' : ''}`} type="number" min="0" max="120" value={idadeTitular} onChange={(e) => setIdadeTitular(Number(e.target.value))}/>
+                  <button type="button" onClick={() => setIdadeTitular((v) => Math.min(120, v + 1))} className="rounded-full h-11 w-11 grid place-items-center border border-[var(--c-border)] hover:bg-[var(--c-surface-alt)]" aria-label="Aumentar idade do titular"><PlusIcon size={16}/></button>
                 </div>
-                {faixaTit && (
-                  <p className="mt-1 text-xs text-[var(--c-muted)]">
-                    Faixa do titular: {faixaTit.idadeMinima ?? faixaTit.idade_minima}–{faixaTit.idadeMaxima ?? faixaTit.idade_maxima} • Adicional {money(faixaTit.valor)}
+                {titularForaLimite && (
+                  <p className="mt-2 inline-flex items-center gap-2 text-xs text-red-600">
+                    <AlertTriangle size={14}/> Fora do limite deste plano para titular. <b>Fale com a empresa.</b>
                   </p>
                 )}
               </div>
 
+              {/* Stepper dependentes */}
               <div>
-                <label className="label">Adesão (uma vez)</label>
-                <input className="input h-10" value={money(valorAdesao)} readOnly />
-              </div>
-
-              <div>
-                <label className="label">Carência</label>
-                <input className="input h-10" value={`${periodoCarencia} ${unidadeCarencia}`} readOnly />
+                <label className="label">Dependentes (qtde)</label>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => stepDeps(-1)} className="rounded-full h-11 w-11 grid place-items-center border border-[var(--c-border)] hover:bg-[var(--c-surface-alt)]" aria-label="Diminuir dependentes" disabled={deps.length === 0}><Minus size={16}/></button>
+                  <input className="input h-11 w-24 text-center" type="number" min="0" max="99" value={deps.length} onChange={(e) => { const target = Math.max(0, Number(e.target.value) || 0); stepDeps(target - deps.length) }}/>
+                  <button type="button" onClick={() => stepDeps(1)} className="rounded-full h-11 w-11 grid place-items-center border border-[var(--c-border)] hover:bg-[var(--c-surface-alt)]" aria-label="Aumentar dependentes"><PlusIcon size={16}/></button>
+                </div>
+                <p className="mt-2 text-xs text-[var(--c-muted)]">
+                  Incluídos no plano: <b>{numDepsIncl}</b>. Adicionais: <b>{Math.max(0, deps.length - numDepsIncl)}</b> × {money(valorIncrementalMensal)}
+                </p>
               </div>
             </div>
 
             {/* Lista de dependentes */}
             <div className="mt-5 grid gap-3">
-              {dependentes.length === 0 ? (
-                <div
-                  className="rounded-xl p-4 text-sm"
-                  style={{
-                    background: 'color-mix(in srgb, var(--primary) 8%, transparent)',
-                    border: '1px solid color-mix(in srgb, var(--primary) 20%, transparent)',
-                  }}
-                >
-                  Nenhum dependente adicionado. Clique em <b>“Adicionar dependente”</b>.
-                </div>
-              ) : null}
-
-              {dependentes.map((d, i) => {
-                const faixa = encontrarFaixaPorIdade(faixasDep, Number(d.idade || 0))
-                const isento = isIsento(isencoes, Number(d.idade || 0), d.parentesco)
-                return (
-                  <DepRow
-                    key={d.id || i}
-                    value={d}
-                    index={i}
-                    parentescos={parentescos}
-                    onChange={updDependente}
-                    onRemove={delDependente}
-                    faixaDep={faixa}
-                    isento={isento}
-                  />
-                )
-              })}
+              {deps.map((d, i) => (
+                <DepRow
+                  key={i}
+                  d={d}
+                  i={i}
+                  onChange={(idx, patch)=>updDep(idx, patch)}
+                  onRemove={removeDep}
+                  idadeMinDep={idadeMinDep}
+                  idadeMaxDep={idadeMaxDep}
+                  parentescosValues={parentescosValues}
+                />
+              ))}
+              <CTAButton onClick={addDep} className="w-full h-11 justify-center">
+                <Plus size={16} className="mr-2"/> Adicionar dependente
+              </CTAButton>
+              {depForaLimiteCount > 0 && (
+                <p className="text-xs inline-flex items-center gap-2 text-red-600">
+                  <AlertTriangle size={14}/> {depForaLimiteCount} dependente(s) fora do limite de idade deste plano.
+                </p>
+              )}
             </div>
 
-            <p className="mt-3 text-xs text-[var(--c-muted)]">
-              Excedentes são cobrados a <b>{money(valorIncrementalMensal)}</b> por mês cada.
-            </p>
+            {/* Subtotal */}
+            <div className="mt-6 rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4 text-sm">
+              <div className="flex justify-between"><span>Base mensal</span><span>{money(baseMensal)}</span></div>
+              <div className="flex justify-between"><span>Adicionais ({Math.max(0, deps.length - numDepsIncl)}) × {money(valorIncrementalMensal)}</span><span>{money(Math.max(0, deps.length - numDepsIncl) * valorIncrementalMensal)}</span></div>
+              <hr className="my-2" />
+              <div className="flex justify-between font-semibold text-base"><span>Subtotal</span><span>{money(totalMensal)}</span></div>
+            </div>
           </div>
 
           {/* Resumo */}
-          <div ref={resumoRef} className="p-6 md:sticky md:top-24 bg-[var(--c-surface)] rounded-2xl border border-[var(--c-border)] shadow-lg">
+          <aside ref={resumoRef} className="p-6 md:sticky md:top-24 bg-[var(--c-surface)] rounded-2xl border border-[var(--c-border)] shadow-lg">
             <h3 className="mb-3 text-lg font-semibold">Resumo</h3>
             <div className="space-y-2 text-sm" aria-live="polite">
               <div className="flex justify-between"><span>Base mensal</span><span>{money(baseMensal)}</span></div>
-              <div className="flex justify-between"><span>Adicional do titular (faixa)</span><span>{money(custoTitularFaixa)}</span></div>
-              <div className="flex justify-between"><span>Dependentes (faixas)</span><span>{money(somaFaixasDep)}</span></div>
               <div className="flex justify-between">
-                <span>Excedentes ({Math.max(0, dependentes.length - numDepsIncl)}) × {money(valorIncrementalMensal)}</span>
-                <span>{money(custoIncrementalExtras)}</span>
+                <span>Dependentes adicionais ({Math.max(0, deps.length - numDepsIncl)}) × {money(valorIncrementalMensal)}</span>
+                <span>{money(Math.max(0, deps.length - numDepsIncl) * valorIncrementalMensal)}</span>
               </div>
               <hr className="my-2" />
               <div className="flex justify-between font-semibold text-base"><span>Total mensal</span><span>{money(totalMensal)}</span></div>
               <div className="flex justify-between"><span>Total anual</span><span>{money(totalAnual)}</span></div>
               <div className="flex justify-between"><span>Adesão (uma vez)</span><span>{money(valorAdesao)}</span></div>
 
-              {/* Cupom (opcional) */}
               <div className="pt-2">
                 <label className="label" htmlFor="cupom">Cupom (opcional)</label>
-                <input
-                  id="cupom"
-                  className="input h-10"
-                  placeholder="EX.: BEMVINDO10"
-                  value={cupom}
-                  onChange={(e) => setCupom(e.target.value)}
-                  autoComplete="off"
-                />
+                <input id="cupom" className="input h-11" placeholder="EX.: BEMVINDO10" value={cupom} onChange={(e) => setCupom(e.target.value)} autoComplete="off"/>
               </div>
             </div>
 
-            <CTAButton className="mt-4 w-full" onClick={handleContratar}>
-              Contratar
-            </CTAButton>
-            <p className="mt-2 text-center text-xs">Sem fidelidade • Ativação rápida • Atendimento humano</p>
-          </div>
-        </div>
-
-        {/* FAQ (colapsável) */}
-        <div className="mt-10 grid gap-3">
-          <details className="rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4">
-            <summary className="cursor-pointer list-none font-semibold">Como funciona a carência?</summary>
-            <p className="mt-2 text-sm text-[var(--c-text)]">
-              A carência pode variar por plano. Veja o campo <b>Carência</b> acima e, em caso de dúvida,
-              nossa equipe orienta você no momento da contratação.
-            </p>
-          </details>
-          <details className="rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4">
-            <summary className="cursor-pointer list-none font-semibold">Quais coberturas estão incluídas?</summary>
-            <p className="mt-2 text-sm text-[var(--c-text)]">
-              As coberturas principais estão listadas em <b>Benefícios inclusos</b>. Em breve exibiremos aqui
-              exatamente o que vier da sua operadora (API).
-            </p>
-          </details>
-          <details className="rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4">
-            <summary className="cursor-pointer list-none font-semibold">Posso pedir reembolso?</summary>
-            <p className="mt-2 text-sm text-[var(--c-text)]">
-              Reembolsos dependem das regras de cada plano. Entre em contato com nosso suporte para orientações.
-            </p>
-          </details>
+            <div className="mt-4 grid gap-2">
+              <CTAButton className="w-full h-11" onClick={handleContinuar} disabled={titularForaLimite} title={titularForaLimite ? 'Fale com a empresa para este caso' : 'Prosseguir para cadastro'}>
+                {titularForaLimite ? 'Falar com a empresa' : 'Continuar cadastro'}
+              </CTAButton>
+              {/* WhatsApp: somente no resumo */}
+              <CTAButton
+                variant="outline"
+                className="w-full h-11 justify-center"
+                onClick={() => openWhatsApp(`Olá! Tenho uma dúvida sobre o plano "${plano.nome}".`)}
+              >
+                <MessageCircle size={16} className="mr-2" />
+                Tirar dúvida no WhatsApp
+              </CTAButton>
+            </div>
+          </aside>
         </div>
       </div>
 
-      {/* Mobile bottom bar (fundo sólido) */}
+      {/* Mobile bottom bar — sólida, com sombra marcada */}
       <div
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--c-border)] bg-[var(--c-surface)] shadow-lg md:hidden"
-        style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--c-border)] bg-[var(--c-surface)] md:hidden"
+        style={{
+          paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
+          boxShadow: '0 -12px 30px rgba(0,0,0,.12)'
+        }}
       >
         <div className="mx-auto max-w-7xl px-3 py-3 flex items-center gap-3">
-          <button
-            onClick={resumoRefScroll}
-            className="flex-1 text-left"
-            aria-label="Ir para resumo do valor"
-          >
+          <button onClick={resumoRefScroll} className="flex-1 text-left" aria-label="Ir para resumo do valor">
             <p className="text-xs text-[var(--c-muted)] leading-tight">Total mensal</p>
-            <p className="text-lg font-extrabold leading-tight">{money(totalMensal)}</p>
+            <p className="text-xl font-extrabold leading-tight">{money(totalMensal)}</p>
           </button>
-          <CTAButton className="min-w-[46%]" onClick={handleContratar}>
-            Contratar
+          <CTAButton className="min-w-[46%] h-12" onClick={handleContinuar} disabled={titularForaLimite}>
+            {titularForaLimite ? 'Falar com a empresa' : 'Continuar'}
           </CTAButton>
         </div>
       </div>
+      {/* espaçador para não cobrir o fim do conteúdo */}
+      <div className="h-16 md:hidden" aria-hidden />
 
-      {/* Toasts */}
       <Toast show={toast.show} message={toast.message} />
     </section>
   )
