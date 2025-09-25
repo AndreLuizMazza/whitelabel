@@ -143,7 +143,7 @@ const limiter = rateLimit({
 app.use(limiter);
 
 /* ===== Monta o BFF do NaLápide ===== */
-app.use('/bff/nalapide', nalapideProxy);
+app.use('/api/nalapide', nalapideProxy);
 
 /* ===== Helpers ===== */
 const b64 = (s) => Buffer.from(s).toString('base64');
