@@ -24,11 +24,33 @@ import CookieBanner from '@/components/CookieBanner.jsx'
 import ParceiroDetalhe from '@/pages/ParceiroDetalhe'
 import RegisterPage from '@/pages/RegisterPage.jsx'
 import RecuperarSenha from '@/pages/RecuperarSenha.jsx'
+import Cadastro from "@/pages/Cadastro.jsx";
 
 // Memorial
 import MemorialList from '@/pages/MemorialList.jsx'
 import MemorialDetail from '@/pages/MemorialDetail.jsx'
 import ErrorBoundary from '@/components/ErrorBoundary.jsx'
+
+
+
+// (opcional) página simples de confirmação
+function Confirmacao() {
+  const params = new URLSearchParams(location.search);
+  const familia = params.get("familia");
+  const orc = params.get("orcamento");
+  return (
+    <section className="section">
+      <div className="container-max">
+        <h1 className="text-2xl font-extrabold">Pedido enviado ✅</h1>
+        <p className="mt-2">Recebemos seus dados. Em breve entraremos em contato.</p>
+        <div className="mt-4 rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4 text-sm">
+          <div className="flex justify-between"><span>ID Família</span><span>{familia || "-"}</span></div>
+          <div className="flex justify-between"><span>ID Orçamento</span><span>{orc || "-"}</span></div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export default function App() {
   return (
@@ -43,6 +65,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/planos" element={<PlanosGrid />} />
+            <Route path="/cadastro" element={<Cadastro />} />
             <Route path="/planos/:id" element={<PlanoDetalhe />} />
             <Route path="/beneficios" element={<ClubeBeneficios />} />
             <Route path="/beneficios/:id" element={<ParceiroDetalhe />} />

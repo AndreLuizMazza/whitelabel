@@ -5,7 +5,7 @@ import api from '@/lib/api.js'
 import { pick, money, getMensal } from '@/lib/planUtils.js'
 import {
   Sparkles, CheckCircle2, Clock3,
-  AlertTriangle, Plus, Trash2, Minus, Plus as PlusIcon, MessageCircle
+  Minus, Plus as PlusIcon, MessageCircle
 } from 'lucide-react'
 import CTAButton from '@/components/ui/CTAButton'
 
@@ -47,50 +47,6 @@ function Toast({ show, message }) {
   )
 }
 
-/* ---------- Linha dependente ---------- */
-function DepRow({ d, i, onChange, onRemove, idadeMinDep, idadeMaxDep, parentescosValues }) {
-  const idadeNum = d.idade === '' ? NaN : Number(d.idade)
-  const foraLimite =
-    (Number.isFinite(idadeMinDep) && Number.isFinite(idadeNum) && idadeNum < Number(idadeMinDep)) ||
-    (Number.isFinite(idadeMaxDep) && Number.isFinite(idadeNum) && idadeNum > Number(idadeMaxDep))
-
-  return (
-    <div className="rounded-xl border border-[var(--c-border)] p-3 flex flex-col gap-2">
-      <div className="grid gap-2 md:grid-cols-[1fr,200px,140px,auto] md:items-center">
-        <input
-          className="input h-11"
-          placeholder="Nome (opcional)"
-          value={d.nome || ''}
-          onChange={(e)=>onChange(i, { nome: e.target.value })}
-        />
-        <select
-          className="input h-11"
-          value={d.parentesco || (parentescosValues?.[0] ?? 'FILHO')}
-          onChange={(e)=>onChange(i, { parentesco: e.target.value })}
-        >
-          {(parentescosValues?.length ? parentescosValues : PARENTESCOS_OPTIONS.map(o=>o.value)).map(v=>(
-            <option key={v} value={v}>{parentescoLabel(v)}</option>
-          ))}
-        </select>
-        <input
-          className={`input h-11 ${foraLimite ? 'ring-1 ring-red-500 focus:ring-red-500' : ''}`}
-          type="number" min="0" max="120" placeholder="Idade"
-          value={d.idade ?? ''} onChange={(e)=>onChange(i, { idade: e.target.value === '' ? '' : Number(e.target.value) })}
-        />
-        <CTAButton variant="ghost" onClick={()=>onRemove(i)} title="Remover dependente" className="h-11 justify-between px-3">
-          <span>Remover</span>
-          <Trash2 size={16} />
-        </CTAButton>
-      </div>
-      {foraLimite && (
-        <p className="text-xs inline-flex items-center gap-1 text-red-600">
-          <AlertTriangle size={14}/> Idade fora do limite deste plano para dependentes.
-        </p>
-      )}
-    </div>
-  )
-}
-
 export default function PlanoDetalhe() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -99,9 +55,9 @@ export default function PlanoDetalhe() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // simulador
-  const [idadeTitular, setIdadeTitular] = useState(30)
-  const [deps, setDeps] = useState([])
+  // simulador (minimalista)
+  const [depsCount, setDepsCount] = useState(0)                // quantidade total
+  const [depsParentescos, setDepsParentescos] = useState([])   // lista de parentescos ("" = não escolhido)
 
   const simRef = useRef(null)
   const resumoRef = useRef(null)
@@ -141,64 +97,40 @@ export default function PlanoDetalhe() {
   const valorIncrementalAnual = Number(pick(plano || {}, 'valorIncremental', 'valor_incremental') || 0)
   const valorIncrementalMensal = useMemo(() => valorIncrementalAnual / 12, [valorIncrementalAnual])
 
-  // limites
-  const idadeMinTit = pick(plano || {}, 'idadeMinimaTitular', 'idade_minima_titular')
-  const idadeMaxTit = pick(plano || {}, 'idadeMaximaTitular', 'idade_maxima_titular')
-  const idadeMinDep = pick(plano || {}, 'idadeMinimaDependente', 'idade_minima_dependente')
-  const idadeMaxDep = pick(plano || {}, 'idadeMaximaDependente', 'idade_maxima_dependente')
+  // limites etários
+  const idadeMinTit = pick(plano||{}, 'idadeMinimaTitular','idade_minima_titular')
+  const idadeMaxTit = pick(plano||{}, 'idadeMaximaTitular','idade_maxima_titular')
+  const idadeMinDep = pick(plano||{}, 'idadeMinimaDependente','idade_minima_dependente')
+  const idadeMaxDep = pick(plano||{}, 'idadeMaximaDependente','idade_maxima_dependente')
 
-  // parentescos
+  // parentescos (do plano > fallback)
   const parentescosAPI = pick(plano || {}, 'parentescos') || []
   const parentescosValues = (Array.isArray(parentescosAPI) && parentescosAPI.length)
     ? parentescosAPI.map(String)
     : PARENTESCOS_OPTIONS.map(o=>o.value)
 
-  const qtdDeps = deps.length
-  const excedentes = Math.max(0, qtdDeps - Number(numDepsIncl))
+  // sync parentescos com a contagem
+  function syncParentescos(nextCount) {
+    setDepsParentescos(prev => {
+      const arr = prev.slice(0, nextCount)
+      while (arr.length < nextCount) arr.push("") // vazio = não escolhido
+      return arr
+    })
+  }
+
+  // totais
+  const excedentes = Math.max(0, depsCount - Number(numDepsIncl))
   const custoExcedentes = excedentes * valorIncrementalMensal
   const totalMensal = (baseMensal || 0) + custoExcedentes
   const totalAnual = totalMensal * 12
 
-  const titularForaLimite =
-    (Number.isFinite(idadeMinTit) && idadeTitular < Number(idadeMinTit)) ||
-    (Number.isFinite(idadeMaxTit) && idadeTitular > Number(idadeMaxTit))
-
-  const depForaLimiteCount = deps.filter(d=>{
-    const idade = Number(d.idade)
-    if (!Number.isFinite(idade)) return false
-    if (Number.isFinite(idadeMinDep) && idade < Number(idadeMinDep)) return true
-    if (Number.isFinite(idadeMaxDep) && idade > Number(idadeMaxDep)) return true
-    return false
-  }).length
-
   const simRefScroll = () => simRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   const resumoRefScroll = () => resumoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
-  // dependentes
-  const addDep = () => {
-    setDeps(prev => [...prev, { nome:'', parentesco: parentescosValues[0] ?? 'FILHO', idade:'' }])
-    triggerToast('Dependente adicionado')
-  }
-  const removeDep = (i) => {
-    setDeps(prev => prev.filter((_,idx)=> idx!==i))
-    triggerToast('Dependente removido')
-  }
-  const updDep = (i, patch) => {
-    setDeps(prev => prev.map((d,idx)=> idx===i ? { ...d, ...patch } : d))
-  }
-  const stepDeps = (delta) => {
-    setDeps(prev => {
-      const next = [...prev]
-      if (delta > 0) for (let k=0;k<delta;k++) next.push({ nome:'', parentesco: parentescosValues[0] ?? 'FILHO', idade:'' })
-      if (delta < 0) for (let k=delta;k<0;k++) next.pop()
-      return next
-    })
-  }
-
-  // CTA cadastro
+  // CTA cadastro — envia somente qtd + parentescos escolhidos
   const handleContinuar = () => {
-    if (titularForaLimite) return
-    const payload = { plano: String(id), idadeTitular, qtdDependentes: qtdDeps, dependentes: deps, cupom: cupom || '' }
+    const dependentesPayload = depsParentescos.map((p) => ({ parentesco: p || "" }))
+    const payload = { plano: String(id), qtdDependentes: depsCount, dependentes: dependentesPayload, cupom: cupom || '' }
     const params = new URLSearchParams({ p: btoa(encodeURIComponent(JSON.stringify(payload))) })
     navigate(`/cadastro?${params.toString()}`)
   }
@@ -260,13 +192,26 @@ export default function PlanoDetalhe() {
             <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
               <span className="text-sm">+ por dependente</span><strong>{money(valorIncrementalMensal)}</strong>
             </div>
-            <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
-              <span className="text-sm">Titular</span>
-              <strong>{Number.isFinite(idadeMinTit)?`${idadeMinTit}+`: '—'}{Number.isFinite(idadeMaxTit)?` até ${idadeMaxTit}`:''} anos</strong>
-            </div>
-            <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
-              <span className="text-sm">Adesão única</span><strong>{money(valorAdesao)}</strong>
-            </div>
+
+            {(Number.isFinite(idadeMinTit) || Number.isFinite(idadeMaxTit)) && (
+              <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
+                <span className="text-sm">Titular</span>
+                <strong>
+                  {Number.isFinite(idadeMinTit) ? `${idadeMinTit}` : '—'}
+                  {Number.isFinite(idadeMaxTit) ? `–${idadeMaxTit}` : '+'} anos
+                </strong>
+              </div>
+            )}
+
+            {(Number.isFinite(idadeMinDep) || Number.isFinite(idadeMaxDep)) && (
+              <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
+                <span className="text-sm">Dependentes</span>
+                <strong>
+                  {Number.isFinite(idadeMinDep) ? `${idadeMinDep}` : '—'}
+                  {Number.isFinite(idadeMaxDep) ? `–${idadeMaxDep}` : '+'} anos
+                </strong>
+              </div>
+            )}
           </div>
 
           {/* Banda informativa */}
@@ -287,17 +232,18 @@ export default function PlanoDetalhe() {
                   <Sparkles size={16} />
                 </div>
                 <p className="text-sm leading-relaxed">
-                  Informe a <b>idade do titular</b> e a <b>quantidade de dependentes</b>. Se quiser,
-                  identifique cada um para <b>pré-validação</b>.
+                  Informe apenas a <b>quantidade de dependentes</b>. Se quiser, identifique o <b>parentesco</b> agora (opcional).
+                  <br className="hidden md:block" />
+                  <span>Limites etários são <b>validados no cadastro</b>.</span>
                 </p>
               </div>
 
               <CTAButton
-                onClick={simRefScroll}
-                aria-label="Começar simulação"
+                onClick={() => simRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                aria-label="Ir para o simulador"
                 className="h-11 w-full md:w-auto"
               >
-                Começar simulação
+                Ir para o simulador
               </CTAButton>
             </div>
 
@@ -314,67 +260,78 @@ export default function PlanoDetalhe() {
           <div className="md:col-span-2 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6 shadow-sm">
             <h3 className="text-lg font-semibold">Simulador</h3>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
-              {/* Idade do titular */}
-              <div>
-                <label className="label">Idade do titular</label>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => setIdadeTitular((v) => Math.max(0, v - 1))} className="rounded-full h-11 w-11 grid place-items-center border border-[var(--c-border)] hover:bg-[var(--c-surface-alt)]" aria-label="Diminuir idade do titular"><Minus size={16}/></button>
-                  <input className={`input h-11 w-24 text-center ${titularForaLimite ? 'ring-1 ring-red-500 focus:ring-red-500' : ''}`} type="number" min="0" max="120" value={idadeTitular} onChange={(e) => setIdadeTitular(Number(e.target.value))}/>
-                  <button type="button" onClick={() => setIdadeTitular((v) => Math.min(120, v + 1))} className="rounded-full h-11 w-11 grid place-items-center border border-[var(--c-border)] hover:bg-[var(--c-surface-alt)]" aria-label="Aumentar idade do titular"><PlusIcon size={16}/></button>
-                </div>
-                {titularForaLimite && (
-                  <p className="mt-2 inline-flex items-center gap-2 text-xs text-red-600">
-                    <AlertTriangle size={14}/> Fora do limite deste plano para titular. <b>Fale com a empresa.</b>
-                  </p>
-                )}
-              </div>
-
-              {/* Stepper dependentes */}
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              {/* Stepper dependentes (único campo obrigatório do simulador) */}
               <div>
                 <label className="label">Dependentes (qtde)</label>
                 <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => stepDeps(-1)} className="rounded-full h-11 w-11 grid place-items-center border border-[var(--c-border)] hover:bg-[var(--c-surface-alt)]" aria-label="Diminuir dependentes" disabled={deps.length === 0}><Minus size={16}/></button>
-                  <input className="input h-11 w-24 text-center" type="number" min="0" max="99" value={deps.length} onChange={(e) => { const target = Math.max(0, Number(e.target.value) || 0); stepDeps(target - deps.length) }}/>
-                  <button type="button" onClick={() => stepDeps(1)} className="rounded-full h-11 w-11 grid place-items-center border border-[var(--c-border)] hover:bg-[var(--c-surface-alt)]" aria-label="Aumentar dependentes"><PlusIcon size={16}/></button>
+                  <button
+                    type="button"
+                    onClick={() => { const v = Math.max(0, depsCount - 1); setDepsCount(v); syncParentescos(v); triggerToast('Quantidade atualizada'); }}
+                    className="rounded-full h-11 w-11 grid place-items-center border border-[var(--c-border)] hover:bg-[var(--c-surface-alt)]"
+                    aria-label="Diminuir dependentes"
+                    disabled={depsCount === 0}
+                  >
+                    <Minus size={16}/>
+                  </button>
+                  <input
+                    className="input h-11 w-24 text-center"
+                    type="number" min="0" max="99"
+                    value={depsCount}
+                    onChange={(e) => {
+                      const target = Math.max(0, Number(e.target.value) || 0)
+                      setDepsCount(target)
+                      syncParentescos(target)
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { const v = depsCount + 1; setDepsCount(v); syncParentescos(v); triggerToast('Quantidade atualizada'); }}
+                    className="rounded-full h-11 w-11 grid place-items-center border border-[var(--c-border)] hover:bg-[var(--c-surface-alt)]"
+                    aria-label="Aumentar dependentes"
+                  >
+                    <PlusIcon size={16}/>
+                  </button>
                 </div>
                 <p className="mt-2 text-xs text-[var(--c-muted)]">
-                  Incluídos no plano: <b>{numDepsIncl}</b>. Adicionais: <b>{Math.max(0, deps.length - numDepsIncl)}</b> × {money(valorIncrementalMensal)}
+                  Incluídos no plano: <b>{numDepsIncl}</b>. Adicionais: <b>{Math.max(0, depsCount - numDepsIncl)}</b> × {money(valorIncrementalMensal)}
                 </p>
+
+                
               </div>
             </div>
 
-            {/* Lista de dependentes */}
-            <div className="mt-5 grid gap-3">
-              {deps.map((d, i) => (
-                <DepRow
-                  key={i}
-                  d={d}
-                  i={i}
-                  onChange={(idx, patch)=>updDep(idx, patch)}
-                  onRemove={removeDep}
-                  idadeMinDep={idadeMinDep}
-                  idadeMaxDep={idadeMaxDep}
-                  parentescosValues={parentescosValues}
-                />
-              ))}
-              <CTAButton onClick={addDep} className="w-full h-11 justify-center">
-                <Plus size={16} className="mr-2"/> Adicionar dependente
-              </CTAButton>
-              {depForaLimiteCount > 0 && (
-                <p className="text-xs inline-flex items-center gap-2 text-red-600">
-                  <AlertTriangle size={14}/> {depForaLimiteCount} dependente(s) fora do limite de idade deste plano.
-                </p>
-              )}
-            </div>
-
-            {/* Subtotal */}
-            <div className="mt-6 rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4 text-sm">
-              <div className="flex justify-between"><span>Base mensal</span><span>{money(baseMensal)}</span></div>
-              <div className="flex justify-between"><span>Adicionais ({Math.max(0, deps.length - numDepsIncl)}) × {money(valorIncrementalMensal)}</span><span>{money(Math.max(0, deps.length - numDepsIncl) * valorIncrementalMensal)}</span></div>
-              <hr className="my-2" />
-              <div className="flex justify-between font-semibold text-base"><span>Subtotal</span><span>{money(totalMensal)}</span></div>
-            </div>
+            {/* Opcional: identificar parentescos */}
+            <details className="mt-5 rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4">
+              <summary className="cursor-pointer list-none font-semibold">Identificar dependentes (opcional)</summary>
+              <div className="mt-4 grid gap-3">
+                {depsCount === 0 ? (
+                  <div className="text-sm text-[var(--c-muted)]">Nenhum dependente informado.</div>
+                ) : (
+                  Array.from({ length: depsCount }).map((_, i) => (
+                    <div key={i} className="grid gap-2 md:grid-cols-[1fr,260px]">
+                      <div className="flex items-center text-sm text-[var(--c-muted)]">Dependente {i + 1}</div>
+                      <select
+                        className="input h-11"
+                        value={depsParentescos[i] || ""}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          setDepsParentescos(prev => {
+                            const copy = prev.slice()
+                            copy[i] = v
+                            return copy
+                          })
+                        }}
+                      >
+                        <option value="">Selecione…</option>
+                        {(parentescosValues?.length ? parentescosValues : PARENTESCOS_OPTIONS.map(o=>o.value))
+                          .map(v => (<option key={v} value={v}>{parentescoLabel(v)}</option>))}
+                      </select>
+                    </div>
+                  ))
+                )}
+              </div>
+            </details>
           </div>
 
           {/* Resumo */}
@@ -383,13 +340,18 @@ export default function PlanoDetalhe() {
             <div className="space-y-2 text-sm" aria-live="polite">
               <div className="flex justify-between"><span>Base mensal</span><span>{money(baseMensal)}</span></div>
               <div className="flex justify-between">
-                <span>Dependentes adicionais ({Math.max(0, deps.length - numDepsIncl)}) × {money(valorIncrementalMensal)}</span>
-                <span>{money(Math.max(0, deps.length - numDepsIncl) * valorIncrementalMensal)}</span>
+                <span>Dependentes adicionais ({Math.max(0, depsCount - numDepsIncl)}) × {money(valorIncrementalMensal)}</span>
+                <span>{money(Math.max(0, depsCount - numDepsIncl) * valorIncrementalMensal)}</span>
               </div>
               <hr className="my-2" />
               <div className="flex justify-between font-semibold text-base"><span>Total mensal</span><span>{money(totalMensal)}</span></div>
-              <div className="flex justify-between"><span>Total anual</span><span>{money(totalAnual)}</span></div>
               <div className="flex justify-between"><span>Adesão (uma vez)</span><span>{money(valorAdesao)}</span></div>
+
+              {/* Total anual opcional (pode habilitar se quiser) */}
+              {/* <details className="mt-1 text-xs">
+                <summary className="cursor-pointer">Ver total anual</summary>
+                <div className="flex justify-between mt-1"><span>Total anual</span><span>{money(totalAnual)}</span></div>
+              </details> */}
 
               <div className="pt-2">
                 <label className="label" htmlFor="cupom">Cupom (opcional)</label>
@@ -398,8 +360,8 @@ export default function PlanoDetalhe() {
             </div>
 
             <div className="mt-4 grid gap-2">
-              <CTAButton className="w-full h-11" onClick={handleContinuar} disabled={titularForaLimite} title={titularForaLimite ? 'Fale com a empresa para este caso' : 'Prosseguir para cadastro'}>
-                {titularForaLimite ? 'Falar com a empresa' : 'Continuar cadastro'}
+              <CTAButton className="w-full h-11" onClick={handleContinuar} title="Prosseguir para cadastro">
+                Continuar cadastro
               </CTAButton>
               {/* WhatsApp: somente no resumo */}
               <CTAButton
@@ -428,8 +390,8 @@ export default function PlanoDetalhe() {
             <p className="text-xs text-[var(--c-muted)] leading-tight">Total mensal</p>
             <p className="text-xl font-extrabold leading-tight">{money(totalMensal)}</p>
           </button>
-          <CTAButton className="min-w-[46%] h-12" onClick={handleContinuar} disabled={titularForaLimite}>
-            {titularForaLimite ? 'Falar com a empresa' : 'Continuar'}
+          <CTAButton className="min-w-[46%] h-12" onClick={handleContinuar}>
+            Continuar
           </CTAButton>
         </div>
       </div>
