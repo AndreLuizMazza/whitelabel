@@ -1,7 +1,12 @@
-import { useMemo, useState } from 'react'
+// src/components/PagamentoFacil.jsx
+import { useEffect, useMemo, useState } from 'react'
+import useAuth from '@/store/auth'
+import QRCode from 'qrcode'
 
-const fmtBRL = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v || 0))
-// "YYYY-MM-DD" -> "dd/MM/YYYY"
+const fmtBRL = (v) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
+    .format(Number(v || 0))
+
 const fmtData = (s) => {
   if (!s) return '—'
   const [Y, M, D] = String(s).split('-')
@@ -27,18 +32,52 @@ function Badge({ children, kind = 'neutral' }) {
   )
 }
 
-/**
- * Props:
- * - parcelaFoco: pagamento ABERTO ou null
- * - proximas: pagamentos ABERTOS (restantes)
- * - historico: pagamentos não-abertos
- * - isAtraso: (p) => boolean
- */
 export default function PagamentoFacil({ parcelaFoco, proximas = [], historico = [], isAtraso = () => false }) {
   const [copied, setCopied] = useState(false)
+  const [qrSrc, setQrSrc] = useState(null)
+  const { token } = useAuth.getState()
   const foco = parcelaFoco
   const temFoco = Boolean(foco)
   const focoAtraso = temFoco && isAtraso(foco)
+
+  // Gera ou carrega QR somente se houver pixQrcode/pixImage
+  useEffect(() => {
+    setQrSrc(null)
+    const img = foco?.pixImage
+    const code = foco?.pixQrcode
+    if (!img && !code) return
+
+    // base64 puro
+    if (img && !/^https?:\/\//i.test(img)) {
+      const src = img.startsWith('data:') ? img : `data:image/png;base64,${img}`
+      setQrSrc(src)
+      return
+    }
+
+    // URL protegida
+    if (img && /^https?:\/\//i.test(img)) {
+      ;(async () => {
+        try {
+          const r = await fetch(img, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          })
+          if (!r.ok) throw new Error('QR fetch fail')
+          const blob = await r.blob()
+          setQrSrc(URL.createObjectURL(blob))
+        } catch {
+          setQrSrc(null)
+        }
+      })()
+      return
+    }
+
+    // ✅ gera QR localmente apenas se existir pixQrcode
+    if (code) {
+      QRCode.toDataURL(code, { width: 200, margin: 1 }, (err, url) => {
+        if (!err) setQrSrc(url)
+      })
+    }
+  }, [foco, token])
 
   const acoesFoco = useMemo(() => {
     if (!foco) return []
@@ -52,10 +91,10 @@ export default function PagamentoFacil({ parcelaFoco, proximas = [], historico =
   async function copy(text) {
     try {
       await navigator.clipboard.writeText(text)
-      setCopied(true); setTimeout(() => setCopied(false), 1800)
     } catch {
       const ta = document.createElement('textarea'); ta.value = text
       document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove()
+    } finally {
       setCopied(true); setTimeout(() => setCopied(false), 1800)
     }
   }
@@ -80,14 +119,10 @@ export default function PagamentoFacil({ parcelaFoco, proximas = [], historico =
         <>
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm" style={{ color: 'var(--text)' }}>Parcela</span>
                 <span className="font-semibold">#{foco.numeroDuplicata || foco.numero}</span>
-                {focoAtraso ? (
-                  <Badge kind="danger">EM ATRASO</Badge>
-                ) : (
-                  <Badge kind="warn">ABERTA</Badge>
-                )}
+                {focoAtraso ? <Badge kind="danger">EM ATRASO</Badge> : <Badge kind="warn">ABERTA</Badge>}
               </div>
               <div className="mt-1 text-2xl font-bold">{fmtBRL(foco.valorParcela)}</div>
               <div className="text-sm" style={{ color: 'var(--text)' }}>
@@ -95,32 +130,34 @@ export default function PagamentoFacil({ parcelaFoco, proximas = [], historico =
               </div>
             </div>
 
-            {foco.pixImage ? (
+            {/* Exibe QR somente se houver imagem ou código */}
+            {qrSrc && (
               <img
-                src={foco.pixImage}
+                src={qrSrc}
                 alt="QR Code PIX"
                 className="w-28 h-28 rounded"
-                style={{ border: '1px solid var(--c-border)' }}
+                style={{ border: '1px solid var(--c-border)', objectFit: 'cover' }}
                 referrerPolicy="no-referrer"
               />
-            ) : null}
+            )}
           </div>
 
+          {/* Ações da parcela atual */}
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {acoesFoco.map((a, i) =>
-              a.href ? (
-                <a key={i} href={a.href} target="_blank" rel="noreferrer" className="btn-primary text-center">
-                  {a.label}
+            {acoesFoco.map((acao, i) =>
+              acao.href ? (
+                <a key={i} href={acao.href} target="_blank" rel="noreferrer" className="btn-primary text-center">
+                  {acao.label}
                 </a>
               ) : (
-                <button key={i} className="btn-outline" onClick={() => copy(a.copy)}>
-                  {copied ? 'Copiado!' : a.label}
+                <button key={i} className="btn-outline" onClick={() => copy(acao.copy)}>
+                  {copied ? 'Copiado!' : acao.label}
                 </button>
               )
             )}
           </div>
 
-          {foco.pixQrcode ? (
+          {foco.pixQrcode && (
             <details className="mt-3">
               <summary className="cursor-pointer text-sm" style={{ color: 'var(--text)' }}>
                 Ver código PIX (copia e cola)
@@ -138,41 +175,49 @@ export default function PagamentoFacil({ parcelaFoco, proximas = [], historico =
                 </button>
               </div>
             </details>
-          ) : null}
+          )}
         </>
       )}
 
-      {/* Próximas: somente ABERTAS restantes (sem duplicar) */}
+      {/* Próximas parcelas */}
       {proximas.length > 0 && (
         <div className="mt-6">
           <p className="text-sm mb-2" style={{ color: 'var(--text)' }}>Próximas parcelas</p>
           <ul className="space-y-2">
-            {proximas.map((p) => {
-              const atrasada = isAtraso(p)
+            {proximas.map((dup) => {
+              const atrasada = isAtraso(dup)
               return (
-                <li key={p.id} className="flex items-center justify-between rounded p-3"
-                    style={{ border: '1px solid var(--c-border)' }}>
-                  <div>
-                    <div className="font-medium">
-                      #{p.numeroDuplicata || p.numero} • {fmtBRL(p.valorParcela)}{' '}
-                      {atrasada ? <Badge kind="danger">EM ATRASO</Badge> : null}
+                <li key={dup.id} className="rounded p-3" style={{ border: '1px solid var(--c-border)' }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium flex items-center gap-2 flex-wrap">
+                        #{dup.numeroDuplicata || dup.numero} • {fmtBRL(dup.valorParcela)}
+                        {atrasada ? <Badge kind="danger">EM ATRASO</Badge> : null}
+                      </div>
+                      <div className="text-xs" style={{ color: 'var(--text)' }}>
+                        Vencimento: {fmtData(dup.dataVencimento)}
+                      </div>
                     </div>
-                    <div className="text-xs" style={{ color: 'var(--text)' }}>
-                      Vencimento: {fmtData(p.dataVencimento)}
+                    <div className="flex gap-2 flex-wrap justify-end sm:flex-nowrap">
+                      {dup.urlBoleto && (
+                        <a
+                          className="btn-outline text-xs px-3 py-1.5 rounded-full"
+                          target="_blank"
+                          rel="noreferrer"
+                          href={dup.urlBoleto}
+                        >
+                          Boleto
+                        </a>
+                      )}
+                      {dup.pixQrcode && (
+                        <button
+                          className="btn-outline text-xs px-3 py-1.5 rounded-full"
+                          onClick={() => copy(dup.pixQrcode)}
+                        >
+                          {copied ? 'Copiado!' : 'PIX'}
+                        </button>
+                      )}
                     </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {p.linkPagamento ? (
-                      <a className="btn-outline" target="_blank" rel="noreferrer" href={p.linkPagamento}>Checkout</a>
-                    ) : null}
-                    {p.urlBoleto ? (
-                      <a className="btn-outline" target="_blank" rel="noreferrer" href={p.urlBoleto}>Boleto</a>
-                    ) : null}
-                    {p.pixQrcode ? (
-                      <button className="btn-outline" onClick={() => copy(p.pixQrcode)}>
-                        {copied ? 'Copiado!' : 'PIX'}
-                      </button>
-                    ) : null}
                   </div>
                 </li>
               )
@@ -181,23 +226,26 @@ export default function PagamentoFacil({ parcelaFoco, proximas = [], historico =
         </div>
       )}
 
-      {/* Histórico (não-abertas) */}
+      {/* Histórico */}
       {historico.length > 0 && (
         <details className="mt-6">
           <summary className="cursor-pointer text-sm" style={{ color: 'var(--text)' }}>
             Histórico de pagamentos
           </summary>
           <ul className="mt-3 divide-y rounded" style={{ border: '1px solid var(--c-border)' }}>
-            {historico.map((p) => (
-              <li key={p.id} className="p-3 text-sm flex items-center justify-between">
+            {historico.map((dup) => (
+              <li key={dup.id} className="p-3 text-sm flex items-center justify-between">
                 <div>
-                  <div className="font-medium">#{p.numeroDuplicata || p.numero} • {fmtBRL(p.valorParcela)}</div>
+                  <div className="font-medium">
+                    #{dup.numeroDuplicata || dup.numero} • {fmtBRL(dup.valorParcela)}
+                  </div>
                   <div className="text-xs" style={{ color: 'var(--text)' }}>
-                    Venc.: {fmtData(p.dataVencimento)}{p.dataRecebimento ? ` • Pago em ${fmtData(p.dataRecebimento)}` : ''}
+                    Venc.: {fmtData(dup.dataVencimento)}
+                    {dup.dataRecebimento ? ` • Pago em ${fmtData(dup.dataRecebimento)}` : ''}
                   </div>
                 </div>
-                <Badge kind={String(p.status).toUpperCase() === 'PAGA' ? 'success' : 'info'}>
-                  {String(p.status || '').toUpperCase()}
+                <Badge kind={String(dup.status).toUpperCase() === 'PAGA' ? 'success' : 'info'}>
+                  {String(dup.status || '').toUpperCase()}
                 </Badge>
               </li>
             ))}

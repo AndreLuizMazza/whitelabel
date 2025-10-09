@@ -10,17 +10,15 @@ export default function useContratoDoUsuario({ cpf }) {
   const [selectedId, setSelectedId] = useState(null)
 
   const [dependentes, setDependentes] = useState([])
-  const [pagamentos, setPagamentos] = useState([]) // único array usado na UI
+  const [pagamentos, setPagamentos] = useState([])
 
   const [loadingLista, setLoadingLista] = useState(true)
   const [loadingDetalhes, setLoadingDetalhes] = useState(false)
   const loading = loadingLista || loadingDetalhes
 
-  // reqIds independentes para evitar "loading infinito" por corridas
   const listReqId = useRef(0)
   const detailReqId = useRef(0)
 
-  // ------- helpers -------
   const onlyDigits = (s) => (s || '').toString().replace(/\D/g, '')
   const getId = (c) => c?.id ?? c?.contratoId ?? c?.numeroContrato
   const toKey = (v) => (v == null ? null : String(v))
@@ -29,7 +27,6 @@ export default function useContratoDoUsuario({ cpf }) {
 
   const asDate = (s) => {
     if (!s) return 0
-    // se já vier ISO com hora, só faz Date(s)
     const hasTime = /T\d{2}:\d{2}/.test(String(s))
     const d = hasTime ? new Date(s) : new Date(`${s}T00:00:00`)
     return isNaN(+d) ? 0 : d.getTime()
@@ -40,34 +37,25 @@ export default function useContratoDoUsuario({ cpf }) {
   const pickAxiosData = (resp) => resp?.data ?? resp
 
   function normalizeToArray(input) {
-    let v = input
-
-    // unwrap axios
-    v = pickAxiosData(v)
-
-    // string JSON
+    let v = pickAxiosData(input)
     if (typeof v === 'string') {
       const t = v.trim()
       if ((t.startsWith('[') && t.endsWith(']')) || (t.startsWith('{') && t.endsWith('}'))) {
-        try { v = JSON.parse(t) } catch { /* ignore */ }
+        try { v = JSON.parse(t) } catch {}
       }
     }
-
-    // formatos comuns
     if (Array.isArray(v)) return v
     if (Array.isArray(v?.content)) return v.content
     if (Array.isArray(v?.data)) return v.data
     if (Array.isArray(v?.rows)) return v.rows
     if (Array.isArray(v?.items)) return v.items
-
-    // objeto simples → nenhum item
     return []
   }
 
   const niceError = (e, fallback = 'Erro desconhecido') =>
     e?.response?.data?.error || e?.response?.statusText || e?.message || fallback
 
-  // 1) Carrega lista de contratos por CPF e seleciona o primeiro ATIVO (fallback: primeiro)
+  // 1) Lista por CPF
   useEffect(() => {
     const cpfSan = onlyDigits(cpf)
     if (!cpfSan) { setErro('CPF não informado'); setLoadingLista(false); return }
@@ -99,13 +87,11 @@ export default function useContratoDoUsuario({ cpf }) {
     run()
   }, [cpf])
 
-  // 2) Ao trocar seleção, busca dependentes + pagamentos (somente esse endpoint)
+  // 2) Detalhes (dependentes + pagamentos)
   useEffect(() => {
     const sel = contratos.find(c => toKey(getId(c)) === toKey(selectedId)) || null
     setContrato(sel)
     setDependentes([]); setPagamentos([])
-
-    // limpamos erro antigo ao trocar de contrato
     setErro(null)
 
     if (!sel) { setLoadingDetalhes(false); return }
@@ -137,7 +123,7 @@ export default function useContratoDoUsuario({ cpf }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId, contratos])
 
-  // 3) Derivados para a UI (apenas a partir de /pagamentos)
+  // 3) Derivados para a UI
   const abertasOrdenadas = useMemo(() =>
     [...(pagamentos || [])]
       .filter(p => isAberta(p))
@@ -158,13 +144,12 @@ export default function useContratoDoUsuario({ cpf }) {
     (pagamentos || [])
       .filter(p => !isAberta(p))
       .sort((a, b) => {
-        const da = asDate(p.dataRecebimento || p.dataVencimento)
+        const da = asDate(a.dataRecebimento || a.dataVencimento) // <-- corrigido
         const db = asDate(b.dataRecebimento || b.dataVencimento)
         return db - da
       })
   , [pagamentos])
 
-  // helper para a UI
   const isAtraso = (p) => isAberta(p) && asDate(p?.dataVencimento) < hoje
 
   const chooseContrato = useCallback((id) => {

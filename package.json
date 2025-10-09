@@ -7,20 +7,14 @@
     "start": "node server/index.js",
     "dev:client": "vite",
     "dev:server": "nodemon server/index.js",
-
     "predev": "node scripts/theme-build.mjs",
     "dev": "npm run predev && concurrently \"npm:dev:bff\" \"npm:dev:frontend\"",
-
     "build": "vite build",
-
     "dev:bff": "node --watch --env-file=.env server/index.js",
     "dev:frontend": "vite",
-
     "preview": "vite preview",
-
     "prebuild:tenant": "node scripts/theme-build.mjs",
     "build:tenant": "npm run prebuild:tenant && vite build",
-
     "preview:static": "cross-env VITE_DISABLE_BOOTSTRAP=1 vite preview",
     "dev:static": "npm run predev && cross-env VITE_DISABLE_BOOTSTRAP=1 vite"
   },
@@ -34,6 +28,7 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.471.0",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2",
@@ -43,11 +38,11 @@
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.0.1",
+    "cross-env": "^7.0.3",
     "nodemon": "^3.1.7",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.10",
-    "vite": "^5.4.9",
-    "cross-env": "^7.0.3"
+    "vite": "^5.4.9"
   },
   "engines": {
     "node": "22.x"
