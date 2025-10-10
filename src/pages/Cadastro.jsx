@@ -50,7 +50,7 @@ function phoneIsValid(v){ const d=onlyDigits(v); return d.length===11 || d.lengt
 
 /* ===== parentescos fallback (usado só se API vier vazia) ===== */
 const PARENTESCOS_FALLBACK = [
-  ["CONJUGE","Cônjuge"],["COMPANHEIRO","Companheiro(a)"],["FILHO","Filho(a)"],["PAI","Pai"],["MAE","Mãe"],["IRMAO","Irmã(o)"],["AVO","Avô(ó)"],["TITULAR","Titular"],
+  ["CONJUGE","Cônjuge"],["COMPANHEIRO","Companheiro(a)"] ,["FILHO","Filho(a)"],["PAI","Pai"],["MAE","Mãe"],["IRMAO","Irmã(o)"],["AVO","Avô(ó)"],["TITULAR","Titular"],
   ["RESPONSAVEL","Responsável"],["TIO","Tio(a)"],["SOBRINHO","Sobrinho(a)"],["PRIMO","Primo(a)"],["NETO","Neto(a)"],["BISNETO","Bisneto(a)"],["PADRASTO","Padrasto"],["MADRASTRA","Madrasta"],
   ["AFILHADO","Afilhado(a)"],["ENTEADA","Enteado(a)"],["SOGRO","Sogro(a)"],["GENRO","Genro"],["NORA","Nora"],["CUNHADO","Cunhado(a)"],["BISAVO","Bisavô(ó)"],["MADRINHA","Madrinha"],
   ["PADRINHO","Padrinho"],["AMIGO","Amigo(a)"],["AGREGADO","Agregado"],["DEPENDENTE","Dependente"],["COLABORADOR","Colaborador"],["EX_CONJUGE","Ex Cônjuge"],["EX_TITULAR","Ex Titular"],["EX_RESPONSAVEL","Ex Responsável"],
@@ -65,14 +65,12 @@ const ESTADO_CIVIL_OPTIONS = [
 ];
 const ESTADO_CIVIL_LABEL = Object.fromEntries(ESTADO_CIVIL_OPTIONS);
 
-/* ===== sexo (UI -> API) =====
-   Rótulos na UI: "Masculino" / "Feminino"
-   Valores enviados: "HOME" / "MULHER"
-*/
+/* ===== sexo (UI -> API) ===== */
 const SEXO_OPTIONS = [
-  ["HOME",   "Masculino"],
-  ["MULHER", "Feminino"],
+  ["HOMEM","Masculino"],
+  ["MULHER","Feminino"],
 ];
+const mapSexoToApi = (v) => (v === "MULHER" ? "MULHER" : v === "HOMEM" ? "HOMEM" : null);
 
 /* =============== helpers =============== */
 function useDebouncedCallback(fn, delay=400){
@@ -83,16 +81,15 @@ function useDebouncedCallback(fn, delay=400){
   };
 }
 
-/* =============== DateSelectBR (limites reais + preserva escolha) =============== */
+/* =============== DateSelectBR =============== */
 function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minAge, maxAge, idPrefix }) {
   const [dia,setDia]=useState(""); const [mes,setMes]=useState(""); const [ano,setAno]=useState("");
   const [softWarn,setSoftWarn]=useState("");
   const hydratedRef = useRef(false);
 
-  // sincroniza com valueISO APENAS quando for YYYY-MM-DD válido; não limpa selects quando vazio
   useEffect(()=>{
     const m = typeof valueISO === "string" && /^(\d{4})-(\d{2})-(\d{2})$/.exec(valueISO);
-    if(!m) return; // preserva o que o usuário já escolheu/rascunho
+    if(!m) return;
     const [_, yy, mm, dd] = m;
     if(ano!==yy) setAno(yy);
     if(mes!==mm) setMes(mm);
@@ -103,7 +100,6 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
 
   const today=new Date(); const thisYear=today.getFullYear();
 
-  // Datas-limite inclusivas
   const minDate = (() => {
     if (typeof maxAge === "number") { const d = new Date(today); d.setFullYear(d.getFullYear() - maxAge); return d; }
     const d = new Date(today); d.setFullYear(thisYear - 100); return d;
@@ -153,14 +149,12 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
     return !isNaN(d) && d>=a && d<=b;
   }
 
-  // monta ISO quando completo; NUNCA envia "" (evita flicker ao restaurar)
   useEffect(()=>{ 
     setSoftWarn("");
-    if(!(dia && mes && ano)) return; // incompleto: não emite nada
+    if(!(dia && mes && ano)) return;
     const iso=`${ano}-${mes}-${dia}`;
     const ok = inRange(iso);
     if(!ok) setSoftWarn("Data fora do limite permitido para este plano.");
-    // evita re-emissão desnecessária logo após hidratar
     if(hydratedRef.current && valueISO === iso) return;
     onChangeISO?.(iso);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -466,41 +460,93 @@ export default function Cadastro(){
     }
     setSaving(true); setError("");
     try{
-      const familiaBody={
-        planoId, cupom,
-        titular:{
-          nome: titular.nome?.trim(),
-          cpf: onlyDigits(titular.cpf),
-          rg: titular.rg || null,
-          estado_civil: titular.estado_civil || null,
-          sexo: titular.sexo || null, // HOME / MULHER
-          celular: onlyDigits(titular.celular),
-          email: (titular.email||"").trim() || null,
-          data_nascimento: titular.data_nascimento || null,
-          endereco: titular.endereco
+      // 1) TITULAR -> /pessoas
+      const e = titular.endereco || {};
+      const bodyPessoa = {
+        nome: (titular.nome || "").trim(),
+        cpf: titular.cpf,
+        rg: (titular.rg || null),
+        dataNascimento: titular.data_nascimento || null,
+        sexo: mapSexoToApi(titular.sexo), // "HOMEM" | "MULHER" | null
+        estadoCivil: titular.estado_civil || null,
+        contatos: {
+          email: (titular.email || null),
+          celular: titular.celular ? onlyDigits(titular.celular) : null,
+          telefone: null
         },
-        dependentes: deps.map(d=>({
-          nome: (d.nome||"").trim() || null,
-          cpf: d.cpf ? onlyDigits(d.cpf) : null,
-          sexo: d.sexo || null,       // HOME / MULHER
-          parentesco: d.parentesco || null,
-          data_nascimento: d.data_nascimento || null
-        }))
+        endereco: {
+          cep: e.cep || null,
+          cidade: e.cidade || null,
+          uf: (e.uf || "").toUpperCase().slice(0,2) || null,
+          bairro: e.bairro || null,
+          logradouro: e.logradouro || null,
+          numero: e.numero || null,
+          complemento: e.complemento || null
+        }
       };
-      const famRes=await api.post("/api/v1/familias", familiaBody);
-      const familiaId=famRes?.data?.id||famRes?.data?.uuid||famRes?.data?.id_familia;
 
-      const contratoBody={ planoId, familiaId, cupom: cupom || undefined, totalMensal, totalAnual: totalMensal*12, dependentesInformados: deps.length };
-      const orcRes=await api.post("/api/v1/orcamentos/contrato-simplificado", contratoBody);
+      const pessoaRes = await api.post("/api/v1/pessoas", bodyPessoa).catch(err=>{
+        console.error("POST /pessoas falhou", err?.response?.status, err?.response?.data, bodyPessoa);
+        throw err;
+      });
+      const titularId = pessoaRes?.data?.id || pessoaRes?.data?.pessoaId || pessoaRes?.data?.uuid;
+      if(!titularId) throw new Error("Não foi possível obter o ID do titular.");
+
+      // 2) DEPENDENTES -> /dependentes (apenas os que tiverem nome) (sequencial para melhor log)
+      const depsToCreate = deps
+        .filter(d => (d.nome || "").trim().length >= 3)
+        .map(d => ({
+          cpf: d.cpf ? onlyDigits(d.cpf) : null,
+          nome: (d.nome || "").trim(),
+          email: null,
+          fone: null,
+          celular: null,
+          parentesco: d.parentesco || null,
+          sexo: mapSexoToApi(d.sexo),
+          dataNascimento: d.data_nascimento || null,
+          titularId: titularId,
+          apelido: null,
+          estadoCivil: null
+        }));
+
+      for (const payload of depsToCreate) {
+        try {
+          await api.post("/api/v1/dependentes", payload);
+        } catch (err) {
+          console.error("POST /dependentes falhou", err?.response?.status, err?.response?.data, payload);
+          throw err;
+        }
+      }
+
+      // 3) CONTRATO -> /contratos
+      const todayISO = new Date().toISOString().slice(0,10);
+      const pickSafeDiaD = () => {
+        const d = new Date().getDate();
+        return Math.max(1, Math.min(28, d)); // seguro 1..28
+      };
+      const contratoBody = {
+        titularId: Number(titularId),
+        planoId: Number(planoId),
+        vendedorId: 717,
+        dataContrato: todayISO,
+        diaD: pickSafeDiaD()
+      };
+
+      const contratoRes = await api.post("/api/v1/contratos", contratoBody).catch(err=>{
+        console.error("POST /contratos falhou", err?.response?.status, err?.response?.data, contratoBody);
+        throw err;
+      });
+      const contratoId = contratoRes?.data?.id || contratoRes?.data?.contratoId || contratoRes?.data?.uuid;
 
       // limpar rascunho ao concluir
       try{ localStorage.removeItem(DRAFT_KEY); }catch{}
       isDirtyRef.current = false;
 
-      navigate(`/confirmacao?familia=${familiaId}&orcamento=${orcRes?.data?.id||""}`);
+      navigate(`/confirmacao?contrato=${contratoId||""}&titular=${titularId}`);
     }catch(e){
       console.error(e);
-      setError("Não foi possível concluir pelo site. Você pode enviar por WhatsApp.");
+      const msg = e?.response?.data?.message || e?.response?.data?.error || e?.message || "";
+      setError(msg ? `Não foi possível concluir pelo site: ${msg}` : "Não foi possível concluir pelo site. Você pode enviar por WhatsApp.");
     }finally{ setSaving(false); }
   }
 
@@ -537,7 +583,7 @@ export default function Cadastro(){
     return (
       <section className="section" aria-busy="true" aria-live="polite">
         <div className="container-max space-y-4">
-          <div className="h-6 w-48 animate-pulse rounded bg-[var(--c-surface)]"/>
+          <div className="h-6 w-48 animate-pulse rounded bg=[var(--c-surface)]"/>
           <div className="h-24 rounded-2xl animate-pulse bg-[var(--c-surface)]"/>
           <div className="h-24 rounded-2xl animate-pulse bg-[var(--c-surface)]"/>
         </div>
@@ -654,7 +700,7 @@ export default function Cadastro(){
                   </div>
                 </div>
 
-                {/* Linha 2 — Data de Nascimento (movida para baixo), Celular e E-mail */}
+                {/* Linha 2 — Data de Nascimento, Celular e E-mail */}
                 <div className="grid gap-3 md:grid-cols-12">
                   <div className="md:col-span-4">
                     <label className="label">Data de nascimento</label>
@@ -788,7 +834,6 @@ export default function Cadastro(){
                         </CTAButton>
                       </div>
 
-                      {/* 2 LINHAS NO DESKTOP */}
                       {/* Linha 1 */}
                       <div className="grid gap-3 md:grid-cols-12">
                         <div className="md:col-span-6">

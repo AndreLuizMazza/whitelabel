@@ -1,5 +1,5 @@
-// src/components/PlanoCardVenda.jsx
 import { money } from "@/lib/planUtils.js";
+import { useState } from "react";
 
 /* helpers para exibir o tipo quando quiser (ex.: só na aba “Todos”) */
 function normalize(str = "") {
@@ -13,12 +13,47 @@ function detectTypeByName(nome = "") {
   return "OUTROS";
 }
 
+/**
+ * Extrai a lista de benefícios a partir das propriedades vindas da API.
+ */
+function getBeneficiosFromAPI(plano) {
+  const produtos = Array.isArray(plano?.produtos)
+    ? plano.produtos
+        .map((p) => (typeof p === "string" ? p : p?.nome || p?.descricao || ""))
+        .filter(Boolean)
+    : [];
+
+  const servicos = Array.isArray(plano?.servicos)
+    ? plano.servicos
+        .map((s) => (typeof s === "string" ? s : s?.descricao || s?.nome || ""))
+        .filter(Boolean)
+    : [];
+
+  const all = [...produtos, ...servicos];
+  const seen = new Set();
+  const deduped = [];
+  for (const txt of all) {
+    const key = String(txt).trim().toLocaleLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(String(txt).trim());
+  }
+
+  return deduped.length ? deduped : [
+    "Assistência familiar",
+    "Documentação e suporte",
+    "Atendimento 24h",
+  ];
+}
+
 export default function PlanoCardVenda({
   plano,
   precoMensal,
   bestSeller = false,
   onDetails,
   showTypeBadge = false, // <- opcional (ligamos só na aba "Todos")
+  maxBenefits = 5,
+  enableExpand = true,
 }) {
   if (!plano) return null;
 
@@ -26,16 +61,13 @@ export default function PlanoCardVenda({
   const carenciaU = plano?.unidade_carencia ?? plano?.unidadeCarencia ?? "DIAS";
   const carenciaP = Number(plano?.periodo_carencia ?? plano?.periodoCarencia ?? 0);
 
-  // Benefícios estáticos por enquanto (API chega depois)
-  const benefits = [
-    "Translado 24h em todo Brasil",
-    "Assistência familiar completa",
-    "Documentação inclusa",
-    "Atendimento 24h",
-    "Pagamento seguro",
-  ];
-
   const type = detectTypeByName(plano?.nome ?? "");
+
+  // Benefícios vindos da API (produtos + serviços)
+  const beneficiosAll = getBeneficiosFromAPI(plano);
+  const [showAllBenefits, setShowAllBenefits] = useState(false);
+  const beneficiosLimited = beneficiosAll.slice(0, maxBenefits);
+  const beneficiosRest = Math.max(0, beneficiosAll.length - beneficiosLimited.length);
 
   return (
     <article
@@ -75,18 +107,27 @@ export default function PlanoCardVenda({
           {money(precoMensal)}
           <span className="ml-1 text-base font-medium text-[var(--c-muted)]">/mês</span>
         </div>
-        <p className="text-xs text-[var(--c-muted)]">ou {money(precoMensal * 12)} no plano anual</p>
       </div>
 
-      {/* benefícios */}
-      <ul className="mb-5 space-y-2 text-sm">
-        {benefits.map((b, i) => (
+      {/* benefícios (dinâmicos da API) */}
+      <ul className="mb-3 space-y-2 text-sm">
+        {(enableExpand && showAllBenefits ? beneficiosAll : beneficiosLimited).map((b, i) => (
           <li key={i} className="flex items-center gap-2">
             <span className="text-[var(--primary)]">✔</span>
             <span>{b}</span>
           </li>
         ))}
       </ul>
+      {enableExpand && beneficiosRest > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAllBenefits((v) => !v)}
+          className="mb-5 self-start text-xs font-semibold underline decoration-dotted underline-offset-4 text-[var(--c-muted)] hover:text-[var(--c-text)]"
+          aria-expanded={showAllBenefits}
+        >
+          {showAllBenefits ? "Ver menos" : `Ver todos (+${beneficiosRest})`}
+        </button>
+      )}
 
       {/* extras resumidos */}
       <dl className="mb-6 grid gap-1 text-sm text-[var(--c-text)]">

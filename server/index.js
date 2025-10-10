@@ -551,6 +551,78 @@ app.patch('/api/v1/app/me', async (req, res) => {
   }
 });
 
+
+
+/* ===== Pessoas (criar) ===== */
+app.post('/api/v1/pessoas', async (req, res) => {
+  try {
+    const clientToken = await getClientToken();
+    const r = await fetch(`${BASE}/api/v1/pessoas`, {
+      method: 'POST',
+      headers: injectHeadersFromReq(req, {
+        Authorization: `Bearer ${clientToken}`,
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify(req.body || {}),
+    });
+    const data = await readAsJsonOrText(r);
+    console.log('[BFF] POST /api/v1/pessoas ->', r.status);
+    if (!r.ok) return res.status(r.status).send(data);
+    return res.status(r.status).send(data);
+  } catch (e) {
+    console.error('[BFF] pessoas error', e);
+    return res.status(500).json({ error: 'Falha ao criar pessoa', message: String(e) });
+  }
+});
+
+/* ===== Dependentes (criar) ===== */
+app.post('/api/v1/dependentes', async (req, res) => {
+  try {
+    const clientToken = await getClientToken();
+    const r = await fetch(`${BASE}/api/v1/dependentes`, {
+      method: 'POST',
+      headers: injectHeadersFromReq(req, {
+        Authorization: `Bearer ${clientToken}`,
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify(req.body || {}),
+    });
+    const data = await readAsJsonOrText(r);
+    console.log('[BFF] POST /api/v1/dependentes ->', r.status);
+    if (!r.ok) return res.status(r.status).send(data);
+    return res.status(r.status).send(data);
+  } catch (e) {
+    console.error('[BFF] dependentes error', e);
+    return res.status(500).json({ error: 'Falha ao criar dependente', message: String(e) });
+  }
+});
+
+/* ===== Contratos (criar) ===== */
+app.post('/api/v1/contratos', async (req, res) => {
+  try {
+    const clientToken = await getClientToken();
+    const r = await fetch(`${BASE}/api/v1/contratos`, {
+      method: 'POST',
+      headers: injectHeadersFromReq(req, {
+        Authorization: `Bearer ${clientToken}`,
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify(req.body || {}),
+    });
+    const data = await readAsJsonOrText(r);
+    console.log('[BFF] POST /api/v1/contratos ->', r.status);
+    if (!r.ok) return res.status(r.status).send(data);
+    return res.status(r.status).send(data);
+  } catch (e) {
+    console.error('[BFF] contratos error', e);
+    return res.status(500).json({ error: 'Falha ao criar contrato', message: String(e) });
+  }
+});
+
+
+
+
+
 /* ===== Execução local vs Vercel ===== */
 if (!isVercel) {
   app.listen(PORT, () => {
