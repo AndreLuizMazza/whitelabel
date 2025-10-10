@@ -5,6 +5,7 @@ import api from "@/lib/api.js";
 import CTAButton from "@/components/ui/CTAButton";
 import { money } from "@/lib/planUtils.js";
 import { CheckCircle2, ChevronLeft, Clipboard, ClipboardCheck, MessageCircle, Users, Receipt } from "lucide-react";
+import useAuth from "@/store/auth";
 
 /* =============== utils =============== */
 function useQuery(){ const {search}=useLocation(); return useMemo(()=>new URLSearchParams(search),[search]); }
@@ -17,7 +18,12 @@ function openWhatsApp(number,message){
 }
 
 export default function Confirmacao(){
-  const q=useQuery(); const navigate=useNavigate();
+  const q=useQuery();
+  const navigate=useNavigate();
+  const location=useLocation();
+
+  const isAuthenticated = useAuth(s => s.isAuthenticated);
+
   const contratoId = q.get("contrato") || "";
   const titularId = q.get("titular") || "";
 
@@ -33,6 +39,22 @@ export default function Confirmacao(){
   const onceRef = useRef(false);
 
   const whatsNumber = (import.meta?.env?.VITE_WHATSAPP || window.__WHATSAPP__) || "";
+
+  /* ========= NOVO: conduzir para cadastro/login se não autenticado ========= */
+  useEffect(() => {
+    if (!isAuthenticated) {
+      // Voltar para esta confirmação depois de criar conta ou fazer login
+      const fromPath = location.pathname + location.search; // /confirmacao?contrato=...&titular=...
+      navigate("/criar-conta", {
+        replace: true,
+        state: {
+          from: { pathname: fromPath },
+          intent: "pos-contratacao" // útil para copy nas telas
+        }
+      });
+    }
+  }, [isAuthenticated, location.pathname, location.search, navigate]);
+  /* ======================================================================== */
 
   useEffect(()=>{
     if(onceRef.current) return;
