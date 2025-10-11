@@ -49,7 +49,7 @@ const BASE = (process.env.PROGEM_BASE || 'http://localhost:8082').replace(/\/+$/
 const TENANT_ID = process.env.PROGEM_TENANT_ID || '';
 const OAUTH_SCOPE =
   process.env.OAUTH_SCOPE ||
-  'read:parceiros read:planos read:contratos read:duplicatas read:dependentes read:unidades read:pessoas';
+  'read:parceiros read:planos read:contratos read:duplicatas read:dependentes read:unidades read:pessoas write:pessoas write:contratos write:dependentes';
 const OAUTH_CLIENT_ID = process.env.OAUTH_CLIENT_ID || '';
 const OAUTH_CLIENT_SECRET = process.env.OAUTH_CLIENT_SECRET || '';
 
