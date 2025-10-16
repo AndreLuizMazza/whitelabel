@@ -33,10 +33,9 @@ function formatCPF(v = '') {
 }
 function formatPhoneBR(v = '') {
   const d = onlyDigits(v).slice(0, 11)
-  if (d.length <= 2) return d // iniciando DDD
+  if (d.length <= 2) return d
   if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
   if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
-  // 11 dígitos (celular)
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
 const phoneIsValid = (v = '') => {
@@ -50,8 +49,8 @@ function DateSelectBR({
   onChangeISO,
   invalid = false,
   className = '',
-  maxAge = 100,   // máximo 100 anos (hoje - 100)
-  minAge = 18,    // mínimo 18 anos (hoje - 18)
+  maxAge = 100,
+  minAge = 18,
   idPrefix,
 }) {
   const [dia, setDia] = useState('')
@@ -68,8 +67,7 @@ function DateSelectBR({
     if (mes !== mm) setMes(mm)
     if (dia !== dd) setDia(dd)
     hydratedRef.current = true
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [valueISO])
+  }, [valueISO]) // eslint-disable-line
 
   const today = new Date()
 
@@ -145,8 +143,7 @@ function DateSelectBR({
     if (!ok) setSoftWarn('Data fora do intervalo permitido (entre 18 e 100 anos).')
     if (hydratedRef.current && valueISO === iso) return
     onChangeISO?.(iso)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dia, mes, ano])
+  }, [dia, mes, ano]) // eslint-disable-line
 
   function handleChangeAno(nextAnoStr) {
     setSoftWarn('')
@@ -326,10 +323,18 @@ export default function RegisterPage() {
       return
     }
 
-    const from = location.state?.from?.pathname || '/area'
+    // 🔁 suporta state.from como string OU como objeto { pathname, search, hash }
+    const rawFrom = location.state?.from
+    const from =
+      typeof rawFrom === 'string'
+        ? rawFrom
+        : (rawFrom?.pathname
+            ? `${rawFrom.pathname}${rawFrom.search || ''}${rawFrom.hash || ''}`
+            : '/area')
+
     const identificador = form.email?.trim() || onlyDigits(form.cpf)
 
-    // Garante que CPF e celular vão limpos para a API
+    // Garante que CPF e celular vão limpos para a API de registro
     const payload = {
       ...form,
       cpf: onlyDigits(form.cpf),
@@ -340,13 +345,9 @@ export default function RegisterPage() {
       setLoading(true)
       setError(''); setOkMsg('')
 
-      // 1) cadastra no backend
       await registerUser(payload)
-
-      // 2) login automático
       await login(identificador, form.senha)
 
-      // 3) redireciona autenticado
       navigate(from, { replace: true })
     } catch (err) {
       console.error(err)

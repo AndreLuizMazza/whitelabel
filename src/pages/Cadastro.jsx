@@ -1,9 +1,9 @@
 // src/pages/Cadastro.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import api from "@/lib/api.js";
+import api from "@/lib/api.js"; // ✅ voltou o import da API
 import CTAButton from "@/components/ui/CTAButton";
-import { money, pick, getMensal } from "@/lib/planUtils.js";
+import { money } from "@/lib/planUtils.js";
 import { CheckCircle2, ChevronLeft, AlertTriangle, MessageCircle, Plus, Trash2, X } from "lucide-react";
 import useAuth from "@/store/auth";
 
@@ -96,7 +96,6 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
     if(mes!==mm) setMes(mm);
     if(dia!==dd) setDia(dd);
     hydratedRef.current = true;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [valueISO]);
 
   const today=new Date(); const thisYear=today.getFullYear();
@@ -158,15 +157,14 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
     if(!ok) setSoftWarn("Data fora do limite permitido.");
     if(hydratedRef.current && valueISO === iso) return;
     onChangeISO?.(iso);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   },[dia,mes,ano]);
 
   function handleChangeAno(nextAnoStr){
     setSoftWarn("");
-    const y = str2int(nextAnoStr);
+    const y = parseInt(nextAnoStr,10)||0;
     setAno(nextAnoStr);
     if(!y) return;
-    let m = str2int(mes);
+    let m = parseInt(mes,10)||0;
     const mClamped = clampMonthIfNeeded(y, m || 0);
     if(m && m !== mClamped){
       setMes(String(mClamped).padStart(2,"0"));
@@ -174,7 +172,7 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
       m = mClamped;
     }
     if(m){
-      const d = str2int(dia);
+      const d = parseInt(dia,10)||0;
       if(d){
         const dClamped = clampDayIfNeeded(y, m, d);
         if(dClamped !== d){
@@ -187,9 +185,9 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
   function handleChangeMes(nextMesStr){
     setSoftWarn("");
     setMes(nextMesStr);
-    const y = str2int(ano);
-    const m = str2int(nextMesStr);
-    const d = str2int(dia);
+    const y = parseInt(ano,10)||0;
+    const m = parseInt(nextMesStr,10)||0;
+    const d = parseInt(dia,10)||0;
     if(y && m && d){
       const dClamped = clampDayIfNeeded(y,m,d);
       if(dClamped !== d){
@@ -246,14 +244,16 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
 /* =============== Página =============== */
 export default function Cadastro(){
   const q=useQuery(); const navigate=useNavigate();
-  const [plano,setPlano]=useState(null); const [loading,setLoading]=useState(true);
+  const [loading,setLoading]=useState(false);
   const [saving,setSaving]=useState(false); const [error,setError]=useState("");
   const [submitAttempted,setSubmitAttempted]=useState(false);
   const [restoredDraft,setRestoredDraft]=useState(false);
   const [showDraftBadge,setShowDraftBadge]=useState(true);
 
   const payload=useMemo(()=>decodePayloadParam(q.get("p")),[q]);
-  const planoId=payload?.plano; const cupom=payload?.cupom||"";
+  const planoId=payload?.plano;
+  const cupom=payload?.cupom||"";
+  const plano = payload?.planSnapshot || null;
 
   const UF_PADRAO=(import.meta?.env?.VITE_UF_PADRAO||window.__UF_PADRAO__||"").toString().toUpperCase().slice(0,2);
 
@@ -265,10 +265,8 @@ export default function Cadastro(){
   const [titular,setTitular]=useState(defaultTitular);
   const [deps,setDeps]=useState([]);
 
-  // autenticação (para autopreencher)
   const authUser = useAuth(s => s.user);
 
-  // aviso de navegação
   const isDirtyRef = useRef(false);
   useEffect(()=>{
     const handleBeforeUnload=(e)=>{
@@ -281,40 +279,14 @@ export default function Cadastro(){
     return ()=>window.removeEventListener("beforeunload", handleBeforeUnload);
   },[saving]);
 
-  // ------- SOMENTE LOCALSTORAGE -------
   const DRAFT_KEY = useMemo(()=>`cadastroDraft:v2:${planoId||"sem-plano"}:${cupom||"no-cupom"}`, [planoId, cupom]);
   const saveTimer = useRef(null);
   const initializedRef = useRef(false);
 
-  // ------- CARREGA PLANO (sem Authorization para não redirecionar) -------
-  useEffect(()=>{ (async()=>{
-    try{
-      if(!planoId){ setLoading(false); return; }
-      let data;
-      try {
-        const res = await api.get(`/api/v1/planos/${planoId}`, {
-          transformRequest: [(d, headers) => { try { delete headers.Authorization } catch {} ; return d }],
-          __skipAuthRedirect: true,
-        });
-        data = res.data;
-      } catch (_e) {
-        const res2 = await api.get(`/api/v1/planos/${planoId}`, {
-          headers: { Authorization: "" },
-          __skipAuthRedirect: true,
-        });
-        data = res2.data;
-      }
-      setPlano(data);
-    }
-    catch(e){ console.error(e); setError("Falha ao carregar plano."); }
-    finally{ setLoading(false); }
-  })(); },[planoId]);
-
-  // ------- INICIALIZA (Payload + Draft local) em UMA vez -------
+  // ------- INICIALIZA (Payload + Draft local) -------
   useEffect(()=>{
     if(initializedRef.current) return;
 
-    // Base a partir do payload
     let nextTitular = { ...defaultTitular };
     let nextDeps = [];
     const qtd=Number(payload?.qtdDependentes||0);
@@ -330,7 +302,6 @@ export default function Cadastro(){
       });
     }
 
-    // Merge com draft local
     let usedDraft = false;
     try{
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -355,10 +326,9 @@ export default function Cadastro(){
     setDeps(nextDeps);
     setRestoredDraft(usedDraft);
     initializedRef.current = true;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payload, DRAFT_KEY]);
 
-  // ------- AUTOPREENCHER COM USUÁRIO LOGADO (somente campos vazios) -------
+  // ------- AUTOPREENCHER (usuário logado) -------
   useEffect(()=>{
     if(!initializedRef.current) return;
     if(!authUser) return;
@@ -387,7 +357,7 @@ export default function Cadastro(){
     isDirtyRef.current = true;
   }, [authUser, UF_PADRAO]);
 
-  // ------- AUTOSAVE LOCAL (só após init) -------
+  // ------- AUTOSAVE -------
   const idleSave = (dataStr)=>{
     try{
       if("requestIdleCallback" in window){
@@ -418,7 +388,7 @@ export default function Cadastro(){
     setShowDraftBadge(false);
   }
 
-  // ------- CEP com debounce & cancel -------
+  // ------- CEP com debounce -------
   const cepAbortRef = useRef(null);
   const debouncedBuscaCEP = useDebouncedCallback(async (cepRaw, titularSnapshot) => {
     const d=onlyDigits(cepRaw);
@@ -444,40 +414,29 @@ export default function Cadastro(){
     }catch{}
   }, 500);
 
-  const parentescosPlano = pick(plano||{},"parentescos") || [];
-  const PARENTESCOS_EFFECTIVE = useMemo(
-    ()=> Array.isArray(parentescosPlano) && parentescosPlano.length>0
-      ? parentescosPlano.map(v=>[v, PARENTESCO_LABELS[v] || v])
-      : PARENTESCOS_FALLBACK,
-    [parentescosPlano]
-  );
-
-  const idadeMinTit=pick(plano||{},"idadeMinimaTitular","idade_minima_titular");
-  const idadeMaxTit=pick(plano||{},"idadeMaximaTitular","idade_maxima_titular");
-  const idadeMinDep=pick(plano||{},"idadeMinimaDependente","idade_minima_dependente");
-  const idadeMaxDep=pick(plano||{},"idadeMaximaDependente","idade_maxima_dependente");
-
-  const baseMensal=useMemo(()=>getMensal(plano),[plano]);
-  const numDepsIncl=Number(pick(plano||{},"numeroDependentes","numero_dependentes")||0);
-  const valorIncAnual=Number(pick(plano||{},"valorIncremental","valor_incremental")||0);
-  const valorIncMensal=useMemo(()=>valorIncAnual/12,[valorIncAnual]);
+  // --------- Valores vindos do snapshot ----------
+  const baseMensal = Number(plano?.mensal || 0);
+  const numDepsIncl = Number(plano?.numeroDependentes || 0);
+  const valorIncAnual = Number(plano?.valorIncremental || 0);
+  const valorIncMensal = valorIncAnual / 12;
   const excedentes=Math.max(0, deps.length - numDepsIncl);
   const totalMensal=(baseMensal||0)+excedentes*valorIncMensal;
 
+  // idade: titular (fallback 18..100)
   const ageFromDate=(iso)=>{ if(!iso) return null; const d=new Date(iso); if(isNaN(d)) return null;
     const t=new Date(); let a=t.getFullYear()-d.getFullYear(); const m=t.getMonth()-d.getMonth();
     if(m<0 || (m===0 && t.getDate()<d.getDate())) a--; return a;
   };
   const titularAge=ageFromDate(titular.data_nascimento);
-
-  // limites do plano para dependentes; para titular vamos exigir 18+ e até 100 por padrão (quando plano não definir)
-  const titularMin = Number.isFinite(idadeMinTit) ? Number(idadeMinTit) : 18;
-  const titularMax = Number.isFinite(idadeMaxTit) ? Number(idadeMaxTit) : 100;
-
+  const titularMin = Number.isFinite(plano?.idadeMinimaTitular) ? Number(plano.idadeMinimaTitular) : 18;
+  const titularMax = Number.isFinite(plano?.idadeMaximaTitular) ? Number(plano.idadeMaximaTitular) : 100;
   const titularForaLimite = titular.data_nascimento && (
     (Number.isFinite(titularMin)&&titularAge<titularMin) ||
     (Number.isFinite(titularMax)&&titularAge>titularMax)
   );
+
+  const idadeMinDep = Number.isFinite(plano?.idadeMinimaDependente) ? Number(plano.idadeMinimaDependente) : undefined;
+  const idadeMaxDep = Number.isFinite(plano?.idadeMaximaDependente) ? Number(plano.idadeMaximaDependente) : undefined;
 
   const depsIssues = deps.map(d=>{
     const age=ageFromDate(d.data_nascimento);
@@ -499,9 +458,9 @@ export default function Cadastro(){
 
   // regras para liberar envio
   const nomeOk = (titular.nome || "").trim().length >= 3;
-  const cpfOk = cpfIsValid(titular.cpf); // mantemos com máscara ao enviar
+  const cpfOk = cpfIsValid(titular.cpf);
   const celularOk = phoneIsValid(titular.celular);
-  const sexoOk = Boolean(titular.sexo); // obrigatório
+  const sexoOk = Boolean(titular.sexo);
   const titularDataOk = !titularForaLimite && Boolean(titular.data_nascimento);
   const depsParentescosOk = depsIssues.every(di=>!di.parentescoVazio);
   const depsDatasOk = depsIssues.every(di=>!di.fora);
@@ -516,18 +475,18 @@ export default function Cadastro(){
     }
     setSaving(true); setError("");
     try{
-      // 1) TITULAR -> /pessoas  (CPF COM MÁSCARA conforme pedido)
+      // 1) TITULAR -> /pessoas
       const e = titular.endereco || {};
       const bodyPessoa = {
         nome: (titular.nome || "").trim(),
-        cpf: titular.cpf, // mantém máscara
+        cpf: formatCPF(titular.cpf || ""), // ✅ CPF COM MÁSCARA
         rg: (titular.rg || null),
         dataNascimento: titular.data_nascimento || null,
-        sexo: mapSexoToApi(titular.sexo), // obrigatório
+        sexo: mapSexoToApi(titular.sexo), // "HOMEM" | "MULHER" | null
         estadoCivil: titular.estado_civil || null,
         contatos: {
           email: (titular.email || null),
-          celular: titular.celular ? onlyDigits(titular.celular) : null, // normalizado para API
+          celular: titular.celular ? onlyDigits(titular.celular) : null, // envia número limpo
           telefone: null
         },
         endereco: {
@@ -541,10 +500,7 @@ export default function Cadastro(){
         }
       };
 
-      const pessoaRes = await api.post("/api/v1/pessoas", bodyPessoa).catch(err=>{
-        console.error("POST /pessoas falhou", err?.response?.status, err?.response?.data, bodyPessoa);
-        throw err;
-      });
+      const pessoaRes = await api.post("/api/v1/pessoas", bodyPessoa);
       const titularId = pessoaRes?.data?.id || pessoaRes?.data?.pessoaId || pessoaRes?.data?.uuid;
       if(!titularId) throw new Error("Não foi possível obter o ID do titular.");
 
@@ -552,7 +508,7 @@ export default function Cadastro(){
       const depsToCreate = deps
         .filter(d => (d.nome || "").trim().length >= 3)
         .map(d => ({
-          cpf: d.cpf ? onlyDigits(d.cpf) : null,
+          cpf: d.cpf ? formatCPF(d.cpf) : null, // ✅ CPF COM MÁSCARA (se informado)
           nome: (d.nome || "").trim(),
           email: null,
           fone: null,
@@ -566,34 +522,28 @@ export default function Cadastro(){
         }));
 
       for (const payload of depsToCreate) {
-        try {
-          await api.post("/api/v1/dependentes", payload);
-        } catch (err) {
-          console.error("POST /dependentes falhou", err?.response?.status, err?.response?.data, payload);
-          throw err;
-        }
+        await api.post("/api/v1/dependentes", payload);
       }
 
       // 3) CONTRATO -> /contratos
       const todayISO = new Date().toISOString().slice(0,10);
       const pickSafeDiaD = () => {
         const d = new Date().getDate();
-        return Math.max(1, Math.min(28, d));
+        return Math.max(1, Math.min(28, d)); // 1..28
       };
       const contratoBody = {
         titularId: Number(titularId),
         planoId: Number(planoId),
-        vendedorId: 717,
+        vendedorId: 717, // ajuste se necessário
         dataContrato: todayISO,
-        diaD: pickSafeDiaD()
+        diaD: pickSafeDiaD(),
+        cupom: cupom || null,
       };
 
-      const contratoRes = await api.post("/api/v1/contratos", contratoBody).catch(err=>{
-        console.error("POST /contratos falhou", err?.response?.status, err?.response?.data, contratoBody);
-        throw err;
-      });
+      const contratoRes = await api.post("/api/v1/contratos", contratoBody);
       const contratoId = contratoRes?.data?.id || contratoRes?.data?.contratoId || contratoRes?.data?.uuid;
 
+      // limpar rascunho ao concluir
       try{ localStorage.removeItem(DRAFT_KEY); }catch{}
       isDirtyRef.current = false;
 
@@ -618,9 +568,9 @@ export default function Cadastro(){
     if(cupom) L.push(`Cupom: ${cupom}`);
     L.push("\n*Titular*:");
     L.push(`Nome: ${titular.nome||""}`);
-    L.push(`CPF: ${titular.cpf||""}`);
+    L.push(`CPF: ${formatCPF(titular.cpf||"")}`); // garantir máscara na mensagem também
     L.push(`Sexo: ${sexoLabelFromValue(titular.sexo)}`);
-    L.push(`Celular: ${titular.celular||""}`);
+    L.push(`Celular: ${formatPhoneBR(titular.celular||"")}`);
     L.push(`E-mail: ${titular.email||"(não informado)"}`);
     L.push(`RG: ${titular.rg||""}`);
     L.push(`Estado civil: ${ESTADO_CIVIL_LABEL[titular.estado_civil]||titular.estado_civil||""}`);
@@ -630,22 +580,11 @@ export default function Cadastro(){
     L.push(`${e.cidade||""}/${e.uf||""} - CEP ${e.cep||""}`);
     L.push("\n*Dependentes*:");
     if(!deps.length) L.push("(Nenhum)");
-    deps.forEach((d,i)=>L.push(`${i+1}. ${d.nome||"(sem nome)"} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(d.sexo)} - CPF: ${d.cpf||"(não informado)"} - nasc.: ${d.data_nascimento||""}`));
+    deps.forEach((d,i)=>L.push(`${i+1}. ${d.nome||"(sem nome)"} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(d.sexo)} - CPF: ${formatCPF(d.cpf||"") || "(não informado)"} - nasc.: ${d.data_nascimento||""}`));
     openWhatsApp(numero, L.join("\n"));
   }
 
-  if(loading){
-    return (
-      <section className="section" aria-busy="true" aria-live="polite">
-        <div className="container-max space-y-4">
-          <div className="h-6 w-48 animate-pulse rounded bg=[var(--c-surface)]"/>
-          <div className="h-24 rounded-2xl animate-pulse bg-[var(--c-surface)]"/>
-          <div className="h-24 rounded-2xl animate-pulse bg-[var(--c-surface)]"/>
-        </div>
-      </section>
-    );
-  }
-  if(!payload || !planoId){
+  if(!payload || !planoId || !plano){
     return (
       <section className="section">
         <div className="container-max">
@@ -696,7 +635,7 @@ export default function Cadastro(){
           <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
             <h1 className="text-2xl font-extrabold tracking-tight">Cadastro</h1>
             <p className="mt-1 text-sm text-[var(--c-muted)]">
-              Plano <b>{plano?.nome||""}</b> — Base mensal {money(getMensal(plano))}
+              Plano <b>{plano?.nome||""}</b> — Base mensal {money(baseMensal)}
             </p>
 
             {/* Titular */}
@@ -910,7 +849,9 @@ export default function Cadastro(){
                             onChange={e=>updDep(i,{parentesco:e.target.value})}
                           >
                             <option value="">Selecione…</option>
-                            {(PARENTESCOS_EFFECTIVE||[]).map(([v,l])=>(<option key={v} value={v}>{l}</option>))}
+                            {(plano?.parentescos?.length ? plano.parentescos : PARENTESCOS_FALLBACK.map(([v])=>v)).map((v)=>(
+                              <option key={v} value={v}>{PARENTESCO_LABELS[v] || v}</option>
+                            ))}
                           </select>
                           {showParentescoError && <p className="text-xs text-red-600 mt-1">Selecione o parentesco.</p>}
                         </div>

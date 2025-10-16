@@ -24,8 +24,8 @@ import CookieBanner from '@/components/CookieBanner.jsx'
 import ParceiroDetalhe from '@/pages/ParceiroDetalhe'
 import RegisterPage from '@/pages/RegisterPage.jsx'
 import RecuperarSenha from '@/pages/RecuperarSenha.jsx'
-import Cadastro from "@/pages/Cadastro.jsx";
-import Confirmacao from "@/pages/Confirmacao.jsx";
+import Cadastro from '@/pages/Cadastro.jsx'
+import Confirmacao from '@/pages/Confirmacao.jsx'
 
 // Memorial
 import MemorialList from '@/pages/MemorialList.jsx'
@@ -63,11 +63,12 @@ export default function App() {
             <Route path="/memorial" element={<MemorialList />} />
             <Route path="/memorial/:slug" element={<MemorialDetail />} />
 
-            {/* Páginas que exigem login */}
+            {/* ⚠️ Páginas que exigem login
+                Se não estiver autenticado, vai para /criar-conta (não /login) */}
             <Route
               path="/cadastro"
               element={
-                <PrivateRoute>
+                <PrivateRoute redirectTo="/criar-conta">
                   <Cadastro />
                 </PrivateRoute>
               }
@@ -75,7 +76,7 @@ export default function App() {
             <Route
               path="/confirmacao"
               element={
-                <PrivateRoute>
+                <PrivateRoute redirectTo="/criar-conta">
                   <Confirmacao />
                 </PrivateRoute>
               }
@@ -83,7 +84,7 @@ export default function App() {
             <Route
               path="/area"
               element={
-                <PrivateRoute>
+                <PrivateRoute redirectTo="/criar-conta">
                   <AreaUsuario />
                 </PrivateRoute>
               }

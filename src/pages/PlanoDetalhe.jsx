@@ -8,7 +8,7 @@ import {
   Minus, Plus as PlusIcon, MessageCircle
 } from 'lucide-react'
 import CTAButton from '@/components/ui/CTAButton'
-
+import useAuth from '@/store/auth'
 
 /* ---------- Parentescos (fallback enum completo) ---------- */
 const PARENTESCOS_ENUM = [
@@ -52,13 +52,18 @@ export default function PlanoDetalhe() {
   const { id } = useParams()
   const navigate = useNavigate()
 
+  // 🔐 auth state para decidir o destino do CTA
+  const isAuthenticated = useAuth((s) =>
+    typeof s.isAuthenticated === 'function' ? s.isAuthenticated() : !!s.token
+  )
+
   const [plano, setPlano] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // simulador (minimalista)
-  const [depsCount, setDepsCount] = useState(0)                // quantidade total
-  const [depsParentescos, setDepsParentescos] = useState([])   // lista de parentescos ("" = não escolhido)
+  // simulador
+  const [depsCount, setDepsCount] = useState(0)
+  const [depsParentescos, setDepsParentescos] = useState([])
 
   const simRef = useRef(null)
   const resumoRef = useRef(null)
@@ -74,7 +79,7 @@ export default function PlanoDetalhe() {
     triggerToast._t = window.setTimeout(() => setToast({ show: false, message: '' }), 1400)
   }
 
-  // fetch
+  // fetch do plano (primeiro sem header, depois com)
   async function fetchPlano(planId) {
     setLoading(true); setError('')
     try {
@@ -120,7 +125,7 @@ export default function PlanoDetalhe() {
   function syncParentescos(nextCount) {
     setDepsParentescos(prev => {
       const arr = prev.slice(0, nextCount)
-      while (arr.length < nextCount) arr.push("") // vazio = não escolhido
+      while (arr.length < nextCount) arr.push("")
       return arr
     })
   }
@@ -129,18 +134,40 @@ export default function PlanoDetalhe() {
   const excedentes = Math.max(0, depsCount - Number(numDepsIncl))
   const custoExcedentes = excedentes * valorIncrementalMensal
   const totalMensal = (baseMensal || 0) + custoExcedentes
-  const totalAnual = totalMensal * 12
 
-  const simRefScroll = () => simRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  const resumoRefScroll = () => resumoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-
-  // CTA cadastro — envia somente qtd + parentescos escolhidos
+  // CTA cadastro — monta payload & rota de destino
   const handleContinuar = () => {
     const dependentesPayload = depsParentescos.map((p) => ({ parentesco: p || "" }))
-    const payload = { plano: String(id), qtdDependentes: depsCount, dependentes: dependentesPayload, cupom: cupom || '' }
+    const planSnapshot = {
+      id: String(id),
+      nome: plano?.nome || '',
+      numeroDependentes: numDepsIncl,
+      valorIncremental: valorIncrementalAnual,
+      valorAdesao: valorAdesao,
+      idadeMinimaTitular: idadeMinTit ?? null,
+      idadeMaximaTitular: idadeMaxTit ?? null,
+      idadeMinimaDependente: idadeMinDep ?? null,
+      idadeMaximaDependente: idadeMaxDep ?? null,
+      parentescos: parentescosValues,
+      mensal: baseMensal,
+    }
+    const payload = {
+      plano: String(id),
+      qtdDependentes: depsCount,
+      dependentes: dependentesPayload,
+      cupom: cupom || '',
+      planSnapshot
+    }
     const params = new URLSearchParams({ p: btoa(encodeURIComponent(JSON.stringify(payload))) })
-    // segue para o cadastro (NÃO login)
-    navigate(`/cadastro?${params.toString()}`)
+    const target = `/cadastro?${params.toString()}`
+
+    // 🔀 decisão de rota baseada no auth:
+    if (!isAuthenticated) {
+      // vai DIRETO para registro, já com o "from" para voltar ao cadastro
+      navigate('/criar-conta', { state: { from: target } })
+    } else {
+      navigate(target)
+    }
   }
 
   if (loading) {
@@ -172,7 +199,6 @@ export default function PlanoDetalhe() {
   return (
     <section className="section">
       <div className="container-max">
-        {/* voltar */}
         <div className="mb-4">
           <button
             onClick={() => navigate(-1)}
@@ -182,7 +208,6 @@ export default function PlanoDetalhe() {
           </button>
         </div>
 
-        {/* CABEÇALHO */}
         <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
             <h1 className="text-3xl font-extrabold tracking-tight">{plano.nome}</h1>
@@ -192,7 +217,6 @@ export default function PlanoDetalhe() {
             </div>
           </div>
 
-          {/* Badges */}
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
               <span className="text-sm">Incluídos</span><strong>{numDepsIncl}</strong>
@@ -222,7 +246,6 @@ export default function PlanoDetalhe() {
             )}
           </div>
 
-          {/* Banda informativa */}
           <div
             className="mt-4 rounded-2xl p-4"
             style={{
@@ -363,7 +386,6 @@ export default function PlanoDetalhe() {
               <CTAButton className="w-full h-11" onClick={handleContinuar} title="Prosseguir para cadastro">
                 Continuar cadastro
               </CTAButton>
-              {/* WhatsApp: somente no resumo */}
               <CTAButton
                 variant="outline"
                 className="w-full h-11 justify-center"
@@ -386,7 +408,7 @@ export default function PlanoDetalhe() {
         }}
       >
         <div className="mx-auto max-w-7xl px-3 py-3 flex items-center gap-3">
-          <button onClick={resumoRefScroll} className="flex-1 text-left" aria-label="Ir para resumo do valor">
+          <button onClick={()=>resumoRef.current?.scrollIntoView({behavior:'smooth'})} className="flex-1 text-left" aria-label="Ir para resumo do valor">
             <p className="text-xs text-[var(--c-muted)] leading-tight">Total mensal</p>
             <p className="text-xl font-extrabold leading-tight">{money(totalMensal)}</p>
           </button>
