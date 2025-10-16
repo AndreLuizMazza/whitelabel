@@ -1,132 +1,199 @@
 // src/pages/Confirmacao.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
-import api from "@/lib/api.js";
+import {
+  CheckCircle2,
+  Clipboard,
+  ClipboardCheck,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+  MessageCircle
+} from "lucide-react";
 import CTAButton from "@/components/ui/CTAButton";
-import { money } from "@/lib/planUtils.js";
-import { CheckCircle2, ChevronLeft, Clipboard, ClipboardCheck, MessageCircle, Users, Receipt } from "lucide-react";
 import useAuth from "@/store/auth";
+import api from "@/lib/api";
 
-/* =============== utils =============== */
-function useQuery(){ const {search}=useLocation(); return useMemo(()=>new URLSearchParams(search),[search]); }
-const onlyDigits=(v="")=>String(v).replace(/\D+/g,"");
-function openWhatsApp(number,message){
-  const n=number?onlyDigits(number):"";
-  const text=encodeURIComponent(message||"");
-  const url=n?`https://wa.me/${n}?text=${text}`:`https://wa.me/?text=${text}`;
-  window.open(url,"_blank","noopener");
+// --- helpers simples ---
+function useQuery() {
+  const { search } = useLocation();
+  return useMemo(() => new URLSearchParams(search), [search]);
+}
+const onlyDigits = (v = "") => String(v).replace(/\D+/g, "");
+function openWhatsApp(numberOrNull, message) {
+  const n = numberOrNull ? onlyDigits(numberOrNull) : "";
+  const text = encodeURIComponent(message || "");
+  const url = n ? `https://wa.me/${n}?text=${text}` : `https://wa.me/?text=${text}`;
+  window.open(url, "_blank", "noopener");
+}
+const money = (v) =>
+  (typeof v === "number" && !Number.isNaN(v))
+    ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+    : "—";
+
+// tenta mapear campos com nomes diferentes
+function mapContratoAPI(data) {
+  if (!data || typeof data !== "object") return {};
+  const planoNome =
+    data?.plano?.nome || data?.planoNome || data?.plano?.descricao || null;
+
+  // status/situação
+  const status =
+    data?.situacao ||
+    data?.status ||
+    data?.situacaoAtual ||
+    data?.statusAtual ||
+    null;
+
+  // valor mensal
+  const valorMensal =
+    Number(
+      data?.valorMensal ??
+      data?.valor_mensal ??
+      data?.valorMensalidade ??
+      data?.mensalidade ??
+      data?.valor
+    ) || null;
+
+  // vencimento/dia de debito
+  const venc =
+    data?.vencimento ||
+    data?.proximaParcela?.vencimento ||
+    data?.diaVencimento ||
+    data?.diaD ||
+    null;
+
+  // id do titular se houver
+  const titularId =
+    data?.titularId || data?.titular?.id || data?.pessoaId || null;
+
+  return { planoNome, status, valorMensal, venc, titularId };
 }
 
-export default function Confirmacao(){
-  const q=useQuery();
-  const navigate=useNavigate();
-  const location=useLocation();
+export default function Confirmacao() {
+  const q = useQuery();
+  const navigate = useNavigate();
+  const isAuth = useAuth((s) =>
+    typeof s.isAuthenticated === "function" ? s.isAuthenticated() : !!s.token
+  );
 
-  const isAuthenticated = useAuth(s => s.isAuthenticated);
-
-  const contratoId = q.get("contrato") || "";
-  const titularId = q.get("titular") || "";
+  const contratoId = q.get("contrato");
+  const titularIdQuery = q.get("titular");
 
   const [copied, setCopied] = useState(false);
-  const [loadingDeps, setLoadingDeps] = useState(false);
-  const [deps, setDeps] = useState([]);
-  const [depsError, setDepsError] = useState("");
+  const copyT = useRef(null);
 
-  const [loadingMes, setLoadingMes] = useState(false);
-  const [pagMes, setPagMes] = useState(null);
-  const [pagMesError, setPagMesError] = useState("");
+  // status do contrato
+  const [loadingContrato, setLoadingContrato] = useState(false);
+  const [contratoErr, setContratoErr] = useState("");
+  const [contratoInfo, setContratoInfo] = useState({
+    planoNome: null,
+    status: null,
+    valorMensal: null,
+    venc: null,
+    titularId: titularIdQuery || null
+  });
 
-  const onceRef = useRef(false);
-
-  const whatsNumber = (import.meta?.env?.VITE_WHATSAPP || window.__WHATSAPP__) || "";
-
-  /* ========= NOVO: conduzir para cadastro/login se não autenticado ========= */
+  // Redireciono suave para /area se já estiver autenticado
   useEffect(() => {
-    if (!isAuthenticated) {
-      // Voltar para esta confirmação depois de criar conta ou fazer login
-      const fromPath = location.pathname + location.search; // /confirmacao?contrato=...&titular=...
-      navigate("/criar-conta", {
-        replace: true,
-        state: {
-          from: { pathname: fromPath },
-          intent: "pos-contratacao" // útil para copy nas telas
-        }
-      });
-    }
-  }, [isAuthenticated, location.pathname, location.search, navigate]);
-  /* ======================================================================== */
+    if (!isAuth) return;
+    const t = setTimeout(() => {
+      navigate("/area", { replace: true });
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [isAuth, navigate]);
 
-  useEffect(()=>{
-    if(onceRef.current) return;
-    onceRef.current = true;
-    // opcional: já tenta buscar pagamento do mês ao abrir
-    if(contratoId) fetchPagamentoMes();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Busca status do contrato (best-effort, não bloqueia UI)
+  useEffect(() => {
+    if (!contratoId) return;
+    let active = true;
+    (async () => {
+      setLoadingContrato(true);
+      setContratoErr("");
+      try {
+        // tenta sem header auth (rota pública pode existir)
+        let data;
+        try {
+          const res = await api.get(`/api/v1/contratos/${encodeURIComponent(contratoId)}`, {
+            transformRequest: [(d, headers) => { try { delete headers.Authorization; } catch {} return d; }]
+          });
+          data = res?.data;
+        } catch {
+          // fallback: com header normal (se sessão existir)
+          const res2 = await api.get(`/api/v1/contratos/${encodeURIComponent(contratoId)}`);
+          data = res2?.data;
+        }
+        if (!active) return;
+        const mapped = mapContratoAPI(data);
+        setContratoInfo((prev) => ({ ...prev, ...mapped }));
+      } catch (err) {
+        if (!active) return;
+        setContratoErr("Não foi possível obter os detalhes do contrato agora.");
+      } finally {
+        if (active) setLoadingContrato(false);
+      }
+    })();
+    return () => { active = false; };
   }, [contratoId]);
 
-  async function fetchDependentes(){
-    if(!contratoId) return;
-    setLoadingDeps(true); setDepsError("");
-    try{
-      const { data } = await api.get(`/api/v1/contratos/${encodeURIComponent(contratoId)}/dependentes`);
-      setDeps(Array.isArray(data)?data:(data?.items||[]));
-    }catch(e){
-      console.error(e);
-      setDepsError("Não foi possível carregar os dependentes.");
-    }finally{
-      setLoadingDeps(false);
-    }
-  }
+  const pagamentosPath = contratoId ? `/contratos/${encodeURIComponent(contratoId)}/pagamentos` : null;
 
-  async function fetchPagamentoMes(){
-    if(!contratoId) return;
-    setLoadingMes(true); setPagMesError("");
-    try{
-      const { data } = await api.get(`/api/v1/contratos/${encodeURIComponent(contratoId)}/pagamentos/mes`);
-      setPagMes(data || null);
-    }catch(e){
-      console.error(e);
-      setPagMesError("Não foi possível carregar o pagamento do mês.");
-    }finally{
-      setLoadingMes(false);
-    }
-  }
-
-  function copyContrato(){
-    if(!contratoId) return;
-    navigator.clipboard?.writeText(String(contratoId)).then(()=>{
+  async function copyContrato() {
+    try {
+      await navigator.clipboard.writeText(String(contratoId || ""));
       setCopied(true);
-      setTimeout(()=>setCopied(false), 1800);
-    }).catch(()=>{});
+      if (copyT.current) clearTimeout(copyT.current);
+      copyT.current = setTimeout(() => setCopied(false), 1200);
+    } catch {}
   }
 
-  function sendWhatsResumo(){
-    const L=[];
-    L.push("*Cadastro concluído!*");
-    if(contratoId) L.push(`Contrato: ${contratoId}`);
-    if(titularId) L.push(`Titular ID: ${titularId}`);
-    if(pagMes?.valor) L.push(`Valor do mês: ${money(Number(pagMes.valor)||0)}`);
-    if(pagMes?.vencimento) L.push(`Vencimento: ${new Date(pagMes.vencimento).toLocaleDateString()}`);
-    if(Array.isArray(deps) && deps.length){
-      L.push("\n*Dependentes*:");
-      deps.forEach((d,i)=>{
-        const nome = d?.nome || d?.nomeCompleto || "(Sem nome)";
-        const parentesco = d?.parentesco || d?.relacao || "";
-        L.push(`${i+1}. ${nome}${parentesco?` — ${parentesco}`:""}`);
-      });
+  // monta mensagem de WhatsApp
+  const whatsNumber = (import.meta?.env?.VITE_WHATSAPP || window.__WHATSAPP__) || "";
+  const whatsappMsg = (() => {
+    const linhas = [];
+    linhas.push("*Confirmação de Contrato*");
+    if (contratoInfo.planoNome) linhas.push(`Plano: ${contratoInfo.planoNome}`);
+    if (contratoId) linhas.push(`Contrato: ${contratoId}`);
+    if (contratoInfo.status) linhas.push(`Status: ${contratoInfo.status}`);
+    if (contratoInfo.valorMensal) linhas.push(`Mensalidade: ${money(contratoInfo.valorMensal)}`);
+    if (contratoInfo.venc) linhas.push(`Vencimento/Dia: ${contratoInfo.venc}`);
+    if (pagamentosPath) {
+      const url = `${window.location.origin}${pagamentosPath}`;
+      linhas.push("");
+      linhas.push(`2ª via / Pagamento: ${url}`);
     }
-    openWhatsApp(whatsNumber, L.join("\n"));
-  }
+    return linhas.join("\n");
+  })();
 
-  if(!contratoId){
+  // Fallback quando não há ID de contrato
+  if (!contratoId) {
     return (
       <section className="section">
-        <div className="container-max">
-          <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
-            <h1 className="text-xl font-bold">Confirmação</h1>
-            <p className="mt-2 text-[var(--c-muted)]">Não encontramos o identificador do contrato.</p>
-            <div className="mt-4">
-              <CTAButton onClick={()=>navigate(-1)}><ChevronLeft size={16} className="mr-2"/> Voltar</CTAButton>
+        <div className="container-max max-w-3xl">
+          <div
+            className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6 text-center"
+            role="status"
+          >
+            <h1 className="text-2xl font-extrabold tracking-tight">Recebemos seus dados</h1>
+            <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>
+              Sua solicitação foi enviada com sucesso. Em instantes você poderá acompanhar na{" "}
+              <Link to="/area" className="underline" style={{ color: "var(--primary)" }}>
+                área do associado
+              </Link>.
+            </p>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <CTAButton className="h-11 w-full" onClick={() => navigate("/area")}>
+                Ir para área do associado <ChevronRight size={16} className="ml-2" />
+              </CTAButton>
+              <CTAButton
+                variant="outline"
+                className="h-11 w-full"
+                onClick={() => navigate("/")}
+                title="Voltar para a página inicial"
+              >
+                Voltar ao início
+              </CTAButton>
             </div>
           </div>
         </div>
@@ -136,154 +203,154 @@ export default function Confirmacao(){
 
   return (
     <section className="section">
-      <div className="container-max">
-        <div className="mb-4">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--c-border)] px-4 py-2 text-sm font-semibold hover:bg-[var(--c-surface)]"
-            aria-label="Voltar para a página inicial"
-          >
-            <ChevronLeft size={16}/> Início
-          </Link>
-        </div>
+      <div className="container-max max-w-3xl">
+        <div
+          className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6 shadow-lg"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="flex items-start gap-3">
+            <div
+              className="rounded-full p-2 text-white shrink-0"
+              style={{ background: "color-mix(in srgb, var(--primary) 90%, black)" }}
+              aria-hidden
+            >
+              <CheckCircle2 size={18} />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-extrabold tracking-tight">
+                Contratação concluída com sucesso
+              </h1>
+              <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
+                Seu contrato foi criado e já está disponível para consulta e pagamento.
+              </p>
+            </div>
+          </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          {/* Card principal */}
-          <div className="md:col-span-2 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="text-green-600 mt-1" size={22}/>
-              <div className="flex-1">
-                <h1 className="text-2xl font-extrabold tracking-tight">Cadastro concluído 🎉</h1>
-                <p className="mt-1 text-[var(--c-muted)]">
-                  Seu pedido foi registrado com sucesso. Em breve você receberá instruções por e-mail/WhatsApp.
-                </p>
+          {/* Card com dados principais */}
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-[var(--c-border)] p-4">
+              <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+                Nº do contrato
               </div>
+              <div className="mt-1 font-mono text-base font-semibold break-all">
+                {contratoId}
+              </div>
+              <button
+                type="button"
+                onClick={copyContrato}
+                className="mt-3 inline-flex items-center gap-2 rounded-full border border-[var(--c-border)] px-3 py-1.5 text-xs hover:bg-[var(--c-surface-alt)]"
+                aria-label="Copiar número do contrato"
+                title="Copiar número do contrato"
+              >
+                {copied ? <ClipboardCheck size={14} /> : <Clipboard size={14} />}
+                {copied ? "Copiado!" : "Copiar"}
+              </button>
             </div>
 
-            <div className="mt-5 grid gap-3">
-              <div className="flex items-center justify-between rounded-xl border border-[var(--c-border)] p-3">
-                <div>
-                  <p className="text-xs text-[var(--c-muted)]">Contrato</p>
-                  <p className="font-semibold">{contratoId}</p>
-                  {titularId ? (
-                    <p className="text-xs text-[var(--c-muted)]">Titular: <span className="font-medium">{titularId}</span></p>
-                  ) : null}
-                </div>
-                <CTAButton variant="ghost" onClick={copyContrato} className="h-10">
-                  {copied ? <ClipboardCheck size={16} className="mr-2"/> : <Clipboard size={16} className="mr-2"/>}
-                  {copied ? "Copiado" : "Copiar ID"}
-                </CTAButton>
+            <div className="rounded-xl border border-[var(--c-border)] p-4">
+              <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+                Titular (ID)
+              </div>
+              <div className="mt-1 font-mono text-base font-semibold break-all">
+                {contratoInfo.titularId || "—"}
               </div>
 
-              <div className="rounded-xl border border-[var(--c-border)] p-3">
-                <p className="text-sm font-semibold flex items-center gap-2">
-                  <Receipt size={16}/> Pagamento do mês
-                </p>
-                <div className="mt-2">
-                  {loadingMes ? (
-                    <div className="h-12 w-full animate-pulse rounded-lg bg-[var(--c-surface-2)]" />
-                  ) : pagMesError ? (
-                    <p className="text-red-600 text-sm">{pagMesError}</p>
-                  ) : pagMes ? (
-                    <div className="flex items-center justify-between">
-                      <div className="text-sm">
-                        <div className="flex gap-2"><span className="text-[var(--c-muted)]">Situação:</span><span className="font-medium">{pagMes.status || pagMes.situacao || "—"}</span></div>
-                        <div className="flex gap-2"><span className="text-[var(--c-muted)]">Vencimento:</span><span className="font-medium">
-                          {pagMes.vencimento ? new Date(pagMes.vencimento).toLocaleDateString() : "—"}
-                        </span></div>
-                        <div className="flex gap-2"><span className="text-[var(--c-muted)]">Valor:</span><span className="font-semibold">{money(Number(pagMes.valor)||0)}</span></div>
-                      </div>
-                      {pagMes?.boletoUrl ? (
-                        <a
-                          href={pagMes.boletoUrl}
-                          target="_blank"
-                          rel="noopener"
-                          className="inline-flex items-center rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-[var(--c-surface)]"
-                        >
-                          Abrir boleto
-                        </a>
-                      ) : (
-                        <CTAButton variant="outline" onClick={fetchPagamentoMes} className="h-10">Atualizar</CTAButton>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-[var(--c-muted)]">Ainda não há dados para o mês atual.</p>
-                      <CTAButton variant="outline" onClick={fetchPagamentoMes} className="h-10">Buscar</CTAButton>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-[var(--c-border)] p-3">
-                <p className="text-sm font-semibold flex items-center gap-2">
-                  <Users size={16}/> Dependentes
-                </p>
-                <div className="mt-2">
-                  {loadingDeps ? (
-                    <div className="space-y-2">
-                      <div className="h-10 w-full animate-pulse rounded bg-[var(--c-surface-2)]"/>
-                      <div className="h-10 w-full animate-pulse rounded bg-[var(--c-surface-2)]"/>
-                    </div>
-                  ) : depsError ? (
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-red-600">{depsError}</p>
-                      <CTAButton variant="outline" onClick={fetchDependentes} className="h-10">Tentar novamente</CTAButton>
-                    </div>
-                  ) : Array.isArray(deps) && deps.length ? (
-                    <ul className="divide-y divide-[var(--c-border-soft)]">
-                      {deps.map((d,idx)=>{
-                        const nome = d?.nome || d?.nomeCompleto || "(Sem nome)";
-                        const parentesco = d?.parentesco || d?.relacao || "";
-                        return (
-                          <li key={idx} className="py-2 flex items-center justify-between">
-                            <div className="text-sm">
-                              <p className="font-medium">{nome}</p>
-                              <p className="text-[var(--c-muted)] text-xs">{parentesco || "Dependente"}</p>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-[var(--c-muted)]">Nenhum dependente cadastrado.</p>
-                      <CTAButton variant="outline" onClick={fetchDependentes} className="h-10">Carregar</CTAButton>
-                    </div>
-                  )}
-                </div>
+              {/* Link para pagamentos (rota pública) */}
+              <div className="mt-3">
+                {pagamentosPath && (
+                  <Link
+                    to={pagamentosPath}
+                    className="inline-flex items-center gap-2 rounded-full border border-[var(--c-border)] px-3 py-1.5 text-xs hover:bg-[var(--c-surface-alt)]"
+                    title="Ver pagamentos / segunda via"
+                  >
+                    Ver pagamentos <ExternalLink size={14} />
+                  </Link>
+                )}
               </div>
             </div>
+          </div>
 
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">
-              <CTAButton onClick={sendWhatsResumo} className="h-12 w-full" title="Enviar resumo por WhatsApp">
-                <MessageCircle size={16} className="mr-2"/> Enviar por WhatsApp
-              </CTAButton>
-              <CTAButton variant="outline" onClick={()=>navigate("/")} className="h-12 w-full">
-                Voltar ao início
+          {/* Status do contrato */}
+          <div className="mt-4 rounded-xl border border-[var(--c-border)] p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold">Status do contrato</h3>
+              {loadingContrato && (
+                <span className="inline-flex items-center text-xs" style={{ color: "var(--text-muted)" }}>
+                  <Loader2 size={14} className="mr-1 animate-spin" /> atualizando…
+                </span>
+              )}
+            </div>
+
+            {contratoErr ? (
+              <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>{contratoErr}</p>
+            ) : (
+              <div className="mt-3 grid gap-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">Plano</span>
+                  <span className="font-medium">{contratoInfo.planoNome || "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">Situação</span>
+                  <span className="font-medium">{contratoInfo.status || "—"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">Mensalidade</span>
+                  <span className="font-medium">{money(contratoInfo.valorMensal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">Vencimento/Dia</span>
+                  <span className="font-medium">{contratoInfo.venc || "—"}</span>
+                </div>
+              </div>
+            )}
+
+            {/* CTA WhatsApp com mensagem pronta */}
+            <div className="mt-4">
+              <CTAButton
+                variant="outline"
+                className="h-11 w-full sm:w-auto justify-center"
+                onClick={() => openWhatsApp(whatsNumber, whatsappMsg)}
+                title="Enviar confirmação por WhatsApp"
+              >
+                <MessageCircle size={16} className="mr-2" />
+                Enviar por WhatsApp
               </CTAButton>
             </div>
           </div>
 
-          {/* Sidebar com dicas / próximos passos */}
-          <aside className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
-            <h3 className="text-lg font-semibold">Próximos passos</h3>
-            <ul className="mt-3 list-disc pl-5 text-sm space-y-2">
-              <li>Guarde o número do seu contrato para atendimento e consultas.</li>
-              <li>Se necessário, envie documentos complementares ao time comercial.</li>
-              <li>Acompanhe o pagamento do mês nesta tela ou pelo WhatsApp.</li>
-            </ul>
+          {/* CTAs principais */}
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <CTAButton className="h-11 w-full" onClick={() => navigate("/area")}>
+              Acessar área do associado <ChevronRight size={16} className="ml-2" />
+            </CTAButton>
 
-            <div className="mt-5 rounded-xl border border-[var(--c-border)] p-3">
-              <p className="text-sm font-semibold">Precisa de ajuda?</p>
-              <p className="text-sm text-[var(--c-muted)] mt-1">
-                Fale com nossa equipe pelo WhatsApp. Estamos por aqui para resolver rapidinho. 🙂
-              </p>
-              <CTAButton onClick={sendWhatsResumo} className="mt-3 w-full h-11">
-                <MessageCircle size={16} className="mr-2"/> Abrir WhatsApp
+            {pagamentosPath ? (
+              <Link
+                to={pagamentosPath}
+                className="btn-outline h-11 inline-flex items-center justify-center rounded-xl"
+                title="Abrir pagamentos / segunda via"
+              >
+                Segunda via / pagamento
+              </Link>
+            ) : (
+              <CTAButton
+                variant="outline"
+                className="h-11 w-full"
+                onClick={() => navigate("/")}
+                title="Voltar ao início"
+              >
+                Início
               </CTAButton>
-            </div>
-          </aside>
+            )}
+          </div>
+
+          {/* Hint de redirecionamento automático */}
+          {isAuth && (
+            <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
+              Você já está logado. Vamos te levar para a área do associado automaticamente.
+            </p>
+          )}
         </div>
       </div>
     </section>

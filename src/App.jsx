@@ -25,17 +25,12 @@ import ParceiroDetalhe from '@/pages/ParceiroDetalhe'
 import RegisterPage from '@/pages/RegisterPage.jsx'
 import RecuperarSenha from '@/pages/RecuperarSenha.jsx'
 import Cadastro from "@/pages/Cadastro.jsx";
- import Confirmacao from "@/pages/Confirmacao.jsx";
+import Confirmacao from "@/pages/Confirmacao.jsx";
 
 // Memorial
 import MemorialList from '@/pages/MemorialList.jsx'
 import MemorialDetail from '@/pages/MemorialDetail.jsx'
 import ErrorBoundary from '@/components/ErrorBoundary.jsx'
-
-
-
-// (opcional) página simples de confirmação
-
 
 export default function App() {
   return (
@@ -48,10 +43,9 @@ export default function App() {
       <main className="flex-1">
         <ErrorBoundary>
           <Routes>
+            {/* Páginas públicas */}
             <Route path="/" element={<Home />} />
             <Route path="/planos" element={<PlanosGrid />} />
-            <Route path="/cadastro" element={<Cadastro />} />
-            <Route path="/confirmacao" element={<Confirmacao />} />
             <Route path="/planos/:id" element={<PlanoDetalhe />} />
             <Route path="/beneficios" element={<ClubeBeneficios />} />
             <Route path="/beneficios/:id" element={<ParceiroDetalhe />} />
@@ -59,16 +53,33 @@ export default function App() {
             <Route path="/contratos/:id/pagamentos" element={<Pagamentos />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/criar-conta" element={<RegisterPage />} />
-           <Route path="/recuperar-senha" element={<RecuperarSenha />} />
+            <Route path="/recuperar-senha" element={<RecuperarSenha />} />
             <Route path="/politica-cookies" element={<PoliticaCookies />} />
             <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
             <Route path="/termos-uso" element={<TermosUso />} />
             <Route path="/filiais" element={<Filiais />} />
 
-            {/* Rotas do Memorial */}
+            {/* Memorial */}
             <Route path="/memorial" element={<MemorialList />} />
             <Route path="/memorial/:slug" element={<MemorialDetail />} />
 
+            {/* Páginas que exigem login */}
+            <Route
+              path="/cadastro"
+              element={
+                <PrivateRoute>
+                  <Cadastro />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/confirmacao"
+              element={
+                <PrivateRoute>
+                  <Confirmacao />
+                </PrivateRoute>
+              }
+            />
             <Route
               path="/area"
               element={
@@ -77,6 +88,8 @@ export default function App() {
                 </PrivateRoute>
               }
             />
+
+            {/* Redirecionamento padrão */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </ErrorBoundary>

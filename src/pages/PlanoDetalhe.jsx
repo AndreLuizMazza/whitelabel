@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import CTAButton from '@/components/ui/CTAButton'
 
+
 /* ---------- Parentescos (fallback enum completo) ---------- */
 const PARENTESCOS_ENUM = [
   ['CONJUGE','Cônjuge'], ['COMPANHEIRO','Companheiro(a)'], ['FILHO','Filho(a)'],
@@ -77,11 +78,17 @@ export default function PlanoDetalhe() {
   async function fetchPlano(planId) {
     setLoading(true); setError('')
     try {
-      const { data } = await api.get(`/api/v1/planos/${planId}`, { transformRequest: [(d, headers) => { try { delete headers.Authorization } catch {}; return d }] })
+      const { data } = await api.get(`/api/v1/planos/${planId}`, {
+        transformRequest: [(d, headers) => { try { delete headers.Authorization } catch {}; return d }],
+        __skipAuthRedirect: true,
+      })
       setPlano(data)
     } catch {
       try {
-        const { data } = await api.get(`/api/v1/planos/${planId}`, { headers: { Authorization: '' } })
+        const { data } = await api.get(`/api/v1/planos/${planId}`, {
+          headers: { Authorization: '' },
+          __skipAuthRedirect: true,
+        })
         setPlano(data)
       } catch (err) {
         console.error(err); setError(`Falha ao carregar o plano (id: ${planId}).`)
@@ -132,6 +139,7 @@ export default function PlanoDetalhe() {
     const dependentesPayload = depsParentescos.map((p) => ({ parentesco: p || "" }))
     const payload = { plano: String(id), qtdDependentes: depsCount, dependentes: dependentesPayload, cupom: cupom || '' }
     const params = new URLSearchParams({ p: btoa(encodeURIComponent(JSON.stringify(payload))) })
+    // segue para o cadastro (NÃO login)
     navigate(`/cadastro?${params.toString()}`)
   }
 
@@ -261,7 +269,7 @@ export default function PlanoDetalhe() {
             <h3 className="text-lg font-semibold">Simulador</h3>
 
             <div className="mt-5 grid gap-4 md:grid-cols-2">
-              {/* Stepper dependentes (único campo obrigatório do simulador) */}
+              {/* Stepper dependentes */}
               <div>
                 <label className="label">Dependentes (qtde)</label>
                 <div className="flex items-center gap-2">
@@ -296,8 +304,6 @@ export default function PlanoDetalhe() {
                 <p className="mt-2 text-xs text-[var(--c-muted)]">
                   Incluídos no plano: <b>{numDepsIncl}</b>. Adicionais: <b>{Math.max(0, depsCount - numDepsIncl)}</b> × {money(valorIncrementalMensal)}
                 </p>
-
-                
               </div>
             </div>
 
@@ -347,12 +353,6 @@ export default function PlanoDetalhe() {
               <div className="flex justify-between font-semibold text-base"><span>Total mensal</span><span>{money(totalMensal)}</span></div>
               <div className="flex justify-between"><span>Adesão (uma vez)</span><span>{money(valorAdesao)}</span></div>
 
-              {/* Total anual opcional (pode habilitar se quiser) */}
-              {/* <details className="mt-1 text-xs">
-                <summary className="cursor-pointer">Ver total anual</summary>
-                <div className="flex justify-between mt-1"><span>Total anual</span><span>{money(totalAnual)}</span></div>
-              </details> */}
-
               <div className="pt-2">
                 <label className="label" htmlFor="cupom">Cupom (opcional)</label>
                 <input id="cupom" className="input h-11" placeholder="EX.: BEMVINDO10" value={cupom} onChange={(e) => setCupom(e.target.value)} autoComplete="off"/>
@@ -377,7 +377,7 @@ export default function PlanoDetalhe() {
         </div>
       </div>
 
-      {/* Mobile bottom bar — sólida, com sombra marcada */}
+      {/* Mobile bottom bar */}
       <div
         className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--c-border)] bg-[var(--c-surface)] md:hidden"
         style={{
@@ -395,7 +395,6 @@ export default function PlanoDetalhe() {
           </CTAButton>
         </div>
       </div>
-      {/* espaçador para não cobrir o fim do conteúdo */}
       <div className="h-16 md:hidden" aria-hidden />
 
       <Toast show={toast.show} message={toast.message} />

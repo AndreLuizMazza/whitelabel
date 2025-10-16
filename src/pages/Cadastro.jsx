@@ -5,6 +5,7 @@ import api from "@/lib/api.js";
 import CTAButton from "@/components/ui/CTAButton";
 import { money, pick, getMensal } from "@/lib/planUtils.js";
 import { CheckCircle2, ChevronLeft, AlertTriangle, MessageCircle, Plus, Trash2, X } from "lucide-react";
+import useAuth from "@/store/auth";
 
 /* =============== utils/minis =============== */
 function useQuery(){ const {search}=useLocation(); return useMemo(()=>new URLSearchParams(search),[search]); }
@@ -48,7 +49,7 @@ function formatPhoneBR(v=""){
 const maskPhone=(v="")=>formatPhoneBR(v);
 function phoneIsValid(v){ const d=onlyDigits(v); return d.length===11 || d.length===10; }
 
-/* ===== parentescos fallback (usado só se API vier vazia) ===== */
+/* ===== parentescos fallback ===== */
 const PARENTESCOS_FALLBACK = [
   ["CONJUGE","Cônjuge"],["COMPANHEIRO","Companheiro(a)"] ,["FILHO","Filho(a)"],["PAI","Pai"],["MAE","Mãe"],["IRMAO","Irmã(o)"],["AVO","Avô(ó)"],["TITULAR","Titular"],
   ["RESPONSAVEL","Responsável"],["TIO","Tio(a)"],["SOBRINHO","Sobrinho(a)"],["PRIMO","Primo(a)"],["NETO","Neto(a)"],["BISNETO","Bisneto(a)"],["PADRASTO","Padrasto"],["MADRASTRA","Madrasta"],
@@ -154,7 +155,7 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
     if(!(dia && mes && ano)) return;
     const iso=`${ano}-${mes}-${dia}`;
     const ok = inRange(iso);
-    if(!ok) setSoftWarn("Data fora do limite permitido para este plano.");
+    if(!ok) setSoftWarn("Data fora do limite permitido.");
     if(hydratedRef.current && valueISO === iso) return;
     onChangeISO?.(iso);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -178,7 +179,7 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
         const dClamped = clampDayIfNeeded(y, m, d);
         if(dClamped !== d){
           setDia(String(dClamped).padStart(2,"0"));
-          setSoftWarn("Ajustamos o dia para o máximo permitido no período.");
+          setSoftWarn("Ajustamos o dia para o máximo permitido.");
         }
       }
     }
@@ -193,7 +194,7 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
       const dClamped = clampDayIfNeeded(y,m,d);
       if(dClamped !== d){
         setDia(String(dClamped).padStart(2,"0"));
-        setSoftWarn("Ajustamos o dia para o máximo permitido no mês/limite.");
+        setSoftWarn("Ajustamos o dia para o máximo permitido no mês.");
       }
     }
   }
@@ -235,7 +236,7 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
       </div>
       {(invalid || softWarn) && (
         <p className={`mt-1 text-xs inline-flex items-center gap-1 ${invalid ? "text-red-600" : "text-amber-600"}`} role="alert">
-          <AlertTriangle size={14}/> {invalid ? "Idade fora do limite para este plano." : softWarn}
+          <AlertTriangle size={14}/> {invalid ? "Idade fora do limite." : softWarn}
         </p>
       )}
     </div>
@@ -264,7 +265,10 @@ export default function Cadastro(){
   const [titular,setTitular]=useState(defaultTitular);
   const [deps,setDeps]=useState([]);
 
-  // controla aviso de navegação com rascunho não enviado
+  // autenticação (para autopreencher)
+  const authUser = useAuth(s => s.user);
+
+  // aviso de navegação
   const isDirtyRef = useRef(false);
   useEffect(()=>{
     const handleBeforeUnload=(e)=>{
@@ -282,9 +286,26 @@ export default function Cadastro(){
   const saveTimer = useRef(null);
   const initializedRef = useRef(false);
 
-  // ------- CARREGA PLANO -------
+  // ------- CARREGA PLANO (sem Authorization para não redirecionar) -------
   useEffect(()=>{ (async()=>{
-    try{ if(planoId){ const {data}=await api.get(`/api/v1/planos/${planoId}`); setPlano(data);} }
+    try{
+      if(!planoId){ setLoading(false); return; }
+      let data;
+      try {
+        const res = await api.get(`/api/v1/planos/${planoId}`, {
+          transformRequest: [(d, headers) => { try { delete headers.Authorization } catch {} ; return d }],
+          __skipAuthRedirect: true,
+        });
+        data = res.data;
+      } catch (_e) {
+        const res2 = await api.get(`/api/v1/planos/${planoId}`, {
+          headers: { Authorization: "" },
+          __skipAuthRedirect: true,
+        });
+        data = res2.data;
+      }
+      setPlano(data);
+    }
     catch(e){ console.error(e); setError("Falha ao carregar plano."); }
     finally{ setLoading(false); }
   })(); },[planoId]);
@@ -293,7 +314,7 @@ export default function Cadastro(){
   useEffect(()=>{
     if(initializedRef.current) return;
 
-    // 1) Base a partir do payload (preserva a regra original)
+    // Base a partir do payload
     let nextTitular = { ...defaultTitular };
     let nextDeps = [];
     const qtd=Number(payload?.qtdDependentes||0);
@@ -309,7 +330,7 @@ export default function Cadastro(){
       });
     }
 
-    // 2) Merge com draft local
+    // Merge com draft local
     let usedDraft = false;
     try{
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -336,6 +357,35 @@ export default function Cadastro(){
     initializedRef.current = true;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payload, DRAFT_KEY]);
+
+  // ------- AUTOPREENCHER COM USUÁRIO LOGADO (somente campos vazios) -------
+  useEffect(()=>{
+    if(!initializedRef.current) return;
+    if(!authUser) return;
+    setTitular(prev => {
+      const addr = authUser.endereco || authUser.address || {};
+      return {
+        ...prev,
+        nome: (prev.nome||"").trim() ? prev.nome : (authUser.nome || authUser.nomeCompleto || authUser.fullName || ""),
+        email: (prev.email||"").trim() ? prev.email : (authUser.email || ""),
+        cpf: (prev.cpf||"").trim() ? prev.cpf : (authUser.cpf || ""),
+        celular: (prev.celular||"").trim() ? prev.celular : (authUser.celular || authUser.telefone || authUser.phone || ""),
+        data_nascimento: (prev.data_nascimento||"").trim() ? prev.data_nascimento : (authUser.dataNascimento || authUser.nascimento || ""),
+        endereco: {
+          cep: (prev.endereco?.cep||"").trim() ? prev.endereco.cep : (addr.cep || ""),
+          logradouro: (prev.endereco?.logradouro||"").trim() ? prev.endereco.logradouro : (addr.logradouro || addr.street || ""),
+          numero: (prev.endereco?.numero||"").trim() ? prev.endereco.numero : (addr.numero || addr.number || ""),
+          complemento: (prev.endereco?.complemento||"").trim() ? prev.endereco.complemento : (addr.complemento || addr.complement || ""),
+          bairro: (prev.endereco?.bairro||"").trim() ? prev.endereco.bairro : (addr.bairro || addr.district || ""),
+          cidade: (prev.endereco?.cidade||"").trim() ? prev.endereco.cidade : (addr.cidade || addr.city || ""),
+          uf: (prev.endereco?.uf||"").trim()
+            ? prev.endereco.uf
+            : ((addr.uf || addr.state || "").toUpperCase().slice(0,2) || UF_PADRAO || ""),
+        }
+      };
+    });
+    isDirtyRef.current = true;
+  }, [authUser, UF_PADRAO]);
 
   // ------- AUTOSAVE LOCAL (só após init) -------
   const idleSave = (dataStr)=>{
@@ -419,9 +469,14 @@ export default function Cadastro(){
     if(m<0 || (m===0 && t.getDate()<d.getDate())) a--; return a;
   };
   const titularAge=ageFromDate(titular.data_nascimento);
+
+  // limites do plano para dependentes; para titular vamos exigir 18+ e até 100 por padrão (quando plano não definir)
+  const titularMin = Number.isFinite(idadeMinTit) ? Number(idadeMinTit) : 18;
+  const titularMax = Number.isFinite(idadeMaxTit) ? Number(idadeMaxTit) : 100;
+
   const titularForaLimite = titular.data_nascimento && (
-    (Number.isFinite(idadeMinTit)&&titularAge<idadeMinTit) ||
-    (Number.isFinite(idadeMaxTit)&&titularAge>idadeMaxTit)
+    (Number.isFinite(titularMin)&&titularAge<titularMin) ||
+    (Number.isFinite(titularMax)&&titularAge>titularMax)
   );
 
   const depsIssues = deps.map(d=>{
@@ -442,15 +497,16 @@ export default function Cadastro(){
   const addDep=()=>setDeps(prev=>[...prev,{nome:"",cpf:"",sexo:"",parentesco:"",data_nascimento:""}]);
   const delDep=(i)=>setDeps(prev=>prev.filter((_,idx)=>idx!==i));
 
-  // UX: regras simples de obrigatoriedade para liberar o envio
+  // regras para liberar envio
   const nomeOk = (titular.nome || "").trim().length >= 3;
-  const cpfOk = cpfIsValid(titular.cpf);
+  const cpfOk = cpfIsValid(titular.cpf); // mantemos com máscara ao enviar
   const celularOk = phoneIsValid(titular.celular);
+  const sexoOk = Boolean(titular.sexo); // obrigatório
   const titularDataOk = !titularForaLimite && Boolean(titular.data_nascimento);
   const depsParentescosOk = depsIssues.every(di=>!di.parentescoVazio);
   const depsDatasOk = depsIssues.every(di=>!di.fora);
   const depsCpfsOk = depsIssues.every(di=>!di.cpfInvalido);
-  const formInvalid = !(nomeOk && cpfOk && celularOk && titularDataOk && depsParentescosOk && depsDatasOk && depsCpfsOk);
+  const formInvalid = !(nomeOk && cpfOk && celularOk && sexoOk && titularDataOk && depsParentescosOk && depsDatasOk && depsCpfsOk);
 
   async function handleSalvarEnviar(){
     setSubmitAttempted(true);
@@ -460,18 +516,18 @@ export default function Cadastro(){
     }
     setSaving(true); setError("");
     try{
-      // 1) TITULAR -> /pessoas
+      // 1) TITULAR -> /pessoas  (CPF COM MÁSCARA conforme pedido)
       const e = titular.endereco || {};
       const bodyPessoa = {
         nome: (titular.nome || "").trim(),
-        cpf: titular.cpf,
+        cpf: titular.cpf, // mantém máscara
         rg: (titular.rg || null),
         dataNascimento: titular.data_nascimento || null,
-        sexo: mapSexoToApi(titular.sexo), // "HOMEM" | "MULHER" | null
+        sexo: mapSexoToApi(titular.sexo), // obrigatório
         estadoCivil: titular.estado_civil || null,
         contatos: {
           email: (titular.email || null),
-          celular: titular.celular ? onlyDigits(titular.celular) : null,
+          celular: titular.celular ? onlyDigits(titular.celular) : null, // normalizado para API
           telefone: null
         },
         endereco: {
@@ -492,7 +548,7 @@ export default function Cadastro(){
       const titularId = pessoaRes?.data?.id || pessoaRes?.data?.pessoaId || pessoaRes?.data?.uuid;
       if(!titularId) throw new Error("Não foi possível obter o ID do titular.");
 
-      // 2) DEPENDENTES -> /dependentes (apenas os que tiverem nome) (sequencial para melhor log)
+      // 2) DEPENDENTES -> /dependentes (apenas os que tiverem nome)
       const depsToCreate = deps
         .filter(d => (d.nome || "").trim().length >= 3)
         .map(d => ({
@@ -522,7 +578,7 @@ export default function Cadastro(){
       const todayISO = new Date().toISOString().slice(0,10);
       const pickSafeDiaD = () => {
         const d = new Date().getDate();
-        return Math.max(1, Math.min(28, d)); // seguro 1..28
+        return Math.max(1, Math.min(28, d));
       };
       const contratoBody = {
         titularId: Number(titularId),
@@ -538,7 +594,6 @@ export default function Cadastro(){
       });
       const contratoId = contratoRes?.data?.id || contratoRes?.data?.contratoId || contratoRes?.data?.uuid;
 
-      // limpar rascunho ao concluir
       try{ localStorage.removeItem(DRAFT_KEY); }catch{}
       isDirtyRef.current = false;
 
@@ -693,10 +748,17 @@ export default function Cadastro(){
 
                   <div className="md:col-span-4">
                     <label className="label" htmlFor="titular-sexo">Sexo</label>
-                    <select id="titular-sexo" className="input h-11 w-full" value={titular.sexo} onChange={e=>updTit({sexo:e.target.value})}>
+                    <select
+                      id="titular-sexo"
+                      className={`input h-11 w-full ${submitAttempted && !titular.sexo ? "ring-1 ring-red-500" : ""}`}
+                      value={titular.sexo}
+                      onChange={e=>updTit({sexo:e.target.value})}
+                      aria-invalid={submitAttempted && !titular.sexo ? "true" : "false"}
+                    >
                       <option value="">Selecione…</option>
                       {SEXO_OPTIONS.map(([v,l])=>(<option key={v} value={v}>{l}</option>))}
                     </select>
+                    {submitAttempted && !titular.sexo && <p className="text-xs text-red-600 mt-1">Selecione o sexo.</p>}
                   </div>
                 </div>
 
@@ -710,11 +772,11 @@ export default function Cadastro(){
                       valueISO={titular.data_nascimento}
                       onChangeISO={(iso)=>updTit({data_nascimento:iso})}
                       invalid={Boolean(submitAttempted && (titularForaLimite || !titular.data_nascimento))}
-                      minAge={Number.isFinite(idadeMinTit)?Number(idadeMinTit):undefined}
-                      maxAge={Number.isFinite(idadeMaxTit)?Number(idadeMaxTit):undefined}
+                      minAge={titularMin}
+                      maxAge={titularMax}
                     />
                     {submitAttempted && (!titular.data_nascimento || titularForaLimite) && (
-                      <p className="text-xs text-red-600 mt-1">Verifique a data dentro do limite do plano.</p>
+                      <p className="text-xs text-red-600 mt-1">O titular deve ter entre {titularMin} e {titularMax} anos.</p>
                     )}
                   </div>
 
