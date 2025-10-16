@@ -81,6 +81,39 @@ function useDebouncedCallback(fn, delay=400){
     t.current = setTimeout(()=>fn(...args), delay);
   };
 }
+const sanitizeUF = (v="") => v.replace(/[^a-zA-Z]/g,"").toUpperCase().slice(0,2);
+
+/* ========= Prefill do REGISTRO (state, query, storage) ========= */
+function extractRegistroPrefill({ q, locationState }) {
+  // 1) via state
+  const fromState = locationState?.registro || locationState?.prefill;
+  if (fromState && typeof fromState === "object") return fromState;
+
+  // 2) via query (?registro= / ?reg= / ?prefill=) — base64 ou json
+  const maybeParam = q.get("registro") || q.get("reg") || q.get("prefill");
+  const fromQuery = maybeParam ? decodePayloadParam(maybeParam) : null;
+  if (fromQuery && typeof fromQuery === "object") return fromQuery;
+
+  // 3) via sessionStorage (canônico no fluxo pós-registro)
+  try {
+    const raw = sessionStorage.getItem("reg_prefill");
+    if (raw) {
+      const obj = JSON.parse(raw);
+      if (obj && typeof obj === "object") return obj;
+    }
+  } catch {}
+
+  // 4) fallback opcional: localStorage
+  try {
+    const raw = localStorage.getItem("register:last");
+    if (raw) {
+      const obj = JSON.parse(raw);
+      if (obj && typeof obj === "object") return obj;
+    }
+  } catch {}
+
+  return null;
+}
 
 /* =============== DateSelectBR =============== */
 function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minAge, maxAge, idPrefix }) {
@@ -233,7 +266,7 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
         </select>
       </div>
       {(invalid || softWarn) && (
-        <p className={`mt-1 text-xs inline-flex items-center gap-1 ${invalid ? "text-red-600" : "text-amber-600"}`} role="alert">
+        <p className={`mt-1 text-xs inline-flex items-center gap-1 ${invalid ? "text-red-600" : "text-amber-600"}`} role="alert" aria-live="polite">
           <AlertTriangle size={14}/> {invalid ? "Idade fora do limite." : softWarn}
         </p>
       )}
@@ -244,9 +277,21 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
 /* =============== Página =============== */
 export default function Cadastro(){
   const q=useQuery(); const navigate=useNavigate();
+  const location = useLocation();
   const [loading,setLoading]=useState(false);
   const [saving,setSaving]=useState(false); const [error,setError]=useState("");
   const [submitAttempted,setSubmitAttempted]=useState(false);
+
+  // ✅ Novo: sumário de erros e foco (UX igual ao RegisterPage)
+  const [errorList, setErrorList] = useState([]);
+  const alertRef = useRef(null);
+  const nomeRef = useRef(null);
+  const cpfRef = useRef(null);
+  const sexoRef = useRef(null);
+  const celRef = useRef(null);
+  const nascDiaRef = useRef(null); // foco no primeiro select (dia) da data
+  const cepRef = useRef(null);
+
   const [restoredDraft,setRestoredDraft]=useState(false);
   const [showDraftBadge,setShowDraftBadge]=useState(true);
 
@@ -283,7 +328,7 @@ export default function Cadastro(){
   const saveTimer = useRef(null);
   const initializedRef = useRef(false);
 
-  // ------- INICIALIZA (Payload + Draft local) -------
+  // ------- INICIALIZA (Payload + Draft local + Prefill de registro) -------
   useEffect(()=>{
     if(initializedRef.current) return;
 
@@ -302,6 +347,18 @@ export default function Cadastro(){
       });
     }
 
+    // 🔹 Prefill vindo do REGISTRO (state, query, session/localStorage)
+    const regPrefill = extractRegistroPrefill({ q, locationState: location?.state });
+    if (regPrefill) {
+      const cpf = regPrefill.cpf || regPrefill.documento || "";
+      const celular = regPrefill.celular || regPrefill.telefone || regPrefill.phone || "";
+      const dataNasc = regPrefill.dataNascimento || regPrefill.nascimento || "";
+      nextTitular.cpf = nextTitular.cpf || cpf || "";
+      nextTitular.celular = nextTitular.celular || celular || "";
+      nextTitular.data_nascimento = nextTitular.data_nascimento || dataNasc || "";
+    }
+
+    // (mantém o resto do seu código de rascunho/draft)
     let usedDraft = false;
     try{
       const raw = localStorage.getItem(DRAFT_KEY);
@@ -326,7 +383,10 @@ export default function Cadastro(){
     setDeps(nextDeps);
     setRestoredDraft(usedDraft);
     initializedRef.current = true;
-  }, [payload, DRAFT_KEY]);
+
+    // limpa o session flag após uso (se existir)
+    try { sessionStorage.removeItem("reg_prefill"); } catch {}
+  }, [payload, DRAFT_KEY, q, location?.state]);
 
   // ------- AUTOPREENCHER (usuário logado) -------
   useEffect(()=>{
@@ -349,8 +409,8 @@ export default function Cadastro(){
           bairro: (prev.endereco?.bairro||"").trim() ? prev.endereco.bairro : (addr.bairro || addr.district || ""),
           cidade: (prev.endereco?.cidade||"").trim() ? prev.endereco.cidade : (addr.cidade || addr.city || ""),
           uf: (prev.endereco?.uf||"").trim()
-            ? prev.endereco.uf
-            : ((addr.uf || addr.state || "").toUpperCase().slice(0,2) || UF_PADRAO || ""),
+            ? sanitizeUF(prev.endereco.uf)
+            : (sanitizeUF(addr.uf || addr.state || "") || UF_PADRAO || ""),
         }
       };
     });
@@ -388,30 +448,56 @@ export default function Cadastro(){
     setShowDraftBadge(false);
   }
 
-  // ------- CEP com debounce -------
+  /* ===== ViaCEP ===== */
   const cepAbortRef = useRef(null);
-  const debouncedBuscaCEP = useDebouncedCallback(async (cepRaw, titularSnapshot) => {
+  const [cepState, setCepState] = useState({ loading:false, error:"", found:false, lastCep:"" });
+  const [addressTouched, setAddressTouched] = useState({ logradouro:false, bairro:false, cidade:false, uf:false });
+
+  const setAddrTouched = (patch)=> setAddressTouched(prev=>({ ...prev, ...patch }));
+
+  const applyViaCepData = (data, titularSnapshot) => {
+    setTitular(t=>({
+      ...t,
+      endereco:{
+        ...t.endereco,
+        logradouro: addressTouched.logradouro ? t.endereco.logradouro : (data.logradouro || titularSnapshot.endereco.logradouro),
+        bairro: addressTouched.bairro ? t.endereco.bairro : (data.bairro || titularSnapshot.endereco.bairro),
+        cidade: addressTouched.cidade ? t.endereco.cidade : (data.localidade || titularSnapshot.endereco.cidade),
+        uf: addressTouched.uf ? sanitizeUF(t.endereco.uf) : sanitizeUF(data.uf || titularSnapshot.endereco.uf || UF_PADRAO || ""),
+      }
+    }));
+  };
+
+  const fetchCEP = async (cepRaw, titularSnapshot) => {
     const d=onlyDigits(cepRaw);
-    if(d.length!==8) return;
+    if(d.length!==8){
+      setCepState({ loading:false, error: d.length>0 ? "CEP deve ter 8 dígitos." : "", found:false, lastCep: d });
+      return;
+    }
     if(cepAbortRef.current){ cepAbortRef.current.abort(); }
     const controller = new AbortController();
     cepAbortRef.current = controller;
+
+    setCepState({ loading:true, error:"", found:false, lastCep:d });
     try{
-      const res=await fetch(`https://viacep.com.br/ws/${d}/json/`, { signal: controller.signal });
-      const data=await res.json();
-      if(!data.erro){
-        setTitular(t=>({
-          ...t,
-          endereco:{
-            ...t.endereco,
-            logradouro: data.logradouro || titularSnapshot.endereco.logradouro,
-            bairro: data.bairro || titularSnapshot.endereco.bairro,
-            cidade: data.localidade || titularSnapshot.endereco.cidade,
-            uf: (data.uf || titularSnapshot.endereco.uf || UF_PADRAO || "").toUpperCase().slice(0,2),
-          }
-        }));
+      const res = await fetch(`https://viacep.com.br/ws/${d}/json/`, { signal: controller.signal });
+      if(!res.ok) throw new Error(`Erro ao consultar CEP (${res.status})`);
+      const data = await res.json();
+
+      if(data?.erro){
+        setCepState({ loading:false, error:"CEP não encontrado.", found:false, lastCep:d });
+        return;
       }
-    }catch{}
+      applyViaCepData(data, titularSnapshot);
+      setCepState({ loading:false, error:"", found:true, lastCep:d });
+    }catch(err){
+      if(err?.name === "AbortError") return;
+      setCepState({ loading:false, error:"Falha ao consultar CEP. Tente novamente.", found:false, lastCep:d });
+    }
+  };
+
+  const debouncedBuscaCEP = useDebouncedCallback((cepRaw, titularSnapshot) => {
+    fetchCEP(cepRaw, titularSnapshot);
   }, 500);
 
   // --------- Valores vindos do snapshot ----------
@@ -456,7 +542,7 @@ export default function Cadastro(){
   const addDep=()=>setDeps(prev=>[...prev,{nome:"",cpf:"",sexo:"",parentesco:"",data_nascimento:""}]);
   const delDep=(i)=>setDeps(prev=>prev.filter((_,idx)=>idx!==i));
 
-  // regras para liberar envio
+  // regras para liberar envio (só usadas para feedback; não desabilitamos mais o botão)
   const nomeOk = (titular.nome || "").trim().length >= 3;
   const cpfOk = cpfIsValid(titular.cpf);
   const celularOk = phoneIsValid(titular.celular);
@@ -467,26 +553,89 @@ export default function Cadastro(){
   const depsCpfsOk = depsIssues.every(di=>!di.cpfInvalido);
   const formInvalid = !(nomeOk && cpfOk && celularOk && sexoOk && titularDataOk && depsParentescosOk && depsDatasOk && depsCpfsOk);
 
+  // ====== UX: Sumário de erros (igual ao RegisterPage) ======
+  function buildErrorList() {
+    const items = [];
+    if (!nomeOk) items.push({ field: "nome", label: "Informe o nome completo (mín. 3 caracteres)." });
+    if (!cpfOk) items.push({ field: "cpf", label: "Digite um CPF válido (11 dígitos)." });
+    if (!celularOk) items.push({ field: "celular", label: "Informe um celular válido com DDD." });
+    if (!sexoOk) items.push({ field: "sexo", label: "Selecione o sexo." });
+    if (!titularDataOk) items.push({ field: "nascimento", label: `Data de nascimento inválida (entre ${titularMin} e ${titularMax} anos).` });
+
+    deps.forEach((d, i) => {
+      const issue = depsIssues[i];
+      if ((d.nome||"").trim() && issue?.parentescoVazio) items.push({ field: `dep-${i}-parentesco`, label: `Dependente ${i+1}: selecione o parentesco.` });
+      if (d.cpf && issue?.cpfInvalido) items.push({ field: `dep-${i}-cpf`, label: `Dependente ${i+1}: CPF inválido.` });
+      if (issue?.fora) items.push({ field: `dep-${i}-nasc`, label: `Dependente ${i+1}: data fora do limite etário do plano.` });
+    });
+
+    // CEP só se usuário digitou algo inválido
+    const cepDigits = onlyDigits(titular.endereco?.cep||"");
+    if (cepDigits && cepDigits.length !== 8) items.push({ field: "cep", label: "CEP deve ter 8 dígitos." });
+    if (cepState.error) items.push({ field: "cep", label: cepState.error });
+
+    return items;
+  }
+
+  function focusByField(field) {
+    const map = {
+      nome: nomeRef,
+      cpf: cpfRef,
+      sexo: sexoRef,
+      celular: celRef,
+      nascimento: nascDiaRef,
+      cep: cepRef,
+    };
+    if (map[field]?.current) {
+      map[field].current.focus();
+      return;
+    }
+    // Dependentes
+    const isDep = field.startsWith("dep-");
+    if (isDep) {
+      const el = document.getElementById(field);
+      if (el) el.focus();
+    }
+  }
+
+  useEffect(() => {
+    if (submitAttempted && errorList.length > 0) {
+      setTimeout(() => {
+        alertRef.current?.focus();
+        focusByField(errorList[0].field);
+      }, 0);
+    }
+  }, [submitAttempted, errorList]);
+
   async function handleSalvarEnviar(){
     setSubmitAttempted(true);
+    setError("");
+    const list = buildErrorList();
+    setErrorList(list);
+
+    if(list.length>0){
+      return; // não envia; sumário aponta os erros
+    }
+
     if(formInvalid){
       setError("Revise os campos destacados antes de continuar.");
       return;
     }
-    setSaving(true); setError("");
+
+    setSaving(true);
     try{
       // 1) TITULAR -> /pessoas
       const e = titular.endereco || {};
       const bodyPessoa = {
         nome: (titular.nome || "").trim(),
-        cpf: formatCPF(titular.cpf || ""), // ✅ CPF COM MÁSCARA
+        cpf: formatCPF(titular.cpf || ""),
         rg: (titular.rg || null),
         dataNascimento: titular.data_nascimento || null,
-        sexo: mapSexoToApi(titular.sexo), // "HOMEM" | "MULHER" | null
+        sexo: mapSexoToApi(titular.sexo),
         estadoCivil: titular.estado_civil || null,
         contatos: {
           email: (titular.email || null),
-          celular: titular.celular ? onlyDigits(titular.celular) : null, // envia número limpo
+          celular: titular.celular ? onlyDigits(titular.celular) : null,
           telefone: null
         },
         endereco: {
@@ -504,11 +653,11 @@ export default function Cadastro(){
       const titularId = pessoaRes?.data?.id || pessoaRes?.data?.pessoaId || pessoaRes?.data?.uuid;
       if(!titularId) throw new Error("Não foi possível obter o ID do titular.");
 
-      // 2) DEPENDENTES -> /dependentes (apenas os que tiverem nome)
+      // 2) DEPENDENTES -> /dependentes
       const depsToCreate = deps
         .filter(d => (d.nome || "").trim().length >= 3)
         .map(d => ({
-          cpf: d.cpf ? formatCPF(d.cpf) : null, // ✅ CPF COM MÁSCARA (se informado)
+          cpf: d.cpf ? formatCPF(d.cpf) : null,
           nome: (d.nome || "").trim(),
           email: null,
           fone: null,
@@ -529,12 +678,12 @@ export default function Cadastro(){
       const todayISO = new Date().toISOString().slice(0,10);
       const pickSafeDiaD = () => {
         const d = new Date().getDate();
-        return Math.max(1, Math.min(28, d)); // 1..28
+        return Math.max(1, Math.min(28, d));
       };
       const contratoBody = {
         titularId: Number(titularId),
         planoId: Number(planoId),
-        vendedorId: 717, // ajuste se necessário
+        vendedorId: 717,
         dataContrato: todayISO,
         diaD: pickSafeDiaD(),
         cupom: cupom || null,
@@ -543,7 +692,6 @@ export default function Cadastro(){
       const contratoRes = await api.post("/api/v1/contratos", contratoBody);
       const contratoId = contratoRes?.data?.id || contratoRes?.data?.contratoId || contratoRes?.data?.uuid;
 
-      // limpar rascunho ao concluir
       try{ localStorage.removeItem(DRAFT_KEY); }catch{}
       isDirtyRef.current = false;
 
@@ -568,7 +716,7 @@ export default function Cadastro(){
     if(cupom) L.push(`Cupom: ${cupom}`);
     L.push("\n*Titular*:");
     L.push(`Nome: ${titular.nome||""}`);
-    L.push(`CPF: ${formatCPF(titular.cpf||"")}`); // garantir máscara na mensagem também
+    L.push(`CPF: ${formatCPF(titular.cpf||"")}`);
     L.push(`Sexo: ${sexoLabelFromValue(titular.sexo)}`);
     L.push(`Celular: ${formatPhoneBR(titular.celular||"")}`);
     L.push(`E-mail: ${titular.email||"(não informado)"}`);
@@ -594,6 +742,8 @@ export default function Cadastro(){
       </section>
     );
   }
+
+  const errorCount = errorList.length;
 
   return (
     <section className="section">
@@ -631,6 +781,24 @@ export default function Cadastro(){
           </button>
         </div>
 
+        {/* ALERTA GLOBAL DE ERRO API */}
+        {error && (
+          <div
+            ref={alertRef}
+            role="alert"
+            tabIndex={-1}
+            className="mb-4 rounded-lg px-4 py-3 text-sm"
+            style={{
+              border: '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
+              background: 'color-mix(in srgb, var(--primary) 12%, transparent)',
+              color: 'var(--text)',
+            }}
+            aria-live="assertive"
+          >
+            {error}
+          </div>
+        )}
+
         <div className="space-y-8">
           <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
             <h1 className="text-2xl font-extrabold tracking-tight">Cadastro</h1>
@@ -644,32 +812,40 @@ export default function Cadastro(){
 
               <div className="mt-3 grid gap-3">
                 <div>
-                  <label className="label" htmlFor="titular-nome">Nome completo</label>
+                  <label className="label" htmlFor="titular-nome">
+                    Nome completo <span aria-hidden="true" className="text-red-600">*</span>
+                  </label>
                   <input
                     id="titular-nome"
+                    ref={nomeRef}
                     className={`input h-11 w-full ${submitAttempted && !(titular.nome||"").trim() ? "ring-1 ring-red-500" : ""}`}
                     value={titular.nome}
                     onChange={e=>updTit({nome:e.target.value})}
                     placeholder="Como está no documento"
                     autoComplete="name"
+                    aria-required="true"
                     aria-invalid={submitAttempted && !(titular.nome||"").trim() ? "true" : "false"}
                   />
-                  {submitAttempted && !(titular.nome||"").trim() && <p className="text-xs text-red-600 mt-1">Informe o nome completo.</p>}
+                  {submitAttempted && !(titular.nome||"").trim() && <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Informe ao menos 3 caracteres.</p>}
                 </div>
 
                 {/* Linha 1 — CPF, RG, Estado Civil, Sexo */}
                 <div className="grid gap-3 md:grid-cols-12">
                   <div className="md:col-span-3">
-                    <label className="label" htmlFor="titular-cpf">CPF</label>
+                    <label className="label" htmlFor="titular-cpf">
+                      CPF <span aria-hidden="true" className="text-red-600">*</span>
+                    </label>
                     <input
                       id="titular-cpf"
+                      ref={cpfRef}
                       className={`input h-11 w-full ${titular.cpf && !cpfIsValid(titular.cpf) ? "ring-1 ring-red-500" : ""}`}
                       inputMode="numeric" maxLength={14} placeholder="000.000.000-00"
                       value={formatCPF(titular.cpf)} onChange={e=>updTit({cpf:maskCPF(e.target.value)})}
                       autoComplete="off"
+                      aria-required="true"
                       aria-invalid={titular.cpf && !cpfIsValid(titular.cpf) ? "true" : "false"}
                     />
-                    {titular.cpf && !cpfIsValid(titular.cpf) && <p className="text-xs text-red-600 mt-1">CPF inválido.</p>}
+                    {titular.cpf && !cpfIsValid(titular.cpf) && <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">CPF inválido.</p>}
                   </div>
 
                   <div className="md:col-span-2">
@@ -686,54 +862,69 @@ export default function Cadastro(){
                   </div>
 
                   <div className="md:col-span-4">
-                    <label className="label" htmlFor="titular-sexo">Sexo</label>
+                    <label className="label" htmlFor="titular-sexo">
+                      Sexo <span aria-hidden="true" className="text-red-600">*</span>
+                    </label>
                     <select
                       id="titular-sexo"
+                      ref={sexoRef}
                       className={`input h-11 w-full ${submitAttempted && !titular.sexo ? "ring-1 ring-red-500" : ""}`}
                       value={titular.sexo}
                       onChange={e=>updTit({sexo:e.target.value})}
+                      aria-required="true"
                       aria-invalid={submitAttempted && !titular.sexo ? "true" : "false"}
                     >
                       <option value="">Selecione…</option>
                       {SEXO_OPTIONS.map(([v,l])=>(<option key={v} value={v}>{l}</option>))}
                     </select>
-                    {submitAttempted && !titular.sexo && <p className="text-xs text-red-600 mt-1">Selecione o sexo.</p>}
+                    {submitAttempted && !titular.sexo && <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Selecione o sexo.</p>}
                   </div>
                 </div>
 
                 {/* Linha 2 — Data de Nascimento, Celular e E-mail */}
                 <div className="grid gap-3 md:grid-cols-12">
                   <div className="md:col-span-4">
-                    <label className="label">Data de nascimento</label>
-                    <DateSelectBR
-                      className="w-full"
-                      idPrefix="titular-nasc"
-                      valueISO={titular.data_nascimento}
-                      onChangeISO={(iso)=>updTit({data_nascimento:iso})}
-                      invalid={Boolean(submitAttempted && (titularForaLimite || !titular.data_nascimento))}
-                      minAge={titularMin}
-                      maxAge={titularMax}
-                    />
+                    <label className="label">
+                      Data de nascimento <span aria-hidden="true" className="text-red-600">*</span>
+                    </label>
+                    {/* foco no select de dia */}
+                    <div ref={nascDiaRef}>
+                      <DateSelectBR
+                        className="w-full"
+                        idPrefix="titular-nasc"
+                        valueISO={titular.data_nascimento}
+                        onChangeISO={(iso)=>updTit({data_nascimento:iso})}
+                        invalid={Boolean(submitAttempted && (titularForaLimite || !titular.data_nascimento))}
+                        minAge={titularMin}
+                        maxAge={titularMax}
+                      />
+                    </div>
                     {submitAttempted && (!titular.data_nascimento || titularForaLimite) && (
-                      <p className="text-xs text-red-600 mt-1">O titular deve ter entre {titularMin} e {titularMax} anos.</p>
+                      <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                        Precisa ter entre <b>{titularMin}</b> e <b>{titularMax}</b> anos.
+                      </p>
                     )}
                   </div>
 
                   <div className="md:col-span-4">
-                    <label className="label" htmlFor="titular-cel">Celular (obrigatório)</label>
+                    <label className="label" htmlFor="titular-cel">
+                      Celular <span aria-hidden="true" className="text-red-600">*</span>
+                    </label>
                     <input
                       id="titular-cel"
+                      ref={celRef}
                       className={`input h-11 w-full ${submitAttempted && !phoneIsValid(titular.celular) ? "ring-1 ring-red-500" : ""}`}
                       inputMode="tel" placeholder="(11) 9XXXX-XXXX"
                       value={formatPhoneBR(titular.celular)} onChange={e=>updTit({celular:maskPhone(e.target.value)})}
                       autoComplete="tel-national"
+                      aria-required="true"
                       aria-invalid={submitAttempted && !phoneIsValid(titular.celular) ? "true" : "false"}
                     />
-                    {submitAttempted && !phoneIsValid(titular.celular) && <p className="text-xs text-red-600 mt-1">Informe um celular válido.</p>}
+                    {submitAttempted && !phoneIsValid(titular.celular) && <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Informe um celular válido com DDD.</p>}
                   </div>
 
                   <div className="md:col-span-4">
-                    <label className="label" htmlFor="titular-email">E-mail (opcional)</label>
+                    <label className="label" htmlFor="titular-email">E-mail</label>
                     <input
                       id="titular-email"
                       className="input h-11 w-full"
@@ -747,41 +938,91 @@ export default function Cadastro(){
 
               {/* Endereço */}
               <div className="mt-4 grid gap-3">
-                <div className="grid gap-3 md:grid-cols-[180px,1fr,140px]">
+                <div className="grid gap-3 md:grid-cols-[210px,1fr,140px]">
                   <div>
-                    <label className="label" htmlFor="end-cep">CEP</label>
+                    <div className="flex items-center justify-between">
+                      <label className="label" htmlFor="end-cep">CEP</label>
+                      <button
+                        type="button"
+                        className="text-xs underline text-[var(--c-muted)] hover:opacity-80 disabled:opacity-50"
+                        onClick={()=>fetchCEP(titular.endereco.cep, titular)}
+                        disabled={cepState.loading || onlyDigits(titular.endereco.cep).length!==8}
+                        aria-label="Buscar endereço pelo CEP"
+                      >
+                        {cepState.loading ? "Buscando..." : "Buscar CEP"}
+                      </button>
+                    </div>
                     <input
                       id="end-cep"
-                      className="input h-11"
+                      ref={cepRef}
+                      className={`input h-11 ${cepState.error ? "ring-1 ring-red-500" : ""}`}
                       inputMode="numeric" maxLength={9}
                       value={formatCEP(titular.endereco.cep)}
                       onChange={e=>{
                         const v=maskCEP(e.target.value);
+                        setCepState(s=>({ ...s, error:"", found:false }));
                         updTitEndereco({cep:v});
                         debouncedBuscaCEP(v, titular);
                       }}
+                      onBlur={(e)=>fetchCEP(e.target.value, titular)}
                       placeholder="00000-000"
                       autoComplete="postal-code"
+                      aria-invalid={cepState.error ? "true":"false"}
+                      aria-describedby={cepState.error ? "cep-error" : undefined}
                     />
+                    {cepState.error && (
+                      <p id="cep-error" className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                        {cepState.error}
+                      </p>
+                    )}
+                    {(!cepState.error && cepState.found) && (
+                      <p className="text-xs text-green-700 mt-1" aria-live="polite">Endereço preenchido pelo CEP.</p>
+                    )}
                   </div>
                   <div>
                     <label className="label" htmlFor="end-log">Logradouro</label>
-                    <input id="end-log" className="input h-11" value={titular.endereco.logradouro} onChange={e=>updTitEndereco({logradouro:e.target.value})} autoComplete="address-line1"/>
+                    <input
+                      id="end-log"
+                      className="input h-11"
+                      value={titular.endereco.logradouro}
+                      onChange={e=>{ setAddrTouched({logradouro:true}); updTitEndereco({logradouro:e.target.value}); }}
+                      autoComplete="address-line1"
+                      disabled={cepState.loading}
+                    />
                   </div>
                   <div>
                     <label className="label" htmlFor="end-num">Número</label>
-                    <input id="end-num" className="input h-11" value={titular.endereco.numero} onChange={e=>updTitEndereco({numero:e.target.value})} autoComplete="address-line2"/>
+                    <input
+                      id="end-num"
+                      className="input h-11"
+                      value={titular.endereco.numero}
+                      onChange={e=>updTitEndereco({numero:e.target.value})}
+                      autoComplete="address-line2"
+                      disabled={cepState.loading}
+                    />
                   </div>
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-[1fr,1fr,1fr,100px]">
                   <div>
                     <label className="label" htmlFor="end-comp">Complemento</label>
-                    <input id="end-comp" className="input h-11" value={titular.endereco.complemento} onChange={e=>updTitEndereco({complemento:e.target.value})}/>
+                    <input
+                      id="end-comp"
+                      className="input h-11"
+                      value={titular.endereco.complemento}
+                      onChange={e=>updTitEndereco({complemento:e.target.value})}
+                      disabled={cepState.loading}
+                    />
                   </div>
                   <div>
                     <label className="label" htmlFor="end-bairro">Bairro</label>
-                    <input id="end-bairro" className="input h-11" value={titular.endereco.bairro} onChange={e=>updTitEndereco({bairro:e.target.value})}/>
+                    <input
+                      id="end-bairro"
+                      className="input h-11"
+                      value={titular.endereco.bairro}
+                      onChange={e=>{ setAddrTouched({bairro:true}); updTitEndereco({bairro:e.target.value}); }}
+                      disabled={cepState.loading}
+                    />
                   </div>
                   <div>
                     <label className="label" htmlFor="end-cidade">Cidade</label>
@@ -790,11 +1031,13 @@ export default function Cadastro(){
                       className="input h-11"
                       value={titular.endereco.cidade}
                       onChange={e=>{
+                        setAddrTouched({cidade:true});
                         const cidade=e.target.value;
                         const uf=titular.endereco.uf || UF_PADRAO || "";
                         updTitEndereco({ cidade, uf });
                       }}
                       autoComplete="address-level2"
+                      disabled={cepState.loading}
                     />
                   </div>
                   <div>
@@ -804,11 +1047,13 @@ export default function Cadastro(){
                       className="input h-11"
                       value={titular.endereco.uf}
                       onChange={e=>{
-                        const v=e.target.value.replace(/[^a-zA-Z]/g,"").toUpperCase().slice(0,2);
+                        setAddrTouched({uf:true});
+                        const v=sanitizeUF(e.target.value);
                         updTitEndereco({ uf:v });
                       }}
                       maxLength={2}
                       autoComplete="address-level1"
+                      disabled={cepState.loading}
                     />
                   </div>
                 </div>
@@ -838,26 +1083,29 @@ export default function Cadastro(){
                       {/* Linha 1 */}
                       <div className="grid gap-3 md:grid-cols-12">
                         <div className="md:col-span-6">
-                          <label className="label">Nome completo</label>
-                          <input className="input h-11 w-full" placeholder="Nome do dependente" value={d.nome} onChange={e=>updDep(i,{nome:e.target.value})}/>
+                          <label className="label" htmlFor={`dep-${i}-nome`}>Nome completo</label>
+                          <input id={`dep-${i}-nome`} className="input h-11 w-full" placeholder="Nome do dependente" value={d.nome} onChange={e=>updDep(i,{nome:e.target.value})}/>
                         </div>
                         <div className="md:col-span-3">
-                          <label className="label">Parentesco</label>
+                          <label className="label" htmlFor={`dep-${i}-parentesco`}>Parentesco <span aria-hidden="true" className="text-red-600">*</span></label>
                           <select
+                            id={`dep-${i}-parentesco`}
                             className={`input h-11 w-full ${showParentescoError?"ring-1 ring-red-500":""}`}
                             value={d.parentesco}
                             onChange={e=>updDep(i,{parentesco:e.target.value})}
+                            aria-required="true"
                           >
                             <option value="">Selecione…</option>
                             {(plano?.parentescos?.length ? plano.parentescos : PARENTESCOS_FALLBACK.map(([v])=>v)).map((v)=>(
                               <option key={v} value={v}>{PARENTESCO_LABELS[v] || v}</option>
                             ))}
                           </select>
-                          {showParentescoError && <p className="text-xs text-red-600 mt-1">Selecione o parentesco.</p>}
+                          {showParentescoError && <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Selecione o parentesco.</p>}
                         </div>
                         <div className="md:col-span-3">
-                          <label className="label">Sexo</label>
+                          <label className="label" htmlFor={`dep-${i}-sexo`}>Sexo</label>
                           <select
+                            id={`dep-${i}-sexo`}
                             className="input h-11 w-full"
                             value={d.sexo||""}
                             onChange={e=>updDep(i,{sexo:e.target.value})}
@@ -871,13 +1119,15 @@ export default function Cadastro(){
                       {/* Linha 2 */}
                       <div className="grid gap-3 md:grid-cols-12 mt-2">
                         <div className="md:col-span-6">
-                          <label className="label">CPF (opcional)</label>
+                          <label className="label" htmlFor={`dep-${i}-cpf`}>CPF</label>
                           <input
+                            id={`dep-${i}-cpf`}
                             className={`input h-11 w-full ${(d.cpf && !cpfIsValid(d.cpf)) ? "ring-1 ring-red-500" : ""}`}
                             inputMode="numeric" maxLength={14} placeholder="000.000.000-00"
                             value={formatCPF(d.cpf||"")} onChange={e=>updDep(i,{cpf:maskCPF(e.target.value)})}
+                            aria-invalid={(d.cpf && !cpfIsValid(d.cpf)) ? "true" : "false"}
                           />
-                          {(d.cpf && !cpfIsValid(d.cpf)) && <p className="text-xs text-red-600 mt-1">CPF inválido.</p>}
+                          {(d.cpf && !cpfIsValid(d.cpf)) && <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">CPF inválido.</p>}
                         </div>
                         <div className="md:col-span-6">
                           <label className="label">Data de nascimento</label>
@@ -905,20 +1155,62 @@ export default function Cadastro(){
               </div>
 
               {countDepsFora>0 && (
-                <p className="mt-2 text-xs inline-flex items-center gap-1 text-red-600" role="alert">
+                <p className="mt-2 text-xs inline-flex items-center gap-1 text-red-600" role="alert" aria-live="polite">
                   <AlertTriangle size={14}/> {countDepsFora} dependente(s) fora do limite etário do plano.
                 </p>
               )}
             </div>
 
+            {/* ✅ Sumário de erros compacto — após tentativa de envio */}
+            {submitAttempted && errorList.length > 0 && (
+              <div
+                className="rounded-lg px-4 py-3 text-sm mt-4"
+                style={{
+                  border: '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
+                  background: 'color-mix(in srgb, var(--primary) 12%, transparent)',
+                  color: 'var(--text)',
+                }}
+                role="alert"
+                aria-live="assertive"
+                ref={alertRef}
+                tabIndex={-1}
+              >
+                <p className="font-medium mb-1">
+                  Corrija os itens abaixo ({errorCount}):
+                </p>
+                <ul className="list-disc ml-5 space-y-1">
+                  {errorList.map((it, idx) => (
+                    <li key={idx}>
+                      <button
+                        type="button"
+                        className="underline hover:opacity-80"
+                        onClick={() => focusByField(it.field)}
+                      >
+                        {it.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {error && (
-              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>
+              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert" aria-live="assertive">{error}</div>
             )}
 
             <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">
-              <CTAButton onClick={handleSalvarEnviar} disabled={saving || formInvalid} className="h-12 w-full" aria-disabled={saving || formInvalid}>
-                {saving ? "Enviando…" : "Salvar e continuar"}
+              {/* ✅ Botão sempre habilitado (exceto saving) + rótulo adaptativo */}
+              <CTAButton
+                type="button"
+                onClick={handleSalvarEnviar}
+                disabled={saving}
+                className="h-12 w-full"
+                aria-disabled={saving ? "true" : "false"}
+                title={formInvalid ? "Clique para ver o que falta preencher" : "Enviar cadastro"}
+              >
+                {saving ? "Enviando…" : (formInvalid ? "Ver o que falta" : "Salvar e continuar")}
               </CTAButton>
+
               <CTAButton variant="outline" onClick={sendWhatsFallback} className="h-12 w-full" title="Enviar cadastro por WhatsApp">
                 <MessageCircle size={16} className="mr-2"/> Enviar por WhatsApp
               </CTAButton>
@@ -955,8 +1247,16 @@ export default function Cadastro(){
             <p className="text-xs text-[var(--c-muted)] leading-tight">Total mensal</p>
             <p className="text-xl font-extrabold leading-tight">{money(totalMensal)}</p>
           </div>
-          <CTAButton className="min-w-[44%] h-12" onClick={handleSalvarEnviar} disabled={saving || formInvalid} aria-disabled={saving || formInvalid}>
-            {saving ? "Enviando…" : "Continuar"}
+          {/* ✅ Botão sempre habilitado (exceto saving) + rótulo adaptativo */}
+          <CTAButton
+            className="min-w-[44%] h-12"
+            type="button"
+            onClick={handleSalvarEnviar}
+            disabled={saving}
+            aria-disabled={saving ? "true" : "false"}
+            title={formInvalid ? "Clique para ver o que falta preencher" : "Enviar cadastro"}
+          >
+            {saving ? "Enviando…" : (formInvalid ? "Ver o que falta" : "Continuar")}
           </CTAButton>
         </div>
       </div>

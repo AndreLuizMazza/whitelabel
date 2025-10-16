@@ -63,8 +63,7 @@ export default function App() {
             <Route path="/memorial" element={<MemorialList />} />
             <Route path="/memorial/:slug" element={<MemorialDetail />} />
 
-            {/* ⚠️ Páginas que exigem login
-                Se não estiver autenticado, vai para /criar-conta (não /login) */}
+            {/* 🔒 Fluxo de contratação: prioriza registro */}
             <Route
               path="/cadastro"
               element={
@@ -81,10 +80,12 @@ export default function App() {
                 </PrivateRoute>
               }
             />
+
+            {/* 🔒 Área do associado: continua indo para login */}
             <Route
               path="/area"
               element={
-                <PrivateRoute redirectTo="/criar-conta">
+                <PrivateRoute redirectTo="/login">
                   <AreaUsuario />
                 </PrivateRoute>
               }

@@ -14,7 +14,7 @@
     "--nav-active-bg": "color-mix(in srgb, var(--primary) 22%, transparent)",
     "--nav-active-color": "#004C3F"
   },
-  "varsDark": {
+  "varsDark": {  
     "--surface": "#0b1220",
     "--surface-alt": "#0f172a",
     "--text": "#e5e7eb",

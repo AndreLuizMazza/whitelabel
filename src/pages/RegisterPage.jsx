@@ -229,7 +229,6 @@ function DateSelectBR({
 
 /* =============== Página =============== */
 export default function RegisterPage() {
-  // Mantém o store do tenant “vivo”
   useTenant()
 
   const navigate = useNavigate()
@@ -240,6 +239,8 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [okMsg, setOkMsg] = useState('')
+  const [submitted, setSubmitted] = useState(false)
+  const [errorList, setErrorList] = useState([])
 
   // Mostrar/ocultar senha
   const [showPass, setShowPass] = useState(false)
@@ -251,6 +252,8 @@ export default function RegisterPage() {
   const emailRef = useRef(null)
   const senhaRef = useRef(null)
   const confirmRef = useRef(null)
+  const cpfRef = useRef(null)
+  const celRef = useRef(null)
 
   // helpers de idade
   const ageFromISO = (iso) => {
@@ -273,18 +276,21 @@ export default function RegisterPage() {
   const cpfOk = useMemo(() => isValidCPF(form.cpf), [form.cpf])
   const senhaOk = useMemo(() => isStrongPassword(form.senha), [form.senha])
   const confirmOk = useMemo(() => form.confirmSenha.length > 0 && form.confirmSenha === form.senha, [form.confirmSenha, form.senha])
+  const celularOk = useMemo(() => phoneIsValid(form.celular), [form.celular])
   const termosOk = form.aceiteTermos && form.aceitePrivacidade
 
   const formValido =
-    nomeOk && emailOk && cpfOk && senhaOk && confirmOk && termosOk && idadeOk && !loading
+    nomeOk && emailOk && cpfOk && senhaOk && confirmOk && celularOk && termosOk && idadeOk && !loading
 
   useEffect(() => { setError(''); setOkMsg('') }, [form])
   useEffect(() => { if (error) setTimeout(() => alertRef.current?.focus(), 0) }, [error])
 
   // Handlers especializados para aplicar máscara imediatamente
-  const onChangeMasked = (name, formatter) => (e) => {
+  const onChangeMasked = (name, formatter, ref) => (e) => {
     const raw = e.target.value || ''
     setForm((prev) => ({ ...prev, [name]: formatter(raw) }))
+    if (submitted) setErrorList(buildErrorList({ ...form, [name]: formatter(raw) }))
+    if (!ref) return
   }
   const onPasteMasked = (name, formatter) => (e) => {
     e.preventDefault()
@@ -294,36 +300,49 @@ export default function RegisterPage() {
 
   function onChange(e) {
     const { name, value, type, checked } = e.target
-    setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
+    const next = { ...form, [name]: type === 'checkbox' ? checked : value }
+    setForm(next)
+    if (submitted) setErrorList(buildErrorList(next))
   }
 
-  function validate() {
-    if (!nomeOk) return { msg: 'Informe seu nome completo.', focus: 'nome' }
-    if (!emailOk) return { msg: 'Informe um e-mail válido.', focus: 'email' }
-    if (!cpfOk) return { msg: 'Informe um CPF válido (11 dígitos).', focus: 'cpf' }
-    if (!form.dataNascimento) return { msg: 'Informe sua data de nascimento.', focus: null }
-    if (!idadeOk) return { msg: 'Você precisa ter no mínimo 18 anos (e no máximo 100).', focus: null }
-    if (!senhaOk) return { msg: 'A senha deve ter ao menos 6 caracteres.', focus: 'senha' }
-    if (!confirmOk) return { msg: 'As senhas não conferem.', focus: 'confirmSenha' }
-    if (!termosOk) return { msg: 'É necessário aceitar os Termos e a Política de Privacidade.' }
-    return null
+  function buildErrorList(values) {
+    const items = []
+    if (!(values.nome || '').trim()) items.push({ field: 'nome', label: 'Nome completo é obrigatório.' })
+    if (!isValidEmail(values.email)) items.push({ field: 'email', label: 'Informe um e-mail válido.' })
+    if (!isValidCPF(values.cpf)) items.push({ field: 'cpf', label: 'Informe um CPF válido (11 dígitos).' })
+    if (!phoneIsValid(values.celular)) items.push({ field: 'celular', label: 'Informe um celular válido com DDD.' })
+    if (!values.dataNascimento || !(idadeFrom(values.dataNascimento))) items.push({ field: 'dataNascimento', label: 'Informe sua data de nascimento.' })
+    if (values.dataNascimento && !idadeOk) items.push({ field: 'dataNascimento', label: 'Você precisa ter entre 18 e 100 anos.' })
+    if (!isStrongPassword(values.senha)) items.push({ field: 'senha', label: 'A senha deve ter ao menos 6 caracteres.' })
+    if (!(values.confirmSenha && values.confirmSenha === values.senha)) items.push({ field: 'confirmSenha', label: 'As senhas não conferem.' })
+    if (!(values.aceiteTermos && values.aceitePrivacidade)) items.push({ field: 'aceites', label: 'É necessário aceitar os Termos e a Política de Privacidade.' })
+    return items
+  }
+  const idadeFrom = (iso) => {
+    const a = ageFromISO(iso)
+    return a !== null && a >= 0 ? a : null
+  }
+
+  function focusByField(field) {
+    const map = { nome: nomeRef, email: emailRef, cpf: cpfRef, celular: celRef, senha: senhaRef, confirmSenha: confirmRef }
+    map[field]?.current?.focus()
   }
 
   async function onSubmit(e) {
     e.preventDefault()
     if (loading) return
 
-    const v = validate()
-    if (v) {
-      setError(v.msg)
-      if (v.focus === 'nome') nomeRef.current?.focus()
-      if (v.focus === 'email') emailRef.current?.focus()
-      if (v.focus === 'senha') senhaRef.current?.focus()
-      if (v.focus === 'confirmSenha') confirmRef.current?.focus()
+    setSubmitted(true)
+    const list = buildErrorList(form)
+    setErrorList(list)
+
+    if (list.length > 0) {
+      // foca o primeiro campo com erro
+      focusByField(list[0].field)
       return
     }
 
-    // 🔁 suporta state.from como string OU como objeto { pathname, search, hash }
+    // 🔁 suporta state.from como string OU objeto
     const rawFrom = location.state?.from
     const from =
       typeof rawFrom === 'string'
@@ -334,12 +353,8 @@ export default function RegisterPage() {
 
     const identificador = form.email?.trim() || onlyDigits(form.cpf)
 
-    // Garante que CPF e celular vão limpos para a API de registro
-    const payload = {
-      ...form,
-      cpf: onlyDigits(form.cpf),
-      celular: onlyDigits(form.celular),
-    }
+    // envia os campos como estão (máscaras são tratadas na API de auth)
+    const payload = { ...form }
 
     try {
       setLoading(true)
@@ -347,6 +362,20 @@ export default function RegisterPage() {
 
       await registerUser(payload)
       await login(identificador, form.senha)
+
+      // ✅ salva um prefill leve para a próxima etapa (Cadastro)
+      try {
+        const prefill = {
+          cpf: onlyDigits(form.cpf),
+          celular: onlyDigits(form.celular),
+          dataNascimento: form.dataNascimento || '',
+          email: (form.email || '').trim(),
+          nome: (form.nome || '').trim(),
+        }
+        sessionStorage.setItem('reg_prefill', JSON.stringify(prefill))
+        // opcional: último registro também no localStorage (fallback)
+        localStorage.setItem('register:last', JSON.stringify(prefill))
+      } catch {}
 
       navigate(from, { replace: true })
     } catch (err) {
@@ -358,6 +387,7 @@ export default function RegisterPage() {
         'Não foi possível concluir o cadastro.'
       setError(apiMsg)
       setOkMsg('')
+      setTimeout(() => alertRef.current?.focus(), 0)
     } finally {
       setLoading(false)
     }
@@ -407,31 +437,34 @@ export default function RegisterPage() {
         <form onSubmit={onSubmit} className="card p-6 md:p-8 shadow-lg space-y-6">
           <fieldset disabled={loading} className="space-y-6">
 
-            {/* Nome em largura total */}
+            {/* Nome */}
             <div>
-              <label htmlFor="nome" className="label font-medium">Nome completo</label>
+              <label htmlFor="nome" className="label font-medium">
+                Nome completo <span aria-hidden="true" className="text-red-600">*</span>
+              </label>
               <input
                 id="nome"
                 name="nome"
                 ref={nomeRef}
                 value={form.nome}
                 onChange={onChange}
-                className="input"
+                className={`input ${submitted && !nomeOk ? 'ring-1 ring-red-500' : ''}`}
                 placeholder="Maria Oliveira"
                 autoComplete="name"
-                aria-invalid={!nomeOk && !!form.nome}
+                aria-required="true"
+                aria-invalid={submitted && !nomeOk}
               />
-              {!nomeOk && form.nome && (
-                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                  Informe ao menos 3 caracteres.
-                </p>
+              {submitted && !nomeOk && (
+                <p className="text-xs mt-1 text-red-600">Informe ao menos 3 caracteres.</p>
               )}
             </div>
 
             {/* Grid 2 col: e-mail + CPF */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="email" className="label font-medium">E-mail</label>
+                <label htmlFor="email" className="label font-medium">
+                  E-mail <span aria-hidden="true" className="text-red-600">*</span>
+                </label>
                 <input
                   id="email"
                   type="email"
@@ -439,37 +472,38 @@ export default function RegisterPage() {
                   ref={emailRef}
                   value={form.email}
                   onChange={onChange}
-                  className="input"
+                  className={`input ${submitted && !emailOk ? 'ring-1 ring-red-500' : ''}`}
                   placeholder="maria@exemplo.com"
                   autoComplete="email"
                   inputMode="email"
-                  aria-invalid={!emailOk && !!form.email}
+                  aria-required="true"
+                  aria-invalid={submitted && !emailOk}
                 />
-                {!emailOk && form.email && (
-                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                    Informe um e-mail válido.
-                  </p>
+                {submitted && !emailOk && (
+                  <p className="text-xs mt-1 text-red-600">Informe um e-mail válido.</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="cpf" className="label font-medium">CPF</label>
+                <label htmlFor="cpf" className="label font-medium">
+                  CPF <span aria-hidden="true" className="text-red-600">*</span>
+                </label>
                 <input
                   id="cpf"
                   name="cpf"
+                  ref={cpfRef}
                   value={formatCPF(form.cpf)}
-                  onChange={onChangeMasked('cpf', formatCPF)}
+                  onChange={onChangeMasked('cpf', formatCPF, cpfRef)}
                   onPaste={onPasteMasked('cpf', formatCPF)}
-                  className="input"
+                  className={`input ${submitted && !cpfOk ? 'ring-1 ring-red-500' : ''}`}
                   placeholder="000.000.000-00"
                   inputMode="numeric"
                   autoComplete="off"
-                  aria-invalid={!cpfOk && !!form.cpf}
+                  aria-required="true"
+                  aria-invalid={submitted && !cpfOk}
                 />
-                {!cpfOk && form.cpf && (
-                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                    Digite os 11 números do CPF.
-                  </p>
+                {submitted && !cpfOk && (
+                  <p className="text-xs mt-1 text-red-600">Digite os 11 números do CPF.</p>
                 )}
               </div>
             </div>
@@ -477,38 +511,42 @@ export default function RegisterPage() {
             {/* Grid: celular + data de nascimento */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="celular" className="label font-medium">Celular</label>
+                <label htmlFor="celular" className="label font-medium">
+                  Celular <span aria-hidden="true" className="text-red-600">*</span>
+                </label>
                 <input
                   id="celular"
                   name="celular"
+                  ref={celRef}
                   value={formatPhoneBR(form.celular)}
-                  onChange={onChangeMasked('celular', formatPhoneBR)}
+                  onChange={onChangeMasked('celular', formatPhoneBR, celRef)}
                   onPaste={onPasteMasked('celular', formatPhoneBR)}
-                  className="input"
+                  className={`input ${submitted && !celularOk ? 'ring-1 ring-red-500' : ''}`}
                   placeholder="(00) 90000-0000"
                   inputMode="tel"
                   autoComplete="tel"
-                  aria-invalid={!!form.celular && !phoneIsValid(form.celular)}
+                  aria-required="true"
+                  aria-invalid={submitted && !celularOk}
                 />
-                {!!form.celular && !phoneIsValid(form.celular) && (
-                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                    Informe um telefone válido com DDD.
-                  </p>
+                {submitted && !celularOk && (
+                  <p className="text-xs mt-1 text-red-600">Informe um celular válido com DDD.</p>
                 )}
               </div>
 
               <div>
-                <label className="label font-medium">Data de nascimento</label>
+                <label className="label font-medium">
+                  Data de nascimento <span aria-hidden="true" className="text-red-600">*</span>
+                </label>
                 <DateSelectBR
                   idPrefix="reg-nasc"
                   valueISO={form.dataNascimento}
                   onChangeISO={(iso) => setForm((p) => ({ ...p, dataNascimento: iso }))}
                   minAge={18}
                   maxAge={100}
-                  invalid={!!form.dataNascimento && !idadeOk}
+                  invalid={submitted && (!form.dataNascimento || !idadeOk)}
                 />
-                {(!form.dataNascimento || !idadeOk) && (
-                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                {submitted && (!form.dataNascimento || !idadeOk) && (
+                  <p className="text-xs mt-1 text-red-600">
                     Precisa ter entre <b>18</b> e <b>100</b> anos.
                   </p>
                 )}
@@ -518,8 +556,10 @@ export default function RegisterPage() {
             {/* Grid: senha + confirmar senha */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="senha" className="label font-medium">Senha</label>
-                <div className="relative">
+                <label htmlFor="senha" className="label font-medium">
+                  Senha <span aria-hidden="true" className="text-red-600">*</span>
+                </label>
+                <div className={`relative ${submitted && !senhaOk ? 'ring-1 ring-red-500 rounded-md' : ''}`}>
                   <input
                     id="senha"
                     type={showPass ? 'text' : 'password'}
@@ -530,7 +570,8 @@ export default function RegisterPage() {
                     className="input pr-12"
                     placeholder="Crie uma senha (mín. 6)"
                     autoComplete="new-password"
-                    aria-invalid={!senhaOk && !!form.senha}
+                    aria-required="true"
+                    aria-invalid={submitted && !senhaOk}
                   />
                   <button
                     type="button"
@@ -543,16 +584,16 @@ export default function RegisterPage() {
                     {showPass ? '🙈' : '👁️'}
                   </button>
                 </div>
-                {!senhaOk && form.senha && (
-                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                    A senha deve ter pelo menos 6 caracteres.
-                  </p>
+                {submitted && !senhaOk && (
+                  <p className="text-xs mt-1 text-red-600">A senha deve ter pelo menos 6 caracteres.</p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="confirmSenha" className="label font-medium">Confirmar senha</label>
-                <div className="relative">
+                <label htmlFor="confirmSenha" className="label font-medium">
+                  Confirmar senha <span aria-hidden="true" className="text-red-600">*</span>
+                </label>
+                <div className={`relative ${submitted && !confirmOk ? 'ring-1 ring-red-500 rounded-md' : ''}`}>
                   <input
                     id="confirmSenha"
                     ref={confirmRef}
@@ -563,7 +604,8 @@ export default function RegisterPage() {
                     className="input pr-12"
                     placeholder="Repita a senha"
                     autoComplete="new-password"
-                    aria-invalid={!!form.confirmSenha && !confirmOk}
+                    aria-required="true"
+                    aria-invalid={submitted && !confirmOk}
                   />
                   <button
                     type="button"
@@ -576,10 +618,8 @@ export default function RegisterPage() {
                     {showConfirm ? '🙈' : '👁️'}
                   </button>
                 </div>
-                {!!form.confirmSenha && !confirmOk && (
-                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-                    As senhas precisam ser idênticas.
-                  </p>
+                {submitted && !confirmOk && (
+                  <p className="text-xs mt-1 text-red-600">As senhas precisam ser idênticas.</p>
                 )}
               </div>
             </div>
@@ -593,6 +633,7 @@ export default function RegisterPage() {
                   checked={form.aceiteTermos}
                   onChange={onChange}
                   className="mt-0.5"
+                  aria-required="true"
                 />
                 <span>
                   Li e aceito os{' '}
@@ -607,6 +648,7 @@ export default function RegisterPage() {
                   checked={form.aceitePrivacidade}
                   onChange={onChange}
                   className="mt-0.5"
+                  aria-required="true"
                 />
                 <span>
                   Concordo com a{' '}
@@ -617,12 +659,41 @@ export default function RegisterPage() {
               </label>
             </div>
 
+            {/* ✅ Sumário de erros compacto — só após tentar enviar */}
+            {submitted && errorList.length > 0 && (
+              <div
+                className="rounded-lg px-4 py-3 text-sm mt-2"
+                style={{
+                  border: '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
+                  background: 'color-mix(in srgb, var(--primary) 12%, transparent)',
+                  color: 'var(--text)',
+                }}
+                role="alert"
+                aria-live="assertive"
+              >
+                <p className="font-medium mb-1">Corrija os itens abaixo:</p>
+                <ul className="list-disc ml-5 space-y-1">
+                  {errorList.map((it, idx) => (
+                    <li key={idx}>
+                      <button
+                        type="button"
+                        className="underline hover:opacity-80"
+                        onClick={() => focusByField(it.field)}
+                      >
+                        {it.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* Ações */}
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-3 pt-1">
               <button
                 type="submit"
-                disabled={!formValido}
                 className="btn-primary w-full sm:w-auto justify-center"
+                aria-disabled={loading}
               >
                 {loading ? 'Enviando…' : 'Criar conta'}
               </button>
