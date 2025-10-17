@@ -4,8 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import api from "@/lib/api.js";
 import CTAButton from "@/components/ui/CTAButton";
 import { money } from "@/lib/planUtils.js";
-import { CheckCircle2, ChevronLeft, AlertTriangle, MessageCircle, Plus, Trash2, X } from "lucide-react";
-import useAuth from "@/store/auth";
+import { CheckCircle2, ChevronLeft, AlertTriangle, MessageCircle, Plus, Trash2 } from "lucide-react";
 
 /* =============== utils/minis =============== */
 function useQuery(){ const {search}=useLocation(); return useMemo(()=>new URLSearchParams(search),[search]); }
@@ -49,6 +48,25 @@ function formatPhoneBR(v=""){
 const maskPhone=(v="")=>formatPhoneBR(v);
 function phoneIsValid(v){ const d=onlyDigits(v); return d.length===11 || d.length===10; }
 
+/* data BR (exibição) */
+const formatDateBR = (iso="")=>{
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso));
+  if(!m) return iso||"";
+  return `${m[3]}/${m[2]}/${m[1]}`;
+};
+
+/* coalesce + normalização de data */
+const normalizeISODate = (v="") => {
+  const s = String(v).trim();
+  if (!s) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;               // ISO direto
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s);            // dd/mm/aaaa
+  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
+  const d = new Date(s);                                      // Date/timestamp
+  if (!isNaN(d)) return d.toISOString().slice(0,10);
+  return s;
+};
+
 /* ===== parentescos fallback ===== */
 const PARENTESCOS_FALLBACK = [
   ["CONJUGE","Cônjuge"],["COMPANHEIRO","Companheiro(a)"] ,["FILHO","Filho(a)"],["PAI","Pai"],["MAE","Mãe"],["IRMAO","Irmã(o)"],["AVO","Avô(ó)"],["TITULAR","Titular"],
@@ -83,33 +101,10 @@ function useDebouncedCallback(fn, delay=400){
 }
 const sanitizeUF = (v="") => v.replace(/[^a-zA-Z]/g,"").toUpperCase().slice(0,2);
 
-/* ========= Prefill do REGISTRO (state, query, storage) ========= */
-function extractRegistroPrefill({ q, locationState }) {
-  const fromState = locationState?.registro || locationState?.prefill;
-  if (fromState && typeof fromState === "object") return fromState;
-
-  const maybeParam = q.get("registro") || q.get("reg") || q.get("prefill");
-  const fromQuery = maybeParam ? decodePayloadParam(maybeParam) : null;
-  if (fromQuery && typeof fromQuery === "object") return fromQuery;
-
-  try {
-    const raw = sessionStorage.getItem("reg_prefill");
-    if (raw) {
-      const obj = JSON.parse(raw);
-      if (obj && typeof obj === "object") return obj;
-    }
-  } catch {}
-
-  try {
-    const raw = localStorage.getItem("register:last");
-    if (raw) {
-      const obj = JSON.parse(raw);
-      if (obj && typeof obj === "object") return obj;
-    }
-  } catch {}
-
-  return null;
-}
+/* --------- UI helpers padronizados --------- */
+const isEmpty = v => !String(v||"").trim();
+const requiredRing = (cond) => cond ? "ring-1 ring-red-500" : "";
+const requiredStar = <span aria-hidden="true" className="text-red-600">*</span>;
 
 /* =============== DateSelectBR =============== */
 function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minAge, maxAge, idPrefix }) {
@@ -252,7 +247,7 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
         <label htmlFor={idMes} className="sr-only">Mês</label>
         <select id={idMes} className="input h-11" value={mes} onChange={e=>handleChangeMes(e.target.value)}>
           <option value="">Mês</option>
-          {mesesFiltrados.map(([v,l])=><option key={v} value={v}>{l}</option>)}
+          {mesesAll.map(([v,l])=><option key={v} value={v}>{l}</option>)}
         </select>
 
         <label htmlFor={idAno} className="sr-only">Ano</label>
@@ -273,23 +268,19 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
 /* =============== Página =============== */
 export default function Cadastro(){
   const q=useQuery(); const navigate=useNavigate();
-  const location = useLocation();
   const [saving,setSaving]=useState(false); const [error,setError]=useState("");
   const [submitAttempted,setSubmitAttempted]=useState(false);
 
-  // Sumário de erros e foco
-  const [errorList, setErrorList] = useState([]);
+  // refs para foco em erros
   const alertRef = useRef(null);
   const sexoRef = useRef(null);
+  const ecRef = useRef(null);
   const cepRef = useRef(null);
   const logRef = useRef(null);
   const numRef = useRef(null);
   const bairroRef = useRef(null);
   const cidadeRef = useRef(null);
   const ufRef = useRef(null);
-
-  const [restoredDraft,setRestoredDraft]=useState(false);
-  const [showDraftBadge,setShowDraftBadge]=useState(true);
 
   const payload=useMemo(()=>decodePayloadParam(q.get("p")),[q]);
   const planoId=payload?.plano;
@@ -306,29 +297,30 @@ export default function Cadastro(){
   const [titular,setTitular]=useState(defaultTitular);
   const [deps,setDeps]=useState([]);
 
-  const authUser = useAuth(s => s.user);
-
-  const isDirtyRef = useRef(false);
-  useEffect(()=>{
-    const handleBeforeUnload=(e)=>{
-      if(isDirtyRef.current && !saving){
-        e.preventDefault();
-        e.returnValue="";
+  /* ===== Busca o usuário logado no BFF ===== */
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { data } = await api.get("/api/v1/app/me");
+        if (!alive) return;
+        setTitular(prev => ({
+          ...prev,
+          nome: data?.nome || "",
+          email: data?.email || "",
+          cpf: data?.cpf || "",
+          celular: data?.celular || "",
+          data_nascimento: normalizeISODate(data?.dataNascimento || ""),
+        }));
+      } catch (e) {
+        console.error("Falha ao buscar /api/v1/app/me:", e);
       }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return ()=>window.removeEventListener("beforeunload", handleBeforeUnload);
-  },[saving]);
+    })();
+    return () => { alive = false; };
+  }, []);
 
-  const DRAFT_KEY = useMemo(()=>`cadastroDraft:v2:${planoId||"sem-plano"}:${cupom||"no-cupom"}`, [planoId, cupom]);
-  const saveTimer = useRef(null);
-  const initializedRef = useRef(false);
-
-  // ------- INICIALIZA (Payload + Draft local + Prefill de registro) -------
+  /* ===== Dependentes (opcional via payload) ===== */
   useEffect(()=>{
-    if(initializedRef.current) return;
-
-    let nextTitular = { ...defaultTitular };
     let nextDeps = [];
     const qtd=Number(payload?.qtdDependentes||0);
     if(qtd>0){
@@ -342,115 +334,13 @@ export default function Cadastro(){
         if(d.nome) nextDeps[i].nome = d.nome;
       });
     }
-
-    // Prefill vindo do registro (state/query/storage)
-    const regPrefill = extractRegistroPrefill({ q, locationState: location?.state });
-    if (regPrefill) {
-      const cpf = regPrefill.cpf || regPrefill.documento || "";
-      const celular = regPrefill.celular || regPrefill.telefone || regPrefill.phone || "";
-      const dataNasc = regPrefill.dataNascimento || regPrefill.nascimento || "";
-      const nome = regPrefill.nome || regPrefill.nomeCompleto || "";
-      const email = regPrefill.email || "";
-      nextTitular.nome = nextTitular.nome || nome || "";
-      nextTitular.cpf = nextTitular.cpf || cpf || "";
-      nextTitular.celular = nextTitular.celular || celular || "";
-      nextTitular.data_nascimento = nextTitular.data_nascimento || dataNasc || "";
-      nextTitular.email = nextTitular.email || email || "";
-    }
-
-    let usedDraft = false;
-    try{
-      const raw = localStorage.getItem(DRAFT_KEY);
-      if(raw){
-        const draft = JSON.parse(raw);
-        if(draft && typeof draft==='object'){
-          if(draft.titular) nextTitular = { ...nextTitular, ...draft.titular };
-          if(Array.isArray(draft.deps) && draft.deps.length){
-            const maxLen = Math.max(nextDeps.length, draft.deps.length);
-            const merged = [];
-            for(let i=0;i<maxLen;i++){
-              merged[i] = { ...(nextDeps[i]||{nome:"",cpf:"",sexo:"",parentesco:"",data_nascimento:""}), ...(draft.deps[i]||{}) };
-            }
-            nextDeps = merged;
-          }
-          usedDraft = true;
-        }
-      }
-    }catch{}
-
-    setTitular(nextTitular);
     setDeps(nextDeps);
-    setRestoredDraft(usedDraft);
-    initializedRef.current = true;
-
-    try { sessionStorage.removeItem("reg_prefill"); } catch {}
-  }, [payload, DRAFT_KEY, q, location?.state]);
-
-  // ------- AUTOPREENCHER (usuário logado) -------
-  useEffect(()=>{
-    if(!initializedRef.current) return;
-    if(!authUser) return;
-    setTitular(prev => {
-      const addr = authUser.endereco || authUser.address || {};
-      return {
-        ...prev,
-        nome: (prev.nome||"").trim() ? prev.nome : (authUser.nome || authUser.nomeCompleto || authUser.fullName || ""),
-        email: (prev.email||"").trim() ? prev.email : (authUser.email || ""),
-        cpf: (prev.cpf||"").trim() ? prev.cpf : (authUser.cpf || ""),
-        celular: (prev.celular||"").trim() ? prev.celular : (authUser.celular || authUser.telefone || authUser.phone || ""),
-        data_nascimento: (prev.data_nascimento||"").trim() ? prev.data_nascimento : (authUser.dataNascimento || authUser.nascimento || ""),
-        endereco: {
-          cep: (prev.endereco?.cep||"").trim() ? prev.endereco.cep : (addr.cep || ""),
-          logradouro: (prev.endereco?.logradouro||"").trim() ? prev.endereco.logradouro : (addr.logradouro || addr.street || ""),
-          numero: (prev.endereco?.numero||"").trim() ? prev.endereco.numero : (addr.numero || addr.number || ""),
-          complemento: (prev.endereco?.complemento||"").trim() ? prev.endereco.complemento : (addr.complemento || addr.complement || ""),
-          bairro: (prev.endereco?.bairro||"").trim() ? prev.endereco.bairro : (addr.bairro || addr.district || ""),
-          cidade: (prev.endereco?.cidade||"").trim() ? prev.endereco.cidade : (addr.cidade || addr.city || ""),
-          uf: (prev.endereco?.uf||"").trim()
-            ? sanitizeUF(prev.endereco.uf)
-            : (sanitizeUF(addr.uf || addr.state || "") || UF_PADRAO || ""),
-        }
-      };
-    });
-    isDirtyRef.current = true;
-  }, [authUser, UF_PADRAO]);
-
-  // ------- AUTOSAVE -------
-  const idleSave = (dataStr)=>{
-    try{
-      if("requestIdleCallback" in window){
-        // @ts-ignore
-        requestIdleCallback(()=>localStorage.setItem(DRAFT_KEY, dataStr), { timeout: 500 });
-      }else{
-        localStorage.setItem(DRAFT_KEY, dataStr);
-      }
-    }catch{}
-  };
-
-  useEffect(()=>{
-    if(!initializedRef.current) return;
-    if(saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(()=>{
-      try{
-        const data = JSON.stringify({ titular, deps, planoId, cupom, ts: Date.now() });
-        idleSave(data);
-        isDirtyRef.current = true;
-      }catch{}
-    }, 400);
-    return ()=>{ if(saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [titular, deps, DRAFT_KEY, planoId, cupom]);
-
-  function clearDraft(){
-    try{ localStorage.removeItem(DRAFT_KEY); }catch{}
-    setRestoredDraft(false);
-    setShowDraftBadge(false);
-  }
+  }, [payload?.qtdDependentes, payload?.dependentes]);
 
   /* ===== ViaCEP ===== */
   const cepAbortRef = useRef(null);
   const [cepState, setCepState] = useState({ loading:false, error:"", found:false, lastCep:"" });
   const [addressTouched, setAddressTouched] = useState({ logradouro:false, bairro:false, cidade:false, uf:false });
-
   const setAddrTouched = (patch)=> setAddressTouched(prev=>({ ...prev, ...patch }));
 
   const applyViaCepData = (data, titularSnapshot) => {
@@ -532,7 +422,7 @@ export default function Cadastro(){
   const addDep=()=>setDeps(prev=>[...prev,{nome:"",cpf:"",sexo:"",parentesco:"",data_nascimento:""}]);
   const delDep=(i)=>setDeps(prev=>prev.filter((_,idx)=>idx!==i));
 
-  // ====== Validações desta etapa ======
+  // ====== Validações desta etapa (padronizadas) ======
   const e = titular.endereco || {};
   const cepDigits = onlyDigits(e.cep||"");
   const ufClean = (e.uf||"").toUpperCase().slice(0,2);
@@ -540,55 +430,48 @@ export default function Cadastro(){
   function buildErrorList() {
     const items = [];
 
-    // Pré-cheque: dados fixos precisam existir para enviar à API
-    if (!(titular.nome && titular.nome.trim().length >= 3)) items.push({ field: "fixo", label: "Dados do registro incompletos: nome ausente." });
-    if (!cpfIsValid(titular.cpf)) items.push({ field: "fixo", label: "Dados do registro incompletos: CPF inválido ou ausente." });
-    if (!titular.data_nascimento) items.push({ field: "fixo", label: "Dados do registro incompletos: data de nascimento ausente." });
-    if (!phoneIsValid(titular.celular)) items.push({ field: "fixo", label: "Dados do registro incompletos: celular ausente ou inválido." });
+    // Titular: obrigatórios
+    if (!(titular.nome && titular.nome.trim().length >= 3)) items.push({ field: "fixo", label: "Titular: nome ausente." });
+    if (!cpfIsValid(titular.cpf)) items.push({ field: "fixo", label: "Titular: CPF inválido ou ausente." });
+    if (!titular.data_nascimento) items.push({ field: "fixo", label: "Titular: data de nascimento ausente." });
+    if (!phoneIsValid(titular.celular)) items.push({ field: "fixo", label: "Titular: celular ausente ou inválido." });
 
-    // Sexo (obrigatório)
-    if (!titular.sexo) items.push({ field: "sexo", label: "Selecione o sexo do titular." });
+    if (!titular.sexo) items.push({ field: "sexo", label: "Titular: selecione o sexo." });
+    if (!titular.estado_civil) items.push({ field: "estado_civil", label: "Titular: selecione o estado civil." });
 
-    // Endereço obrigatório
-    if (!(cepDigits.length === 8)) items.push({ field: "cep", label: "CEP deve ter 8 dígitos." });
-    if (!e.logradouro?.trim()) items.push({ field: "logradouro", label: "Informe o logradouro." });
-    if (!e.numero?.trim()) items.push({ field: "numero", label: "Informe o número." });
-    if (!e.bairro?.trim()) items.push({ field: "bairro", label: "Informe o bairro." });
-    if (!e.cidade?.trim()) items.push({ field: "cidade", label: "Informe a cidade." });
-    if (!(ufClean && ufClean.length === 2)) items.push({ field: "uf", label: "Informe a UF (2 letras)." });
-    if (cepState.error) items.push({ field: "cep", label: cepState.error });
+    // Endereço: obrigatórios
+    if (!(cepDigits.length === 8)) items.push({ field: "cep", label: "Endereço: CEP deve ter 8 dígitos." });
+    if (!e.logradouro?.trim()) items.push({ field: "logradouro", label: "Endereço: informe o logradouro." });
+    if (!e.numero?.trim()) items.push({ field: "numero", label: "Endereço: informe o número." });
+    if (!e.bairro?.trim()) items.push({ field: "bairro", label: "Endereço: informe o bairro." });
+    if (!e.cidade?.trim()) items.push({ field: "cidade", label: "Endereço: informe a cidade." });
+    if (!(ufClean && ufClean.length === 2)) items.push({ field: "uf", label: "Endereço: informe a UF (2 letras)." });
+    if (cepState.error) items.push({ field: "cep", label: `Endereço: ${cepState.error}` });
 
-    // Dependentes
+    // Dependentes: tudo obrigatório exceto CPF
     deps.forEach((d, i) => {
       const issue = depsIssues[i];
-      if ((d.nome||"").trim() && issue?.parentescoVazio) items.push({ field: `dep-${i}-parentesco`, label: `Dependente ${i+1}: selecione o parentesco.` });
+      if (!((d.nome||"").trim().length >= 3)) items.push({ field: `dep-${i}-nome`, label: `Dependente ${i+1}: informe o nome (mín. 3 caracteres).` });
+      if (!d.parentesco) items.push({ field: `dep-${i}-parentesco`, label: `Dependente ${i+1}: selecione o parentesco.` });
+      if (!d.sexo) items.push({ field: `dep-${i}-sexo`, label: `Dependente ${i+1}: selecione o sexo.` });
+      if (!d.data_nascimento) {
+        items.push({ field: `dep-${i}-nasc`, label: `Dependente ${i+1}: informe a data de nascimento.` });
+      } else if (issue?.fora) {
+        items.push({ field: `dep-${i}-nasc`, label: `Dependente ${i+1}: data fora do limite etário do plano.` });
+      }
       if (d.cpf && issue?.cpfInvalido) items.push({ field: `dep-${i}-cpf`, label: `Dependente ${i+1}: CPF inválido.` });
-      if (issue?.fora) items.push({ field: `dep-${i}-nasc`, label: `Dependente ${i+1}: data fora do limite etário do plano.` });
     });
 
     return items;
   }
 
   function focusByField(field) {
-    const map = {
-      sexo: sexoRef,
-      cep: cepRef,
-      logradouro: logRef,
-      numero: numRef,
-      bairro: bairroRef,
-      cidade: cidadeRef,
-      uf: ufRef,
-    };
-    if (map[field]?.current) {
-      map[field].current.focus();
-      return;
-    }
-    if (field.startsWith("dep-")) {
-      const el = document.getElementById(field);
-      if (el) el.focus();
-    }
+    const map = { sexo: sexoRef, estado_civil: ecRef, cep: cepRef, logradouro: logRef, numero: numRef, bairro: bairroRef, cidade: cidadeRef, uf: ufRef };
+    if (map[field]?.current) { map[field].current.focus(); return; }
+    if (field.startsWith("dep-")) { const el = document.getElementById(field); if (el) el.focus(); }
   }
 
+  const [errorList, setErrorList] = useState([]);
   useEffect(() => {
     if (submitAttempted && errorList.length > 0) {
       setTimeout(() => {
@@ -603,31 +486,27 @@ export default function Cadastro(){
     setError("");
     const list = buildErrorList();
     setErrorList(list);
-
-    if(list.length>0){
-      return; // não envia; sumário aponta os erros
-    }
+    if(list.length>0) return;
 
     setSaving(true);
     try{
-      // -------- Normalização segura para API --------
       const addr = titular.endereco || {};
       const payloadPessoa = {
         nome: (titular.nome || "").trim(),
-        cpf: onlyDigits(titular.cpf || ""),                               // << só dígitos
+        cpf: formatCPF(titular.cpf || ""),                                  // << COM MÁSCARA
         rg: (titular.rg || null),
-        dataNascimento: titular.data_nascimento || null,                  // yyyy-mm-dd
+        dataNascimento: titular.data_nascimento || null,                    // yyyy-mm-dd
         sexo: mapSexoToApi(titular.sexo),
         estadoCivil: titular.estado_civil || null,
         contatos: {
           email: (titular.email || null),
-          celular: titular.celular ? onlyDigits(titular.celular) : null,  // << só dígitos
+          celular: titular.celular ? onlyDigits(titular.celular) : null,    // dígitos
           telefone: null
         },
         endereco: {
-          cep: addr.cep ? onlyDigits(addr.cep) : null,                    // << só dígitos
+          cep: addr.cep ? onlyDigits(addr.cep) : null,
           cidade: addr.cidade || null,
-          uf: (addr.uf || "").toUpperCase().slice(0,2) || null,           // << UF limpa
+          uf: (addr.uf || "").toUpperCase().slice(0,2) || null,
           bairro: addr.bairro || null,
           logradouro: addr.logradouro || null,
           numero: addr.numero || null,
@@ -635,39 +514,27 @@ export default function Cadastro(){
         }
       };
 
-      console.info("[CADASTRO] Enviando pessoa:", payloadPessoa);
       const pessoaRes = await api.post("/api/v1/pessoas", payloadPessoa);
       const titularId = pessoaRes?.data?.id || pessoaRes?.data?.pessoaId || pessoaRes?.data?.uuid;
       if(!titularId) throw new Error("Não foi possível obter o ID do titular (etapa pessoa).");
 
-      // Dependentes
-      const depsToCreate = deps
-        .filter(d => (d.nome || "").trim().length >= 3)
-        .map(d => ({
-          cpf: d.cpf ? onlyDigits(d.cpf) : null,                          // << só dígitos
-          nome: (d.nome || "").trim(),
-          email: null,
-          fone: null,
-          celular: null,
-          parentesco: d.parentesco || null,
-          sexo: mapSexoToApi(d.sexo),
-          dataNascimento: d.data_nascimento || null,
-          titularId: titularId,
-          apelido: null,
-          estadoCivil: null
-        }));
+      const depsToCreate = deps.map(d => ({
+        cpf: d.cpf ? onlyDigits(d.cpf) : null, // opcional
+        nome: (d.nome || "").trim(),
+        email: null,
+        fone: null,
+        celular: null,
+        parentesco: d.parentesco || null,
+        sexo: mapSexoToApi(d.sexo),
+        dataNascimento: d.data_nascimento || null,
+        titularId: titularId,
+        apelido: null,
+        estadoCivil: null
+      }));
+      for (const depPayload of depsToCreate) await api.post("/api/v1/dependentes", depPayload);
 
-      for (const depPayload of depsToCreate) {
-        console.info("[CADASTRO] Enviando dependente:", depPayload);
-        await api.post("/api/v1/dependentes", depPayload);
-      }
-
-      // Contrato
       const todayISO = new Date().toISOString().slice(0,10);
-      const pickSafeDiaD = () => {
-        const d = new Date().getDate();
-        return Math.max(1, Math.min(28, d));
-      };
+      const pickSafeDiaD = () => Math.max(1, Math.min(28, new Date().getDate()));
       const payloadContrato = {
         titularId: Number(titularId),
         planoId: Number(planoId),
@@ -676,24 +543,16 @@ export default function Cadastro(){
         diaD: pickSafeDiaD(),
         cupom: cupom || null,
       };
-
-      console.info("[CADASTRO] Enviando contrato:", payloadContrato);
       const contratoRes = await api.post("/api/v1/contratos", payloadContrato);
       const contratoId = contratoRes?.data?.id || contratoRes?.data?.contratoId || contratoRes?.data?.uuid;
 
-      try{ localStorage.removeItem(DRAFT_KEY); }catch{}
-      isDirtyRef.current = false;
-
       navigate(`/confirmacao?contrato=${contratoId||""}&titular=${titularId}`);
     }catch(e){
-      console.error("[CADASTRO] Falha no envio:", e);
       const msg =
         e?.response?.data?.message ||
         e?.response?.data?.error ||
         (typeof e?.response?.data === "string" ? e.response.data : "") ||
-        e?.message ||
-        "";
-      // Mensagem amigável com pista da etapa
+        e?.message || "";
       setError(msg ? `Não conseguimos concluir o envio: ${msg}` : "Não conseguimos concluir o envio pelo site. Você pode enviar por WhatsApp.");
     }finally{ setSaving(false); }
   }
@@ -714,10 +573,10 @@ export default function Cadastro(){
     L.push(`CPF: ${formatCPF(titular.cpf||"")}`);
     L.push(`Sexo: ${sexoLabelFromValue(titular.sexo)}`);
     L.push(`Celular: ${formatPhoneBR(titular.celular||"")}`);
-    L.push(`E-mail: ${titular.email||"(não informado)"}`);
+    L.push(`E-mail: ${titular.email || "(não informado)"}`);
     L.push(`RG: ${titular.rg||""}`);
     L.push(`Estado civil: ${ESTADO_CIVIL_LABEL[titular.estado_civil]||titular.estado_civil||""}`);
-    L.push(`Nascimento: ${titular.data_nascimento||""}`);
+    L.push(`Nascimento: ${formatDateBR(titular.data_nascimento) || ""}`);
     const e=titular.endereco||{};
     L.push(`End.: ${e.logradouro||""}, ${e.numero||""} ${e.complemento||""} - ${e.bairro||""}`);
     L.push(`${e.cidade||""}/${e.uf||""} - CEP ${e.cep||""}`);
@@ -751,29 +610,6 @@ export default function Cadastro(){
           >
             <ChevronLeft size={16}/> Voltar
           </button>
-
-          {restoredDraft && showDraftBadge && (
-            <span className="ml-2 inline-flex items-center gap-2 text-xs px-2 py-1 rounded-full border border-[var(--c-border)] text-[var(--c-muted)]">
-              Rascunho restaurado deste dispositivo
-              <button
-                className="opacity-70 hover:opacity-100"
-                onClick={()=>setShowDraftBadge(false)}
-                aria-label="Ocultar aviso de rascunho restaurado"
-                title="Ocultar"
-              >
-                <X size={12}/>
-              </button>
-            </span>
-          )}
-
-          <button
-            type="button"
-            onClick={clearDraft}
-            className="ml-auto text-xs underline text-[var(--c-muted)] hover:opacity-80"
-            title="Apagar rascunho salvo automaticamente"
-          >
-            Apagar rascunho
-          </button>
         </div>
 
         {/* ALERTA GLOBAL DE ERRO API */}
@@ -795,7 +631,7 @@ export default function Cadastro(){
         )}
 
         <div className="space-y-8">
-          {/* ====== Card: Dados do Registro (somente leitura) ====== */}
+          {/* ====== Card 1: Dados do Titular (usuário logado) ====== */}
           <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
             <h1 className="text-2xl font-extrabold tracking-tight">Cadastro</h1>
             <p className="mt-1 text-sm text-[var(--c-muted)]">
@@ -803,7 +639,7 @@ export default function Cadastro(){
             </p>
 
             <div className="mt-6">
-              <h2 className="font-semibold text-lg">Seus dados (do registro)</h2>
+              <h2 className="font-semibold text-lg">Seus dados (usuário)</h2>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 <div className="rounded-xl border border-[var(--c-border)] p-3">
                   <p className="text-[var(--c-muted)] text-xs">Nome</p>
@@ -815,7 +651,7 @@ export default function Cadastro(){
                 </div>
                 <div className="rounded-xl border border-[var(--c-border)] p-3">
                   <p className="text-[var(--c-muted)] text-xs">Data de nascimento</p>
-                  <p className="font-medium">{titular.data_nascimento || "—"}</p>
+                  <p className="font-medium">{formatDateBR(titular.data_nascimento) || "—"}</p>
                 </div>
                 <div className="rounded-xl border border-[var(--c-border)] p-3">
                   <p className="text-[var(--c-muted)] text-xs">Celular</p>
@@ -828,275 +664,366 @@ export default function Cadastro(){
               </div>
             </div>
 
-            {/* ====== Complemento do cadastro (editável) ====== */}
+            {/* Complemento (sem endereço) */}
             <div className="mt-8">
               <h2 className="font-semibold text-lg">Complemento do cadastro</h2>
 
-              {/* Linha 1 — RG, Estado Civil, Sexo */}
+              {/* Estado civil (obrigatório), Sexo (obrigatório), RG (após sexo) */}
               <div className="mt-3 grid gap-3 md:grid-cols-12">
-                <div className="md:col-span-3">
-                  <label className="label" htmlFor="titular-rg">RG</label>
-                  <input id="titular-rg" className="input h-11 w-full" value={titular.rg} onChange={e=>updTit({rg:e.target.value})} placeholder="RG" autoComplete="off"/>
-                </div>
-
                 <div className="md:col-span-4">
-                  <label className="label" htmlFor="titular-ec">Estado civil</label>
-                  <select id="titular-ec" className="input h-11 w-full" value={titular.estado_civil} onChange={e=>updTit({estado_civil:e.target.value})}>
+                  <label className="label" htmlFor="titular-ec">
+                    Estado civil {requiredStar}
+                  </label>
+                  <select
+                    id="titular-ec"
+                    ref={ecRef}
+                    className={`input h-11 w-full ${requiredRing(submitAttempted && isEmpty(titular.estado_civil))}`}
+                    value={titular.estado_civil}
+                    onChange={e=>updTit({estado_civil:e.target.value})}
+                    aria-required="true"
+                    aria-invalid={submitAttempted && isEmpty(titular.estado_civil) ? "true" : "false"}
+                  >
                     <option value="">Selecione…</option>
                     {ESTADO_CIVIL_OPTIONS.map(([v,l])=>(<option key={v} value={v}>{l}</option>))}
                   </select>
+                  {submitAttempted && isEmpty(titular.estado_civil) && (
+                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Selecione o estado civil.</p>
+                  )}
                 </div>
 
-                <div className="md:col-span-5">
+                <div className="md:col-span-4">
                   <label className="label" htmlFor="titular-sexo">
-                    Sexo <span aria-hidden="true" className="text-red-600">*</span>
+                    Sexo {requiredStar}
                   </label>
                   <select
                     id="titular-sexo"
                     ref={sexoRef}
-                    className={`input h-11 w-full ${submitAttempted && !titular.sexo ? "ring-1 ring-red-500" : ""}`}
+                    className={`input h-11 w-full ${requiredRing(submitAttempted && isEmpty(titular.sexo))}`}
                     value={titular.sexo}
                     onChange={e=>updTit({sexo:e.target.value})}
                     aria-required="true"
-                    aria-invalid={submitAttempted && !titular.sexo ? "true" : "false"}
+                    aria-invalid={submitAttempted && isEmpty(titular.sexo) ? "true" : "false"}
                   >
                     <option value="">Selecione…</option>
                     {SEXO_OPTIONS.map(([v,l])=>(<option key={v} value={v}>{l}</option>))}
                   </select>
-                  {submitAttempted && !titular.sexo && <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Selecione o sexo.</p>}
-                </div>
-              </div>
-
-              {/* Endereço (obrigatório) */}
-              <div className="mt-4 grid gap-3">
-                <div className="grid gap-3 md:grid-cols-[210px,1fr,140px]">
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <label className="label" htmlFor="end-cep">CEP <span className="text-red-600" aria-hidden>*</span></label>
-                      <button
-                        type="button"
-                        className="text-xs underline text-[var(--c-muted)] hover:opacity-80 disabled:opacity-50"
-                        onClick={()=>fetchCEP(titular.endereco.cep, titular)}
-                        disabled={cepState.loading || onlyDigits(titular.endereco.cep).length!==8}
-                        aria-label="Buscar endereço pelo CEP"
-                      >
-                        {cepState.loading ? "Buscando..." : "Buscar CEP"}
-                      </button>
-                    </div>
-                    <input
-                      id="end-cep"
-                      ref={cepRef}
-                      className={`input h-11 ${(submitAttempted && onlyDigits(titular.endereco.cep||"").length!==8) || cepState.error ? "ring-1 ring-red-500" : ""}`}
-                      inputMode="numeric" maxLength={9}
-                      value={formatCEP(titular.endereco.cep)}
-                      onChange={e=>{
-                        const v=maskCEP(e.target.value);
-                        setCepState(s=>({ ...s, error:"", found:false }));
-                        updTitEndereco({cep:v});
-                        debouncedBuscaCEP(v, titular);
-                      }}
-                      onBlur={(e)=>fetchCEP(e.target.value, titular)}
-                      placeholder="00000-000"
-                      autoComplete="postal-code"
-                      aria-invalid={cepState.error ? "true":"false"}
-                      aria-describedby={cepState.error ? "cep-error" : undefined}
-                    />
-                    {cepState.error && (
-                      <p id="cep-error" className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                        {cepState.error}
-                      </p>
-                    )}
-                    {(!cepState.error && cepState.found) && (
-                      <p className="text-xs text-green-700 mt-1" aria-live="polite">Endereço preenchido pelo CEP.</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="label" htmlFor="end-log">Logradouro <span className="text-red-600" aria-hidden>*</span></label>
-                    <input
-                      id="end-log"
-                      ref={logRef}
-                      className={`input h-11 ${submitAttempted && !titular.endereco.logradouro?.trim() ? "ring-1 ring-red-500":""}`}
-                      value={titular.endereco.logradouro}
-                      onChange={e=>{ setAddrTouched({logradouro:true}); updTitEndereco({logradouro:e.target.value}); }}
-                      autoComplete="address-line1"
-                      disabled={cepState.loading}
-                    />
-                  </div>
-                  <div>
-                    <label className="label" htmlFor="end-num">Número <span className="text-red-600" aria-hidden>*</span></label>
-                    <input
-                      id="end-num"
-                      ref={numRef}
-                      className={`input h-11 ${submitAttempted && !titular.endereco.numero?.trim() ? "ring-1 ring-red-500":""}`}
-                      value={titular.endereco.numero}
-                      onChange={e=>updTitEndereco({numero:e.target.value})}
-                      autoComplete="address-line2"
-                      disabled={cepState.loading}
-                    />
-                  </div>
+                  {submitAttempted && isEmpty(titular.sexo) && (
+                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Selecione o sexo.</p>
+                  )}
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-[1fr,1fr,1fr,100px]">
-                  <div>
-                    <label className="label" htmlFor="end-comp">Complemento</label>
-                    <input
-                      id="end-comp"
-                      className="input h-11"
-                      value={titular.endereco.complemento}
-                      onChange={e=>updTitEndereco({complemento:e.target.value})}
-                      disabled={cepState.loading}
-                    />
-                  </div>
-                  <div>
-                    <label className="label" htmlFor="end-bairro">Bairro <span className="text-red-600" aria-hidden>*</span></label>
-                    <input
-                      id="end-bairro"
-                      ref={bairroRef}
-                      className={`input h-11 ${submitAttempted && !titular.endereco.bairro?.trim() ? "ring-1 ring-red-500":""}`}
-                      value={titular.endereco.bairro}
-                      onChange={e=>{ setAddrTouched({bairro:true}); updTitEndereco({bairro:e.target.value}); }}
-                      disabled={cepState.loading}
-                    />
-                  </div>
-                  <div>
-                    <label className="label" htmlFor="end-cidade">Cidade <span className="text-red-600" aria-hidden>*</span></label>
-                    <input
-                      id="end-cidade"
-                      ref={cidadeRef}
-                      className={`input h-11 ${submitAttempted && !titular.endereco.cidade?.trim() ? "ring-1 ring-red-500":""}`}
-                      value={titular.endereco.cidade}
-                      onChange={e=>{
-                        setAddrTouched({cidade:true});
-                        const cidade=e.target.value;
-                        const uf=titular.endereco.uf || UF_PADRAO || "";
-                        updTitEndereco({ cidade, uf });
-                      }}
-                      autoComplete="address-level2"
-                      disabled={cepState.loading}
-                    />
-                  </div>
-                  <div>
-                    <label className="label" htmlFor="end-uf">UF <span className="text-red-600" aria-hidden>*</span></label>
-                    <input
-                      id="end-uf"
-                      ref={ufRef}
-                      className={`input h-11 ${submitAttempted && !(titular.endereco.uf||"").trim() ? "ring-1 ring-red-500":""}`}
-                      value={titular.endereco.uf}
-                      onChange={e=>{
-                        setAddrTouched({uf:true});
-                        const v=sanitizeUF(e.target.value);
-                        updTitEndereco({ uf:v });
-                      }}
-                      maxLength={2}
-                      autoComplete="address-level1"
-                      disabled={cepState.loading}
-                    />
-                  </div>
+                <div className="md:col-span-4">
+                  <label className="label" htmlFor="titular-rg">RG</label>
+                  <input id="titular-rg" className="input h-11 w-full" value={titular.rg} onChange={e=>updTit({rg:e.target.value})} placeholder="RG" autoComplete="off"/>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Dependentes */}
-            <div className="mt-10">
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold text-lg">Dependentes ({deps.length})</h2>
-                <CTAButton onClick={addDep} className="h-10"><Plus size={16} className="mr-2"/>Adicionar dependente</CTAButton>
+          {/* ====== Card 2: Endereço ====== */}
+          <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
+            <h2 className="font-semibold text-lg">Endereço</h2>
+
+            <div className="mt-4 grid gap-3">
+              <div className="grid gap-3 md:grid-cols-[210px,1fr,140px]">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label className="label" htmlFor="end-cep">CEP {requiredStar}</label>
+                    <button
+                      type="button"
+                      className="text-xs underline text-[var(--c-muted)] hover:opacity-80 disabled:opacity-50"
+                      onClick={()=>fetchCEP(titular.endereco.cep, titular)}
+                      disabled={cepState.loading || onlyDigits(titular.endereco.cep).length!==8}
+                      aria-label="Buscar endereço pelo CEP"
+                    >
+                      {cepState.loading ? "Buscando..." : "Buscar CEP"}
+                    </button>
+                  </div>
+                  <input
+                    id="end-cep"
+                    ref={cepRef}
+                    className={`input h-11 ${requiredRing(submitAttempted && onlyDigits(titular.endereco.cep||"").length!==8) || (cepState.error ? " ring-1 ring-red-500" : "")}`}
+                    inputMode="numeric" maxLength={9}
+                    value={formatCEP(titular.endereco.cep)}
+                    onChange={e=>{
+                      const v=maskCEP(e.target.value);
+                      setCepState(s=>({ ...s, error:"", found:false }));
+                      updTitEndereco({cep:v});
+                      debouncedBuscaCEP(v, titular);
+                    }}
+                    onBlur={(e)=>fetchCEP(e.target.value, titular)}
+                    placeholder="00000-000"
+                    autoComplete="postal-code"
+                    aria-required="true"
+                    aria-invalid={(submitAttempted && onlyDigits(titular.endereco.cep||"").length!==8) || !!cepState.error ? "true":"false"}
+                    aria-describedby={(cepState.error ? "cep-error" : undefined)}
+                  />
+                  {submitAttempted && onlyDigits(titular.endereco.cep||"").length!==8 && !cepState.error && (
+                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">CEP deve ter 8 dígitos.</p>
+                  )}
+                  {cepState.error && (
+                    <p id="cep-error" className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                      {cepState.error}
+                    </p>
+                  )}
+                  {(!cepState.error && cepState.found) && (
+                    <p className="text-xs text-green-700 mt-1" aria-live="polite">Endereço preenchido pelo CEP.</p>
+                  )}
+                </div>
+                <div>
+                  <label className="label" htmlFor="end-log">Logradouro {requiredStar}</label>
+                  <input
+                    id="end-log"
+                    ref={logRef}
+                    className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.logradouro))}`}
+                    value={titular.endereco.logradouro}
+                    onChange={e=>{ setAddrTouched({logradouro:true}); updTitEndereco({logradouro:e.target.value}); }}
+                    autoComplete="address-line1"
+                    aria-required="true"
+                    aria-invalid={submitAttempted && isEmpty(titular.endereco.logradouro) ? "true" : "false"}
+                    disabled={cepState.loading}
+                  />
+                  {submitAttempted && isEmpty(titular.endereco.logradouro) && (
+                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Informe o logradouro.</p>
+                  )}
+                </div>
+                <div>
+                  <label className="label" htmlFor="end-num">Número {requiredStar}</label>
+                  <input
+                    id="end-num"
+                    ref={numRef}
+                    className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.numero))}`}
+                    value={titular.endereco.numero}
+                    onChange={e=>updTitEndereco({numero:e.target.value})}
+                    autoComplete="address-line2"
+                    aria-required="true"
+                    aria-invalid={submitAttempted && isEmpty(titular.endereco.numero) ? "true" : "false"}
+                    disabled={cepState.loading}
+                  />
+                  {submitAttempted && isEmpty(titular.endereco.numero) && (
+                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Informe o número.</p>
+                  )}
+                </div>
               </div>
 
-              <div className="mt-4 grid gap-4">
-                {deps.map((d,i)=>{
-                  const issue=depsIssues[i];
-                  const showParentescoError = submitAttempted && issue?.parentescoVazio;
-                  return (
-                    <div key={i} className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-semibold">Dependente {i+1}</span>
-                        <CTAButton variant="ghost" onClick={()=>delDep(i)} className="h-9 px-3" aria-label={`Remover dependente ${i+1}`}>
-                          <Trash2 size={16} className="mr-2"/> Remover
-                        </CTAButton>
-                      </div>
-
-                      {/* Linha 1 */}
-                      <div className="grid gap-3 md:grid-cols-12">
-                        <div className="md:col-span-6">
-                          <label className="label" htmlFor={`dep-${i}-nome`}>Nome completo</label>
-                          <input id={`dep-${i}-nome`} className="input h-11 w-full" placeholder="Nome do dependente" value={d.nome} onChange={e=>updDep(i,{nome:e.target.value})}/>
-                        </div>
-                        <div className="md:col-span-3">
-                          <label className="label" htmlFor={`dep-${i}-parentesco`}>Parentesco <span aria-hidden="true" className="text-red-600">*</span></label>
-                          <select
-                            id={`dep-${i}-parentesco`}
-                            className={`input h-11 w-full ${showParentescoError?"ring-1 ring-red-500":""}`}
-                            value={d.parentesco}
-                            onChange={e=>updDep(i,{parentesco:e.target.value})}
-                            aria-required="true"
-                          >
-                            <option value="">Selecione…</option>
-                            {(plano?.parentescos?.length ? plano.parentescos : PARENTESCOS_FALLBACK.map(([v])=>v)).map((v)=>(
-                              <option key={v} value={v}>{PARENTESCO_LABELS[v] || v}</option>
-                            ))}
-                          </select>
-                          {showParentescoError && <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Selecione o parentesco.</p>}
-                        </div>
-                        <div className="md:col-span-3">
-                          <label className="label" htmlFor={`dep-${i}-sexo`}>Sexo</label>
-                          <select
-                            id={`dep-${i}-sexo`}
-                            className="input h-11 w-full"
-                            value={d.sexo||""}
-                            onChange={e=>updDep(i,{sexo:e.target.value})}
-                          >
-                            <option value="">Selecione…</option>
-                            {SEXO_OPTIONS.map(([v,l])=>(<option key={v} value={v}>{l}</option>))}
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Linha 2 */}
-                      <div className="grid gap-3 md:grid-cols-12 mt-2">
-                        <div className="md:col-span-6">
-                          <label className="label" htmlFor={`dep-${i}-cpf`}>CPF</label>
-                          <input
-                            id={`dep-${i}-cpf`}
-                            className={`input h-11 w-full ${(d.cpf && !cpfIsValid(d.cpf)) ? "ring-1 ring-red-500" : ""}`}
-                            inputMode="numeric" maxLength={14} placeholder="000.000.000-00"
-                            value={formatCPF(d.cpf||"")} onChange={e=>updDep(i,{cpf:maskCPF(e.target.value)})}
-                            aria-invalid={(d.cpf && !cpfIsValid(d.cpf)) ? "true" : "false"}
-                          />
-                          {(d.cpf && !cpfIsValid(d.cpf)) && <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">CPF inválido.</p>}
-                        </div>
-                        <div className="md:col-span-6">
-                          <label className="label">Data de nascimento</label>
-                          <DateSelectBR
-                            className="w-full"
-                            idPrefix={`dep-${i}-nasc`}
-                            valueISO={d.data_nascimento}
-                            onChangeISO={(iso)=>updDep(i,{data_nascimento:iso})}
-                            invalid={Boolean(submitAttempted && issue?.fora)}
-                            minAge={Number.isFinite(idadeMinDep)?Number(idadeMinDep):undefined}
-                            maxAge={Number.isFinite(idadeMaxDep)?Number(idadeMaxDep):undefined}
-                          />
-                          {d.__idade_hint && !d.data_nascimento && (
-                            <p className="text-xs text-[var(--c-muted)] mt-2">Dica: aproximadamente {d.__idade_hint} anos.</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="grid gap-3 md:grid-cols-[1fr,1fr,1fr,100px]">
+                <div>
+                  <label className="label" htmlFor="end-comp">Complemento</label>
+                  <input
+                    id="end-comp"
+                    className="input h-11"
+                    value={titular.endereco.complemento}
+                    onChange={e=>updTitEndereco({complemento:e.target.value})}
+                    disabled={cepState.loading}
+                  />
+                </div>
+                <div>
+                  <label className="label" htmlFor="end-bairro">Bairro {requiredStar}</label>
+                  <input
+                    id="end-bairro"
+                    ref={bairroRef}
+                    className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.bairro))}`}
+                    value={titular.endereco.bairro}
+                    onChange={e=>{ setAddrTouched({bairro:true}); updTitEndereco({bairro:e.target.value})}}
+                    aria-required="true"
+                    aria-invalid={submitAttempted && isEmpty(titular.endereco.bairro) ? "true" : "false"}
+                    disabled={cepState.loading}
+                  />
+                  {submitAttempted && isEmpty(titular.endereco.bairro) && (
+                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Informe o bairro.</p>
+                  )}
+                </div>
+                <div>
+                  <label className="label" htmlFor="end-cidade">Cidade {requiredStar}</label>
+                  <input
+                    id="end-cidade"
+                    ref={cidadeRef}
+                    className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.cidade))}`}
+                    value={titular.endereco.cidade}
+                    onChange={e=>{
+                      setAddrTouched({cidade:true});
+                      const cidade=e.target.value;
+                      const uf=titular.endereco.uf || UF_PADRAO || "";
+                      updTitEndereco({ cidade, uf });
+                    }}
+                    autoComplete="address-level2"
+                    aria-required="true"
+                    aria-invalid={submitAttempted && isEmpty(titular.endereco.cidade) ? "true" : "false"}
+                    disabled={cepState.loading}
+                  />
+                  {submitAttempted && isEmpty(titular.endereco.cidade) && (
+                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Informe a cidade.</p>
+                  )}
+                </div>
+                <div>
+                  <label className="label" htmlFor="end-uf">UF {requiredStar}</label>
+                  <input
+                    id="end-uf"
+                    ref={ufRef}
+                    className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.uf))}`}
+                    value={titular.endereco.uf}
+                    onChange={e=>{
+                      setAddrTouched({uf:true});
+                      const v=sanitizeUF(e.target.value);
+                      updTitEndereco({ uf:v });
+                    }}
+                    maxLength={2}
+                    autoComplete="address-level1"
+                    aria-required="true"
+                    aria-invalid={submitAttempted && isEmpty(titular.endereco.uf) ? "true" : "false"}
+                    disabled={cepState.loading}
+                  />
+                  {submitAttempted && isEmpty(titular.endereco.uf) && (
+                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Informe a UF.</p>
+                  )}
+                </div>
               </div>
+            </div>
+          </div>
 
-              {countDepsFora>0 && (
-                <p className="mt-2 text-xs inline-flex items-center gap-1 text-red-600" role="alert" aria-live="polite">
-                  <AlertTriangle size={14}/> {countDepsFora} dependente(s) fora do limite etário do plano.
-                </p>
-              )}
+          {/* ====== Card 3: Dependentes ====== */}
+          <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-lg">Dependentes ({deps.length})</h2>
+              <CTAButton onClick={addDep} className="h-10"><Plus size={16} className="mr-2"/>Adicionar dependente</CTAButton>
             </div>
 
+            <div className="mt-4 grid gap-4">
+              {deps.map((d,i)=>{
+                const issue=depsIssues[i];
+                return (
+                  <div key={i} className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-semibold">Dependente {i+1}</span>
+                      <CTAButton variant="ghost" onClick={()=>delDep(i)} className="h-9 px-3" aria-label={`Remover dependente ${i+1}`}>
+                        <Trash2 size={16} className="mr-2"/> Remover
+                      </CTAButton>
+                    </div>
+
+                    {/* Linha 1 */}
+                    <div className="grid gap-3 md:grid-cols-12">
+                      <div className="md:col-span-6">
+                        <label className="label" htmlFor={`dep-${i}-nome`}>Nome completo {requiredStar}</label>
+                        <input
+                          id={`dep-${i}-nome`}
+                          className={`input h-11 w-full ${requiredRing(submitAttempted && !((d.nome||"").trim().length >= 3))}`}
+                          placeholder="Nome do dependente"
+                          value={d.nome}
+                          onChange={e=>updDep(i,{nome:e.target.value})}
+                          aria-required="true"
+                          aria-invalid={submitAttempted && !((d.nome||"").trim().length >= 3) ? "true" : "false"}
+                        />
+                        {submitAttempted && !((d.nome||"").trim().length >= 3) && (
+                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Informe o nome (mín. 3 caracteres).</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-3">
+                        <label className="label" htmlFor={`dep-${i}-parentesco`}>Parentesco {requiredStar}</label>
+                        <select
+                          id={`dep-${i}-parentesco`}
+                          className={`input h-11 w-full ${requiredRing(submitAttempted && isEmpty(d.parentesco))}`}
+                          value={d.parentesco}
+                          onChange={e=>updDep(i,{parentesco:e.target.value})}
+                          aria-required="true"
+                          aria-invalid={submitAttempted && isEmpty(d.parentesco) ? "true" : "false"}
+                        >
+                          <option value="">Selecione…</option>
+                          {(plano?.parentescos?.length ? plano.parentescos : PARENTESCOS_FALLBACK.map(([v])=>v)).map((v)=>(
+                            <option key={v} value={v}>{PARENTESCO_LABELS[v] || v}</option>
+                          ))}
+                        </select>
+                        {submitAttempted && isEmpty(d.parentesco) && (
+                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Selecione o parentesco.</p>
+                        )}
+                      </div>
+                      <div className="md:col-span-3">
+                        <label className="label" htmlFor={`dep-${i}-sexo`}>Sexo {requiredStar}</label>
+                        <select
+                          id={`dep-${i}-sexo`}
+                          className={`input h-11 w-full ${requiredRing(submitAttempted && isEmpty(d.sexo))}`}
+                          value={d.sexo||""}
+                          onChange={e=>updDep(i,{sexo:e.target.value})}
+                          aria-required="true"
+                          aria-invalid={submitAttempted && isEmpty(d.sexo) ? "true" : "false"}
+                        >
+                          <option value="">Selecione…</option>
+                          {SEXO_OPTIONS.map(([v,l])=>(<option key={v} value={v}>{l}</option>))}
+                        </select>
+                        {submitAttempted && isEmpty(d.sexo) && (
+                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Selecione o sexo.</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Linha 2 */}
+                    <div className="grid gap-3 md:grid-cols-12 mt-2">
+                      <div className="md:col-span-6">
+                        <label className="label" htmlFor={`dep-${i}-cpf`}>CPF (opcional)</label>
+                        <input
+                          id={`dep-${i}-cpf`}
+                          className={`input h-11 w-full ${(d.cpf && !cpfIsValid(d.cpf)) ? "ring-1 ring-red-500" : ""}`}
+                          inputMode="numeric" maxLength={14} placeholder="000.000.000-00"
+                          value={formatCPF(d.cpf||"")} onChange={e=>updDep(i,{cpf:maskCPF(e.target.value)})}
+                          aria-invalid={(d.cpf && !cpfIsValid(d.cpf)) ? "true" : "false"}
+                        />
+                        {(d.cpf && !cpfIsValid(d.cpf)) && <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">CPF inválido.</p>}
+                      </div>
+                      <div className="md:col-span-6">
+                        <label className="label">Data de nascimento {requiredStar}</label>
+                        <DateSelectBR
+                          className="w-full"
+                          idPrefix={`dep-${i}-nasc`}
+                          valueISO={d.data_nascimento}
+                          onChangeISO={(iso)=>updDep(i,{data_nascimento:iso})}
+                          invalid={Boolean(submitAttempted && (!d.data_nascimento || issue?.fora))}
+                          minAge={Number.isFinite(idadeMinDep)?Number(idadeMinDep):undefined}
+                          maxAge={Number.isFinite(idadeMaxDep)?Number(idadeMaxDep):undefined}
+                        />
+                        {submitAttempted && !d.data_nascimento && (
+                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Informe a data de nascimento.</p>
+                        )}
+                        {submitAttempted && d.data_nascimento && issue?.fora && (
+                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">Data fora do limite etário do plano.</p>
+                        )}
+                        {d.__idade_hint && !d.data_nascimento && (
+                          <p className="text-xs text-[var(--c-muted)] mt-2">Dica: aproximadamente {d.__idade_hint} anos.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {countDepsFora>0 && (
+              <p className="mt-2 text-xs inline-flex items-center gap-1 text-red-600" role="alert" aria-live="polite">
+                <AlertTriangle size={14}/> {countDepsFora} dependente(s) fora do limite etário do plano.
+              </p>
+            )}
+          </div>
+
+          {/* ====== Card 4: Resumo ====== */}
+          <div className="p-6 bg-[var(--c-surface)] rounded-2xl border border-[var(--c-border)] shadow-lg">
+            <h3 className="mb-3 text-lg font-semibold">Resumo</h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-[var(--c-muted)]">Plano</span><span className="font-medium text-right">{plano?.nome}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--c-muted)]">Base mensal</span><span>{money(baseMensal)}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--c-muted)]">Incluídos no plano</span><span>{numDepsIncl}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--c-muted)]">Dependentes adicionais ({Math.max(0, deps.length - numDepsIncl)}) × {money(valorIncMensal)}</span><span>{money(Math.max(0, deps.length - numDepsIncl)*valorIncMensal)}</span></div>
+              <hr className="my-2"/>
+              <div className="flex justify-between font-semibold text-base">
+                <span>Total mensal</span><span className="text-[color:var(--primary)] font-extrabold">{money(totalMensal)}</span>
+              </div>
+              {cupom ? (<div className="flex justify-between"><span className="text-[var(--c-muted)]">Cupom</span><span className="font-medium">{cupom}</span></div>) : null}
+            </div>
+          </div>
+
+          {/* ====== Ações ====== */}
+          <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
             {/* Sumário de erros */}
             {submitAttempted && errorList.length > 0 && (
               <div
-                className="rounded-lg px-4 py-3 text-sm mt-4"
+                className="rounded-lg px-4 py-3 text-sm mb-4"
                 style={{
                   border: '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
                   background: 'color-mix(in srgb, var(--primary) 12%, transparent)',
@@ -1107,17 +1034,11 @@ export default function Cadastro(){
                 ref={alertRef}
                 tabIndex={-1}
               >
-                <p className="font-medium mb-1">
-                  Corrija os itens abaixo ({errorCount}):
-                </p>
+                <p className="font-medium mb-1">Corrija os itens abaixo ({errorCount}):</p>
                 <ul className="list-disc ml-5 space-y-1">
                   {errorList.map((it, idx) => (
                     <li key={idx}>
-                      <button
-                        type="button"
-                        className="underline hover:opacity-80"
-                        onClick={() => focusByField(it.field)}
-                      >
+                      <button type="button" className="underline hover:opacity-80" onClick={() => focusByField(it.field)}>
                         {it.label}
                       </button>
                     </li>
@@ -1126,11 +1047,7 @@ export default function Cadastro(){
               </div>
             )}
 
-            {error && (
-              <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert" aria-live="assertive">{error}</div>
-            )}
-
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <CTAButton
                 type="button"
                 onClick={handleSalvarEnviar}
@@ -1148,24 +1065,8 @@ export default function Cadastro(){
             </div>
 
             <p className="mt-3 text-xs text-[var(--c-muted)] inline-flex items-center gap-1">
-              <CheckCircle2 size={14}/> Seus dados são salvos automaticamente neste dispositivo.
+              <CheckCircle2 size={14}/> Seus dados não são gravados neste dispositivo.
             </p>
-          </div>
-
-          {/* Resumo no final */}
-          <div className="p-6 bg-[var(--c-surface)] rounded-2xl border border-[var(--c-border)] shadow-lg">
-            <h3 className="mb-3 text-lg font-semibold">Resumo</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-[var(--c-muted)]">Plano</span><span className="font-medium text-right">{plano?.nome}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--c-muted)]">Base mensal</span><span>{money(baseMensal)}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--c-muted)]">Incluídos no plano</span><span>{numDepsIncl}</span></div>
-              <div className="flex justify-between"><span className="text-[var(--c-muted)]">Dependentes adicionais ({excedentes}) × {money(valorIncMensal)}</span><span>{money(excedentes*valorIncMensal)}</span></div>
-              <hr className="my-2"/>
-              <div className="flex justify-between font-semibold text-base">
-                <span>Total mensal</span><span className="text-[color:var(--primary)] font-extrabold">{money(totalMensal)}</span>
-              </div>
-              {cupom ? (<div className="flex justify-between"><span className="text-[var(--c-muted)]">Cupom</span><span className="font-medium">{cupom}</span></div>) : null}
-            </div>
           </div>
         </div>
       </div>
