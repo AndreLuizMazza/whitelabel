@@ -461,6 +461,30 @@ export default function RegisterPage() {
 
             {/* Grid 2 col: e-mail + CPF */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              <div>
+                <label htmlFor="cpf" className="label font-medium">
+                  CPF <span aria-hidden="true" className="text-red-600">*</span>
+                </label>
+                <input
+                  id="cpf"
+                  name="cpf"
+                  ref={cpfRef}
+                  value={formatCPF(form.cpf)}
+                  onChange={onChangeMasked('cpf', formatCPF, cpfRef)}
+                  onPaste={onPasteMasked('cpf', formatCPF)}
+                  className={`input ${submitted && !cpfOk ? 'ring-1 ring-red-500' : ''}`}
+                  placeholder="000.000.000-00"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  aria-required="true"
+                  aria-invalid={submitted && !cpfOk}
+                />
+                {submitted && !cpfOk && (
+                  <p className="text-xs mt-1 text-red-600">Digite os 11 números do CPF.</p>
+                )}
+              </div>
+              
               <div>
                 <label htmlFor="email" className="label font-medium">
                   E-mail <span aria-hidden="true" className="text-red-600">*</span>
@@ -484,32 +508,33 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              <div>
-                <label htmlFor="cpf" className="label font-medium">
-                  CPF <span aria-hidden="true" className="text-red-600">*</span>
-                </label>
-                <input
-                  id="cpf"
-                  name="cpf"
-                  ref={cpfRef}
-                  value={formatCPF(form.cpf)}
-                  onChange={onChangeMasked('cpf', formatCPF, cpfRef)}
-                  onPaste={onPasteMasked('cpf', formatCPF)}
-                  className={`input ${submitted && !cpfOk ? 'ring-1 ring-red-500' : ''}`}
-                  placeholder="000.000.000-00"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  aria-required="true"
-                  aria-invalid={submitted && !cpfOk}
-                />
-                {submitted && !cpfOk && (
-                  <p className="text-xs mt-1 text-red-600">Digite os 11 números do CPF.</p>
-                )}
-              </div>
+              
             </div>
 
             {/* Grid: celular + data de nascimento */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+
+              <div>
+                <label className="label font-medium">
+                  Data de nascimento <span aria-hidden="true" className="text-red-600">*</span>
+                </label>
+                <DateSelectBR
+                  idPrefix="reg-nasc"
+                  valueISO={form.dataNascimento}
+                  onChangeISO={(iso) => setForm((p) => ({ ...p, dataNascimento: iso }))}
+                  minAge={18}
+                  maxAge={100}
+                  invalid={submitted && (!form.dataNascimento || !idadeOk)}
+                />
+                {submitted && (!form.dataNascimento || !idadeOk) && (
+                  <p className="text-xs mt-1 text-red-600">
+                    Precisa ter entre <b>18</b> e <b>100</b> anos.
+                  </p>
+                )}
+              </div>
+
+
               <div>
                 <label htmlFor="celular" className="label font-medium">
                   Celular <span aria-hidden="true" className="text-red-600">*</span>
@@ -530,25 +555,6 @@ export default function RegisterPage() {
                 />
                 {submitted && !celularOk && (
                   <p className="text-xs mt-1 text-red-600">Informe um celular válido com DDD.</p>
-                )}
-              </div>
-
-              <div>
-                <label className="label font-medium">
-                  Data de nascimento <span aria-hidden="true" className="text-red-600">*</span>
-                </label>
-                <DateSelectBR
-                  idPrefix="reg-nasc"
-                  valueISO={form.dataNascimento}
-                  onChangeISO={(iso) => setForm((p) => ({ ...p, dataNascimento: iso }))}
-                  minAge={18}
-                  maxAge={100}
-                  invalid={submitted && (!form.dataNascimento || !idadeOk)}
-                />
-                {submitted && (!form.dataNascimento || !idadeOk) && (
-                  <p className="text-xs mt-1 text-red-600">
-                    Precisa ter entre <b>18</b> e <b>100</b> anos.
-                  </p>
                 )}
               </div>
             </div>
