@@ -3,21 +3,17 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-   "scripts": {
+  "scripts": {
     "start": "node server/index.js",
-
     "predev": "node scripts/theme-build.mjs",
     "dev": "npm run predev && concurrently -k -n FRONT,BFF \"npm:dev:frontend\" \"npm:dev:bff\"",
-
     "dev:frontend": "vite",
     "dev:bff": "cross-env NODE_ENV=development PORT=8787 nodemon --signal SIGINT server/index.js",
-    "dev:server": "nodemon server/index.js",        // (ok manter se você usa separado)
-    "dev:client": "vite",                           // (ok manter se você usa separado)
+    "dev:server": "nodemon server/index.js",
+    "dev:client": "vite",
     "dev:static": "npm run predev && cross-env VITE_DISABLE_BOOTSTRAP=1 vite",
-
     "preview": "vite preview",
     "preview:static": "cross-env VITE_DISABLE_BOOTSTRAP=1 vite preview",
-
     "build": "vite build",
     "prebuild:tenant": "node scripts/theme-build.mjs",
     "build:tenant": "npm run prebuild:tenant && vite build"
