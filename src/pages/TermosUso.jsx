@@ -30,7 +30,7 @@ export default function TermosUso() {
 
   return (
     <div className="container-max py-10 prose max-w-none">
-      <h1>Termos de Uso – {nomeFantasia}</h1>
+      <h1>Termos de Uso – {nomeFantasia} </h1>
       <p><strong>Última atualização:</strong> {hojeISO()}</p>
 
       <h2>1. Aceitação</h2>

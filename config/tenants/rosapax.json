@@ -1,0 +1,29 @@
+{
+  "slug": "rosapax",
+  "v": 1,
+  "vars": {
+    "--primary": "#E91E63",
+    "--primary-dark": "#C2185B",
+    "--on-primary": "#ffffff",
+    "--surface": "#ffffff",
+    "--surface-alt": "#f9f9fb",
+    "--text": "#1a1a1a",
+    "--text-muted": "#6b6b6b",
+    "--c-border": "rgba(0,0,0,0.08)",
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 10%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 20%, transparent)",
+    "--nav-active-color": "#E91E63"
+  },
+  "varsDark": {  
+    "--surface": "#0b0b0f",
+    "--surface-alt": "#111318",
+    "--text": "#f1f1f1",
+    "--text-muted": "#b3b3b3",
+    "--c-border": "rgba(255,255,255,0.12)",
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 22%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 36%, transparent)",
+    "--nav-active-color": "#ffffff"
+  },
+  "logo": "https://progem.s3.amazonaws.com/arquivos/Empresa%20257/a95b8b98-7be8-4862-952e-aba35329c9e0_logoofic.png",
+  "domain": "rosapax.com.br"
+}

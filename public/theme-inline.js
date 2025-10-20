@@ -1,5 +1,5 @@
-/* Gerado de config/tenants/patense.json */
-window.__TENANT__ = {"slug":"patense","v":7,"vars":{"--primary":"#004C3F","--primary-dark":"#003B31","--on-primary":"#ffffff","--surface":"#ffffff","--surface-alt":"#f6f7fb","--text":"#0b1220","--text-muted":"#5f6b7a","--c-border":"rgba(0,0,0,0.08)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 12%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 22%, transparent)","--nav-active-color":"#004C3F"},"varsDark":{"--surface":"#0b1220","--surface-alt":"#0f172a","--text":"#e5e7eb","--text-muted":"#94a3b8","--c-border":"rgba(255,255,255,0.12)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 22%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 36%, transparent)","--nav-active-color":"#ffffff"},"logo":"https://app.progem.com.br/progem/api/downloads/empresa/274/arquivo?nome=ea3aa504-e9fd-4f19-9021-eebd659ca841_Marca_Dagua_Logo_Funeraria_Patense.png","domain":"patense.com.br"};
+/* Gerado de config/tenants/rosapax.json */
+window.__TENANT__ = {"slug":"rosapax","v":1,"vars":{"--primary":"#E91E63","--primary-dark":"#C2185B","--on-primary":"#ffffff","--surface":"#ffffff","--surface-alt":"#f9f9fb","--text":"#1a1a1a","--text-muted":"#6b6b6b","--c-border":"rgba(0,0,0,0.08)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 10%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 20%, transparent)","--nav-active-color":"#E91E63"},"varsDark":{"--surface":"#0b0b0f","--surface-alt":"#111318","--text":"#f1f1f1","--text-muted":"#b3b3b3","--c-border":"rgba(255,255,255,0.12)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 22%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 36%, transparent)","--nav-active-color":"#ffffff"},"logo":"https://progem.s3.amazonaws.com/arquivos/Empresa%20257/a95b8b98-7be8-4862-952e-aba35329c9e0_logoofic.png","domain":"rosapax.com.br"};
 
 (function(){
   try {
@@ -26,7 +26,7 @@ window.__TENANT__ = {"slug":"patense","v":7,"vars":{"--primary":"#004C3F","--pri
       }
     }
     if (docEl){
-      docEl.setAttribute('data-tenant', t.slug || 'patense');
+      docEl.setAttribute('data-tenant', t.slug || 'rosapax');
       docEl.setAttribute('data-theme', mode);
       docEl.setAttribute('data-theme-ready', '1');
     }
