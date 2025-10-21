@@ -24,6 +24,6 @@
     "--nav-active-bg": "color-mix(in srgb, var(--primary) 36%, transparent)",
     "--nav-active-color": "#ffffff"
   },
-  "logo": "https://progem.s3.amazonaws.com/arquivos/Empresa%20257/a95b8b98-7be8-4862-952e-aba35329c9e0_logoofic.png",
+  "logo": "https://app.progem.com.br/progem/api/downloads/empresa/257/arquivo?nome=e7d5f6cf-0af2-4390-9cd3-d451089f1c28_rosapax.png",
   "domain": "rosapax.com.br"
 }
