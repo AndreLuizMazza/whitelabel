@@ -1,28 +1,34 @@
 {
   "slug": "rosapax",
-  "v": 1,
+  "v": 5,
   "vars": {
-    "--primary": "#E91E63",
-    "--primary-dark": "#C2185B",
+    "--primary": "#D643D9",
+    "--primary-dark": "#A456A6",
+    "--primary-light": "#EE05F2",
+    "--secondary": "#EE05F2",
     "--on-primary": "#ffffff",
     "--surface": "#ffffff",
-    "--surface-alt": "#f9f9fb",
-    "--text": "#1a1a1a",
-    "--text-muted": "#6b6b6b",
+    "--surface-alt": "#F2F2F2",
+    "--text": "#0D0D0D",
+    "--text-muted": "rgba(13,13,13,0.65)",
     "--c-border": "rgba(0,0,0,0.08)",
     "--nav-hover-bg": "color-mix(in srgb, var(--primary) 10%, transparent)",
     "--nav-active-bg": "color-mix(in srgb, var(--primary) 20%, transparent)",
-    "--nav-active-color": "#E91E63"
+    "--nav-active-color": "#D643D9",
+    "--highlight": "#EE05F2",
+    "--button-hover": "color-mix(in srgb, var(--primary) 15%, var(--secondary))"
   },
-  "varsDark": {  
-    "--surface": "#0b0b0f",
-    "--surface-alt": "#111318",
-    "--text": "#f1f1f1",
-    "--text-muted": "#b3b3b3",
+  "varsDark": {
+    "--surface": "#0D0D0D",
+    "--surface-alt": "#1A1A1A",
+    "--text": "#F2F2F2",
+    "--text-muted": "rgba(242,242,242,0.7)",
     "--c-border": "rgba(255,255,255,0.12)",
-    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 22%, transparent)",
-    "--nav-active-bg": "color-mix(in srgb, var(--primary) 36%, transparent)",
-    "--nav-active-color": "#ffffff"
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 20%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 35%, transparent)",
+    "--nav-active-color": "#EE05F2",
+    "--highlight": "#D643D9",
+    "--button-hover": "color-mix(in srgb, var(--primary) 25%, var(--secondary))"
   },
   "logo": "https://app.progem.com.br/progem/api/downloads/empresa/257/arquivo?nome=e7d5f6cf-0af2-4390-9cd3-d451089f1c28_rosapax.png",
   "domain": "rosapax.com.br"
