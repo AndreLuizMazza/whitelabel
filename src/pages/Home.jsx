@@ -160,7 +160,7 @@ export default function Home() {
         <header className={['relative text-center mb-6 md:mb-8 transition-all duration-700', mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'].join(' ')}>
           <h1 className="text-4xl md:text-5xl font-black tracking-tight">Bem-vindo</h1>
           <p className="mt-2 text-[var(--text)]" aria-live="polite">
-            Empresa: <span className="font-semibold">{empresa?.nomeFantasia || '—'}</span>
+            <span className="font-semibold">{empresa?.nomeFantasia || '—'}</span>
           </p>
           <ValuePills />
         </header>

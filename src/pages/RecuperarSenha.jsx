@@ -18,14 +18,24 @@ export default function RecuperarSenha() {
     e.preventDefault()
     if (!identValido || loading) return
 
-    setErro(''); setLoading(true)
+    setErro('')
+    setLoading(true)
+
     try {
-      // Ajuste o endpoint conforme seu BFF/serviço:
-      await api.post('/auth/recover', { identificador: ident.trim() })
+      // API/BFF espera { ident }
+      await api.post('/api/v1/app/password/forgot', {
+  ident: ident.trim(),
+  identifier: ident.trim()
+})
       setEnviado(true)
     } catch (e) {
       console.error(e)
-      const msg = e?.response?.data?.error || e?.response?.statusText || e?.message || 'Não foi possível iniciar a recuperação.'
+      const msg =
+        e?.response?.data?.message ||
+        e?.response?.data?.error ||
+        e?.response?.statusText ||
+        e?.message ||
+        'Não foi possível iniciar a recuperação.'
       setErro(msg)
     } finally {
       setLoading(false)
@@ -34,10 +44,12 @@ export default function RecuperarSenha() {
 
   return (
     <section className="section">
-      <div className="container-max max-w-lg">
+      <div className="container-max max-w-lg mx-auto">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold tracking-tight">Recuperar senha</h1>
-          <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--text)]">
+            Recuperar senha
+          </h1>
+          <p className="mt-1 text-[var(--text-muted)]">
             Informe seu e-mail ou CPF para receber as instruções.
           </p>
         </div>
@@ -61,24 +73,43 @@ export default function RecuperarSenha() {
 
         {enviado ? (
           <div className="card p-6 md:p-8 shadow-lg">
-            <p className="text-[var(--text)]">
-              Se o identificador informado estiver cadastrado, você receberá um e-mail com os próximos passos.
+            <p className="text-[var(--text)] leading-relaxed">
+              Se o identificador informado estiver cadastrado, você receberá um e-mail com um
+              código (link) para redefinir sua senha.
             </p>
-            <div className="mt-4 flex items-center gap-2">
-              <Link to="/login" className="btn-primary">Voltar ao login</Link>
-              <button type="button" className="btn-outline" onClick={() => { setEnviado(false); setIdent('') }}>
+
+            <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
+              <Link to="/login" className="btn-primary w-full sm:w-auto">
+                Voltar ao login
+              </Link>
+
+              <button
+                type="button"
+                className="btn-outline w-full sm:w-auto"
+                onClick={() => { setEnviado(false); setIdent('') }}
+              >
                 Enviar novamente
               </button>
+
+              <Link to="/redefinir-senha" className="btn-ghost w-full sm:w-auto">
+                Já tenho o código
+              </Link>
             </div>
           </div>
         ) : (
-          <form onSubmit={onSubmit} noValidate className="card p-6 md:p-8 space-y-4 shadow-lg">
+          <form
+            onSubmit={onSubmit}
+            noValidate
+            className="card p-6 md:p-8 space-y-4 shadow-lg bg-[var(--surface-alt)]"
+          >
             <fieldset disabled={loading}>
               <div className="space-y-1">
-                <label htmlFor="ident" className="label font-medium">E-mail ou CPF</label>
+                <label htmlFor="ident" className="label font-medium text-[var(--text)]">
+                  E-mail ou CPF
+                </label>
                 <input
                   id="ident"
-                  className="input"
+                  className="input w-full"
                   placeholder="voce@email.com ou 000.000.000-00"
                   value={ident}
                   onChange={e => setIdent(e.target.value)}
@@ -87,7 +118,7 @@ export default function RecuperarSenha() {
                   aria-invalid={!identValido}
                 />
                 {!identValido && ident && (
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  <p className="text-xs text-[var(--text-muted)]">
                     Informe um e-mail ou CPF com pelo menos 5 caracteres.
                   </p>
                 )}
@@ -96,14 +127,17 @@ export default function RecuperarSenha() {
               <button
                 type="submit"
                 className="btn-primary w-full h-11 text-base mt-3 disabled:opacity-60 disabled:cursor-not-allowed"
-                disabled={!identValido}
+                disabled={!identValido || loading}
               >
                 {loading ? 'Enviando…' : 'Enviar instruções'}
               </button>
 
-              <div className="mt-3 text-center text-sm">
+              <div className="mt-4 text-center text-sm">
                 Lembrou a senha?{' '}
-                <Link to="/login" className="font-medium hover:underline" style={{ color: 'var(--primary)' }}>
+                <Link
+                  to="/login"
+                  className="font-medium hover:underline text-[var(--primary)]"
+                >
                   Entrar
                 </Link>
               </div>

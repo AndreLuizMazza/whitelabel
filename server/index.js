@@ -621,6 +621,84 @@ app.post('/api/v1/contratos', async (req, res) => {
 
 
 
+/* ===================================================================== */
+/* ==================  Recuperação / Troca de Senha  ==================== */
+/* ===================================================================== */
+
+/** POST /api/v1/app/password/forgot
+ *  Body esperado: { ident: string }  (e-mail ou CPF)
+ *  Auth: client credentials
+ */
+app.post('/api/v1/app/password/forgot', async (req, res) => {
+  try {
+    const clientToken = await getClientToken();
+    const r = await fetch(`${BASE}/api/v1/app/password/forgot`, {
+      method: 'POST',
+      headers: injectHeadersFromReq(req, {
+        Authorization: `Bearer ${clientToken}`,
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify(req.body || {}),
+    });
+    const data = await readAsJsonOrText(r);
+    console.log('[BFF] POST /api/v1/app/password/forgot ->', r.status);
+    if (!r.ok) return res.status(r.status).send(data);
+    res.status(r.status).send(data);
+  } catch (e) {
+    console.error('[BFF] password/forgot error', e);
+    res.status(500).json({ error: 'Falha ao solicitar recuperação de senha', message: String(e) });
+  }
+});
+
+/** POST /api/v1/app/password/reset
+ *  Body esperado: { token: string, novaSenha: string }
+ *  Auth: client credentials
+ */
+app.post('/api/v1/app/password/reset', async (req, res) => {
+  try {
+    const clientToken = await getClientToken();
+    const r = await fetch(`${BASE}/api/v1/app/password/reset`, {
+      method: 'POST',
+      headers: injectHeadersFromReq(req, {
+        Authorization: `Bearer ${clientToken}`,
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify(req.body || {}),
+    });
+    const data = await readAsJsonOrText(r);
+    console.log('[BFF] POST /api/v1/app/password/reset ->', r.status);
+    if (!r.ok) return res.status(r.status).send(data);
+    res.status(r.status).send(data);
+  } catch (e) {
+    console.error('[BFF] password/reset error', e);
+    res.status(500).json({ error: 'Falha ao redefinir senha', message: String(e) });
+  }
+});
+
+/** POST /api/v1/app/password/change
+ *  Body esperado: { senhaAtual: string, novaSenha: string }
+ *  Auth: Bearer do usuário (Authorization header)
+ */
+app.post('/api/v1/app/password/change', async (req, res) => {
+  try {
+    const incomingAuth = req.headers.authorization || '';
+    const r = await fetch(`${BASE}/api/v1/app/password/change`, {
+      method: 'POST',
+      headers: injectHeadersFromReq(req, {
+        Authorization: incomingAuth,
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify(req.body || {}),
+    });
+    const data = await readAsJsonOrText(r);
+    console.log('[BFF] POST /api/v1/app/password/change ->', r.status);
+    if (!r.ok) return res.status(r.status).send(data);
+    res.status(r.status).send(data);
+  } catch (e) {
+    console.error('[BFF] password/change error', e);
+    res.status(500).json({ error: 'Falha ao trocar senha', message: String(e) });
+  }
+});
 
 
 /* ===== Execução local vs Vercel ===== */

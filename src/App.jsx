@@ -27,6 +27,9 @@ import RecuperarSenha from '@/pages/RecuperarSenha.jsx'
 import Cadastro from '@/pages/Cadastro.jsx'
 import Confirmacao from '@/pages/Confirmacao.jsx'
 
+import VerificarCodigo from '@/pages/VerificarCodigo.jsx'
+import TrocarSenha from '@/pages/TrocarSenha.jsx'
+
 // Memorial
 import MemorialList from '@/pages/MemorialList.jsx'
 import MemorialDetail from '@/pages/MemorialDetail.jsx'
@@ -58,6 +61,10 @@ export default function App() {
             <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
             <Route path="/termos-uso" element={<TermosUso />} />
             <Route path="/filiais" element={<Filiais />} />
+
+
+            <Route path="/recuperar-senha" element={<RecuperarSenha />} />
+            <Route path="/redefinir-senha" element={<VerificarCodigo />} />
 
             {/* Memorial */}
             <Route path="/memorial" element={<MemorialList />} />
