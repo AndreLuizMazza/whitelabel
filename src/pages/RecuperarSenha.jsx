@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import api from '@/lib/api'
 
 export default function RecuperarSenha() {
+  const navigate = useNavigate()
   const [ident, setIdent] = useState('') // e-mail ou CPF
   const [enviado, setEnviado] = useState(false)
   const [erro, setErro] = useState('')
@@ -22,11 +23,15 @@ export default function RecuperarSenha() {
     setLoading(true)
 
     try {
-      // API/BFF espera { ident }
+      // API/BFF espera { ident } (mantido compatível com variações)
       await api.post('/api/v1/app/password/forgot', {
-  ident: ident.trim(),
-  identifier: ident.trim()
-})
+        ident: ident.trim(),
+        identifier: ident.trim()
+      })
+
+      // (1) persistir para reutilizar na próxima tela
+      localStorage.setItem('recuperacao.identifier', ident.trim())
+
       setEnviado(true)
     } catch (e) {
       console.error(e)
@@ -74,14 +79,19 @@ export default function RecuperarSenha() {
         {enviado ? (
           <div className="card p-6 md:p-8 shadow-lg">
             <p className="text-[var(--text)] leading-relaxed">
-              Se o identificador informado estiver cadastrado, você receberá um e-mail com um
-              código (link) para redefinir sua senha.
+              Se o e-mail informado estiver cadastrado, você receberá um e-mail com um
+              código para redefinir sua senha.
             </p>
 
+            {/* (3) Destaque no CTA “Já tenho o código” */}
             <div className="mt-6 flex flex-col sm:flex-row items-center gap-3">
-              <Link to="/login" className="btn-primary w-full sm:w-auto">
-                Voltar ao login
-              </Link>
+              <button
+                type="button"
+                className="btn-primary w-full sm:w-auto"
+                onClick={() => navigate('/redefinir-senha')}
+              >
+                Já tenho o código
+              </button>
 
               <button
                 type="button"
@@ -91,8 +101,8 @@ export default function RecuperarSenha() {
                 Enviar novamente
               </button>
 
-              <Link to="/redefinir-senha" className="btn-ghost w-full sm:w-auto">
-                Já tenho o código
+              <Link to="/login" className="btn-ghost w-full sm:w-auto">
+                Voltar ao login
               </Link>
             </div>
           </div>
@@ -132,7 +142,19 @@ export default function RecuperarSenha() {
                 {loading ? 'Enviando…' : 'Enviar instruções'}
               </button>
 
+              {/* atalho se o usuário já tiver o e-mail com código */}
               <div className="mt-4 text-center text-sm">
+                Já recebeu o e-mail?{' '}
+                <button
+                  type="button"
+                  className="font-medium hover:underline text-[var(--primary)]"
+                  onClick={() => navigate('/redefinir-senha')}
+                >
+                  Já tenho o código
+                </button>
+              </div>
+
+              <div className="mt-2 text-center text-sm">
                 Lembrou a senha?{' '}
                 <Link
                   to="/login"

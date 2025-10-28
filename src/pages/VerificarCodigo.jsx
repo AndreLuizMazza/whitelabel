@@ -1,5 +1,5 @@
 // src/pages/VerificarCodigo.jsx
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import api from '@/lib/api'
 
@@ -7,20 +7,27 @@ export default function VerificarCodigo() {
   const [search] = useSearchParams()
   const navigate = useNavigate()
 
-  // token pode vir por ?token= no link do e-mail
+  // token do link (?token=)
   const [token, setToken] = useState(search.get('token') || '')
-  // identifier pode vir por ?i= (email/CPF) ou do localStorage
+  // identifier da URL (?i=) ou do localStorage
   const [ident, setIdent] = useState(
     search.get('i') || localStorage.getItem('recuperacao.identifier') || ''
   )
-  const [codigo, setCodigo] = useState('') // fallback se o usuário preferir digitar
+  // usuário pode digitar o código caso não venha por URL
+  const [codigo, setCodigo] = useState('')
   const [novaSenha, setNovaSenha] = useState('')
   const [confirmar, setConfirmar] = useState('')
   const [erro, setErro] = useState('')
   const [loading, setLoading] = useState(false)
   const [sucesso, setSucesso] = useState(false)
 
+  const codigoInputRef = useRef(null)
+
   useEffect(() => { setErro('') }, [token, novaSenha, confirmar, ident])
+  useEffect(() => {
+    // foco direto no campo de código
+    setTimeout(() => codigoInputRef.current?.focus(), 0)
+  }, [])
 
   const identifierValido = useMemo(() => ident.trim().length >= 5, [ident])
   const codigoFinal = useMemo(() => (token || codigo).trim(), [token, codigo])
@@ -28,18 +35,22 @@ export default function VerificarCodigo() {
   const senhaValida = useMemo(() => novaSenha.length >= 8, [novaSenha])
   const confere = useMemo(() => novaSenha && novaSenha === confirmar, [novaSenha, confirmar])
 
+  // manter consistência do identifier entre telas
+  useEffect(() => {
+    if (ident) localStorage.setItem('recuperacao.identifier', ident)
+  }, [ident])
+
   async function onSubmit(e) {
     e.preventDefault()
     if (loading) return
 
-    if (!identifierValido) return setErro('Informe seu e-mail ou CPF.')
+    if (!identifierValido) return setErro('Identificador ausente. Volte e informe e-mail/CPF.')
     if (!codigoValido) return setErro('Informe o código recebido por e-mail.')
     if (!senhaValida) return setErro('A nova senha deve ter ao menos 8 caracteres.')
     if (!confere) return setErro('As senhas não coincidem.')
 
     setLoading(true)
     try {
-      // API/BFF espera { identifier, codigo, novaSenha }
       await api.post('/api/v1/app/password/reset', {
         identifier: ident.trim(),
         codigo: codigoFinal,
@@ -47,7 +58,6 @@ export default function VerificarCodigo() {
       })
 
       setSucesso(true)
-      // limpa o cache do identifier para próximas tentativas não confundirem
       localStorage.removeItem('recuperacao.identifier')
       setTimeout(() => navigate('/login'), 2000)
     } catch (e) {
@@ -62,10 +72,11 @@ export default function VerificarCodigo() {
     }
   }
 
-  // se vier identifier pela URL, persiste para consistência entre telas
-  useEffect(() => {
-    if (ident) localStorage.setItem('recuperacao.identifier', ident)
-  }, [ident])
+  function trocarIdent() {
+    localStorage.removeItem('recuperacao.identifier')
+    setIdent('')
+    navigate('/recuperar-senha')
+  }
 
   return (
     <section className="section">
@@ -80,41 +91,40 @@ export default function VerificarCodigo() {
             <Link to="/login" className="btn-primary">Ir para o login</Link>
           </div>
         ) : (
-          <form onSubmit={onSubmit} className="card p-6 space-y-4 shadow-lg">
+          <form onSubmit={onSubmit} className="card p-6 space-y-5 shadow-lg">
             {erro && (
               <div className="rounded-md border border-red-300 bg-red-50 p-2 text-sm text-red-700">
                 {erro}
               </div>
             )}
 
-            <div>
-              <label className="label font-medium">E-mail ou CPF</label>
-              <input
-                className="input"
-                value={ident}
-                onChange={e => setIdent(e.target.value)}
-                placeholder="Digite seu e-mail ou CPF"
-                required
-              />
+            {/* (2) Identificador apenas exibido como label */}
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs text-[var(--text-muted)]">Recuperando a senha de</p>
+                <p className="font-medium text-[var(--text)] break-all">{ident || '—'}</p>
+              </div>
+              <button type="button" onClick={trocarIdent} className="btn-ghost text-sm">
+                Trocar
+              </button>
             </div>
 
+            {/* Código de verificação */}
             <div>
               <label className="label font-medium">Código recebido</label>
               <input
+                ref={codigoInputRef}
                 className="input"
                 value={token || codigo}
-                onChange={e => {
-                  setToken('')           // ao digitar manualmente, usa `codigo`
-                  setCodigo(e.target.value)
-                }}
-                placeholder="Cole aqui o código do e-mail"
+                onChange={e => { setToken(''); setCodigo(e.target.value) }}
+                placeholder="Cole aqui o código"
+                inputMode="text"
+                autoComplete="one-time-code"
                 required
               />
-              <p className="text-xs text-[var(--text-muted)] mt-1">
-                Se você abriu pelo link do e-mail, o código pode vir preenchido automaticamente.
-              </p>
             </div>
 
+            {/* Nova senha */}
             <div>
               <label className="label font-medium">Nova senha</label>
               <input
@@ -127,6 +137,7 @@ export default function VerificarCodigo() {
               <p className="text-xs text-[var(--text-muted)] mt-1">Mínimo de 8 caracteres.</p>
             </div>
 
+            {/* Confirmar nova senha */}
             <div>
               <label className="label font-medium">Confirmar nova senha</label>
               <input
@@ -145,6 +156,13 @@ export default function VerificarCodigo() {
             >
               {loading ? 'Alterando…' : 'Alterar senha'}
             </button>
+
+            <div className="text-center text-sm">
+              Não recebeu o e-mail?{' '}
+              <Link to="/recuperar-senha" className="text-[var(--primary)] hover:underline">
+                Enviar novamente
+              </Link>
+            </div>
           </form>
         )}
       </div>
