@@ -106,6 +106,24 @@ const isEmpty = v => !String(v||"").trim();
 const requiredRing = (cond) => cond ? "ring-1 ring-red-500" : "";
 const requiredStar = <span aria-hidden="true" className="text-red-600">*</span>;
 
+/* ===== datas utilitárias ===== */
+function toISODate(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString().slice(0,10); }
+
+/**
+ * Efetivação SEMPRE no próximo mês, respeitando o diaD escolhido.
+ * Aplica clamping: se o mês não tiver o dia escolhido, usa o último dia do mês.
+ */
+function efetivacaoProxMesPorDiaD(diaD){
+  const hoje = new Date();
+  const y = hoje.getFullYear();
+  const m = hoje.getMonth();
+  const y2 = m === 11 ? y + 1 : y;
+  const m2 = (m + 1) % 12;
+  const maxDia = new Date(y2, m2 + 1, 0).getDate();
+  const d = Math.min(diaD, maxDia);
+  return toISODate(new Date(y2, m2, d));
+}
+
 /* =============== DateSelectBR =============== */
 function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minAge, maxAge, idPrefix }) {
   const [dia,setDia]=useState(""); const [mes,setMes]=useState(""); const [ano,setAno]=useState("");
@@ -140,22 +158,6 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
   const str2int = (s) => parseInt(s,10) || 0;
   const daysInMonth=(y,m)=>new Date(y,m,0).getDate();
 
-  const mesesFiltrados=useMemo(()=>{ 
-    if(!ano) return mesesAll;
-    const y=str2int(ano);
-    const minM=(y===minY)?(minDate.getMonth()+1):1;
-    const maxM=(y===maxY)?(maxDate.getMonth()+1):12;
-    return mesesAll.filter(([v])=>{const mm=str2int(v); return mm>=minM && mm<=maxM;});
-  },[ano,minY,maxY]);
-
-  function clampMonthIfNeeded(y, m){
-    const minM=(y===minY)?(minDate.getMonth()+1):1;
-    const maxM=(y===maxY)?(maxDate.getMonth()+1):12;
-    if(!m) return m;
-    if(m<minM) return minM;
-    if(m>maxM) return maxM;
-    return m;
-  }
   function clampDayIfNeeded(y,m,d){
     if(!y||!m||!d) return d;
     const maxDMonth = daysInMonth(y,m);
@@ -188,13 +190,7 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
     const y = parseInt(nextAnoStr,10)||0;
     setAno(nextAnoStr);
     if(!y) return;
-    let m = parseInt(mes,10)||0;
-    const mClamped = clampMonthIfNeeded(y, m || 0);
-    if(m && m !== mClamped){
-      setMes(String(mClamped).padStart(2,"0"));
-      setSoftWarn("Ajustamos o mês para o limite permitido.");
-      m = mClamped;
-    }
+    const m = parseInt(mes,10)||0;
     if(m){
       const d = parseInt(dia,10)||0;
       if(d){
@@ -231,17 +227,9 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
         <label htmlFor={idDia} className="sr-only">Dia</label>
         <select id={idDia} className="input h-11" value={dia} onChange={e=>setDia(e.target.value)}>
           <option value="">Dia</option>
-          {(() => {
-            const y=parseInt(ano||"",10)||0, m=parseInt(mes||"",10)||0;
-            let minD=1, maxD=31;
-            if(y && m){
-              const maxDMonth=daysInMonth(y,m);
-              minD=(y===minY && m===(minDate.getMonth()+1)) ? minDate.getDate() : 1;
-              maxD=(y===maxY && m===(maxDate.getMonth()+1)) ? Math.min(maxDMonth,maxDate.getDate()) : maxDMonth;
-            }
-            const arr=[]; for(let d=minD; d<=maxD; d++) arr.push(String(d).padStart(2,"0"));
-            return arr.map(d=><option key={d} value={d}>{d}</option>);
-          })()}
+          {Array.from({length:31},(_,i)=>String(i+1).padStart(2,"0")).map(d=>(
+            <option key={d} value={d}>{d}</option>
+          ))}
         </select>
 
         <label htmlFor={idMes} className="sr-only">Mês</label>
@@ -296,6 +284,10 @@ export default function Cadastro(){
   };
   const [titular,setTitular]=useState(defaultTitular);
   const [deps,setDeps]=useState([]);
+
+  /* ===== NOVO: Dia D (seletor) ===== */
+  const DIA_D_OPTIONS = [5, 10, 15, 20, 25];
+  const [diaDSelecionado, setDiaDSelecionado] = useState(10); // sugestão padrão
 
   /* ===== Busca o usuário logado no BFF ===== */
   useEffect(() => {
@@ -396,6 +388,11 @@ export default function Cadastro(){
   const excedentes=Math.max(0, deps.length - numDepsIncl);
   const totalMensal=(baseMensal||0)+excedentes*valorIncMensal;
 
+  // NOVO: valores/datas do contrato
+  const valorAdesaoPlano = Number(plano?.valorAdesao ?? plano?.valor_adesao ?? 0);
+  const valorMensalidadePlano = Number(totalMensal);
+  const dataEfetivacaoISO = efetivacaoProxMesPorDiaD(diaDSelecionado);
+
   // idade limites (dependentes)
   const ageFromDate=(iso)=>{ if(!iso) return null; const d=new Date(iso); if(isNaN(d)) return null;
     const t=new Date(); let a=t.getFullYear()-d.getFullYear(); const m=t.getMonth()-d.getMonth();
@@ -422,7 +419,7 @@ export default function Cadastro(){
   const addDep=()=>setDeps(prev=>[...prev,{nome:"",cpf:"",sexo:"",parentesco:"",data_nascimento:""}]);
   const delDep=(i)=>setDeps(prev=>prev.filter((_,idx)=>idx!==i));
 
-  // ====== Validações desta etapa (padronizadas) ======
+  // ====== Validações desta etapa ======
   const e = titular.endereco || {};
   const cepDigits = onlyDigits(e.cep||"");
   const ufClean = (e.uf||"").toUpperCase().slice(0,2);
@@ -493,7 +490,7 @@ export default function Cadastro(){
       const addr = titular.endereco || {};
       const payloadPessoa = {
         nome: (titular.nome || "").trim(),
-        cpf: formatCPF(titular.cpf || ""),                                  // << COM MÁSCARA
+        cpf: formatCPF(titular.cpf || ""),                                  // << COM MÁSCARA (ajuste se a API exigir só dígitos)
         rg: (titular.rg || null),
         dataNascimento: titular.data_nascimento || null,                    // yyyy-mm-dd
         sexo: mapSexoToApi(titular.sexo),
@@ -534,15 +531,20 @@ export default function Cadastro(){
       for (const depPayload of depsToCreate) await api.post("/api/v1/dependentes", depPayload);
 
       const todayISO = new Date().toISOString().slice(0,10);
-      const pickSafeDiaD = () => Math.max(1, Math.min(28, new Date().getDate()));
+
+      // Payload do contrato com os novos campos + diaD escolhido
       const payloadContrato = {
         titularId: Number(titularId),
         planoId: Number(planoId),
         vendedorId: 717,
         dataContrato: todayISO,
-        diaD: pickSafeDiaD(),
-        cupom: cupom || null,
+        diaD: Number(diaDSelecionado),
+        valorAdesao: valorAdesaoPlano,
+        valorMensalidade: valorMensalidadePlano,
+        dataEfetivacao: dataEfetivacaoISO,
+        cupomDesconto: cupom || null
       };
+
       const contratoRes = await api.post("/api/v1/contratos", payloadContrato);
       const contratoId = contratoRes?.data?.id || contratoRes?.data?.contratoId || contratoRes?.data?.uuid;
 
@@ -567,7 +569,12 @@ export default function Cadastro(){
     L.push("*Solicitação de Contratação*\n");
     L.push(`Plano: ${plano?.nome||planoId}`);
     L.push(`Valor base: ${money(baseMensal)} | Total mensal: ${money(totalMensal)}`);
-    if(cupom) L.push(`Cupom: ${cupom}`);
+    L.push(`Adesão (única): ${money(valorAdesaoPlano)}`);
+    L.push(`Mensalidade: ${money(valorMensalidadePlano)}`);
+    L.push(`Dia D: ${diaDSelecionado}`);
+    L.push(`Efetivação: ${formatDateBR(dataEfetivacaoISO)}`);
+    if(cupom) L.push(`Cupom de desconto: ${cupom}`);
+
     L.push("\n*Titular*:");
     L.push(`Nome: ${titular.nome||""}`);
     L.push(`CPF: ${formatCPF(titular.cpf||"")}`);
@@ -631,7 +638,7 @@ export default function Cadastro(){
         )}
 
         <div className="space-y-8">
-          {/* ====== Card 1: Dados do Titular (usuário logado) ====== */}
+          {/* ====== Card 1: Dados do Titular ====== */}
           <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
             <h1 className="text-2xl font-extrabold tracking-tight">Cadastro</h1>
             <p className="mt-1 text-sm text-[var(--c-muted)]">
@@ -664,11 +671,10 @@ export default function Cadastro(){
               </div>
             </div>
 
-            {/* Complemento (sem endereço) */}
+            {/* Complemento */}
             <div className="mt-8">
               <h2 className="font-semibold text-lg">Complemento do cadastro</h2>
 
-              {/* Estado civil (obrigatório), Sexo (obrigatório), RG (após sexo) */}
               <div className="mt-3 grid gap-3 md:grid-cols-12">
                 <div className="md:col-span-4">
                   <label className="label" htmlFor="titular-ec">
@@ -1002,7 +1008,40 @@ export default function Cadastro(){
             )}
           </div>
 
-          {/* ====== Card 4: Resumo ====== */}
+          {/* ====== Card 4: Cobrança (Dia D) ====== */}
+          <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
+            <h3 className="text-lg font-semibold">Cobrança</h3>
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              <div className="md:col-span-1">
+                <label className="label" htmlFor="diaD">Dia D (vencimento)</label>
+                <select
+                  id="diaD"
+                  className="input h-11 w-full"
+                  value={diaDSelecionado}
+                  onChange={e=>setDiaDSelecionado(Number(e.target.value))}
+                >
+                  {DIA_D_OPTIONS.map(d=>(
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-[var(--c-muted)] mt-1">
+                  A primeira cobrança ocorre na <b>data de efetivação</b> abaixo (próximo mês).
+                </p>
+              </div>
+              <div className="md:col-span-2 grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-[var(--c-border)] p-3">
+                  <p className="text-[var(--c-muted)] text-xs">Data de efetivação</p>
+                  <p className="font-medium">{formatDateBR(dataEfetivacaoISO)}</p>
+                </div>
+                <div className="rounded-xl border border-[var(--c-border)] p-3">
+                  <p className="text-[var(--c-muted)] text-xs">Mensalidade</p>
+                  <p className="font-medium">{money(valorMensalidadePlano)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ====== Card 5: Resumo ====== */}
           <div className="p-6 bg-[var(--c-surface)] rounded-2xl border border-[var(--c-border)] shadow-lg">
             <h3 className="mb-3 text-lg font-semibold">Resumo</h3>
             <div className="space-y-2 text-sm">
@@ -1010,6 +1049,12 @@ export default function Cadastro(){
               <div className="flex justify-between"><span className="text-[var(--c-muted)]">Base mensal</span><span>{money(baseMensal)}</span></div>
               <div className="flex justify-between"><span className="text-[var(--c-muted)]">Incluídos no plano</span><span>{numDepsIncl}</span></div>
               <div className="flex justify-between"><span className="text-[var(--c-muted)]">Dependentes adicionais ({Math.max(0, deps.length - numDepsIncl)}) × {money(valorIncMensal)}</span><span>{money(Math.max(0, deps.length - numDepsIncl)*valorIncMensal)}</span></div>
+
+              <div className="flex justify-between"><span className="text-[var(--c-muted)]">Adesão (única)</span><span>{money(valorAdesaoPlano)}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--c-muted)]">Dia D</span><span>{diaDSelecionado}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--c-muted)]">Efetivação</span><span className="font-medium">{formatDateBR(dataEfetivacaoISO)}</span></div>
+              <div className="flex justify-between"><span className="text-[var(--c-muted)]">Mensalidade</span><span>{money(valorMensalidadePlano)}</span></div>
+
               <hr className="my-2"/>
               <div className="flex justify-between font-semibold text-base">
                 <span>Total mensal</span><span className="text-[color:var(--primary)] font-extrabold">{money(totalMensal)}</span>
