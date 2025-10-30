@@ -552,6 +552,46 @@ app.patch('/api/v1/app/me', async (req, res) => {
 });
 
 
+/* ===== Pessoa por CPF ===== */
+app.get('/api/v1/pessoas/cpf/:cpf', async (req, res) => {
+  try {
+    const cpf = req.params.cpf;
+    const url = `${BASE}/api/v1/pessoas/cpf/${encodeURIComponent(cpf)}`;
+    console.log('[BFF] GET /api/v1/pessoas/cpf/:cpf →', { url: url.replace(cpf, maskCpf(cpf)) });
+
+    // usa client credentials + dedup + retry 401 (1x)
+    const r = await fetchWithClientTokenDedupRetry(url, req, { dedupMs: 400 });
+    const data = await readAsJsonOrText(r);
+
+    if (!r.ok) return res.status(r.status).send(data);
+    // pass-through (já no formato esperado pelo front)
+    return res.status(r.status).send(data);
+  } catch (e) {
+    console.error('[BFF] pessoas/cpf error:', e);
+    return res.status(500).json({ error: 'Falha ao buscar pessoa por CPF', message: String(e) });
+  }
+});
+
+/* ===== Dependentes por Pessoa (titular) ===== */
+app.get('/api/v1/dependentes/pessoa/:pessoaId', async (req, res) => {
+  try {
+    const pessoaId = req.params.pessoaId;
+    const url = `${BASE}/api/v1/dependentes/pessoa/${encodeURIComponent(pessoaId)}`;
+    console.log('[BFF] GET /api/v1/dependentes/pessoa/:pessoaId →', url);
+
+    // também via client credentials (endpoint público ao BFF)
+    const r = await fetchWithClientTokenDedupRetry(url, req, { dedupMs: 400 });
+    const data = await readAsJsonOrText(r);
+
+    if (!r.ok) return res.status(r.status).send(data);
+    return res.status(r.status).send(data);
+  } catch (e) {
+    console.error('[BFF] dependentes/pessoa error:', e);
+    return res.status(500).json({ error: 'Falha ao buscar dependentes por pessoa', message: String(e) });
+  }
+});
+
+
 
 /* ===== Pessoas (criar) ===== */
 app.post('/api/v1/pessoas', async (req, res) => {
