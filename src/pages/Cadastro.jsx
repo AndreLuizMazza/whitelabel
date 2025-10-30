@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import api from "@/lib/api.js";
 import CTAButton from "@/components/ui/CTAButton";
 import { money } from "@/lib/planUtils.js";
-import { CheckCircle2, ChevronLeft, AlertTriangle, MessageCircle, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, ChevronLeft, AlertTriangle, MessageCircle, Plus, Trash2, Info, Loader2 } from "lucide-react";
 
 /* =============== utils/minis =============== */
 function useQuery(){ const {search}=useLocation(); return useMemo(()=>new URLSearchParams(search),[search]); }
@@ -253,6 +253,86 @@ function DateSelectBR({ valueISO, onChangeISO, invalid=false, className="", minA
   );
 }
 
+/* ====== ROTAS AUXILIARES (tolerantes) ======
+   Agora priorizamos exatamente as rotas informadas:
+   - /api/v1/pessoas/cpf/{cpf_mascarado}
+   - /api/v1/contratos/cpf/{cpf_mascarado}
+   Mantive fallbacks para maior resiliência. */
+async function tryGet(apiCall){
+  try{ const r = await apiCall(); return r?.data ?? null; }catch{ return null; }
+}
+async function buscarPessoaPorCPF(cpfMasked){
+  // PRIORIDADE 1: /api/v1/pessoas/cpf/{cpf_mascarado}
+  let data = await tryGet(()=>api.get(`/api/v1/pessoas/cpf/${cpfMasked}`));
+  if (data && (data.id || data.pessoaId)) return data;
+
+  // Fallbacks
+  data = await tryGet(()=>api.get(`/api/v1/pessoas/by-cpf/${onlyDigits(cpfMasked)}`));
+  if (data && (data.id || data.pessoaId)) return data;
+
+  data = await tryGet(()=>api.get(`/api/v1/pessoas`, { params:{ cpf: onlyDigits(cpfMasked) } }));
+  if (Array.isArray(data) && data.length) return data[0];
+  if (data && (data.id || data.pessoaId)) return data;
+
+  // Se já estiver logado e o /app/me coincidir
+  data = await tryGet(()=>api.get(`/api/v1/app/me`));
+  if (data && onlyDigits(data.cpf||"") === onlyDigits(cpfMasked)) return data;
+
+  return null;
+}
+function normalizePessoaToTitular(p){
+  const endereco = p?.endereco || p?.address || p?.logradouro ? {
+    cep: p?.endereco?.cep || p?.cep || "",
+    logradouro: p?.endereco?.logradouro || p?.logradouro || "",
+    numero: p?.endereco?.numero || p?.numero || "",
+    complemento: p?.endereco?.complemento || p?.complemento || "",
+    bairro: p?.endereco?.bairro || p?.bairro || "",
+    cidade: p?.endereco?.cidade || p?.cidade || "",
+    uf: (p?.endereco?.uf || p?.uf || "").toUpperCase().slice(0,2)
+  } : { cep:"", logradouro:"", numero:"", complemento:"", bairro:"", cidade:"", uf:"" };
+
+  const contatos = p?.contatos || {};
+  const celular = contatos?.celular || p?.celular || "";
+  const email   = contatos?.email   || p?.email   || "";
+
+  return {
+    id: p?.id || p?.pessoaId || null,
+    nome: p?.nome || "",
+    cpf: p?.cpf || "",
+    rg: p?.rg || "",
+    estado_civil: p?.estadoCivil || "",
+    sexo: p?.sexo === "MULHER" ? "MULHER" : (p?.sexo === "HOMEM" ? "HOMEM" : ""),
+    data_nascimento: normalizeISODate(p?.dataNascimento || ""),
+    celular,
+    email,
+    endereco
+  };
+}
+async function buscarContratosDaPessoaPorCPF(cpfMasked){
+  // PRIORIDADE 1: /api/v1/contratos/cpf/{cpf_mascarado}
+  let data = await tryGet(()=>api.get(`/api/v1/contratos/cpf/${cpfMasked}`));
+  if (Array.isArray(data) && data.length) return data;
+  if (data?.contratos && Array.isArray(data.contratos) && data.contratos.length) return data.contratos;
+
+  // Fallbacks
+  data = await tryGet(()=>api.get(`/api/v1/contratos/consulta/cpf/${onlyDigits(cpfMasked)}`));
+  if (Array.isArray(data) && data.length) return data;
+  if (data?.contratos && Array.isArray(data.contratos) && data.contratos.length) return data.contratos;
+
+  data = await tryGet(()=>api.get(`/api/v1/app/contratos/me`));
+  if (Array.isArray(data) && data.length) return data;
+
+  return [];
+}
+function contratoAtivoPredicate(c){
+  const status = (c?.status || c?.contratoAtivo || c?.ativo || "").toString().toUpperCase();
+  if (status === "ATIVO" || status === "TRUE" || status === "1") return true;
+  if (typeof c?.contratoAtivo === "boolean") return c.contratoAtivo;
+  if (typeof c?.ativo === "boolean") return c.ativo;
+  return true; // fallback otimista: existe contrato → tratamos como relevante
+}
+const AREA_ASSOCIADO_PATH = (import.meta?.env?.VITE_ASSOC_AREA_PATH || "/area").toString();
+
 /* =============== Página =============== */
 export default function Cadastro(){
   const q=useQuery(); const navigate=useNavigate();
@@ -285,27 +365,94 @@ export default function Cadastro(){
   const [titular,setTitular]=useState(defaultTitular);
   const [deps,setDeps]=useState([]);
 
-  /* ===== NOVO: Dia D (seletor) ===== */
+  /* ===== Dia D (seletor) ===== */
   const DIA_D_OPTIONS = [5, 10, 15, 20, 25];
-  const [diaDSelecionado, setDiaDSelecionado] = useState(10); // sugestão padrão
+  const [diaDSelecionado, setDiaDSelecionado] = useState(10);
 
-  /* ===== Busca o usuário logado no BFF ===== */
+  /* ===== Estado da checagem CPF/Pessoa/Contrato ===== */
+  const [lookupState, setLookupState] = useState({
+    running:false,
+    pessoaEncontrada:null,
+    temContratoAtivo:false,
+    contratosResumo:[],
+    mensagem:"",
+    erro:""
+  });
+
+  /* ======= ROTINA CENTRAL DE LOOKUP POR CPF (reusável) ======= */
+  async function runLookupByCpf(cpfMasked, { prefillFromPessoa = true } = {}) {
+    const cpfFmt = formatCPF(cpfMasked || "");
+    if (!cpfIsValid(cpfFmt)) {
+      setLookupState(s => ({...s, running:false, pessoaEncontrada:null, temContratoAtivo:false, contratosResumo:[], mensagem:"", erro:""}));
+      return;
+    }
+    setLookupState({ running:true, pessoaEncontrada:null, temContratoAtivo:false, contratosResumo:[], mensagem:"", erro:"" });
+    try {
+      // 1) pessoa
+      const pessoaRaw = await buscarPessoaPorCPF(cpfFmt);
+      if (pessoaRaw && prefillFromPessoa) {
+        const pessoaNorm = normalizePessoaToTitular(pessoaRaw);
+        setTitular(prev => ({
+          ...prev,
+          ...pessoaNorm,
+          cpf: pessoaNorm.cpf || cpfFmt,
+        }));
+      }
+
+      // 2) contratos por CPF
+      const contratos = await buscarContratosDaPessoaPorCPF(cpfFmt);
+      const ativos = contratos.filter(contratoAtivoPredicate);
+
+      setLookupState({
+        running:false,
+        pessoaEncontrada: pessoaRaw ? normalizePessoaToTitular(pessoaRaw) : null,
+        temContratoAtivo: ativos.length > 0,
+        contratosResumo: contratos,
+        mensagem: pessoaRaw
+          ? (ativos.length > 0
+              ? "Encontramos um contrato ativo vinculado ao seu CPF."
+              : "Encontramos seu cadastro e preenchemos seus dados.")
+          : "Não localizamos cadastro anterior para este CPF. Você pode prosseguir normalmente.",
+        erro:""
+      });
+    } catch (e) {
+      setLookupState({
+        running:false,
+        pessoaEncontrada:null,
+        temContratoAtivo:false,
+        contratosResumo:[],
+        mensagem:"",
+        erro: e?.response?.data?.message || e?.message || "Falha ao verificar CPF agora."
+      });
+    }
+  }
+
+  /* ===== Busca o usuário logado e dispara lookup imediato ===== */
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const { data } = await api.get("/api/v1/app/me");
-        if (!alive) return;
+        if (!alive || !data) return;
+
+        const cpfFromMe = data?.cpf || "";
         setTitular(prev => ({
           ...prev,
           nome: data?.nome || "",
           email: data?.email || "",
-          cpf: data?.cpf || "",
+          cpf: cpfFromMe || "",
           celular: data?.celular || "",
           data_nascimento: normalizeISODate(data?.dataNascimento || ""),
         }));
-      } catch (e) {
-        console.error("Falha ao buscar /api/v1/app/me:", e);
+
+        // Ao abrir a tela, se tiver CPF válido do usuário logado, já faz:
+        // a) busca pessoa + preenche
+        // b) busca contratos e alerta/CTA se houver ativo
+        if (cpfIsValid(cpfFromMe)) {
+          await runLookupByCpf(cpfFromMe, { prefillFromPessoa: true });
+        }
+      } catch {
+        // ok se não estiver logado
       }
     })();
     return () => { alive = false; };
@@ -478,6 +625,16 @@ export default function Cadastro(){
     }
   }, [submitAttempted, errorList]);
 
+  /* ===== Monitora alteração manual do CPF e reexecuta lookup (com debounce) ===== */
+  const debouncedCpfLookup = useDebouncedCallback(async (cpfMasked) => {
+    await runLookupByCpf(cpfMasked, { prefillFromPessoa: true });
+  }, 600);
+
+  useEffect(()=>{
+    if (!titular?.cpf) return;
+    debouncedCpfLookup(titular.cpf);
+  }, [titular?.cpf]);
+
   async function handleSalvarEnviar(){
     setSubmitAttempted(true);
     setError("");
@@ -490,7 +647,7 @@ export default function Cadastro(){
       const addr = titular.endereco || {};
       const payloadPessoa = {
         nome: (titular.nome || "").trim(),
-        cpf: formatCPF(titular.cpf || ""),                                  // << COM MÁSCARA (ajuste se a API exigir só dígitos)
+        cpf: formatCPF(titular.cpf || ""),                                  // API aceita mascarado; ajuste para onlyDigits se necessário
         rg: (titular.rg || null),
         dataNascimento: titular.data_nascimento || null,                    // yyyy-mm-dd
         sexo: mapSexoToApi(titular.sexo),
@@ -511,12 +668,16 @@ export default function Cadastro(){
         }
       };
 
-      const pessoaRes = await api.post("/api/v1/pessoas", payloadPessoa);
-      const titularId = pessoaRes?.data?.id || pessoaRes?.data?.pessoaId || pessoaRes?.data?.uuid;
+      // Se já havia pessoaEncontrada, usa o id; senão cria.
+      let titularId = lookupState?.pessoaEncontrada?.id || null;
+      if (!titularId) {
+        const pessoaRes = await api.post("/api/v1/pessoas", payloadPessoa);
+        titularId = pessoaRes?.data?.id || pessoaRes?.data?.pessoaId || pessoaRes?.data?.uuid;
+      }
       if(!titularId) throw new Error("Não foi possível obter o ID do titular (etapa pessoa).");
 
       const depsToCreate = deps.map(d => ({
-        cpf: d.cpf ? onlyDigits(d.cpf) : null, // opcional
+        cpf: d.cpf ? onlyDigits(d.cpf) : null,
         nome: (d.nome || "").trim(),
         email: null,
         fone: null,
@@ -532,11 +693,10 @@ export default function Cadastro(){
 
       const todayISO = new Date().toISOString().slice(0,10);
 
-      // Payload do contrato com os novos campos + diaD escolhido
       const payloadContrato = {
         titularId: Number(titularId),
         planoId: Number(planoId),
-        vendedorId: 717,
+        vendedorId: 717, // ajuste se necessário
         dataContrato: todayISO,
         diaD: Number(diaDSelecionado),
         valorAdesao: valorAdesaoPlano,
@@ -619,6 +779,46 @@ export default function Cadastro(){
           </button>
         </div>
 
+        {/* ====== Banner de checagem CPF/Pessoa/Contrato ====== */}
+        {(lookupState.running || lookupState.mensagem || lookupState.erro) && (
+          <div
+            className="mb-4 rounded-xl border p-4"
+            style={{
+              background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
+              borderColor: 'color-mix(in srgb, var(--primary) 35%, transparent)'
+            }}
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex items-start gap-3">
+              <div className="rounded-full p-2 text-white" style={{background:'color-mix(in srgb, var(--primary) 90%, black)'}}>
+                {lookupState.running ? <Loader2 className="animate-spin" size={16}/> : <Info size={16}/>}
+              </div>
+              <div className="flex-1">
+                {lookupState.running && <p className="text-sm">Verificando CPF e contratos…</p>}
+                {!lookupState.running && lookupState.mensagem && (
+                  <p className="text-sm font-medium">{lookupState.mensagem}</p>
+                )}
+                {!lookupState.running && lookupState.erro && (
+                  <p className="text-sm text-red-700">Falha na verificação automática: {lookupState.erro}</p>
+                )}
+
+                {/* Se há contrato ativo, oferece CTA para a área do associado */}
+                {!lookupState.running && lookupState.temContratoAtivo && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <CTAButton onClick={()=>navigate(AREA_ASSOCIADO_PATH)} className="h-10">
+                      Ir para a Área do Associado
+                    </CTAButton>
+                    <span className="text-xs text-[var(--c-muted)]">
+                      Você também pode seguir com o cadastro deste plano normalmente abaixo.
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ALERTA GLOBAL DE ERRO API */}
         {error && (
           <div
@@ -638,7 +838,7 @@ export default function Cadastro(){
         )}
 
         <div className="space-y-8">
-          {/* ====== Card 1: Dados do Titular ====== */}
+          {/* Card 1: Dados do Titular */}
           <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
             <h1 className="text-2xl font-extrabold tracking-tight">Cadastro</h1>
             <p className="mt-1 text-sm text-[var(--c-muted)]">
@@ -726,7 +926,7 @@ export default function Cadastro(){
             </div>
           </div>
 
-          {/* ====== Card 2: Endereço ====== */}
+          {/* Endereço */}
           <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
             <h2 className="font-semibold text-lg">Endereço</h2>
 
@@ -887,7 +1087,7 @@ export default function Cadastro(){
             </div>
           </div>
 
-          {/* ====== Card 3: Dependentes ====== */}
+          {/* Dependentes */}
           <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-lg">Dependentes ({deps.length})</h2>
@@ -1008,7 +1208,7 @@ export default function Cadastro(){
             )}
           </div>
 
-          {/* ====== Card 4: Cobrança (Dia D) ====== */}
+          {/* Cobrança (Dia D) */}
           <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
             <h3 className="text-lg font-semibold">Cobrança</h3>
             <div className="mt-3 grid gap-3 md:grid-cols-3">
@@ -1041,7 +1241,7 @@ export default function Cadastro(){
             </div>
           </div>
 
-          {/* ====== Card 5: Resumo ====== */}
+          {/* Resumo */}
           <div className="p-6 bg-[var(--c-surface)] rounded-2xl border border-[var(--c-border)] shadow-lg">
             <h3 className="mb-3 text-lg font-semibold">Resumo</h3>
             <div className="space-y-2 text-sm">
@@ -1063,9 +1263,8 @@ export default function Cadastro(){
             </div>
           </div>
 
-          {/* ====== Ações ====== */}
+          {/* Ações */}
           <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
-            {/* Sumário de erros */}
             {submitAttempted && errorList.length > 0 && (
               <div
                 className="rounded-lg px-4 py-3 text-sm mb-4"
