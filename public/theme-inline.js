@@ -1,5 +1,5 @@
-/* Gerado de D:\whitelabel-clean\config\tenants\rosapax.json */
-window.__TENANT__ = {"slug":"rosapax","v":5,"vars":{"--primary":"#D643D9","--primary-dark":"#A456A6","--primary-light":"#EE05F2","--secondary":"#EE05F2","--on-primary":"#ffffff","--surface":"#ffffff","--surface-alt":"#F2F2F2","--text":"#0D0D0D","--text-muted":"rgba(13,13,13,0.65)","--c-border":"rgba(0,0,0,0.08)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 10%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 20%, transparent)","--nav-active-color":"#D643D9","--highlight":"#EE05F2","--button-hover":"color-mix(in srgb, var(--primary) 15%, var(--secondary))"},"varsDark":{"--surface":"#0D0D0D","--surface-alt":"#1A1A1A","--text":"#F2F2F2","--text-muted":"rgba(242,242,242,0.7)","--c-border":"rgba(255,255,255,0.12)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 20%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 35%, transparent)","--nav-active-color":"#EE05F2","--highlight":"#D643D9","--button-hover":"color-mix(in srgb, var(--primary) 25%, var(--secondary))"},"logo":"https://app.progem.com.br/progem/api/downloads/empresa/257/arquivo?nome=e7d5f6cf-0af2-4390-9cd3-d451089f1c28_rosapax.png","domain":"rosapax.com.br"};
+/* Gerado de D:\whitelabel-clean\config\tenants\demo.json */
+window.__TENANT__ = {"slug":"demo","v":3,"vars":{"--primary":"#5B3DF8","--primary-dark":"#3A2AB5","--primary-light":"#A594F9","--secondary":"#00C6AE","--on-primary":"#ffffff","--surface":"#ffffff","--surface-alt":"#F8F8F8","--text":"#1A1A1A","--text-muted":"rgba(26,26,26,0.65)","--c-border":"rgba(0,0,0,0.08)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 10%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 20%, transparent)","--nav-active-color":"#5B3DF8","--highlight":"#00C6AE","--button-hover":"color-mix(in srgb, var(--primary) 15%, var(--secondary))"},"varsDark":{"--surface":"#0D0D0D","--surface-alt":"#1A1A1A","--text":"#F2F2F2","--text-muted":"rgba(242,242,242,0.7)","--c-border":"rgba(255,255,255,0.12)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 20%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 35%, transparent)","--nav-active-color":"#A594F9","--highlight":"#5B3DF8","--button-hover":"color-mix(in srgb, var(--primary) 25%, var(--secondary))"},"logo":"https://app.progem.com.br/progem/api/downloads/empresa/128/arquivo?nome=8e7a72fd-f502-416a-97e7-1a10a8beaeb6_Design_sem_nome_3.png","domain":"demo.progem.com.br"};
 
 (function(){
   try {
@@ -26,7 +26,7 @@ window.__TENANT__ = {"slug":"rosapax","v":5,"vars":{"--primary":"#D643D9","--pri
       }
     }
     if (docEl){
-      docEl.setAttribute('data-tenant', t.slug || 'rosapax');
+      docEl.setAttribute('data-tenant', t.slug || 'demo');
       docEl.setAttribute('data-theme', mode);
       docEl.setAttribute('data-theme-ready', '1');
     }
