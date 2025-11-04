@@ -1,68 +1,115 @@
+// src/components/ui/CTAButton.jsx
 import { Link } from "react-router-dom";
 
 /**
- * Botão de CTA padronizado, 100% baseado em CSS vars
- * Variants:
- *  - primary   (fundo var(--primary), texto var(--on-primary))
- *  - outline   (borda var(--primary), texto var(--primary-dark))
- *  - ghost     (sem borda; hover usa var(--primary-12) se existir, senão usa transparência)
+ * Botão de CTA padronizado, 100% baseado em CSS vars.
+ * Variants: 'primary' | 'outline' | 'ghost'
+ * as: 'button' | 'link' | 'a'
  */
 export default function CTAButton({
-  as = "button",           // "button" | "link"
+  as = "button",           // "button" | "link" | "a"
   to,                      // quando as="link"
+  href,                    // quando as="a"
+  target,
+  rel,
   type = "button",
   onClick,
   disabled = false,
   className = "",
-  children,
+  size = "md",             // "sm" | "md" | "lg"
+  variant = "primary",     // "primary" | "outline" | "ghost"
   iconBefore,
   iconAfter,
-  variant = "primary",     // "primary" | "outline" | "ghost"
+  children,
   ...rest
 }) {
-  const base =
-    "inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 font-semibold transition-colors " +
-    "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
-
-  const styles = {
-    primary:
-      "text-[var(--on-primary)] bg-[var(--primary)] " +
-      "border border-[color-mix(in_srgb,var(--primary)_35%,transparent)] " +
-      "hover:bg-[color-mix(in_srgb,var(--primary)_90%,black)] " +
-      "focus-visible:ring-[color-mix(in_srgb,var(--primary)_50%,black)]",
-    outline:
-      "border text-[var(--primary-dark)] " +
-      "border-[var(--primary)] bg-transparent " +
-      "hover:bg-[color-mix(in_srgb,var(--primary)_12%,transparent)] " +
-      "focus-visible:ring-[color-mix(in_srgb,var(--primary)_40%,black)]",
-    ghost:
-      "bg-transparent text-[var(--primary-dark)] " +
-      "hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] " +
-      "focus-visible:ring-[color-mix(in_srgb,var(--primary)_30%,black)]",
+  const sizes = {
+    sm: "h-9 px-3 text-sm",
+    md: "h-11 px-4 text-sm",
+    lg: "h-12 px-5 text-base",
   };
 
-  const cls = [base, styles[variant], disabled ? "opacity-60 pointer-events-none" : "", className]
-    .filter(Boolean)
-    .join(" ");
+  const variants = {
+    primary:
+      "bg-[var(--primary)] text-[var(--on-primary)] border border-[color-mix(in_srgb,var(--primary)_70%,transparent)] hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed",
+    outline:
+      "bg-[var(--surface)] text-[var(--primary-dark)] border border-[var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] disabled:opacity-60 disabled:cursor-not-allowed",
+    ghost:
+      "bg-transparent text-[var(--primary-dark)] border border-transparent hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] disabled:opacity-60 disabled:cursor-not-allowed",
+  };
+
+  const cls =
+    `inline-flex items-center justify-center gap-2 rounded-full font-semibold transition outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] ${sizes[size]} ${variants[variant]} ${className}`;
 
   const content = (
-    <span className="inline-flex items-center gap-2">
-      {iconBefore ? <span aria-hidden>{iconBefore}</span> : null}
-      <span>{children}</span>
-      {iconAfter ? <span aria-hidden>{iconAfter}</span> : null}
-    </span>
+    <>
+      {iconBefore ? <span className="shrink-0">{iconBefore}</span> : null}
+      <span className="whitespace-nowrap">{children}</span>
+      {iconAfter ? <span className="shrink-0">{iconAfter}</span> : null}
+    </>
   );
 
+  // ===== Navegação SPA =====
   if (as === "link") {
     return (
-      <Link to={to || "#"} className={cls} aria-disabled={disabled} {...rest}>
+      <Link
+        to={to || "#"}
+        className={cls}
+        aria-disabled={disabled ? "true" : undefined}
+        onClick={disabled ? (e) => e.preventDefault() : onClick}
+        {...rest}
+      >
         {content}
       </Link>
     );
   }
 
+  // ===== Anchor externa (WhatsApp, lojas, etc.) =====
+  if (as === "a") {
+    const safeHref = (typeof href === "string" && href.trim()) ? href.trim() : undefined;
+
+    const effectiveRel =
+      safeHref && target === "_blank"
+        ? (rel || "noopener noreferrer")
+        : rel;
+
+    const handleClick = (e) => {
+      if (disabled) {
+        e.preventDefault();
+        return;
+      }
+      // Se não há href (ex.: vamos abrir via onClick/window.open), evita navegação padrão
+      if (!safeHref) {
+        e.preventDefault();
+      }
+      onClick?.(e);
+    };
+
+    return (
+      <a
+        href={disabled ? undefined : safeHref}
+        target={disabled ? undefined : target}
+        rel={disabled ? undefined : effectiveRel}
+        onClick={handleClick}
+        aria-disabled={disabled ? "true" : undefined}
+        className={cls}
+        role={!safeHref ? "button" : undefined}
+        {...rest}
+      >
+        {content}
+      </a>
+    );
+  }
+
+  // ===== Botão padrão =====
   return (
-    <button type={type} onClick={onClick} disabled={disabled} className={cls} {...rest}>
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+      className={cls}
+      {...rest}
+    >
       {content}
     </button>
   );

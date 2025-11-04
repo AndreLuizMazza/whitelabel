@@ -1,17 +1,39 @@
+// src/components/ParceirosCTA.jsx
 import {
-  CheckCircle2,
-  Handshake,
-  Store,
-  Truck,
-  Megaphone,
-  ShieldCheck,
-  Sparkles,
-  ArrowRight,
-  MessageSquare,
+  CheckCircle2, Handshake, Store, Truck, Megaphone,
+  ShieldCheck, Sparkles, ArrowRight, MessageSquare,
 } from "lucide-react";
+import { useMemo } from "react";
 import CTAButton from "@/components/ui/CTAButton";
+import useTenant from "@/store/tenant";
+import {
+  buildWaHref,
+  resolveTenantPhone,
+  resolveGlobalFallback,
+} from "@/lib/whats";
 
-export default function ParceirosCTA({ onBecomePartner, whatsappHref = "#" }) {
+export default function ParceirosCTA({ onBecomePartner, whatsappHref }) {
+  const empresa = useTenant((s) => s.empresa);
+
+  // 1) prop whatsappHref tem prioridade
+  // 2) senão, telefone do tenant (fallback para VITE_WHATSAPP/window.__WHATSAPP__)
+  const waLink = useMemo(() => {
+    const hrefProp =
+      typeof whatsappHref === "string" && whatsappHref.trim()
+        ? whatsappHref.trim()
+        : "";
+    if (hrefProp) return hrefProp;
+
+    const tel = resolveTenantPhone(empresa) || resolveGlobalFallback();
+    return buildWaHref({
+      number: tel,
+      message: "Olá! Gostaria de falar sobre parceria premium.",
+    });
+  }, [empresa, whatsappHref]);
+
+  const hasWa = !!waLink;
+  const commonTitle = hasWa ? undefined : "Telefone da unidade não informado";
+
   return (
     <section id="parceiros" className="py-20 md:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -57,21 +79,34 @@ export default function ParceirosCTA({ onBecomePartner, whatsappHref = "#" }) {
               ))}
             </ul>
 
-            {/* CTAs */}
+            {/* CTAs — MESMO COMPORTAMENTO (abrir WhatsApp) */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-3">
-              <CTAButton onClick={onBecomePartner} iconAfter={<ArrowRight size={16} />} size="lg">
+              <CTAButton
+                as="a"
+                href={hasWa ? waLink : undefined}
+                target={hasWa ? "_blank" : undefined}
+                rel={hasWa ? "noopener noreferrer" : undefined}
+                size="lg"
+                iconAfter={<ArrowRight size={16} />}
+                disabled={!hasWa}
+                title={commonTitle}
+                // tracking opcional sem bloquear a navegação
+                onClick={() => { try { onBecomePartner?.(); } catch {} }}
+              >
                 Quero ser parceiro(a)
               </CTAButton>
 
               <CTAButton
                 as="a"
-                href={whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={hasWa ? waLink : undefined}
+                target={hasWa ? "_blank" : undefined}
+                rel={hasWa ? "noopener noreferrer" : undefined}
                 variant="outline"
                 size="lg"
                 iconBefore={<MessageSquare size={16} />}
                 className="sm:ml-1"
+                disabled={!hasWa}
+                title={commonTitle}
               >
                 Falar com o time
               </CTAButton>
@@ -84,13 +119,8 @@ export default function ParceirosCTA({ onBecomePartner, whatsappHref = "#" }) {
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {[
-                  "Farmácias",
-                  "Clínicas",
-                  "Óticas",
-                  "Mercados",
-                  "Academias",
-                  "Transporte",
-                  "Serviços Domésticos",
+                  "Farmácias","Clínicas","Óticas","Mercados",
+                  "Academias","Transporte","Serviços Domésticos",
                 ].map((tag) => (
                   <span
                     key={tag}

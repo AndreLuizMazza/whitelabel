@@ -9,6 +9,12 @@ import {
 } from 'lucide-react'
 import CTAButton from '@/components/ui/CTAButton'
 import useAuth from '@/store/auth'
+import useTenant from '@/store/tenant'
+import {
+  resolveTenantPhone,
+  resolveGlobalFallback,
+  buildWaHref,
+} from '@/lib/whats'
 
 /* ---------- Parentescos (fallback enum completo) ---------- */
 const PARENTESCOS_ENUM = [
@@ -23,19 +29,6 @@ const PARENTESCOS_ENUM = [
 ]
 const PARENTESCOS_OPTIONS = PARENTESCOS_ENUM.map(([value,label])=>({value,label}))
 const parentescoLabel = (val) => PARENTESCOS_OPTIONS.find(o=>o.value===String(val))?.label || String(val)
-
-/* ---------- WhatsApp helper ---------- */
-const WHATS_NUMBER = (() => {
-  try {
-    const env = import.meta?.env?.VITE_WHATSAPP || window.__WHATSAPP__
-    return env ? String(env).replace(/\D/g, '') : ''
-  } catch { return '' }
-})()
-function openWhatsApp(message) {
-  const text = encodeURIComponent(message || '')
-  const url = WHATS_NUMBER ? `https://wa.me/${WHATS_NUMBER}?text=${text}` : `https://wa.me/?text=${text}`
-  window.open(url, '_blank', 'noopener')
-}
 
 /* ---------- Toast ---------- */
 function Toast({ show, message }) {
@@ -56,6 +49,9 @@ export default function PlanoDetalhe() {
   const isAuthenticated = useAuth((s) =>
     typeof s.isAuthenticated === 'function' ? s.isAuthenticated() : !!s.token
   )
+
+  // Dados da unidade/tenant (GET /api/v1/unidades/me) já carregados via TenantBootstrapper
+  const empresa = useTenant(s => s.empresa)
 
   const [plano, setPlano] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -78,6 +74,15 @@ export default function PlanoDetalhe() {
     window.clearTimeout(triggerToast._t)
     triggerToast._t = window.setTimeout(() => setToast({ show: false, message: '' }), 1400)
   }
+
+  // Link de WhatsApp (tenant > fallback global). Não depende de "loaded".
+  const waHref = useMemo(() => {
+    const tel = resolveTenantPhone(empresa) || resolveGlobalFallback()
+    return buildWaHref({
+      number: tel,
+      message: plano?.nome ? `Olá! Tenho uma dúvida sobre o plano "${plano.nome}".` : 'Olá! Gostaria de tirar uma dúvida.',
+    })
+  }, [empresa, plano?.nome])
 
   // fetch do plano (primeiro sem header, depois com)
   async function fetchPlano(planId) {
@@ -163,7 +168,6 @@ export default function PlanoDetalhe() {
 
     // 🔀 decisão de rota baseada no auth:
     if (!isAuthenticated) {
-      // vai DIRETO para registro, já com o "from" para voltar ao cadastro
       navigate('/criar-conta', { state: { from: target } })
     } else {
       navigate(target)
@@ -386,10 +390,17 @@ export default function PlanoDetalhe() {
               <CTAButton className="w-full h-11" onClick={handleContinuar} title="Prosseguir para cadastro">
                 Continuar cadastro
               </CTAButton>
+
+              {/* WhatsApp: âncora com href montado; desabilita só se vazio */}
               <CTAButton
+                as="a"
+                href={waHref || undefined}
+                target={waHref ? "_blank" : undefined}
+                rel={waHref ? "noopener noreferrer" : undefined}
                 variant="outline"
                 className="w-full h-11 justify-center"
-                onClick={() => openWhatsApp(`Olá! Tenho uma dúvida sobre o plano "${plano.nome}".`)}
+                disabled={!waHref}
+                title={waHref ? undefined : 'Telefone da unidade não informado'}
               >
                 <MessageCircle size={16} className="mr-2" />
                 Tirar dúvida no WhatsApp

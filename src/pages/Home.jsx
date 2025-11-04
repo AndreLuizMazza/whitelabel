@@ -1,5 +1,5 @@
 // src/pages/Home.jsx
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import useTenant from '@/store/tenant'
 import useAuth from '@/store/auth'
@@ -112,22 +112,6 @@ function ValuePills() {
   )
 }
 
-function FaqItem({ q, a, defaultOpen = false }) {
-  return (
-    <details className="faq-item group" open={defaultOpen}>
-      <summary className="faq-summary">
-        <span className="inline-flex items-center gap-2 font-semibold">
-          <HelpCircle size={18} /> {q}
-        </span>
-        <ChevronDown size={18} className="chev" aria-hidden />
-      </summary>
-      <div className="faq-content">{a}</div>
-    </details>
-  )
-}
-
-
-
 /* ============================== HOME ============================== */
 
 export default function Home() {
@@ -146,6 +130,16 @@ export default function Home() {
     const t = setTimeout(() => setMounted(true), 10)
     return () => clearTimeout(t)
   }, [])
+
+  // monta link do WhatsApp dinamicamente a partir do telefone do tenant
+  const whatsappHref = useMemo(() => {
+    let tel = empresa?.contato?.telefone || ''
+    let digits = String(tel).replace(/\D+/g, '')
+    if (!digits) return ''
+    if (!digits.startsWith('55')) digits = '55' + digits
+    const msg = encodeURIComponent('Olá! Quero ser parceiro.')
+    return `https://wa.me/${digits}?text=${msg}`
+  }, [empresa])
 
   return (
     <section className="section">
@@ -205,7 +199,7 @@ export default function Home() {
           />
         </div>
 
-        {/* APP SECTION — agora com CTAButton outline, padronizado */}
+        {/* APP SECTION */}
         <div className={['relative mt-10 md:mt-12 card p-0 overflow-hidden transition-all duration-700', mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'].join(' ')} style={{ transitionDelay: '320ms' }}>
           <div className="grid md:grid-cols-2">
             <div className="p-6 md:p-8 lg:p-10">
@@ -254,14 +248,14 @@ export default function Home() {
         <div className="mt-12 md:mt-16">
           <ParceirosCTA
             onBecomePartner={() => (window.location.href = '/parceiros/inscrever')}
-            whatsappHref="https://wa.me/55SEUNUMERO?text=Quero%20ser%20parceiro"
+            whatsappHref={whatsappHref}
           />
         </div>
 
         {/* FAQ */}
-   <div className="faq-dark mt-12 md:mt-16">
-  <FaqSection isLogged={isLogged} areaDest={isLogged ? '/area' : '/login'} />
-</div>
+        <div className="faq-dark mt-12 md:mt-16">
+          <FaqSection isLogged={isLogged} areaDest={isLogged ? '/area' : '/login'} />
+        </div>
       </div>
     </section>
   )

@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import api from "@/lib/api.js";
 import CTAButton from "@/components/ui/CTAButton";
 import { money } from "@/lib/planUtils.js";
+import useTenant from "@/store/tenant";
+import { resolveTenantPhone, resolveGlobalFallback, buildWaHref } from "@/lib/whats";
 import {
   CheckCircle2,
   ChevronLeft,
@@ -86,6 +88,7 @@ const AREA_ASSOCIADO_PATH = (import.meta?.env?.VITE_ASSOC_AREA_PATH || "/area").
 export default function Cadastro() {
   const q = useQuery();
   const navigate = useNavigate();
+  const empresa = useTenant((s) => s.empresa);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -605,53 +608,89 @@ export default function Cadastro() {
     return SEXO_OPTIONS.find(([val]) => val === v)?.[1] || "";
   }
 
-  function sendWhatsFallback() {
-    const numero = (import.meta?.env?.VITE_WHATSAPP || window.__WHATSAPP__) || "";
-    const L = [];
-    L.push("*Solicitação de Contratação*\n");
-    L.push(`Plano: ${plano?.nome || planoId}`);
-    L.push(`Valor base: ${money(baseMensal)} | Total mensal: ${money(totalMensal)}`);
-    L.push(`Adesão (única): ${money(valorAdesaoPlano)}`);
-    L.push(`Mensalidade: ${money(valorMensalidadePlano)}`);
-    L.push(`Dia D: ${diaDSelecionado}`);
-    L.push(`Efetivação: ${formatDateBR(dataEfetivacaoISO)}`);
-    if (cupom) L.push(`Cupom de desconto: ${cupom}`);
+ // helper local: normaliza texto para WhatsApp
+function normalizeWaText(str) {
+  let s = (str ?? "").toString();
 
-    L.push("\n*Titular*:");
-    L.push(`Nome: ${titular.nome || ""}`);
-    L.push(`CPF: ${formatCPF(titular.cpf || "")}`);
-    L.push(`Sexo: ${sexoLabelFromValue(titular.sexo)}`);
-    L.push(`Celular: ${formatPhoneBR(titular.celular || "")}`);
-    L.push(`E-mail: ${titular.email || "(não informado)"}`);
-    L.push(`RG: ${titular.rg || ""}`);
-    L.push(`Estado civil: ${ESTADO_CIVIL_LABEL[titular.estado_civil] || titular.estado_civil || ""}`);
-    L.push(`Nascimento: ${formatDateBR(titular.data_nascimento) || ""}`);
-    const e = titular.endereco || {};
-    L.push(`End.: ${e.logradouro || ""}, ${e.numero || ""} ${e.complemento || ""} - ${e.bairro || ""}`);
-    L.push(`${e.cidade || ""}/${e.uf || ""} - CEP ${e.cep || ""}`);
-    L.push("\n*Dependentes existentes*:");
-    if (!depsExistentes.length) L.push("(Nenhum)");
-    depsExistentes.forEach((d, i) =>
-      L.push(`${i + 1}. ${d.nome} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(d.sexo)} - CPF: ${formatCPF(d.cpf || "") || "(não informado)"} - nasc.: ${d.data_nascimento || ""}`)
-    );
-    L.push("\n*Dependentes novos*:");
-    if (!depsNovos.length) L.push("(Nenhum)");
-    depsNovos.forEach((d, i) =>
-      L.push(`${i + 1}. ${d.nome || "(sem nome)"} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(d.sexo)} - CPF: ${formatCPF(d.cpf || "") || "(não informado)"} - nasc.: ${d.data_nascimento || ""}`)
-    );
-    openWhatsApp(numero, L.join("\n"));
+  // 1) normalização unicode e quebras de linha
+  s = s.normalize("NFKC").replace(/\r\n?/g, "\n").replace(/\u00A0/g, " "); // NBSP -> espaço
+
+  // 2) trim por linha + colapsar espaços internos
+  const rawLines = s.split("\n").map((l) => l.replace(/\s+/g, " ").trim());
+
+  // 3) remover linhas em branco duplicadas (permitir no máx. 1 consecutiva)
+  const lines = [];
+  for (const l of rawLines) {
+    if (l === "" && lines[lines.length - 1] === "") continue;
+    lines.push(l);
   }
 
-  if (!payload || !planoId || !plano) {
-    return (
-      <section className="section">
-        <div className="container-max">
-          <p className="mb-3 font-medium">Não encontramos os dados da simulação.</p>
-          <CTAButton onClick={() => navigate(-1)}>Voltar</CTAButton>
-        </div>
-      </section>
-    );
-  }
+  // 4) trim geral (sem espaço no começo/fim)
+  return lines.join("\n").trim();
+}
+
+function sendWhatsFallback() {
+  // 1) resolve número do tenant com fallback global
+  let number =
+    resolveTenantPhone(empresa) ||
+    resolveGlobalFallback() ||
+    import.meta?.env?.VITE_WHATSAPP ||
+    window.__WHATSAPP__ ||
+    "";
+
+  // 2) normaliza (só dígitos) e garante DDI 55 se faltar
+  number = onlyDigits(number);
+  if (number && !number.startsWith("55")) number = `55${number}`;
+
+  // 3) montar mensagem (linhas cruas)
+  const L = [];
+  L.push("*Solicitação de Contratação*\n");
+  L.push(`Plano: ${plano?.nome || planoId}`);
+  L.push(`Valor base: ${money(baseMensal)} | Total mensal: ${money(totalMensal)}`);
+  L.push(`Adesão (única): ${money(valorAdesaoPlano)}`);
+  L.push(`Mensalidade: ${money(valorMensalidadePlano)}`);
+  L.push(`Dia D: ${diaDSelecionado}`);
+  L.push(`Efetivação: ${formatDateBR(dataEfetivacaoISO)}`);
+  if (cupom) L.push(`Cupom de desconto: ${cupom}`);
+
+  L.push("\n*Titular*:");
+  L.push(`Nome: ${titular.nome || ""}`);
+  L.push(`CPF: ${formatCPF(titular.cpf || "")}`);
+  L.push(`Sexo: ${sexoLabelFromValue(titular.sexo)}`);
+  L.push(`Celular: ${formatPhoneBR(titular.celular || "")}`);
+  L.push(`E-mail: ${titular.email || "(não informado)"}`);
+  L.push(`RG: ${titular.rg || ""}`);
+  L.push(`Estado civil: ${ESTADO_CIVIL_LABEL[titular.estado_civil] || titular.estado_civil || ""}`);
+  L.push(`Nascimento: ${formatDateBR(titular.data_nascimento) || ""}`);
+  const e = titular.endereco || {};
+  L.push(`End.: ${e.logradouro || ""}, ${e.numero || ""} ${e.complemento || ""} - ${e.bairro || ""}`);
+  L.push(`${e.cidade || ""}/${e.uf || ""} - CEP ${e.cep || ""}`);
+
+  L.push("\n*Dependentes existentes*:");
+  if (!depsExistentes.length) L.push("(Nenhum)");
+  depsExistentes.forEach((d, i) =>
+    L.push(
+      `${i + 1}. ${d.nome} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(d.sexo)} - CPF: ${
+        formatCPF(d.cpf || "") || "(não informado)"
+      } - nasc.: ${d.data_nascimento || ""}`
+    )
+  );
+
+  L.push("\n*Dependentes novos*:");
+  if (!depsNovos.length) L.push("(Nenhum)");
+  depsNovos.forEach((d, i) =>
+    L.push(
+      `${i + 1}. ${d.nome || "(sem nome)"} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(d.sexo)} - CPF: ${
+        formatCPF(d.cpf || "") || "(não informado)"
+      } - nasc.: ${d.data_nascimento || ""}`
+    )
+  );
+
+  // 4) normaliza e abre o WhatsApp
+  const message = normalizeWaText(L.join("\n"));
+  const href = buildWaHref({ number, message });
+  window.open(href, "_blank", "noopener,noreferrer");
+}
 
   // CEP interactions helpers
   const onCepChange = (v) => {
