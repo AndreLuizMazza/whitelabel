@@ -1,0 +1,125 @@
+/* 1) Tokens base do tema (valores padrão) */
+@import './styles/theme.css';
+
+/* 2) Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 3) Customizações do app (ficam DEPOIS do Tailwind para vencer no cascade) */
+
+/* utilitários próprios */
+.container-max { @apply max-w-6xl mx-auto px-4; }
+.section { @apply py-10 md:py-14; }
+
+/* ---------------- Botões: 100% dirigidos por CSS vars do tenant ---------------- */
+/* Botão base neutro (usado em alguns componentes) */
+.btn,
+button.btn,
+a.btn {
+  @apply inline-flex items-center gap-2 rounded-full font-semibold transition;
+  padding: 0.625rem 1rem; /* ~px-4 py-2.5 */
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--c-border);
+}
+.btn:hover,
+button.btn:hover,
+a.btn:hover {
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+/* Primário (cta) */
+.btn-primary,
+button.btn-primary,
+a.btn-primary {
+  @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold transition;
+  background: var(--primary);
+  color: var(--on-primary);
+  border: 1px solid color-mix(in srgb, var(--primary) 35%, transparent);
+}
+.btn-primary:hover,
+button.btn-primary:hover,
+a.btn-primary:hover {
+  /* mistura com --primary-dark se existir; senão, com a própria --primary */
+  background: color-mix(in srgb, var(--primary) 85%, var(--primary-dark, var(--primary)));
+}
+
+/* Outline “neutro” – usa tokens do tenant */
+.btn-outline,
+button.btn-outline,
+a.btn-outline {
+  @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold transition;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--c-border);
+}
+.btn-outline:hover,
+button.btn-outline:hover,
+a.btn-outline:hover {
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+/* Secundário (mesmo visual do outline, usado em várias telas) */
+.btn-secondary,
+button.btn-secondary,
+a.btn-secondary {
+  @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold transition;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--c-border);
+}
+.btn-secondary:hover,
+button.btn-secondary:hover,
+a.btn-secondary:hover {
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+/* Botão “leve” (usado em ações de boleto/PIX etc.) */
+.btn-light,
+button.btn-light,
+a.btn-light {
+  @apply inline-flex items-center gap-2 rounded-full text-sm font-medium transition;
+  padding: 0.5rem 0.875rem; /* um pouco menor */
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--c-border);
+}
+.btn-light:hover,
+button.btn-light:hover,
+a.btn-light:hover {
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+/* ---------------- Card base ---------------- */
+.card {
+  background-color: var(--surface);
+  border: 1px solid var(--c-border);
+  border-radius: 1rem;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* ---------------- Inputs ---------------- */
+.input {
+  @apply w-full rounded-full border px-4 py-2 text-sm focus:outline-none focus:ring-0;
+  border-color: var(--c-border);
+  background: var(--surface);
+  color: var(--text);
+}
+.input::placeholder {
+  color: var(--text-muted);
+}
+.input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
+/* ---------------- Label ---------------- */
+.label {
+  @apply block mb-1 text-sm font-medium;
+  color: var(--text);
+}
