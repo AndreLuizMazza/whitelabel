@@ -1,5 +1,5 @@
-/* Gerado de D:\whitelabel-clean\config\tenants\nsa.json */
-window.__TENANT__ = {"slug":"nsa","v":3,"vars":{"--primary":"#2C3E50","--primary-dark":"#1B2631","--primary-light":"#AAB7B8","--secondary":"#D4AF37","--on-primary":"#ffffff","--surface":"#ffffff","--surface-alt":"#F7F7F7","--text":"#1A1A1A","--text-muted":"rgba(26,26,26,0.65)","--c-border":"rgba(0,0,0,0.08)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 10%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 20%, transparent)","--nav-active-color":"#2C3E50","--highlight":"#F1C40F","--button-hover":"color-mix(in srgb, var(--primary) 15%, var(--secondary))"},"varsDark":{"--surface":"#0E0E0E","--surface-alt":"#1C1C1C","--text":"#F5F5F5","--text-muted":"rgba(245,245,245,0.7)","--c-border":"rgba(255,255,255,0.15)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 20%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 35%, transparent)","--nav-active-color":"#D4AF37","--highlight":"#F1C40F","--button-hover":"color-mix(in srgb, var(--primary) 25%, var(--secondary))"},"logo":"https://app.progem.com.br/progem/api/downloads/empresa/42/arquivo?nome=08ba9336-1ee7-4abc-8c12-a8f39a87aac4_9ceb4b3bed1f4d74a26b9d6831eb7b61_logoempresaadbf8ee6a2984670ac536ff67f79ddfe___nsaremovebgpreview.png","domain":"nsa.progem.com.br"};
+/* Gerado de D:\whitelabel-clean\config\tenants\demo.json */
+window.__TENANT__ = {"slug":"demo","v":3,"vars":{"--primary":"#5B3DF8","--primary-dark":"#3A2AB5","--primary-light":"#A594F9","--secondary":"#00C6AE","--on-primary":"#ffffff","--surface":"#ffffff","--surface-alt":"#F8F8F8","--text":"#1A1A1A","--text-muted":"rgba(26,26,26,0.65)","--c-border":"rgba(0,0,0,0.08)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 10%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 20%, transparent)","--nav-active-color":"#5B3DF8","--highlight":"#00C6AE","--button-hover":"color-mix(in srgb, var(--primary) 15%, var(--secondary))"},"varsDark":{"--surface":"#0D0D0D","--surface-alt":"#1A1A1A","--text":"#F2F2F2","--text-muted":"rgba(242,242,242,0.7)","--c-border":"rgba(255,255,255,0.12)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 20%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 35%, transparent)","--nav-active-color":"#A594F9","--highlight":"#5B3DF8","--button-hover":"color-mix(in srgb, var(--primary) 25%, var(--secondary))"},"logo":"https://app.progem.com.br/progem/api/downloads/empresa/128/arquivo?nome=8e7a72fd-f502-416a-97e7-1a10a8beaeb6_Design_sem_nome_3.png","domain":"demo.progem.com.br"};
 
 (function(){
   try {
@@ -26,7 +26,7 @@ window.__TENANT__ = {"slug":"nsa","v":3,"vars":{"--primary":"#2C3E50","--primary
       }
     }
     if (docEl){
-      docEl.setAttribute('data-tenant', t.slug || 'nsa');
+      docEl.setAttribute('data-tenant', t.slug || 'demo');
       docEl.setAttribute('data-theme', mode);
       docEl.setAttribute('data-theme-ready', '1');
     }

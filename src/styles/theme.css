@@ -128,3 +128,6 @@ body.theme-dark .text-muted, html.theme-dark .text-muted{
 /* === Dark mode explícito === */
 body.theme-dark, html.theme-dark{ /* … */ }
 /* … */
+
+
+body, main { padding-bottom: var(--app-bottom-safe, 0px); }
