@@ -136,7 +136,7 @@ export default function StickyContactDock({
   }, [autoHideOnScroll]);
 
   const mbMobile = Math.max(avoidOffset + 6, 6);
-  const bottomDesktop = Math.max(avoidOffset + 130, 130);
+  const bottomDesktop = Math.max(avoidOffset + 64, 64);
   const compact = compactNearFooter && nearFooter;
 
   const mobileWrapperStyle = {

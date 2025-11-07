@@ -110,6 +110,7 @@ export default function App() {
 
       <Footer />
 <StickyContactDock
+  position="bottom-left"
   extraAction={{
     label: 'Planos',
     href: '/planos',                  // ou onClick: () => navigate('/planos')
