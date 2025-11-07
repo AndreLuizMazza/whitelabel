@@ -200,7 +200,7 @@ export default function StickyContactDock({
             }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#128C7E")}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#25D366")}
-            aria-label="Falar no WhatsApp"
+            aria-label="WhatsApp"
           >
             <MessageCircle className="h-5 w-5" aria-hidden="true" />
             {showLabels && <span>WhatsApp</span>}
@@ -281,7 +281,7 @@ export default function StickyContactDock({
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/15">
               <MessageCircle className="h-4 w-4" aria-hidden="true" />
             </span>
-            {showLabels && <span className="text-sm font-semibold leading-none">Falar no WhatsApp</span>}
+            {showLabels && <span className="text-sm font-semibold leading-none">WhatsApp</span>}
           </a>
 
           {/* Simular plano: neutro, tema-aware, com hover/active */}
