@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 
 /**
- * Mede dinamicamente a altura total de elementos que devem ser evitados
- * (ex.: barra de cookies) e retorna essa altura para aplicar como offset.
+ * Mede dinamicamente a altura total de elementos fixos a evitar
+ * (ex.: banners de cookie) e retorna essa altura (px).
  */
 export default function useAvoidOverlap(selectors = "[data-cookie-banner]") {
   const [offset, setOffset] = useState(0);
@@ -11,16 +11,15 @@ export default function useAvoidOverlap(selectors = "[data-cookie-banner]") {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const nodes = Array.from(document.querySelectorAll(selectors));
-    if (!nodes.length) {
+    const q = Array.from(document.querySelectorAll(selectors));
+    if (!q.length) {
       setOffset(0);
       return;
     }
 
     const calc = () => {
-      const total = nodes.reduce((sum, el) => {
+      const total = q.reduce((sum, el) => {
         const rect = el.getBoundingClientRect();
-        // conta só se estiver visível na viewport e na parte inferior
         const visible = rect.height > 0 && rect.bottom > 0;
         return visible ? sum + rect.height : sum;
       }, 0);
@@ -28,7 +27,7 @@ export default function useAvoidOverlap(selectors = "[data-cookie-banner]") {
     };
 
     const ro = new ResizeObserver(calc);
-    nodes.forEach((n) => ro.observe(n));
+    q.forEach((n) => ro.observe(n));
     window.addEventListener("scroll", calc, { passive: true });
     window.addEventListener("resize", calc);
     calc();
@@ -40,5 +39,5 @@ export default function useAvoidOverlap(selectors = "[data-cookie-banner]") {
     };
   }, [selectors]);
 
-  return offset; // px
+  return offset;
 }

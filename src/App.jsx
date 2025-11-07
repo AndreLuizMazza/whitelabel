@@ -110,10 +110,9 @@ export default function App() {
 
       <Footer />
 <StickyContactDock
-  position="bottom-left"
   extraAction={{
     label: 'Planos',
-    href: '/planos',
+    href: '/planos',                  // ou onClick: () => navigate('/planos')
     ariaLabel: 'Abrir simulador de planos',
     badge: 'Novo',
   }}
@@ -123,6 +122,7 @@ export default function App() {
   hideOnKeyboard
   autoHideOnScroll
 />
+
 
 
     </div>

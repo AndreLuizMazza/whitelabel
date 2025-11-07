@@ -9,10 +9,11 @@ import useAvoidOverlap from "@/hooks/useAvoidOverlap";
  * CTA fixo: WhatsApp + Ligação (+ 3º botão opcional)
  * - Mobile: barra inferior “dock” colada no bottom
  * - Desktop: “pill” flutuante
- * - Evita BANNERS fixos (ex.: cookies) — não soma rodapé no offset
+ * - Evita banners fixos (ex.: cookies) — NÃO soma rodapé no offset
  * - Reserva espaço global via --app-bottom-safe
  * - Compacta perto do rodapé (sem deslocar para o meio)
- * - Auto-hide no scroll (opcional) para ganhar espaço no mobile
+ * - Auto-hide no scroll, teclado-aware (mobile)
+ * - WhatsApp: verde oficial com pulso | Ligar: cor do tenant
  */
 export default function StickyContactDock({
   whatsappNumber,
@@ -22,13 +23,13 @@ export default function StickyContactDock({
   showLabels = true,
   className = "",
   utm = "utm_source=site&utm_medium=cta-sticky&utm_campaign=whitelabel",
-  // ⚠️ não incluir footer aqui! deixa o footer para o modo compactNearFooter
-  avoidSelector = "[data-cookie-banner], [data-bottom-avoid]",
-  extraAction, // { label, href?, onClick?, ariaLabel?, badge? }
+  avoidSelector = "[data-cookie-banner], [data-bottom-avoid]", // ⚠️ não inclua footer aqui
+  // extraAction: { label, href?, onClick?, ariaLabel?, badge? }
+  extraAction,
   reserveSpace = true,
   compactNearFooter = true,
   hideOnKeyboard = true,
-  autoHideOnScroll = true, // ⟵ novo
+  autoHideOnScroll = true,
 }) {
   const empresa = useTenant((s) => s.empresa);
   const dockRef = useRef(null);
@@ -37,17 +38,17 @@ export default function StickyContactDock({
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [hiddenByScroll, setHiddenByScroll] = useState(false);
 
-  // mede alturas de elementos fixos (ex.: cookie banner)
-  const avoidOffset = useAvoidOverlap(avoidSelector); // px
+  const avoidOffset = useAvoidOverlap(avoidSelector);
 
-  // hrefs
   const { waHref, telHref } = useMemo(() => {
     const base = (whatsappNumber || resolveTenantPhone(empresa) || resolveGlobalFallback()).toString();
     const phone = (phoneNumber || base).toString();
 
     const wa = buildWaHref({
       number: base,
-      message: message || `Olá! Tenho interesse no plano de assistência da ${empresa?.nomeFantasia || empresa?.nome || "sua empresa"}.`,
+      message:
+        message ||
+        `Olá! Tenho interesse no plano de assistência da ${empresa?.nomeFantasia || empresa?.nome || "sua empresa"}.`,
     });
 
     const tel = phone.replace(/\D+/g, "");
@@ -59,7 +60,9 @@ export default function StickyContactDock({
   const primary = "var(--primary, #16a34a)";
   const onPrimary = "var(--on-primary, #ffffff)";
   const surface = "var(--surface, #ffffff)";
+  const surfaceAlt = "var(--surface-alt, var(--surface))";
   const text = "var(--text, #0f172a)";
+  const border = "var(--c-border, rgba(0,0,0,0.12))";
 
   const track = (label) => {
     try {
@@ -71,9 +74,7 @@ export default function StickyContactDock({
   // mede altura real do dock
   useEffect(() => {
     if (!dockRef.current) return;
-    const ro = new ResizeObserver(() => {
-      setDockH(dockRef.current?.getBoundingClientRect().height || 0);
-    });
+    const ro = new ResizeObserver(() => setDockH(dockRef.current?.getBoundingClientRect().height || 0));
     ro.observe(dockRef.current);
     setDockH(dockRef.current.getBoundingClientRect().height || 0);
     return () => ro.disconnect();
@@ -86,7 +87,7 @@ export default function StickyContactDock({
     return () => document.documentElement.style.removeProperty("--app-bottom-safe");
   }, [reserveSpace, dockH]);
 
-  // “near footer” sem deslocar, só compacta visualmente
+  // “near footer” (compacta sem deslocar)
   useEffect(() => {
     const footer = document.querySelector("footer");
     if (!footer) return;
@@ -98,13 +99,13 @@ export default function StickyContactDock({
     return () => io.disconnect();
   }, []);
 
-  // teclado (mobile): esconde enquanto digita
+  // teclado (mobile)
   useEffect(() => {
     if (!hideOnKeyboard) return;
     let baseline = window.innerHeight;
     const onResize = () => {
       const dh = baseline - window.innerHeight;
-      setKeyboardOpen(dh > 140); // heurística
+      setKeyboardOpen(dh > 140);
       if (!keyboardOpen && window.innerHeight > baseline - 40) baseline = window.innerHeight;
     };
     window.addEventListener("resize", onResize);
@@ -134,12 +135,10 @@ export default function StickyContactDock({
     };
   }, [autoHideOnScroll]);
 
-  // offsets
-  const mbMobile = Math.max(avoidOffset + 6, 6); // ⟵ mínimo pequeno
-  const bottomDesktop = Math.max(avoidOffset + 24, 24);
+  const mbMobile = Math.max(avoidOffset + 6, 6);
+  const bottomDesktop = Math.max(avoidOffset + 130, 130);
   const compact = compactNearFooter && nearFooter;
 
-  // estilos mobile: sempre colado no fundo
   const mobileWrapperStyle = {
     paddingBottom: `calc(max(env(safe-area-inset-bottom), 0px) + ${mbMobile}px)`,
     transition: "transform 180ms ease, opacity 160ms ease",
@@ -147,7 +146,6 @@ export default function StickyContactDock({
     opacity: keyboardOpen || hiddenByScroll ? 0 : 1,
   };
 
-  // estilos desktop
   const desktopWrapperStyle = {
     bottom: bottomDesktop,
     transition: "bottom 200ms ease, transform 180ms ease, opacity 160ms ease",
@@ -155,11 +153,10 @@ export default function StickyContactDock({
     opacity: keyboardOpen ? 0 : 1,
   };
 
-  // badge
   const Badge = ({ children }) => (
     <span
-      className="ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-black/5"
-      style={{ background: "color-mix(in srgb, var(--surface) 70%, transparent)", color: "color-mix(in srgb, var(--text) 80%, transparent)" }}
+      className="ml-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold"
+      style={{ border: `1px solid ${border}`, background: surfaceAlt, color: text }}
     >
       {children}
     </span>
@@ -167,7 +164,16 @@ export default function StickyContactDock({
 
   return (
     <>
-      {/* ===== Mobile dock (sempre no fundo) ===== */}
+      {/* keyframes para o pulso do WhatsApp */}
+      <style>{`
+        @keyframes waGlow {
+          0% { box-shadow: 0 0 0 0 rgba(37,211,102,0.35); }
+          70% { box-shadow: 0 0 0 10px rgba(37,211,102,0); }
+          100% { box-shadow: 0 0 0 0 rgba(37,211,102,0); }
+        }
+      `}</style>
+
+      {/* ===== Mobile dock ===== */}
       <div
         ref={dockRef}
         className={`fixed inset-x-0 bottom-0 z-[60] md:hidden ${className}`}
@@ -177,26 +183,30 @@ export default function StickyContactDock({
         data-sticky-dock
       >
         <div
-          className={`mx-3 mb-2 flex overflow-hidden rounded-2xl shadow-xl ring-1 ring-black/5 ${compact ? "scale-[0.98]" : ""}`}
-          style={{
-            background: surface,
-            boxShadow: "inset 0 1px 0 rgba(0,0,0,0.06)", // sombra superior sutil
-            transition: "transform 160ms ease",
-          }}
+          className={`mx-3 mb-2 flex overflow-hidden rounded-2xl shadow-xl`}
+          style={{ background: surface, border: `1px solid ${border}` }}
         >
+          {/* WhatsApp: verde oficial + pulso suave */}
           <a
             href={waHref}
             onClick={() => track("whatsapp_mobile")}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex flex-1 items-center justify-center gap-2 py-3 font-medium"
-            style={{ color: onPrimary, background: primary }}
+            className="flex flex-1 items-center justify-center gap-2 py-3 font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            style={{
+              backgroundColor: "#25D366",
+              transition: "background-color .2s ease",
+              animation: "waGlow 2.6s ease-out infinite",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#128C7E")}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#25D366")}
             aria-label="Falar no WhatsApp"
           >
             <MessageCircle className="h-5 w-5" aria-hidden="true" />
             {showLabels && <span>WhatsApp</span>}
           </a>
 
+          {/* Simular plano: neutro, tema-aware, com hover/active */}
           {extraAction && (
             <a
               href={extraAction.href || "#"}
@@ -206,8 +216,14 @@ export default function StickyContactDock({
                   extraAction.onClick(e);
                 }
               }}
-              className="flex flex-1 items-center justify-center gap-2 py-3 font-medium"
-              style={{ color: text }}
+              className="flex flex-1 items-center justify-center gap-2 py-3 font-medium hover:brightness-95 active:brightness-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+              style={{
+                background: surfaceAlt,
+                color: text,
+                borderLeft: `1px solid ${border}`,
+                borderRight: `1px solid ${border}`,
+                transition: "filter .15s ease",
+              }}
               aria-label={extraAction.ariaLabel || extraAction.label}
             >
               <ClipboardList className="h-5 w-5" aria-hidden="true" />
@@ -220,11 +236,16 @@ export default function StickyContactDock({
             </a>
           )}
 
+          {/* Ligar: cor do tenant */}
           <a
             href={telHref}
             onClick={() => track("ligar_mobile")}
-            className="flex flex-1 items-center justify-center gap-2 py-3 font-medium"
-            style={{ color: text }}
+            className="flex flex-1 items-center justify-center gap-2 py-3 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+            style={{
+              background: primary,
+              color: onPrimary,
+              transition: "background-color .2s ease",
+            }}
             aria-label="Fazer uma ligação"
           >
             <Phone className="h-5 w-5" aria-hidden="true" />
@@ -241,13 +262,21 @@ export default function StickyContactDock({
         aria-label="Contato rápido"
       >
         <div className="flex flex-col items-stretch gap-3">
+          {/* WhatsApp: verde oficial + pulso suave */}
           <a
             href={waHref}
             onClick={() => track("whatsapp_desktop")}
             target="_blank"
             rel="noopener noreferrer"
-            className="group inline-flex items-center gap-3 rounded-full px-4 py-3 shadow-xl ring-1 ring-black/5 transition hover:-translate-y-0.5"
-            style={{ background: primary, color: onPrimary }}
+            className="inline-flex items-center gap-3 rounded-full px-4 py-3 shadow-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            style={{
+              backgroundColor: "#25D366",
+              color: "#ffffff",
+              animation: "waGlow 2.6s ease-out infinite",
+              border: `1px solid ${border}`,
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#128C7E")}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#25D366")}
           >
             <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/15">
               <MessageCircle className="h-4 w-4" aria-hidden="true" />
@@ -255,6 +284,7 @@ export default function StickyContactDock({
             {showLabels && <span className="text-sm font-semibold leading-none">Falar no WhatsApp</span>}
           </a>
 
+          {/* Simular plano: neutro, tema-aware, com hover/active */}
           {extraAction && (
             <a
               href={extraAction.href || "#"}
@@ -264,10 +294,19 @@ export default function StickyContactDock({
                   extraAction.onClick(e);
                 }
               }}
-              className="inline-flex items-center gap-3 rounded-full bg-white px-4 py-3 text-sm font-semibold shadow-xl ring-1 ring-black/5 transition hover:-translate-y-0.5"
-              style={{ color: text }}
+              className="inline-flex items-center gap-3 rounded-full px-4 py-3 text-sm font-semibold shadow-xl transition hover:brightness-95 active:brightness-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+              style={{
+                background: surfaceAlt,
+                color: text,
+                border: `1px solid ${border}`,
+                transitionProperty: "filter, transform, opacity",
+                transitionDuration: "150ms",
+              }}
             >
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100">
+              <span
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full"
+                style={{ background: "color-mix(in srgb, var(--surface) 85%, transparent)" }}
+              >
                 <ClipboardList className="h-4 w-4" aria-hidden="true" />
               </span>
               {showLabels && (
@@ -279,13 +318,18 @@ export default function StickyContactDock({
             </a>
           )}
 
+          {/* Ligar: cor do tenant */}
           <a
             href={telHref}
             onClick={() => track("ligar_desktop")}
-            className="inline-flex items-center gap-3 rounded-full bg-white px-4 py-3 text-sm font-semibold shadow-xl ring-1 ring-black/5 transition hover:-translate-y-0.5"
-            style={{ color: text }}
+            className="inline-flex items-center gap-3 rounded-full px-4 py-3 text-sm font-semibold shadow-xl transition hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+            style={{
+              background: primary,
+              color: onPrimary,
+              border: `1px solid ${border}`,
+            }}
           >
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-neutral-100">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/15">
               <Phone className="h-4 w-4" aria-hidden="true" />
             </span>
             {showLabels && <span>Ligar agora</span>}
