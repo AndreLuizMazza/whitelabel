@@ -29,6 +29,7 @@ import Confirmacao from '@/pages/Confirmacao.jsx'
 
 import VerificarCodigo from '@/pages/VerificarCodigo.jsx'
 import TrocarSenha from '@/pages/TrocarSenha.jsx'
+import StickyContactDock from './components/StickyContactDock.jsx'
 
 // Memorial
 import MemorialList from '@/pages/MemorialList.jsx'
@@ -108,6 +109,23 @@ export default function App() {
       <CookieBanner />
 
       <Footer />
+<StickyContactDock
+  position="bottom-left"
+  extraAction={{
+    label: 'Planos',
+    href: '/planos',                  // ou onClick: () => navigate('/planos')
+    ariaLabel: 'Abrir simulador de planos',
+    badge: 'Novo',
+  }}
+  avoidSelector='[data-cookie-banner], [data-bottom-avoid]'
+  reserveSpace
+  compactNearFooter
+  hideOnKeyboard
+  autoHideOnScroll
+/>
+
+
+
     </div>
   )
 }

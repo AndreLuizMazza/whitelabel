@@ -21,12 +21,10 @@ export default function CookieBanner() {
   useEffect(() => {
     const check = () => {
       const v = getCssVar("--brand-primary")
-      // considera "pronto" quando não for branco OU quando houver qualquer valor não-vazio diferente de branco
       setThemeReady(v && v !== WHITE_HEX)
     }
     check()
 
-    // Observa mudanças (interval + evento opcional disparado pelo seu bootstrap)
     const id = setInterval(check, 300)
     const onApplied = () => setTimeout(check, 0)
     window.addEventListener("theme:applied", onApplied)
@@ -45,8 +43,13 @@ export default function CookieBanner() {
     if (!raw) setVisible(true)
 
     const onOpen = () => setVisible(true)
+    const onEsc = (e) => { if (e.key === "Escape") setVisible(false) }
     window.addEventListener("open-cookie-banner", onOpen)
-    return () => window.removeEventListener("open-cookie-banner", onOpen)
+    window.addEventListener("keydown", onEsc)
+    return () => {
+      window.removeEventListener("open-cookie-banner", onOpen)
+      window.removeEventListener("keydown", onEsc)
+    }
   }, [])
 
   const isRootWhite = useMemo(() => !themeReady, [themeReady])
@@ -61,8 +64,14 @@ export default function CookieBanner() {
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-6 flex justify-center z-50 px-4">
-      <div className="w-full max-w-4xl bg-[var(--surface)] border border-[var(--c-border)] shadow-lg rounded-xl p-4 md:p-5">
+    <div
+      data-cookie-banner                              // ⟵ fundamental p/ o CTA medir e desviar
+      className="fixed inset-x-0 bottom-0 z-50 px-4"
+      role="region"
+      aria-label="Preferências de cookies"
+      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
+    >
+      <div className="w-full max-w-4xl mx-auto bg-[var(--surface)] border border-[var(--c-border)] shadow-lg rounded-xl p-4 md:p-5 mb-4">
         <div className="flex flex-col md:flex-row items-center gap-4">
           <div className="flex-1 text-sm text-[var(--text)]">
             <p>
@@ -88,7 +97,6 @@ export default function CookieBanner() {
               onClick={() => saveConsent("accepted")}
               className={`btn-primary min-w-[140px] ${isRootWhite ? "animate-pulse" : ""}`}
               style={{
-                // fallback visível enquanto o tema ainda é branco
                 backgroundColor: isRootWhite ? "#2563eb" : undefined, // blue-600
                 color: isRootWhite ? "#ffffff" : undefined,
                 boxShadow: isRootWhite ? "0 1px 2px rgba(0,0,0,.08)" : undefined,
