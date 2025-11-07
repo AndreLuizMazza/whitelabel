@@ -1,27 +1,22 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import useAuth from '@/store/auth'
 import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
 import ContratoCard from '@/components/ContratoCard'
 import DependentesList from '@/components/DependentesList'
 import PagamentoFacil from '@/components/PagamentoFacil'
-import { Link } from 'react-router-dom'
+import CarteirinhaAssociado from '@/components/CarteirinhaAssociado'
 
 export default function AreaUsuario() {
   const user = useAuth((s) => s.user)
   const logout = useAuth((s) => s.logout)
 
-  // CPF do payload do login (ajuste se necessário)
   const cpf =
     user?.cpf ||
     user?.documento ||
     (() => {
-      try {
-        return JSON.parse(localStorage.getItem('auth_user') || '{}').cpf
-      } catch {
-        return ''
-      }
-    })() ||
-    ''
+      try { return JSON.parse(localStorage.getItem('auth_user') || '{}').cpf } catch { return '' }
+    })() || ''
 
   const {
     contratos, contrato, selectedId,
@@ -38,25 +33,18 @@ export default function AreaUsuario() {
   const isAtivo = (c) => c?.contratoAtivo === true || String(c?.status || '').toUpperCase() === 'ATIVO'
 
   return (
-    <section className="section" key={cpf /* remount ao trocar usuário */}>
+    <section className="section" key={cpf}>
       <div className="container-max">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold">Área do Usuário</h2>
+            <h2 className="text-2xl font-bold tracking-tight">Área do associado</h2>
             <p className="mt-2" style={{ color: 'var(--text)' }}>
-              Bem-vindo, {nomeExibicao}! {cpf ? <span style={{ color: 'var(--text)' }}>• CPF {cpf}</span> : null}
+              Bem-vindo, {nomeExibicao}! {cpf ? <span>• CPF {cpf}</span> : null}
             </p>
           </div>
-          <button
-            className="btn-outline"
-            onClick={logout}
-            aria-label="Sair"
-          >
-            Sair
-          </button>
+          <button className="btn-outline" onClick={logout} aria-label="Sair">Sair</button>
         </div>
 
-        {/* Se houver mais de um contrato, mostra seletor */}
         {!loading && Array.isArray(contratos) && contratos.length > 1 && (
           <div className="mt-4 card p-4">
             <label className="block text-sm mb-2" style={{ color: 'var(--text)' }}>
@@ -73,33 +61,18 @@ export default function AreaUsuario() {
                 const labelPlano = c?.nomePlano ?? c?.plano?.nome ?? 'Plano'
                 const ativoTag = isAtivo(c) ? ' (ATIVO)' : ''
                 const label = `#${c?.numeroContrato ?? id} — ${labelPlano} — efetivado em ${c?.dataEfetivacao ?? '—'}${ativoTag}`
-                return (
-                  <option key={String(id)} value={String(id)}>
-                    {label}
-                  </option>
-                )
+                return <option key={String(id)} value={String(id)}>{label}</option>
               })}
             </select>
           </div>
         )}
 
-        {loading && (
-          <div className="mt-6 card p-6">
-            <p>Carregando seus dados…</p>
-          </div>
-        )}
+        {loading && <div className="mt-6 card p-6"><p>Carregando seus dados…</p></div>}
 
         {!loading && erro && (
-          <div
-            className="mt-6 card p-6"
-            style={{
-              border: '1px solid var(--primary)',
-              background: 'color-mix(in srgb, var(--primary) 10%, transparent)'
-            }}
-          >
-            <p className="font-medium" style={{ color: 'var(--primary)' }}>
-              Não foi possível carregar os contratos
-            </p>
+          <div className="mt-6 card p-6"
+               style={{ border: '1px solid var(--primary)', background: 'color-mix(in srgb, var(--primary) 10%, transparent)' }}>
+            <p className="font-medium" style={{ color: 'var(--primary)' }}>Não foi possível carregar os contratos</p>
             <p className="text-sm mt-1" style={{ color: 'var(--primary)' }}>{erro}</p>
           </div>
         )}
@@ -107,17 +80,22 @@ export default function AreaUsuario() {
         {!loading && !erro && (
           contrato ? (
             <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
-                <ContratoCard contrato={contrato} />
-                <DependentesList dependentes={dependentes} />
-              </div>
+              {/* ESQUERDA com largura da coluna direita original */}
               <div className="lg:col-span-1 space-y-6">
+                <CarteirinhaAssociado user={user} contrato={contrato} />
+                <div id="pagamento" />
                 <PagamentoFacil
                   parcelaFoco={proximaParcela}
                   proximas={proximas}
                   historico={historico}
                   isAtraso={isAtraso}
                 />
+              </div>
+
+              {/* DIREITA com largura da coluna esquerda original */}
+              <div className="lg:col-span-2 space-y-6">
+                <ContratoCard contrato={contrato} />
+                <DependentesList dependentes={dependentes} />
               </div>
             </div>
           ) : (
@@ -133,6 +111,23 @@ export default function AreaUsuario() {
           )
         )}
       </div>
+
+      {/* FAB/atalho mobile para pagamento prioritário */}
+      <button
+        onClick={() => {
+          const el = document.getElementById('pagamento')
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }}
+        className="sm:hidden fixed bottom-20 right-4 shadow-lg rounded-full px-4 py-3 text-sm font-medium"
+        style={{
+          background: 'var(--primary)',
+          color: 'var(--on-primary)',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
+        }}
+        aria-label="Ir para pagamento"
+      >
+        Ver pagamento
+      </button>
     </section>
   )
 }

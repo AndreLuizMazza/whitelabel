@@ -9,7 +9,11 @@ const fmtBRL = (v) =>
 
 const fmtData = (s) => {
   if (!s) return '—'
-  const [Y, M, D] = String(s).split('-')
+  const txt = String(s)
+  if (txt.includes('/') && /^\d{2}\/\d{2}\/\d{4}$/.test(txt)) return txt
+  const cleaned = txt.split('T')[0]
+  const [Y, M, D] = cleaned.split('-')
+  if (!Y || !M || !D) return txt
   return `${D}/${M}/${Y}`
 }
 
@@ -40,7 +44,7 @@ export default function PagamentoFacil({ parcelaFoco, proximas = [], historico =
   const temFoco = Boolean(foco)
   const focoAtraso = temFoco && isAtraso(foco)
 
-  // Gera ou carrega QR somente se houver pixQrcode/pixImage
+  // Gera/resolve QR sempre que houver pixImage ou pixQrcode
   useEffect(() => {
     setQrSrc(null)
     const img = foco?.pixImage
@@ -71,9 +75,9 @@ export default function PagamentoFacil({ parcelaFoco, proximas = [], historico =
       return
     }
 
-    // ✅ gera QR localmente apenas se existir pixQrcode
+    // Gera QR local a partir do código
     if (code) {
-      QRCode.toDataURL(code, { width: 200, margin: 1 }, (err, url) => {
+      QRCode.toDataURL(code, { width: 240, margin: 1 }, (err, url) => {
         if (!err) setQrSrc(url)
       })
     }
@@ -97,6 +101,14 @@ export default function PagamentoFacil({ parcelaFoco, proximas = [], historico =
     } finally {
       setCopied(true); setTimeout(() => setCopied(false), 1800)
     }
+  }
+
+  function downloadQR() {
+    if (!qrSrc) return
+    const a = document.createElement('a')
+    a.href = qrSrc
+    a.download = `PIX_${foco?.numeroDuplicata || foco?.numero || 'parcela'}.png`
+    a.click()
   }
 
   return (
@@ -130,15 +142,20 @@ export default function PagamentoFacil({ parcelaFoco, proximas = [], historico =
               </div>
             </div>
 
-            {/* Exibe QR somente se houver imagem ou código */}
+            {/* QR code sempre visível quando houver imagem ou código */}
             {qrSrc && (
-              <img
-                src={qrSrc}
-                alt="QR Code PIX"
-                className="w-28 h-28 rounded"
-                style={{ border: '1px solid var(--c-border)', objectFit: 'cover' }}
-                referrerPolicy="no-referrer"
-              />
+              <div className="flex flex-col items-center gap-2">
+                <img
+                  src={qrSrc}
+                  alt="QR Code PIX"
+                  className="w-40 h-40 rounded"
+                  style={{ border: '1px solid var(--c-border)', objectFit: 'cover' }}
+                  referrerPolicy="no-referrer"
+                />
+                <button className="btn-outline text-xs px-3 py-1.5 rounded-full" onClick={downloadQR}>
+                  Baixar QR
+                </button>
+              </div>
             )}
           </div>
 
@@ -169,10 +186,13 @@ export default function PagamentoFacil({ parcelaFoco, proximas = [], historico =
                 rows={4}
                 style={{ border: '1px solid var(--c-border)', background: 'var(--surface)', color: 'var(--text)' }}
               />
-              <div className="mt-2">
+              <div className="mt-2 flex gap-2">
                 <button className="btn-outline" onClick={() => copy(foco.pixQrcode)}>
                   {copied ? 'Copiado!' : 'Copiar código PIX'}
                 </button>
+                {qrSrc && (
+                  <button className="btn-outline" onClick={downloadQR}>Baixar QR</button>
+                )}
               </div>
             </details>
           )}
@@ -200,20 +220,12 @@ export default function PagamentoFacil({ parcelaFoco, proximas = [], historico =
                     </div>
                     <div className="flex gap-2 flex-wrap justify-end sm:flex-nowrap">
                       {dup.urlBoleto && (
-                        <a
-                          className="btn-outline text-xs px-3 py-1.5 rounded-full"
-                          target="_blank"
-                          rel="noreferrer"
-                          href={dup.urlBoleto}
-                        >
+                        <a className="btn-outline text-xs px-3 py-1.5 rounded-full" target="_blank" rel="noreferrer" href={dup.urlBoleto}>
                           Boleto
                         </a>
                       )}
                       {dup.pixQrcode && (
-                        <button
-                          className="btn-outline text-xs px-3 py-1.5 rounded-full"
-                          onClick={() => copy(dup.pixQrcode)}
-                        >
+                        <button className="btn-outline text-xs px-3 py-1.5 rounded-full" onClick={() => copy(dup.pixQrcode)}>
                           {copied ? 'Copiado!' : 'PIX'}
                         </button>
                       )}
