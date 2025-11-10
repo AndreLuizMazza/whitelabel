@@ -1,3 +1,4 @@
+// src/components/ContratoCard.jsx
 function Badge({ children, kind = 'neutral' }) {
   const styles = {
     neutral: { bg: 'var(--surface)', color: 'var(--text)' },
@@ -8,8 +9,10 @@ function Badge({ children, kind = 'neutral' }) {
   }
   const s = styles[kind] || styles.neutral
   return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-          style={{ background: s.bg, color: s.color, border: '1px solid var(--c-border)' }}>
+    <span
+      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+      style={{ background: s.bg, color: s.color, border: '1px solid var(--c-border)' }}
+    >
       {children}
     </span>
   )
@@ -31,40 +34,70 @@ function buildWhats(number, msg = 'Olá! Gostaria de falar sobre meu contrato.')
   return `https://wa.me/${justDigits}?text=${encodeURIComponent(msg)}`
 }
 
-function StatusTimeline({ ativo, etapa = null }) {
-  const STEPS = ['Solicitação recebida', 'Em análise', 'Aguardando pagamento', 'Ativo']
-  let current = ativo ? 3 : Number.isFinite(+etapa) ? Math.max(0, Math.min(3, +etapa)) : 1
+/* Linha do tempo (3 etapas) com override opcional */
+function StepPill({ state = 'todo', label }) {
+  const base = {
+    border: '1px solid var(--c-border)',
+    color: 'var(--text)',
+    background: 'var(--surface)'
+  }
+  const done = state === 'done'
+  const current = state === 'current'
+
+  const style = done
+    ? { border: '1px solid var(--primary)', color: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 12%, transparent)' }
+    : current
+    ? { border: '2px solid var(--primary)', color: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 8%, var(--surface))' }
+    : base
+
+  return (
+    <span className="text-[11px] px-2 py-1 rounded-full whitespace-nowrap" style={style}>
+      {label}
+    </span>
+  )
+}
+
+/**
+ * etapaForcada (opcional):
+ * - number: 0 | 1 | 2   (0=Solicitação recebida, 1=Em análise, 2=Ativo)
+ * - string: 'solicitacao' | 'analise' | 'ativo'
+ */
+function StatusTimeline({ ativo, etapaForcada }) {
+  const STEPS = ['Solicitação recebida', 'Em análise', 'Ativo']
+
+  const parseIdx = (val) => {
+    if (val == null) return null
+    if (typeof val === 'number' && val >= 0 && val <= 2) return val
+    const map = { solicitacao: 0, solicitação: 0, analise: 1, análise: 1, ativo: 2 }
+    const k = String(val).toLowerCase().trim()
+    return map.hasOwnProperty(k) ? map[k] : null
+  }
+
+  const forcedIdx = parseIdx(etapaForcada)
+
+  const states = (() => {
+    if (forcedIdx != null) {
+      return [0, 1, 2].map((i) => (i < forcedIdx ? 'done' : i === forcedIdx ? 'current' : 'todo'))
+    }
+    if (ativo) return ['done', 'done', 'done']
+    return ['done', 'done', 'current']
+  })()
 
   return (
     <div className="mt-4">
       <div className="flex items-center justify-between gap-2">
         {STEPS.map((label, idx) => {
-          const done = idx <= current
+          const state = states[idx]
+          const connectorStyle = {
+            background:
+              state === 'done' || state === 'current'
+                ? 'color-mix(in srgb, var(--primary) 25%, transparent)'
+                : 'var(--c-border)'
+          }
           return (
-            <div key={label} className="flex-1 flex items-center">
-              <div
-                className="text-[11px] px-2 py-1 rounded-full whitespace-nowrap"
-                style={{
-                  border: '1px solid var(--c-border)',
-                  background: done
-                    ? 'color-mix(in srgb, var(--primary) 12%, transparent)'
-                    : 'var(--surface)',
-                  color: 'var(--text)'
-                }}
-                title={label}
-              >
-                {label}
-              </div>
-              {idx < STEPS.length - 1 && (
-                <div
-                  className="h-px mx-2 flex-1"
-                  style={{
-                    background: done
-                      ? 'color-mix(in srgb, var(--primary) 25%, transparent)'
-                      : 'var(--c-border)'
-                  }}
-                />
-              )}
+            <div key={label} className="flex-1 flex items-center min-w-0">
+              <StepPill state={state} label={label} />
+              {idx < STEPS.length - 1 && <div className="h-px mx-2 flex-1" style={connectorStyle} />}
             </div>
           )
         })}
@@ -73,11 +106,11 @@ function StatusTimeline({ ativo, etapa = null }) {
   )
 }
 
-export default function ContratoCard({ contrato }) {
+/* ========================= Card do contrato ========================= */
+export default function ContratoCard({ contrato, etapaForcada = null }) {
   if (!contrato) return null
 
   const numero = contrato.numeroContrato ?? contrato.id ?? contrato.contratoId
-  const plano = contrato.nomePlano ?? contrato.plano?.nome ?? 'Plano'
   const ativo = contrato.contratoAtivo ?? (String(contrato.status).toUpperCase() === 'ATIVO')
   const efetivacao = contrato.dataEfetivacao ?? contrato.dataContrato ?? contrato.criadoEm ?? '—'
   const dia = contrato.diaD ?? contrato.diaVencimento ?? '—'
@@ -87,36 +120,40 @@ export default function ContratoCard({ contrato }) {
   const contatos = contrato.contatos || {}
 
   const waHref = buildWhats(unidade.whatsapp || contatos.celular, 'Olá! Preciso de ajuda com meu contrato.')
-  const etapaInativo =
-    contrato.motivoInativo || contrato.motivoStatus || 'Aguardando aprovação. Você será notificado quando o contrato for ativado.'
+  const etapaInativo = contrato.motivoInativo || contrato.motivoStatus || 'Aguardando ativação.'
 
   return (
     <div className="card p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-lg font-semibold">Contrato #{numero}</h3>
+          <h3 className="text-lg font-semibold">Informações do contrato</h3>
           <div className="mt-1 flex flex-wrap gap-2">
-            {ativo ? <Badge kind="success">ATIVO</Badge> : <Badge kind="warn">Aguardando aprovação</Badge>}
+            {ativo ? <Badge kind="success">ATIVO</Badge> : <Badge kind="warn">Aguardando ativação</Badge>}
             {atrasos > 0 ? <Badge kind="danger">Em atraso ({atrasos})</Badge> : null}
           </div>
+          <p className="text-sm mt-2" style={{ color: 'var(--text)' }}>
+            Contrato #{numero}
+          </p>
         </div>
         {unidade?.nomeLogo ? (
-          <img src={unidade.nomeLogo} alt={unidade.nomeFantasia || 'Unidade'}
-               className="w-16 h-16 object-contain rounded" referrerPolicy="no-referrer" />
+          <img
+            src={unidade.nomeLogo}
+            alt={unidade.nomeFantasia || 'Unidade'}
+            className="w-16 h-16 object-contain rounded"
+            referrerPolicy="no-referrer"
+          />
         ) : null}
       </div>
 
+      {/* Dados essenciais (sem redundância com a Carteirinha) */}
       <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-        <div><dt style={{ color: 'var(--text)' }}>Plano</dt><dd className="font-medium">{plano}</dd></div>
         <div><dt style={{ color: 'var(--text)' }}>Efetivação</dt><dd className="font-medium">{fmtData(efetivacao)}</dd></div>
         <div><dt style={{ color: 'var(--text)' }}>Dia de vencimento</dt><dd className="font-medium">{dia}</dd></div>
-        <div><dt style={{ color: 'var(--text)' }}>Titular</dt><dd className="font-medium">{contrato.nomeTitular ?? contrato.nome ?? '—'}</dd></div>
       </dl>
 
       <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* UNIDADE + CTA */}
-        <div className="p-4 rounded space-y-3"
-             style={{ border: '1px solid var(--c-border)', background: 'var(--surface)' }}>
+        {/* UNIDADE + CTA geral (não específico do processo de ativação) */}
+        <div className="p-4 rounded space-y-3" style={{ border: '1px solid var(--c-border)', background: 'var(--surface)' }}>
           <div>
             <p className="text-sm mb-2" style={{ color: 'var(--text)' }}>Unidade</p>
             <p className="font-medium">{unidade.nomeFantasia ?? '—'}</p>
@@ -127,8 +164,7 @@ export default function ContratoCard({ contrato }) {
           </div>
 
           {waHref && (
-            <a className="btn-primary inline-flex items-center justify-center"
-               href={waHref} target="_blank" rel="noreferrer">
+            <a className="btn-primary inline-flex items-center justify-center" href={waHref} target="_blank" rel="noreferrer">
               Fale conosco
             </a>
           )}
@@ -145,16 +181,22 @@ export default function ContratoCard({ contrato }) {
         </div>
       </div>
 
-      <StatusTimeline ativo={ativo} etapa={contrato.etapa} />
+      {/* Timeline com 3 etapas + override opcional */}
+      <StatusTimeline ativo={ativo} etapaForcada={etapaForcada} />
 
+      {/* Próximos passos — sem CTAs específicos de ativação */}
       {!ativo && (
-        <div className="mt-5 p-4 rounded"
-             style={{ border: '1px solid var(--primary)', background: 'color-mix(in srgb, var(--primary) 10%, transparent)' }}>
+        <div
+          className="mt-5 p-4 rounded"
+          style={{
+            border: '1px solid var(--primary)',
+            background: 'color-mix(in srgb, var(--primary) 10%, transparent)'
+          }}
+        >
           <p className="font-semibold" style={{ color: 'var(--primary)' }}>Próximos passos</p>
           <ul className="mt-2 text-sm" style={{ color: 'var(--text)' }}>
-            <li>• Status: {etapaInativo}</li>
-            <li>• Dúvidas? Use o botão “Fale conosco”.</li>
-            <li>• Você será notificado assim que o contrato for ativado.</li>
+            <li>• <strong>Status:</strong> {etapaInativo}</li>
+            <li>• Caso precise de ajuda, utilize os canais da unidade ao lado.</li>
           </ul>
         </div>
       )}

@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+// src/pages/AreaUsuario.jsx
+import { useMemo, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import useAuth from '@/store/auth'
 import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
@@ -6,10 +7,43 @@ import ContratoCard from '@/components/ContratoCard'
 import DependentesList from '@/components/DependentesList'
 import PagamentoFacil from '@/components/PagamentoFacil'
 import CarteirinhaAssociado from '@/components/CarteirinhaAssociado'
+import { showToast } from '@/lib/toast'
+
+/* Preferência de tema do SO */
+function usePrefersDark() {
+  const [dark, setDark] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+      : false
+  )
+  useEffect(() => {
+    if (!window?.matchMedia) return
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = (e) => setDark(e.matches)
+    mq.addEventListener?.('change', onChange)
+    return () => mq.removeEventListener?.('change', onChange)
+  }, [])
+  return dark
+}
+
+/* Skeleton simples para carregamento */
+function Skeleton({ className = '' }) {
+  return (
+    <div
+      className={`animate-pulse rounded ${className}`}
+      style={{
+        background:
+          'linear-gradient(90deg, rgba(0,0,0,0.06), rgba(0,0,0,0.10), rgba(0,0,0,0.06))',
+        backgroundSize: '200% 100%',
+      }}
+    />
+  )
+}
 
 export default function AreaUsuario() {
   const user = useAuth((s) => s.user)
   const logout = useAuth((s) => s.logout)
+  usePrefersDark() // usado em subcomponentes
 
   const cpf =
     user?.cpf ||
@@ -29,8 +63,16 @@ export default function AreaUsuario() {
     [user]
   )
 
+  // toast unificado de erro
+  useEffect(() => {
+    if (erro) {
+      showToast('Não foi possível carregar seus contratos. Tente novamente em instantes.')
+    }
+  }, [erro])
+
   const getId = (c) => c?.id ?? c?.contratoId ?? c?.numeroContrato
-  const isAtivo = (c) => c?.contratoAtivo === true || String(c?.status || '').toUpperCase() === 'ATIVO'
+  const isAtivo = (c) =>
+    c?.contratoAtivo === true || String(c?.status || '').toUpperCase() === 'ATIVO'
 
   return (
     <section className="section" key={cpf}>
@@ -45,6 +87,7 @@ export default function AreaUsuario() {
           <button className="btn-outline" onClick={logout} aria-label="Sair">Sair</button>
         </div>
 
+        {/* seletor de contrato */}
         {!loading && Array.isArray(contratos) && contratos.length > 1 && (
           <div className="mt-4 card p-4">
             <label className="block text-sm mb-2" style={{ color: 'var(--text)' }}>
@@ -67,24 +110,49 @@ export default function AreaUsuario() {
           </div>
         )}
 
-        {loading && <div className="mt-6 card p-6"><p>Carregando seus dados…</p></div>}
+        {/* carregando */}
+        {loading && (
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 space-y-6">
+              <Skeleton className="h-40" />
+              <Skeleton className="h-64" />
+            </div>
+            <div className="lg:col-span-2 space-y-6">
+              <Skeleton className="h-40" />
+              <Skeleton className="h-64" />
+            </div>
+          </div>
+        )}
 
+        {/* erro */}
         {!loading && erro && (
-          <div className="mt-6 card p-6"
-               style={{ border: '1px solid var(--primary)', background: 'color-mix(in srgb, var(--primary) 10%, transparent)' }}>
-            <p className="font-medium" style={{ color: 'var(--primary)' }}>Não foi possível carregar os contratos</p>
+          <div
+            className="mt-6 card p-6"
+            style={{
+              border: '1px solid var(--primary)',
+              background: 'color-mix(in srgb, var(--primary) 10%, transparent)'
+            }}
+          >
+            <p className="font-medium" style={{ color: 'var(--primary)' }}>
+              Não foi possível carregar os contratos
+            </p>
             <p className="text-sm mt-1" style={{ color: 'var(--primary)' }}>{erro}</p>
           </div>
         )}
 
+        {/* conteúdo */}
         {!loading && !erro && (
           contrato ? (
             <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* ESQUERDA com largura da coluna direita original */}
+              {/* COLUNA ESQUERDA */}
               <div className="lg:col-span-1 space-y-6">
+                {/* Carteirinha concentra identificação (nome, plano, nº contrato, status) */}
                 <CarteirinhaAssociado user={user} contrato={contrato} />
+
+                {/* Pagamento — recebe o contrato para renegociação via WhatsApp */}
                 <div id="pagamento" />
                 <PagamentoFacil
+                  contrato={contrato}
                   parcelaFoco={proximaParcela}
                   proximas={proximas}
                   historico={historico}
@@ -92,10 +160,12 @@ export default function AreaUsuario() {
                 />
               </div>
 
-              {/* DIREITA com largura da coluna esquerda original */}
+              {/* COLUNA DIREITA */}
               <div className="lg:col-span-2 space-y-6">
+                {/* Cartão do Contrato — sem repetir dados já exibidos na carteirinha */}
                 <ContratoCard contrato={contrato} />
-                <DependentesList dependentes={dependentes} />
+                {/* Dependentes — com toasts e WhatsApp */}
+                <DependentesList dependentes={dependentes} contrato={contrato} />
               </div>
             </div>
           ) : (
@@ -111,23 +181,6 @@ export default function AreaUsuario() {
           )
         )}
       </div>
-
-      {/* FAB/atalho mobile para pagamento prioritário */}
-      <button
-        onClick={() => {
-          const el = document.getElementById('pagamento')
-          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }}
-        className="sm:hidden fixed bottom-20 right-4 shadow-lg rounded-full px-4 py-3 text-sm font-medium"
-        style={{
-          background: 'var(--primary)',
-          color: 'var(--on-primary)',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
-        }}
-        aria-label="Ir para pagamento"
-      >
-        Ver pagamento
-      </button>
     </section>
   )
 }

@@ -1,7 +1,6 @@
 // src/components/CarteirinhaAssociado.jsx
 import { useEffect, useState } from 'react'
 
-// Hook simples para detectar tema escuro do SO/Navegador
 function usePrefersDark() {
   const [dark, setDark] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia
@@ -42,27 +41,29 @@ export default function CarteirinhaAssociado({ user = {}, contrato = {} }) {
   const validade = fmtHoje()
   const avatarUrl = user?.fotoUrl || user?.photoURL || contrato?.fotoTitular
 
-  // Ajustes finos para dark mode (opacidades e mistura)
-  const gradStartOpacity = prefersDark ? 4 : 8           // % da primary no topo do gradiente
-  const ringOpacity       = prefersDark ? 30 : 35        // % no anel do avatar
-  const badgeBgOpacity    = prefersDark ? 10 : 12        // % do badge ATIVO/INATIVO
-  const glowPrimaryMix    = prefersDark ? 12 : 18        // % do brilho diagonal
+  const gradStartOpacity = prefersDark ? 4 : 8
+  const ringOpacity       = prefersDark ? 30 : 35
+  const badgeBgOpacity    = prefersDark ? 10 : 12
+  const glowPrimaryMix    = prefersDark ? 12 : 18
   const cardShadow        = prefersDark
     ? '0 8px 22px rgba(0,0,0,0.22), 0 2px 6px rgba(0,0,0,0.18)'
     : '0 8px 22px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.04)'
 
   return (
     <div
-      className="card p-5 relative overflow-hidden"
+      className="card relative overflow-hidden mx-auto"
+      aria-label="Carteirinha do Associado"
       style={{
-        // Gradiente base “dark-tuned” mantendo tokens
+        maxWidth: '420px',
+        width: '100%',
+        aspectRatio: '85.6 / 54',
+        padding: 'clamp(12px, 2.4vh, 18px)',
         background: `linear-gradient(180deg, color-mix(in srgb, var(--primary) ${gradStartOpacity}%, var(--surface)) 0%, var(--surface) 100%)`,
-        minHeight: '7.5rem',
         boxShadow: cardShadow,
-        border: '1px solid var(--c-border)'
+        border: '1px solid var(--c-border)',
+        borderRadius: '14px'
       }}
     >
-      {/* faixa decorativa superior */}
       <div
         aria-hidden="true"
         style={{
@@ -70,10 +71,11 @@ export default function CarteirinhaAssociado({ user = {}, contrato = {} }) {
           insetInline: 0,
           top: 0,
           height: '6px',
-          background: 'linear-gradient(90deg, color-mix(in srgb, var(--primary) 50%, transparent), transparent 60%)'
+          background: 'linear-gradient(90deg, color-mix(in srgb, var(--primary) 50%, transparent), transparent 60%)',
+          borderTopLeftRadius: '14px',
+          borderTopRightRadius: '14px'
         }}
       />
-      {/* brilho diagonal suave (com mistura diferente no dark) */}
       <div
         aria-hidden="true"
         style={{
@@ -91,21 +93,27 @@ export default function CarteirinhaAssociado({ user = {}, contrato = {} }) {
         }}
       />
 
-      <div className="flex items-center justify-between relative">
+      <div className="flex items-center justify-between relative" style={{ height: '100%' }}>
         <div className="flex items-center gap-3">
           <div className="relative">
             {avatarUrl ? (
               <img
                 src={avatarUrl}
                 alt={nome}
-                className="w-14 h-14 rounded-full object-cover"
-                style={{ border: `2px solid color-mix(in srgb, var(--primary) ${ringOpacity}%, transparent)` }}
+                className="rounded-full object-cover"
+                style={{
+                  width: '58px',
+                  height: '58px',
+                  border: `2px solid color-mix(in srgb, var(--primary) ${ringOpacity}%, transparent)`
+                }}
                 referrerPolicy="no-referrer"
               />
             ) : (
               <div
-                className="w-14 h-14 rounded-full flex items-center justify-center text-base font-semibold"
+                className="rounded-full flex items-center justify-center text-base font-semibold"
                 style={{
+                  width: '58px',
+                  height: '58px',
                   background: 'color-mix(in srgb, var(--primary) 14%, transparent)',
                   color: 'var(--primary)',
                   border: `2px solid color-mix(in srgb, var(--primary) ${ringOpacity}%, transparent)`
@@ -127,21 +135,19 @@ export default function CarteirinhaAssociado({ user = {}, contrato = {} }) {
           </div>
 
           <div>
-            <div className="text-xs uppercase tracking-wide font-medium" style={{ color: 'var(--text)' }}>
+            <div className="text-[10px] uppercase tracking-wide font-medium" style={{ color: 'var(--text)' }}>
               Carteirinha do Associado
             </div>
-            <div className="font-semibold leading-tight text-base">{nome}</div>
-            <div className="text-xs" style={{ color: 'var(--text)' }}>
+            <div className="font-semibold leading-tight text-[15px]">{nome}</div>
+            <div className="text-[11px]" style={{ color: 'var(--text)' }}>
               {plano} • Contrato #{numero}
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="mt-3 text-xs flex items-center justify-between relative">
-        <span style={{ color: 'var(--text)' }}>
+        <div className="self-end text-[10px]" style={{ color: 'var(--text)' }}>
           Validade: <strong>{validade}</strong>
-        </span>
+        </div>
       </div>
     </div>
   )
