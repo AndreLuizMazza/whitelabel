@@ -353,7 +353,7 @@ export default function CarteirinhaAssociado({
             )}
 
             <div className="mt-2 text-[9px]" style={{ color: T.textMuted }}>
-              Em caso de achado, favor devolver à {tenantName}. Este documento pode ser validado pelo link acima.
+              Em caso de achado, favor devolver à {tenantName}. 
             </div>
 
             {!printable && (
