@@ -1,5 +1,27 @@
 // src/components/CarteirinhaAssociado.jsx
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { showToast } from '@/lib/toast'
+import useTenant from '@/store/tenant'
+import { displayCPF, formatCPF } from '@/lib/cpf'
+
+/* =============== utils =============== */
+const onlyDigits = (v = '') => String(v).replace(/\D+/g, '')
+const initials = (name = '') =>
+  String(name).trim().split(/\s+/).slice(0, 2).map(p => p[0]?.toUpperCase() || '').join('')
+
+const fmtDateBR = (s) => {
+  if (!s) return '—'
+  const t = String(s)
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(t)) return t
+  const d = t.split('T')[0]
+  const [Y, M, D] = d.split('-')
+  return (Y && M && D) ? `${D}/${M}/${Y}` : t
+}
+
+const todayBR = () => {
+  const d = new Date()
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
+}
 
 function usePrefersDark() {
   const [dark, setDark] = useState(() =>
@@ -17,138 +39,356 @@ function usePrefersDark() {
   return dark
 }
 
-// iniciais do avatar
-function initials(name = '') {
-  const parts = String(name).trim().split(/\s+/).slice(0, 2)
-  return parts.map(p => p[0]?.toUpperCase() || '').join('')
+/* fonte adaptativa p/ nome */
+function fontForName(n = '') {
+  const len = String(n).length
+  if (len > 48) return 13
+  if (len > 38) return 14
+  return 15
 }
 
-const fmtHoje = () => {
-  const d = new Date()
-  const dd = String(d.getDate()).padStart(2, '0')
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const yyyy = d.getFullYear()
-  return `${dd}/${mm}/${yyyy}`
-}
-
-export default function CarteirinhaAssociado({ user = {}, contrato = {} }) {
+/**
+ * Props:
+ * - printable?: boolean
+ * - side?: 'front' | 'back'
+ * - matchContratoHeight?: boolean
+ */
+export default function CarteirinhaAssociado({
+  user = {},
+  contrato = {},
+  printable = false,
+  side = 'front',
+  matchContratoHeight = true,
+}) {
   const prefersDark = usePrefersDark()
+  const warnedRef = useRef(false)
+  const [imgErro, setImgErro] = useState(false)
+  const [uiSide, setUiSide] = useState(side)
+  const [matchHeight, setMatchHeight] = useState(null)
 
+  // tenant
+  const empresa = useTenant(s => s.empresa)
+  const tenantName = empresa?.nomeFantasia || empresa?.razaoSocial || 'Sua Marca Aqui'
+  const tenantLogo =
+    empresa?.logo || empresa?.logoUrl || empresa?.logo_path ||
+    (typeof window !== 'undefined' && window.__TENANT__?.logo) ||
+    '/img/logo.png'
+  const tenantPhone = empresa?.telefone || empresa?.whatsapp || ''
+  const verifyBase =
+    empresa?.siteOficial || empresa?.dominio || (typeof window !== 'undefined' ? window.location.origin : '')
+
+  // dados
   const nome = contrato.nomeTitular || user?.nome || user?.name || 'Associado(a)'
   const plano = contrato.nomePlano ?? contrato.plano?.nome ?? 'Plano'
   const numero = contrato.numeroContrato ?? contrato.id ?? contrato.contratoId ?? '—'
-  const ativo = contrato.contratoAtivo ?? (String(contrato.status).toUpperCase() === 'ATIVO')
-  const validade = fmtHoje()
+  const efetivacao = contrato.dataEfetivacao ?? contrato.dataContrato ?? contrato.criadoEm ?? ''
+  const ativo = contrato.contratoAtivo ?? (String(contrato.status || '').toUpperCase() === 'ATIVO')
   const avatarUrl = user?.fotoUrl || user?.photoURL || contrato?.fotoTitular
+  const cpf = user?.cpf || contrato?.cpfTitular || ''
+  const cpfShown = useMemo(() => (printable ? formatCPF(cpf) : displayCPF(cpf, 'last2')), [cpf, printable])
 
-  const gradStartOpacity = prefersDark ? 4 : 8
-  const ringOpacity       = prefersDark ? 30 : 35
-  const badgeBgOpacity    = prefersDark ? 10 : 12
-  const glowPrimaryMix    = prefersDark ? 12 : 18
-  const cardShadow        = prefersDark
-    ? '0 8px 22px rgba(0,0,0,0.22), 0 2px 6px rgba(0,0,0,0.18)'
-    : '0 8px 22px rgba(0,0,0,0.06), 0 2px 6px rgba(0,0,0,0.04)'
+  // verificação / QR opcional
+  const verifyPath = `/verificar/${encodeURIComponent(numero)}`
+  const verifyUrl = `${verifyBase}${verifyPath}`
+  const qrCodeUrl = contrato?.qrCodeUrl || contrato?.qr || '' // se existir, mostraremos no verso
+  const validade = todayBR()
+
+  // autoavaliação
+  useEffect(() => {
+    if (warnedRef.current) return
+    if (!nome) showToast('Nome do titular ausente na carteirinha.')
+    if (!plano) showToast('Plano não identificado.')
+    if (!numero) showToast('Número do contrato ausente.')
+    if (!cpf || onlyDigits(cpf).length < 11) showToast('CPF inválido ou não informado.')
+    warnedRef.current = true
+  }, [nome, plano, numero, cpf])
+
+  // igualar altura ao card do contrato (desktop)
+  useEffect(() => {
+    if (!matchContratoHeight || printable || typeof window === 'undefined') return
+    const target = document.getElementById('contrato-card-root')
+    if (!target) return
+    const isDesktop = () => window.matchMedia?.('(min-width: 1024px)').matches
+    const apply = () => {
+      if (isDesktop()) {
+        const h = Math.max(240, Math.round(target.getBoundingClientRect().height))
+        setMatchHeight(h)
+      } else setMatchHeight(null)
+    }
+    apply()
+    const ro = new ResizeObserver(apply)
+    ro.observe(target)
+    window.addEventListener('resize', apply)
+    return () => { try { ro.disconnect() } catch {} window.removeEventListener('resize', apply) }
+  }, [matchContratoHeight, printable])
+
+  // tokens visuais
+  const T = useMemo(() => ({
+    gradTopPct: prefersDark ? 6 : 10,
+    ringPct: prefersDark ? 32 : 38,
+    badgeBgPct: prefersDark ? 14 : 16,
+    textMuted: 'var(--text-muted)',
+    text: 'var(--text)',
+    shadow: printable ? 'none'
+      : prefersDark ? '0 10px 28px rgba(0,0,0,0.28), 0 3px 9px rgba(0,0,0,0.20)'
+      : '0 10px 28px rgba(0,0,0,0.10), 0 3px 9px rgba(0,0,0,0.06)'
+  }), [prefersDark, printable])
+
+  // container
+  const cardStyle = {
+    maxWidth: printable ? '600px' : '480px',
+    width: '100%',
+    ...(matchHeight && !printable ? { height: `${matchHeight}px` } : { aspectRatio: '85.6 / 54' }),
+    marginTop: printable ? 0 : 'clamp(-4px, -0.4vw, -8px)',
+    padding: printable ? '18px' : 'clamp(14px, 2.2vh, 18px)',
+    background: 'var(--surface)',
+    backgroundImage:
+      `linear-gradient(180deg,
+        color-mix(in srgb, var(--primary) ${T.gradTopPct}%, var(--surface)) 0%,
+        var(--surface) 70%,
+        color-mix(in srgb, var(--primary) 4%, var(--surface)) 100%)`,
+    border: '1px solid var(--c-border)',
+    borderRadius: printable ? '12px' : '16px',
+    boxShadow: T.shadow,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden'
+  }
+
+  const sideToRender = printable ? side : uiSide
 
   return (
-    <div
-      className="card relative overflow-hidden mx-auto"
-      aria-label="Carteirinha do Associado"
-      style={{
-        maxWidth: '420px',
-        width: '100%',
-        aspectRatio: '85.6 / 54',
-        padding: 'clamp(12px, 2.4vh, 18px)',
-        background: `linear-gradient(180deg, color-mix(in srgb, var(--primary) ${gradStartOpacity}%, var(--surface)) 0%, var(--surface) 100%)`,
-        boxShadow: cardShadow,
-        border: '1px solid var(--c-border)',
-        borderRadius: '14px'
-      }}
+    <section
+      className={`card relative mx-auto ${printable ? 'printable-card' : ''}`}
+      style={cardStyle}
+      aria-label={`Carteirinha do Associado • ${nome} (${sideToRender === 'front' ? 'Frente' : 'Verso'})`}
     >
+      {/* faixa superior */}
       <div
         aria-hidden="true"
         style={{
-          position: 'absolute',
-          insetInline: 0,
-          top: 0,
-          height: '6px',
-          background: 'linear-gradient(90deg, color-mix(in srgb, var(--primary) 50%, transparent), transparent 60%)',
-          borderTopLeftRadius: '14px',
-          borderTopRightRadius: '14px'
-        }}
-      />
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute',
-          right: '-10%',
-          top: '-30%',
-          width: '45%',
-          height: '120%',
-          transform: 'rotate(18deg)',
-          background: `radial-gradient(60% 60% at 50% 50%, color-mix(in srgb, var(--primary) ${glowPrimaryMix}%, ${
-            prefersDark ? 'black' : 'white'
-          }) 0%, transparent 70%)`,
-          filter: 'blur(10px)',
-          opacity: prefersDark ? 0.35 : 0.4
+          position: 'absolute', insetInline: 0, top: 0, height: printable ? '5px' : '6px',
+          background: 'linear-gradient(90deg, color-mix(in srgb, var(--primary) 55%, transparent), transparent 60%)'
         }}
       />
 
-      <div className="flex items-center justify-between relative" style={{ height: '100%' }}>
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={nome}
-                className="rounded-full object-cover"
-                style={{
-                  width: '58px',
-                  height: '58px',
-                  border: `2px solid color-mix(in srgb, var(--primary) ${ringOpacity}%, transparent)`
-                }}
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div
-                className="rounded-full flex items-center justify-center text-base font-semibold"
-                style={{
-                  width: '58px',
-                  height: '58px',
-                  background: 'color-mix(in srgb, var(--primary) 14%, transparent)',
-                  color: 'var(--primary)',
-                  border: `2px solid color-mix(in srgb, var(--primary) ${ringOpacity}%, transparent)`
-                }}
-              >
-                {initials(nome)}
+      {sideToRender === 'front' ? (
+        /* ===================== FRENTE ===================== */
+        <>
+          <header className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              {/* avatar + situação (chip) */}
+              <div className="relative shrink-0" aria-label={`Foto de ${nome}`}>
+                {avatarUrl && !imgErro ? (
+                  <img
+                    src={avatarUrl}
+                    alt={nome}
+                    className="rounded-full object-cover"
+                    style={{
+                      width: 58, height: 58,
+                      border: `2px solid color-mix(in srgb, var(--primary) ${T.ringPct}%, transparent)`
+                    }}
+                    onError={() => setImgErro(true)}
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div
+                    className="rounded-full flex items-center justify-center font-semibold"
+                    style={{
+                      width: 58, height: 58,
+                      background: 'color-mix(in srgb, var(--primary) 16%, transparent)',
+                      color: 'var(--primary)',
+                      border: `2px solid color-mix(in srgb, var(--primary) ${T.ringPct}%, transparent)`
+                    }}
+                  >
+                    {initials(nome)}
+                  </div>
+                )}
+                <span
+                  className="absolute -bottom-1 -right-1 text-[10px] px-1.5 py-0.5 rounded-full"
+                  style={{
+                    background: `color-mix(in srgb, var(--primary) ${T.badgeBgPct}%, ${prefersDark ? 'black' : 'white'})`,
+                    color: 'var(--primary)',
+                    border: '1px solid var(--c-border)',
+                    boxShadow: prefersDark ? '0 2px 6px rgba(0,0,0,0.35)' : '0 2px 6px rgba(0,0,0,0.08)',
+                    backdropFilter: 'blur(3px)'
+                  }}
+                >
+                  {ativo ? 'ATIVO' : 'INATIVO'}
+                </span>
+              </div>
+
+              {/* títulos — nome sem truncar, com clamp 2 linhas */}
+              <div className="min-w-0">
+                <div className="text-[10px] uppercase tracking-[0.06em] font-medium" style={{ color: T.textMuted }}>
+                  Carteirinha do Associado • {tenantName}
+                </div>
+
+                <div
+                  title={nome}
+                  aria-label={`Titular: ${nome}`}
+                  className="leading-tight font-semibold"
+                  style={{
+                    color: T.text,
+                    fontSize: `${fontForName(nome)}px`,
+                    lineHeight: 1.1,
+                    maxHeight: printable ? 'unset' : '2.2em',
+                    display: printable ? 'block' : '-webkit-box',
+                    WebkitLineClamp: printable ? 'unset' : 2,
+                    WebkitBoxOrient: printable ? 'unset' : 'vertical',
+                    overflow: 'hidden',
+                    wordBreak: 'break-word'
+                  }}
+                >
+                  {nome}
+                </div>
+
+                <div className="text-[11px] lg:text-[12px] font-medium break-words" style={{ color: T.text }}>
+                  {plano} • Contrato #{numero}
+                </div>
+              </div>
+            </div>
+
+            {/* Efetivação */}
+            <div className="text-right shrink-0">
+              <div className="text-[10px]" style={{ color: T.textMuted }}>Efetivação</div>
+              <div className="text-[12px] font-semibold" style={{ color: T.text }}>
+                {fmtDateBR(efetivacao)}
+              </div>
+            </div>
+          </header>
+
+          <div className="flex-1 min-h-[18px]" />
+
+          {/* rodapé frente — limpo, sem CPF nem Situação (evita duplicidade) */}
+          <footer className="pt-1">
+            <div className="mt-2 text-[9px]" style={{ color: T.textMuted }}>
+              Documento digital válido enquanto exibido pelo titular. Em caso de perda ou dúvida, contate a unidade responsável.
+            </div>
+
+            {!printable && (
+              <div className="mt-2 flex gap-1 self-start">
+                <button
+                  type="button"
+                  onClick={() => setUiSide('front')}
+                  className="px-2 py-1 rounded text-[11px]"
+                  style={{
+                    background: uiSide === 'front' ? 'var(--nav-active-bg)' : 'var(--surface)',
+                    color: uiSide === 'front' ? 'var(--nav-active-color)' : T.text,
+                    border: '1px solid var(--c-border)'
+                  }}
+                  aria-pressed={uiSide === 'front'}
+                >
+                  Frente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUiSide('back')}
+                  className="px-2 py-1 rounded text-[11px]"
+                  style={{
+                    background: uiSide === 'back' ? 'var(--nav-active-bg)' : 'var(--surface)',
+                    color: uiSide === 'back' ? 'var(--nav-active-color)' : T.text,
+                    border: '1px solid var(--c-border)'
+                  }}
+                  aria-pressed={uiSide === 'back'}
+                >
+                  Verso
+                </button>
               </div>
             )}
-            <span
-              className="absolute -bottom-1 -right-1 text-[10px] px-1.5 py-0.5 rounded-full"
-              style={{
-                background: `color-mix(in srgb, var(--primary) ${badgeBgOpacity}%, ${prefersDark ? 'black' : 'white'})`,
-                color: 'var(--primary)',
-                border: '1px solid var(--c-border)'
-              }}
-            >
-              {ativo ? 'ATIVO' : 'INATIVO'}
-            </span>
-          </div>
-
-          <div>
-            <div className="text-[10px] uppercase tracking-wide font-medium" style={{ color: 'var(--text)' }}>
-              Carteirinha do Associado
+          </footer>
+        </>
+      ) : (
+        /* ===================== VERSO ===================== */
+        <>
+          <header className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-[0.06em] font-medium" style={{ color: T.textMuted }}>
+                {tenantName}
+              </div>
+              <div className="text-[13px] font-semibold" style={{ color: T.text }}>
+                Carteirinha do Associado
+              </div>
+              <div className="mt-1 text-[11px]" style={{ color: T.text }}>
+                CPF: <strong>{cpfShown || '—'}</strong><br />
+                Validade: <strong>{validade}</strong>
+              </div>
             </div>
-            <div className="font-semibold leading-tight text-[15px]">{nome}</div>
-            <div className="text-[11px]" style={{ color: 'var(--text)' }}>
-              {plano} • Contrato #{numero}
-            </div>
-          </div>
-        </div>
 
-        <div className="self-end text-[10px]" style={{ color: 'var(--text)' }}>
-          Validade: <strong>{validade}</strong>
-        </div>
-      </div>
-    </div>
+            <div className="shrink-0">
+              <img
+                src={tenantLogo}
+                alt={tenantName}
+                className="object-contain"
+                style={{ width: 90, height: 48, filter: printable ? 'none' : 'drop-shadow(0 2px 8px rgba(0,0,0,0.12))' }}
+                referrerPolicy="no-referrer"
+              />
+            </div>
+          </header>
+
+          <div className="flex-1" />
+
+          <footer>
+            {/* bloco de verificação + QR opcional */}
+            <div className="grid grid-cols-3 gap-8 items-center">
+          
+
+              {qrCodeUrl ? (
+                <div className="justify-self-end">
+                  <img
+                    src={qrCodeUrl}
+                    alt="QR code de verificação"
+                    style={{ width: 76, height: 76 }}
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            {/* contato */}
+            {(tenantPhone) && (
+              <div className="mt-2 text-[10px]" style={{ color: T.textMuted }}>
+                Contato da unidade: {tenantPhone}
+              </div>
+            )}
+
+            <div className="mt-2 text-[9px]" style={{ color: T.textMuted }}>
+              Em caso de achado, favor devolver à {tenantName}. Este documento pode ser validado pelo link acima.
+            </div>
+
+            {!printable && (
+              <div className="mt-2 flex gap-1 self-start">
+                <button
+                  type="button"
+                  onClick={() => setUiSide('front')}
+                  className="px-2 py-1 rounded text-[11px]"
+                  style={{
+                    background: uiSide === 'front' ? 'var(--nav-active-bg)' : 'var(--surface)',
+                    color: uiSide === 'front' ? 'var(--nav-active-color)' : T.text,
+                    border: '1px solid var(--c-border)'
+                  }}
+                  aria-pressed={uiSide === 'front'}
+                >
+                  Frente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUiSide('back')}
+                  className="px-2 py-1 rounded text-[11px]"
+                  style={{
+                    background: uiSide === 'back' ? 'var(--nav-active-bg)' : 'var(--surface)',
+                    color: uiSide === 'back' ? 'var(--nav-active-color)' : T.text,
+                    border: '1px solid var(--c-border)'
+                  }}
+                  aria-pressed={uiSide === 'back'}
+                >
+                  Verso
+                </button>
+              </div>
+            )}
+          </footer>
+        </>
+      )}
+    </section>
   )
 }

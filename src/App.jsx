@@ -2,6 +2,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 
 import './styles/theme.css'
+import './styles/print.css' // impressão (CR-80 / A4)
 
 import TenantBootstrapper from '@/components/TenantBootstrapper'
 
@@ -26,7 +27,6 @@ import RegisterPage from '@/pages/RegisterPage.jsx'
 import RecuperarSenha from '@/pages/RecuperarSenha.jsx'
 import Cadastro from '@/pages/Cadastro.jsx'
 import Confirmacao from '@/pages/Confirmacao.jsx'
-
 import VerificarCodigo from '@/pages/VerificarCodigo.jsx'
 import TrocarSenha from '@/pages/TrocarSenha.jsx'
 import StickyContactDock from './components/StickyContactDock.jsx'
@@ -35,6 +35,9 @@ import StickyContactDock from './components/StickyContactDock.jsx'
 import MemorialList from '@/pages/MemorialList.jsx'
 import MemorialDetail from '@/pages/MemorialDetail.jsx'
 import ErrorBoundary from '@/components/ErrorBoundary.jsx'
+
+// Impressão da carteirinha
+import CarteirinhaPrint from '@/pages/CarteirinhaPrint.jsx'
 
 export default function App() {
   return (
@@ -58,18 +61,18 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/criar-conta" element={<RegisterPage />} />
             <Route path="/recuperar-senha" element={<RecuperarSenha />} />
+            <Route path="/redefinir-senha" element={<VerificarCodigo />} />
             <Route path="/politica-cookies" element={<PoliticaCookies />} />
             <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
             <Route path="/termos-uso" element={<TermosUso />} />
             <Route path="/filiais" element={<Filiais />} />
 
-
-            <Route path="/recuperar-senha" element={<RecuperarSenha />} />
-            <Route path="/redefinir-senha" element={<VerificarCodigo />} />
-
             {/* Memorial */}
             <Route path="/memorial" element={<MemorialList />} />
             <Route path="/memorial/:slug" element={<MemorialDetail />} />
+
+            {/* Impressão da carteirinha */}
+            <Route path="/carteirinha/print" element={<CarteirinhaPrint />} />
 
             {/* 🔒 Fluxo de contratação: prioriza registro */}
             <Route
@@ -89,7 +92,7 @@ export default function App() {
               }
             />
 
-            {/* 🔒 Área do associado: continua indo para login */}
+            {/* 🔒 Área do associado */}
             <Route
               path="/area"
               element={
@@ -109,23 +112,21 @@ export default function App() {
       <CookieBanner />
 
       <Footer />
-<StickyContactDock
-  position="bottom-left"
-  extraAction={{
-    label: 'Planos',
-    href: '/planos',                  // ou onClick: () => navigate('/planos')
-    ariaLabel: 'Abrir simulador de planos',
-    badge: 'Novo',
-  }}
-  avoidSelector='[data-cookie-banner], [data-bottom-avoid]'
-  reserveSpace
-  compactNearFooter
-  hideOnKeyboard
-  autoHideOnScroll
-/>
 
-
-
+      <StickyContactDock
+        position="bottom-left"
+        extraAction={{
+          label: 'Planos',
+          href: '/planos',
+          ariaLabel: 'Abrir simulador de planos',
+          badge: 'Novo',
+        }}
+        avoidSelector='[data-cookie-banner], [data-bottom-avoid]'
+        reserveSpace
+        compactNearFooter
+        hideOnKeyboard
+        autoHideOnScroll
+      />
     </div>
   )
 }

@@ -2,7 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
-
+import '@/styles/print.css'
 /* 1) Tokens/base do tema (valores padrão) */
 import './styles/theme.css'
 

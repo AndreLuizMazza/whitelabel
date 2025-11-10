@@ -1,4 +1,5 @@
 // src/components/DependentesList.jsx
+import { useEffect, useRef } from 'react'
 import { track } from '@/lib/analytics'
 import { showToast } from '@/lib/toast'
 
@@ -11,11 +12,11 @@ const fmtDataNasc = (s) => {
 }
 
 const PARENTESCO_LABELS = {
-  TITULAR: 'Titular', CONJUGE: 'Cônjuge', FILHO: 'Filho(a)',
-  FILHA: 'Filha', PAI: 'Pai', MAE: 'Mãe', SOGRO: 'Sogro',
-  SOGRA: 'Sogra', ENTEADO: 'Enteado(a)', COMPANHEIRO: 'Companheiro(a)',
-  OUTRO: 'Outro'
+  TITULAR: 'Titular', CONJUGE: 'Cônjuge', FILHO: 'Filho(a)', FILHA: 'Filha',
+  PAI: 'Pai', MAE: 'Mãe', SOGRO: 'Sogro', SOGRA: 'Sogra', ENTEADO: 'Enteado(a)',
+  COMPANHEIRO: 'Companheiro(a)', OUTRO: 'Outro'
 }
+
 const labelParentesco = (v) => {
   if (!v) return 'Dependente'
   const key = String(v).trim().toUpperCase()
@@ -29,6 +30,27 @@ function buildWhats(number, msg) {
 }
 
 export default function DependentesList({ dependentes = [], contrato }) {
+  const warnedRef = useRef(false)
+
+  useEffect(() => {
+    if (warnedRef.current) return
+    if (!contrato) {
+      showToast('Contrato não encontrado para exibir dependentes.')
+      warnedRef.current = true
+      return
+    }
+
+    if (dependentes.length === 0) {
+      showToast('Nenhum dependente cadastrado ainda.')
+    } else {
+      dependentes.forEach((d) => {
+        if (!d.nome) showToast('Dependente sem nome detectado.', null, null, 5000)
+        if (!d.dataNascimento) showToast(`Data de nascimento ausente para ${d.nome || 'dependente'}.`, null, null, 5000)
+      })
+    }
+    warnedRef.current = true
+  }, [dependentes, contrato])
+
   const podeAdicionar = Number(contrato?.limiteDependentes || 0) === 0
     ? true
     : (dependentes?.length || 0) < Number(contrato?.limiteDependentes || 0)
@@ -55,13 +77,15 @@ export default function DependentesList({ dependentes = [], contrato }) {
             <button
               className="btn-primary text-xs"
               onClick={() => avisar('Adicionar dependente')}
+              aria-label="Adicionar dependente"
             >
               Adicionar dependente
             </button>
           )}
           <button
             className="btn-outline text-xs"
-            onClick={() => track('dependents_download_cards', { count: dependentes.length })}
+            onClick={() => avisar('Baixar carteirinhas')}
+            aria-label="Baixar carteirinhas"
           >
             Baixar carteirinhas
           </button>
@@ -78,7 +102,7 @@ export default function DependentesList({ dependentes = [], contrato }) {
             <li key={d.id ?? d.dependenteId} className="py-3">
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="font-medium truncate">{d.nome}</p>
+                  <p className="font-medium truncate">{d.nome || '—'}</p>
                   <p className="text-sm" style={{ color: 'var(--text)' }}>
                     {labelParentesco(d.parentesco)}
                   </p>
@@ -87,13 +111,13 @@ export default function DependentesList({ dependentes = [], contrato }) {
                   <p style={{ color: 'var(--text)' }}>Nascimento</p>
                   <p className="font-medium">{fmtDataNasc(d.dataNascimento)}</p>
                   <div className="mt-2 flex justify-end gap-2 flex-wrap">
-                    <button className="btn-outline text-xs" onClick={() => avisar('Editar dependente')}>
+                    <button className="btn-outline text-xs" onClick={() => avisar('Editar dependente')} aria-label="Editar dependente">
                       Editar
                     </button>
-                    <button className="btn-outline text-xs" onClick={() => avisar('Visualizar carteirinha')}>
+                    <button className="btn-outline text-xs" onClick={() => avisar('Carteirinha do dependente')} aria-label="Carteirinha do dependente">
                       Carteirinha
                     </button>
-                    <button className="btn-primary text-xs" onClick={() => avisar('Ativar Telemedicina')}>
+                    <button className="btn-primary text-xs" onClick={() => avisar('Ativar Telemedicina')} aria-label="Ativar Telemedicina do dependente">
                       Ativar Telemedicina
                     </button>
                   </div>

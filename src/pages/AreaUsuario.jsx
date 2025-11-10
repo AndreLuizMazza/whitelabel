@@ -1,5 +1,5 @@
 // src/pages/AreaUsuario.jsx
-import { useMemo, useEffect, useState } from 'react'
+import { useMemo, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import useAuth from '@/store/auth'
 import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
@@ -8,8 +8,13 @@ import DependentesList from '@/components/DependentesList'
 import PagamentoFacil from '@/components/PagamentoFacil'
 import CarteirinhaAssociado from '@/components/CarteirinhaAssociado'
 import { showToast } from '@/lib/toast'
+import { displayCPF, formatCPF } from '@/lib/cpf'
+import { Lock, Printer } from 'lucide-react' // ícones
 
-/* Preferência de tema do SO */
+/* ===== analytics opcional (no-op) ===== */
+const track = (..._args) => {}
+
+/* ===== preferências de tema ===== */
 function usePrefersDark() {
   const [dark, setDark] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia
@@ -26,7 +31,7 @@ function usePrefersDark() {
   return dark
 }
 
-/* Skeleton simples para carregamento */
+/* ===== skeleton simples ===== */
 function Skeleton({ className = '' }) {
   return (
     <div
@@ -40,11 +45,79 @@ function Skeleton({ className = '' }) {
   )
 }
 
+/* ===== Tooltip acessível leve (hover/focus) ===== */
+function InfoTooltip({ text, children }) {
+  return (
+    <span className="relative inline-flex items-center group">
+      {children}
+      <span
+        role="tooltip"
+        className="pointer-events-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity
+                   absolute left-1/2 -translate-x-1/2 top-full mt-2 text-xs px-2 py-1 rounded shadow-sm z-10"
+        style={{
+          background: 'var(--surface)',
+          color: 'var(--text)',
+          border: '1px solid var(--c-border)'
+        }}
+      >
+        {text}
+      </span>
+    </span>
+  )
+}
+
+/* ===== Segmented control (Frente/Verso) ===== */
+function SegmentedPrintButtons({ user, contrato }) {
+  const btnBase = {
+    padding: '6px 10px',
+    fontSize: '12px',
+    border: '1px solid var(--c-border)',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    lineHeight: 1,
+  }
+
+  const activeStyles = {
+    background: 'var(--nav-active-bg)',
+    color: 'var(--nav-active-color)',
+    borderColor: 'var(--nav-active-bg)',
+  }
+
+  return (
+    <div
+      role="group"
+      aria-label="Opções de impressão"
+      className="inline-flex items-center rounded-md overflow-hidden"
+      style={{ border: '1px solid var(--c-border)' }}
+    >
+      <Link
+        to="/carteirinha/print?side=front"
+        state={{ user, contrato }}
+        className="no-underline"
+        style={{ ...btnBase, border: 'none', borderRight: '1px solid var(--c-border)' }}
+        aria-pressed="false"
+      >
+        Frente
+      </Link>
+      <Link
+        to="/carteirinha/print?side=back"
+        state={{ user, contrato }}
+        className="no-underline"
+        style={{ ...btnBase, border: 'none', ...activeStyles }}
+        aria-pressed="true"
+      >
+        Verso
+      </Link>
+    </div>
+  )
+}
+
 export default function AreaUsuario() {
   const user = useAuth((s) => s.user)
   const logout = useAuth((s) => s.logout)
-  usePrefersDark() // usado em subcomponentes
+  usePrefersDark()
 
+  /* ===== CPF bruto (nunca formate aqui) ===== */
   const cpf =
     user?.cpf ||
     user?.documento ||
@@ -52,6 +125,42 @@ export default function AreaUsuario() {
       try { return JSON.parse(localStorage.getItem('auth_user') || '{}').cpf } catch { return '' }
     })() || ''
 
+  /* ===== revelação temporária (10s) ===== */
+  const [cpfReveal, setCpfReveal] = useState(false)
+  const [cpfSeconds, setCpfSeconds] = useState(0)
+  const timerRef = useRef(null)
+  const tickRef = useRef(null)
+
+  function startReveal10s() {
+    if (!cpf) return
+    setCpfReveal(true)
+    setCpfSeconds(10)
+    track('cpf_reveal', { ts: Date.now() })
+    showToast('CPF visível por 10 segundos.', null, null, 3500)
+
+    tickRef.current && clearInterval(tickRef.current)
+    tickRef.current = setInterval(() => {
+      setCpfSeconds((s) => (s > 0 ? s - 1 : 0))
+    }, 1000)
+
+    timerRef.current && clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      setCpfReveal(false)
+      setCpfSeconds(0)
+      clearInterval(tickRef.current)
+      tickRef.current = null
+      showToast('CPF ocultado novamente.')
+    }, 10000)
+  }
+
+  useEffect(() => {
+    return () => {
+      timerRef.current && clearTimeout(timerRef.current)
+      tickRef.current && clearInterval(tickRef.current)
+    }
+  }, [])
+
+  /* ===== dados do contrato/área ===== */
   const {
     contratos, contrato, selectedId,
     dependentes, proximaParcela, proximas, historico, isAtraso,
@@ -63,11 +172,8 @@ export default function AreaUsuario() {
     [user]
   )
 
-  // toast unificado de erro
   useEffect(() => {
-    if (erro) {
-      showToast('Não foi possível carregar seus contratos. Tente novamente em instantes.')
-    }
+    if (erro) showToast('Não foi possível carregar seus contratos. Tente novamente em instantes.')
   }, [erro])
 
   const getId = (c) => c?.id ?? c?.contratoId ?? c?.numeroContrato
@@ -80,14 +186,38 @@ export default function AreaUsuario() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Área do associado</h2>
-            <p className="mt-2" style={{ color: 'var(--text)' }}>
-              Bem-vindo, {nomeExibicao}! {cpf ? <span>• CPF {cpf}</span> : null}
+
+            {/* Cabeçalho com CPF protegido + cadeado + tooltip */}
+            <p className="mt-2 text-sm flex items-center gap-1" style={{ color: 'var(--text)' }}>
+              <span>Bem-vindo, {nomeExibicao}!</span>
+              {cpf && (
+                <>
+                  <span>•</span>
+                  <InfoTooltip text="Por segurança (LGPD), exibimos o CPF parcialmente. Você pode revelar por 10 segundos.">
+                    <span className="inline-flex items-center gap-1">
+                      <Lock size={14} aria-hidden="true" />
+                      <span>CPF {cpfReveal ? formatCPF(cpf) : displayCPF(cpf, 'last2')}</span>
+                    </span>
+                  </InfoTooltip>
+                  <button
+                    type="button"
+                    className="btn-link text-xs"
+                    onClick={startReveal10s}
+                    aria-label="Mostrar CPF completo por 10 segundos"
+                    disabled={cpfReveal}
+                    title={cpfReveal ? 'CPF já está visível' : 'Mostrar CPF por 10 segundos'}
+                  >
+                    {cpfReveal ? `Visível (${cpfSeconds}s)` : 'Mostrar por 10s'}
+                  </button>
+                </>
+              )}
             </p>
           </div>
+
           <button className="btn-outline" onClick={logout} aria-label="Sair">Sair</button>
         </div>
 
-        {/* seletor de contrato */}
+        {/* Seletor de contrato */}
         {!loading && Array.isArray(contratos) && contratos.length > 1 && (
           <div className="mt-4 card p-4">
             <label className="block text-sm mb-2" style={{ color: 'var(--text)' }}>
@@ -110,7 +240,7 @@ export default function AreaUsuario() {
           </div>
         )}
 
-        {/* carregando */}
+        {/* Loading */}
         {loading && (
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1 space-y-6">
@@ -124,7 +254,7 @@ export default function AreaUsuario() {
           </div>
         )}
 
-        {/* erro */}
+        {/* Erro */}
         {!loading && erro && (
           <div
             className="mt-6 card p-6"
@@ -140,16 +270,30 @@ export default function AreaUsuario() {
           </div>
         )}
 
-        {/* conteúdo */}
+        {/* Conteúdo */}
         {!loading && !erro && (
           contrato ? (
             <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* COLUNA ESQUERDA */}
+              {/* ESQUERDA */}
               <div className="lg:col-span-1 space-y-6">
-                {/* Carteirinha concentra identificação (nome, plano, nº contrato, status) */}
+                <h4 className="sr-only">Resumo do Associado</h4>
                 <CarteirinhaAssociado user={user} contrato={contrato} />
 
-                {/* Pagamento — recebe o contrato para renegociação via WhatsApp */}
+                {/* Barra de ações de impressão */}
+                <div className="flex items-center justify-between gap-2">
+                  <Link
+                    to="/carteirinha/print"
+                    state={{ user, contrato, side: 'both' }}
+                    className="btn-outline text-sm inline-flex items-center gap-1"
+                    title="Imprimir frente e verso"
+                    aria-label="Imprimir frente e verso"
+                  >
+                    <Printer size={14} /> Imprimir (frente e verso)
+                  </Link>
+
+                  <SegmentedPrintButtons user={user} contrato={contrato} />
+                </div>
+
                 <div id="pagamento" />
                 <PagamentoFacil
                   contrato={contrato}
@@ -160,11 +304,9 @@ export default function AreaUsuario() {
                 />
               </div>
 
-              {/* COLUNA DIREITA */}
+              {/* DIREITA */}
               <div className="lg:col-span-2 space-y-6">
-                {/* Cartão do Contrato — sem repetir dados já exibidos na carteirinha */}
                 <ContratoCard contrato={contrato} />
-                {/* Dependentes — com toasts e WhatsApp */}
                 <DependentesList dependentes={dependentes} contrato={contrato} />
               </div>
             </div>

@@ -1,3 +1,4 @@
+import { applyTenantTheme } from '@/theme/deriveTokens'
 // src/theme/initTheme.js (corrigido definitivo)
 export const THEME_KEY = 'ui_theme'; // 'system' | 'light' | 'dark'
 
@@ -71,7 +72,16 @@ export function applyTheme(choice) {
   // 1) aplica classes/atributos
   applyThemeAttrs(choice, mode);
 
-  // 2) aplica as variáveis do tenant para o modo correto
+  
+  // === Progem: aplica tokens base + derivados conforme modo e tenant ===
+  try {
+    const T = window.__TENANT__ || {};
+    const baseLight = T.vars || {};
+    const baseDark  = T.varsDark || null;
+    const chosen    = mode === 'dark' ? (baseDark || baseLight) : baseLight;
+    applyTenantTheme(chosen);
+  } catch {}
+// 2) aplica as variáveis do tenant para o modo correto
   try {
     const t = getTenant();
     const palette = (mode === 'dark' && t.varsDark) ? t.varsDark : (t.vars || null);

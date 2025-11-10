@@ -124,3 +124,19 @@ a.btn-light:hover {
   color: var(--text);
 }
 
+/* === Print polish para .printable-card === */
+@media print {
+  :root {
+    /* garante contraste adequado em impressoras comuns */
+    --surface: #ffffff !important;
+    --text: #101010 !important;
+    --text-muted: #5b5b5b !important;
+    --c-border: rgba(0,0,0,0.2) !important;
+  }
+  .printable-card {
+    box-shadow: none !important;
+    border: 1px solid var(--c-border) !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

@@ -1,5 +1,5 @@
 // src/components/PagamentoFacil.jsx
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import useAuth from '@/store/auth'
 import QRCode from 'qrcode'
 import { track } from '@/lib/analytics'
@@ -34,7 +34,7 @@ function Badge({ children, kind = 'neutral' }) {
   const styles = {
     neutral: { bg: 'var(--surface)', color: 'var(--text)' },
     success: { bg: 'color-mix(in srgb, var(--primary) 12%, transparent)', color: 'var(--primary)' },
-    danger:  { bg: 'color-mix(in srgb, var(--primary) 16%, transparent)', color: 'var(--primary)' },
+    danger:  { bg: '#fde2e1', color: '#d64545' },
     warn:    { bg: 'color-mix(in srgb, var(--primary) 12%, transparent)', color: 'var(--primary)' },
     info:    { bg: 'color-mix(in srgb, var(--primary) 12%, transparent)', color: 'var(--primary)' },
   }
@@ -65,7 +65,9 @@ export default function PagamentoFacil({
   const [copied, setCopied] = useState(false)
   const [qrSrc, setQrSrc] = useState(null)
   const [showAllNext, setShowAllNext] = useState(false)
+  const warnedRef = useRef(false)
   const { token } = useAuth.getState()
+
   const foco = parcelaFoco
   const temFoco = Boolean(foco)
   const focoAtraso = temFoco && isAtraso(foco)
@@ -80,7 +82,25 @@ export default function PagamentoFacil({
     return proximasOrdenadas.slice(0, 5)
   }, [showAllNext, proximasOrdenadas])
 
-  // gerar QR
+  /* Guard rails */
+  useEffect(() => {
+    if (warnedRef.current) return
+    if (!contrato) {
+      showToast('Contrato não encontrado para o pagamento.', null, null, 6000)
+    } else {
+      const wa = contrato?.unidade?.whatsapp || contrato?.contatos?.celular
+      if (!wa) showToast('Nenhum WhatsApp configurado na unidade.', null, null, 6000)
+    }
+    if (temFoco) {
+      if (!foco.valorParcela || foco.valorParcela <= 0) showToast('Valor da parcela inválido.', null, null, 6000)
+      if (!foco.dataVencimento) showToast('Data de vencimento ausente.', null, null, 6000)
+      if (!foco.pixQrcode && !foco.urlBoleto && !foco.linkPagamento)
+        showToast('Nenhuma forma de pagamento disponível no momento.', null, null, 6000)
+    }
+    warnedRef.current = true
+  }, [foco, contrato, temFoco])
+
+  // QR
   useEffect(() => {
     let revoke = null
     setQrSrc(null)
@@ -106,8 +126,7 @@ export default function PagamentoFacil({
           revoke = url
           setQrSrc(url)
         } catch {
-          setQrSrc(null)
-          showToast('Não foi possível carregar o QR Code do pagamento. Tente novamente mais tarde.')
+          showToast('Não foi possível carregar o QR Code do pagamento.')
         }
       })()
       return
@@ -119,6 +138,7 @@ export default function PagamentoFacil({
         else showToast('Erro ao gerar o QR Code PIX.')
       })
     }
+
     return () => { if (revoke) URL.revokeObjectURL(revoke) }
   }, [foco, token])
 
@@ -136,30 +156,12 @@ export default function PagamentoFacil({
       await navigator.clipboard.writeText(text)
       showToast('Código PIX copiado com sucesso!')
     } catch {
-      const ta = document.createElement('textarea')
-      ta.value = text
-      document.body.appendChild(ta)
-      ta.select()
-      document.execCommand('copy')
-      ta.remove()
-      showToast('Código PIX copiado!')
+      showToast('Falha ao copiar o código PIX.')
     } finally {
       setCopied(true)
       setTimeout(() => setCopied(false), 1800)
       track('pix_copied', { duplicataId: foco?.id || foco?.numero })
     }
-  }
-
-  function downloadQR() {
-    if (!qrSrc) {
-      showToast('QR Code indisponível no momento.')
-      return
-    }
-    const a = document.createElement('a')
-    a.href = qrSrc
-    a.download = `PIX_${foco?.numeroDuplicata || foco?.numero || 'parcela'}.png`
-    a.click()
-    track('qr_downloaded', { duplicataId: foco?.id || foco?.numero })
   }
 
   function abrirRenegociacaoWhats() {
@@ -172,10 +174,7 @@ export default function PagamentoFacil({
       track('renegociar_whatsapp', { contratoId: contrato?.id || contrato?.numeroContrato })
       window.open(href, '_blank', 'noopener,noreferrer')
     } else {
-      showToast(
-        'Não foi possível iniciar o atendimento pelo WhatsApp.',
-        wa ? () => window.open(buildWhats(wa, msg), '_blank', 'noopener,noreferrer') : null
-      )
+      showToast('Canal de WhatsApp indisponível.')
     }
   }
 
@@ -184,16 +183,9 @@ export default function PagamentoFacil({
       <h3 className="text-lg font-semibold mb-2">Pagamento</h3>
 
       {!temFoco ? (
-        <div
-          className="p-4 rounded"
-          style={{
-            background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
-            color: 'var(--primary)',
-            border: '1px solid var(--primary)'
-          }}
-        >
+        <div className="p-4 rounded border" style={{ borderColor: 'var(--c-border)' }}>
           <p className="font-medium">Tudo em dia!</p>
-          <p className="text-sm">Nenhuma parcela aberta no momento.</p>
+          <p className="text-sm" style={{ color: 'var(--text)' }}>Nenhuma parcela aberta no momento.</p>
         </div>
       ) : (
         <>
@@ -211,9 +203,9 @@ export default function PagamentoFacil({
               {focoAtraso && (
                 <p className="text-xs mt-1" style={{ color: 'var(--text)' }}>
                   Multa/juros podem ser aplicados.{' '}
-                  <button className="btn-link text-xs" onClick={abrirRenegociacaoWhats}>
-                    Renegociar agora pelo WhatsApp
-                  </button>.
+                  <button className="btn-link text-xs" onClick={abrirRenegociacaoWhats} aria-label="Renegociar pelo WhatsApp">
+                    Renegociar pelo WhatsApp
+                  </button>
                 </p>
               )}
             </div>
@@ -224,17 +216,12 @@ export default function PagamentoFacil({
                   src={qrSrc}
                   alt="QR Code PIX"
                   className="w-40 h-40 rounded"
-                  style={{ border: '1px solid var(--c-border)', objectFit: 'cover' }}
-                  referrerPolicy="no-referrer"
+                  style={{ border: '1px solid var(--c-border)' }}
                 />
-                <button className="btn-outline text-xs px-3 py-1.5 rounded-full" onClick={downloadQR}>
-                  Baixar QR
-                </button>
               </div>
             )}
           </div>
 
-          {/* ações */}
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3" role="group" aria-label="Ações de pagamento">
             {acoesFoco.map((acao, i) =>
               acao.href ? (
@@ -248,38 +235,16 @@ export default function PagamentoFacil({
               )
             )}
           </div>
-
-          {foco.pixQrcode && (
-            <details className="mt-3">
-              <summary className="cursor-pointer text-sm" role="button">Ver código PIX (copia e cola)</summary>
-              <textarea
-                readOnly
-                value={foco.pixQrcode}
-                className="mt-2 w-full rounded text-xs"
-                rows={4}
-                style={{ border: '1px solid var(--c-border)', background: 'var(--surface)', color: 'var(--text)' }}
-              />
-              <div className="mt-2 flex gap-2">
-                <button className="btn-outline" onClick={() => copy(foco.pixQrcode)}>
-                  {copied ? 'Copiado!' : 'Copiar código PIX'}
-                </button>
-                {qrSrc && <button className="btn-outline" onClick={downloadQR}>Baixar QR</button>}
-              </div>
-            </details>
-          )}
         </>
       )}
 
-      {/* próximas parcelas */}
+      {/* Próximas parcelas resumidas com toggle */}
       {proximasOrdenadas.length > 0 && (
         <div className="mt-6">
           <div className="flex items-center justify-between">
             <p className="text-sm mb-2" style={{ color: 'var(--text)' }}>Próximas parcelas</p>
             {proximasOrdenadas.length > 5 && (
-              <button
-                className="btn-link text-xs"
-                onClick={() => setShowAllNext((v) => !v)}
-              >
+              <button className="btn-link text-xs" onClick={() => setShowAllNext(v => !v)}>
                 {showAllNext ? 'Ver menos' : 'Ver todas'}
               </button>
             )}
@@ -328,7 +293,7 @@ export default function PagamentoFacil({
         </div>
       )}
 
-      {/* histórico */}
+      {/* Histórico (mantido) */}
       {historico.length > 0 && (
         <details className="mt-6">
           <summary className="cursor-pointer text-sm">Histórico de pagamentos</summary>
