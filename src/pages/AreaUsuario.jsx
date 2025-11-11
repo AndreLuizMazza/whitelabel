@@ -9,7 +9,7 @@ import PagamentoFacil from '@/components/PagamentoFacil'
 import CarteirinhaAssociado from '@/components/CarteirinhaAssociado'
 import { showToast } from '@/lib/toast'
 import { displayCPF, formatCPF } from '@/lib/cpf'
-import { Lock, Printer } from 'lucide-react' // ícones
+import { Lock, Printer, User } from 'lucide-react' // adiciona ícone de usuário
 
 /* ===== analytics opcional (no-op) ===== */
 const track = (..._args) => {}
@@ -183,7 +183,7 @@ export default function AreaUsuario() {
   return (
     <section className="section" key={cpf}>
       <div className="container-max">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Área do associado</h2>
 
@@ -214,7 +214,18 @@ export default function AreaUsuario() {
             </p>
           </div>
 
-          <button className="btn-outline" onClick={logout} aria-label="Sair">Sair</button>
+          {/* Ações (responsivo): Meu Perfil e Sair */}
+          <div className="flex items-center gap-2 self-start">
+            <Link
+              to="/perfil"
+              className="btn-outline inline-flex items-center gap-1"
+              aria-label="Abrir Meu Perfil"
+              title="Meu Perfil"
+            >
+              <User size={16} /> Meu Perfil
+            </Link>
+            <button className="btn-outline" onClick={logout} aria-label="Sair">Sair</button>
+          </div>
         </div>
 
         {/* Seletor de contrato */}

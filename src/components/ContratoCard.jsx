@@ -34,80 +34,8 @@ function buildWhats(number, msg = 'Olá! Gostaria de falar sobre meu contrato.')
   return `https://wa.me/${justDigits}?text=${encodeURIComponent(msg)}`
 }
 
-/* Linha do tempo (3 etapas) com override opcional */
-function StepPill({ state = 'todo', label }) {
-  const base = {
-    border: '1px solid var(--c-border)',
-    color: 'var(--text)',
-    background: 'var(--surface)'
-  }
-  const done = state === 'done'
-  const current = state === 'current'
-
-  const style = done
-    ? { border: '1px solid var(--primary)', color: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 12%, transparent)' }
-    : current
-    ? { border: '2px solid var(--primary)', color: 'var(--primary)', background: 'color-mix(in srgb, var(--primary) 8%, var(--surface))' }
-    : base
-
-  return (
-    <span className="text-[11px] px-2 py-1 rounded-full whitespace-nowrap" style={style}>
-      {label}
-    </span>
-  )
-}
-
-/**
- * etapaForcada (opcional):
- * - number: 0 | 1 | 2   (0=Solicitação recebida, 1=Em análise, 2=Ativo)
- * - string: 'solicitacao' | 'analise' | 'ativo'
- */
-function StatusTimeline({ ativo, etapaForcada }) {
-  const STEPS = ['Solicitação recebida', 'Em análise', 'Ativo']
-
-  const parseIdx = (val) => {
-    if (val == null) return null
-    if (typeof val === 'number' && val >= 0 && val <= 2) return val
-    const map = { solicitacao: 0, solicitação: 0, analise: 1, análise: 1, ativo: 2 }
-    const k = String(val).toLowerCase().trim()
-    return map.hasOwnProperty(k) ? map[k] : null
-  }
-
-  const forcedIdx = parseIdx(etapaForcada)
-
-  const states = (() => {
-    if (forcedIdx != null) {
-      return [0, 1, 2].map((i) => (i < forcedIdx ? 'done' : i === forcedIdx ? 'current' : 'todo'))
-    }
-    if (ativo) return ['done', 'done', 'done']
-    return ['done', 'done', 'current']
-  })()
-
-  return (
-    <div className="mt-4">
-      <div className="flex items-center justify-between gap-2">
-        {STEPS.map((label, idx) => {
-          const state = states[idx]
-          const connectorStyle = {
-            background:
-              state === 'done' || state === 'current'
-                ? 'color-mix(in srgb, var(--primary) 25%, transparent)'
-                : 'var(--c-border)'
-          }
-          return (
-            <div key={label} className="flex-1 flex items-center min-w-0">
-              <StepPill state={state} label={label} />
-              {idx < STEPS.length - 1 && <div className="h-px mx-2 flex-1" style={connectorStyle} />}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
 /* ========================= Card do contrato ========================= */
-export default function ContratoCard({ contrato, etapaForcada = null }) {
+export default function ContratoCard({ contrato }) {
   if (!contrato) return null
 
   const numero = contrato.numeroContrato ?? contrato.id ?? contrato.contratoId
@@ -145,14 +73,20 @@ export default function ContratoCard({ contrato, etapaForcada = null }) {
         ) : null}
       </div>
 
-      {/* Dados essenciais (sem redundância com a Carteirinha) */}
+      {/* Dados essenciais */}
       <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-        <div><dt style={{ color: 'var(--text)' }}>Efetivação</dt><dd className="font-medium">{fmtData(efetivacao)}</dd></div>
-        <div><dt style={{ color: 'var(--text)' }}>Dia de vencimento</dt><dd className="font-medium">{dia}</dd></div>
+        <div>
+          <dt style={{ color: 'var(--text)' }}>Efetivação</dt>
+          <dd className="font-medium">{fmtData(efetivacao)}</dd>
+        </div>
+        <div>
+          <dt style={{ color: 'var(--text)' }}>Dia de vencimento</dt>
+          <dd className="font-medium">{dia}</dd>
+        </div>
       </dl>
 
       <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* UNIDADE + CTA geral (não específico do processo de ativação) */}
+        {/* UNIDADE */}
         <div className="p-4 rounded space-y-3" style={{ border: '1px solid var(--c-border)', background: 'var(--surface)' }}>
           <div>
             <p className="text-sm mb-2" style={{ color: 'var(--text)' }}>Unidade</p>
@@ -181,10 +115,7 @@ export default function ContratoCard({ contrato, etapaForcada = null }) {
         </div>
       </div>
 
-      {/* Timeline com 3 etapas + override opcional */}
-      <StatusTimeline ativo={ativo} etapaForcada={etapaForcada} />
-
-      {/* Próximos passos — sem CTAs específicos de ativação */}
+      {/* Alerta se ainda não estiver ativo */}
       {!ativo && (
         <div
           className="mt-5 p-4 rounded"
