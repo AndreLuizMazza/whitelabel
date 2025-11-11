@@ -22,7 +22,7 @@ dotenv.config();
  * - TRUST_PROXY (opcional: "1" na Vercel; vazio/0 em dev)
  */
 const app = express();
-app.use(express.json());
+
 
 // logger simples (ajuda a ver o path real na Vercel)
 app.use((req, _res, next) => {
@@ -299,6 +299,78 @@ async function fetchWithClientTokenDedupRetry(url, req, { dedupMs = 400, cacheMs
   }
   return r;
 }
+
+
+/* ===== Avatar do usuário (restrito) — definir ANTES do express.json() ===== */
+
+/** GET /api/v1/app/me/avatar */
+app.get('/api/v1/app/me/avatar', async (req, res) => {
+  try {
+    const incomingAuth = req.headers.authorization || '';
+    const r = await fetch(`${BASE}/api/v1/app/me/avatar`, {
+      headers: injectHeadersFromReq(req, { Authorization: incomingAuth }),
+    });
+
+    res.status(r.status);
+    for (const [k, v] of r.headers) {
+      if (/^content-(type|length)|etag|last-modified|cache-control$/i.test(k)) {
+        res.setHeader(k, v);
+      }
+    }
+    const buf = Buffer.from(await r.arrayBuffer());
+    return res.send(buf);
+  } catch (e) {
+    console.error('[BFF] GET /me/avatar error', e);
+    return res.status(500).json({ error: 'Falha ao buscar avatar', message: String(e) });
+  }
+});
+
+/** PUT /api/v1/app/me/avatar (multipart/form-data → streaming) */
+app.put('/api/v1/app/me/avatar', async (req, res) => {
+  try {
+    const incomingAuth = req.headers.authorization || '';
+    const incomingType = req.headers['content-type']; // mantém o boundary
+
+    const r = await fetch(`${BASE}/api/v1/app/me/avatar`, {
+      method: 'PUT',
+      headers: injectHeadersFromReq(req, {
+        Authorization: incomingAuth,
+        ...(incomingType ? { 'Content-Type': incomingType } : {}),
+      }),
+      body: req,           // stream
+      duplex: 'half',      // << necessário no Node 18+
+    });
+
+    const data = await readAsJsonOrText(r);
+    if (!r.ok) return res.status(r.status).send(data);
+    return res.status(r.status).send(data);
+  } catch (e) {
+    console.error('[BFF] PUT /me/avatar error', e);
+    return res.status(500).json({ error: 'Falha ao enviar avatar', message: String(e) });
+  }
+});
+
+
+/** DELETE /api/v1/app/me/avatar */
+app.delete('/api/v1/app/me/avatar', async (req, res) => {
+  try {
+    const incomingAuth = req.headers.authorization || '';
+    const r = await fetch(`${BASE}/api/v1/app/me/avatar`, {
+      method: 'DELETE',
+      headers: injectHeadersFromReq(req, { Authorization: incomingAuth }),
+    });
+    const data = await readAsJsonOrText(r);
+    if (!r.ok) return res.status(r.status).send(data);
+    return res.status(r.status).send(data);
+  } catch (e) {
+    console.error('[BFF] DELETE /me/avatar error', e);
+    return res.status(500).json({ error: 'Falha ao remover avatar', message: String(e) });
+  }
+});
+
+// Body parser para JSON — deve vir APÓS as rotas de avatar
+app.use(express.json());
+
 
 /* ===== /auth/client-token (somente DEV/LOCAL) ===== */
 if (!isProd) {
@@ -739,6 +811,8 @@ app.post('/api/v1/app/password/change', async (req, res) => {
     res.status(500).json({ error: 'Falha ao trocar senha', message: String(e) });
   }
 });
+
+
 
 
 /* ===== Execução local vs Vercel ===== */

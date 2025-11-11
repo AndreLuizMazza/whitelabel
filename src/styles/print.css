@@ -1,0 +1,41 @@
+/* src/styles/print.css */
+
+/* Tamanho físico: CR-80 85.6mm x 54mm com pequena margem técnica */
+@page {
+  size: A4 portrait;
+  margin: 8mm; /* margem da folha; o cartão tem seu próprio tamanho */
+}
+
+/* wrapper da folha */
+.sheet-a4 {
+  display: grid;
+  grid-template-columns: 1fr;
+  justify-items: start;
+  gap: 10mm;
+  padding: 8mm;
+}
+
+/* cartão físico no tamanho real */
+.card-physical {
+  width: 85.6mm;
+  height: 54mm;
+  /* remove interferências externas */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* esconder o que não é para imprimir */
+@media print {
+  .no-print { display: none !important; }
+
+  /* garante que o componente não aplique sombras/bordas extras */
+  .printable-card {
+    box-shadow: none !important;
+    border-radius: 3mm !important;
+  }
+
+  /* remove backgrounds do body que possam interferir */
+  html, body {
+    background: #fff !important;
+  }
+}
