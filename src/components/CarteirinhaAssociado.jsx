@@ -1,11 +1,10 @@
-// src/components/CarteirinhaAssociado.jsx
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { showToast } from '@/lib/toast'
 import useTenant from '@/store/tenant'
 import { displayCPF, formatCPF } from '@/lib/cpf'
-import { getAvatarBlobUrl } from '@/lib/profile'
+import { getAvatarBlobUrl } from '@/lib/profile' // ⬅️ BUSCA o avatar via BFF
 
-/* utils */
+/* =============== utils =============== */
 const onlyDigits = (v = '') => String(v).replace(/\D+/g, '')
 const initials = (name = '') =>
   String(name).trim().split(/\s+/).slice(0, 2).map(p => p[0]?.toUpperCase() || '').join('')
@@ -18,10 +17,12 @@ const fmtDateBR = (s) => {
   const [Y, M, D] = d.split('-')
   return (Y && M && D) ? `${D}/${M}/${Y}` : t
 }
+
 const todayBR = () => {
   const d = new Date()
   return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`
 }
+
 function usePrefersDark() {
   const [dark, setDark] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia
@@ -37,11 +38,29 @@ function usePrefersDark() {
   }, [])
   return dark
 }
-const fontForName = (n = '') => (String(n).length > 48 ? 13 : String(n).length > 38 ? 14 : 15)
 
+/* fonte adaptativa p/ nome */
+function fontForName(n = '') {
+  const len = String(n).length
+  if (len > 48) return 13
+  if (len > 38) return 14
+  return 15
+}
+
+/**
+ * Props:
+ * - printable?: boolean
+ * - side?: 'front' | 'back'
+ * - matchContratoHeight?: boolean
+ * - loadAvatar?: boolean   // ⬅️ opcional (default true) para controlar o fetch do avatar
+ */
 export default function CarteirinhaAssociado({
-  user = {}, contrato = {}, printable = false, side = 'front',
-  matchContratoHeight = true, loadAvatar = true, fotoUrl = null,
+  user = {},
+  contrato = {},
+  printable = false,
+  side = 'front',
+  matchContratoHeight = true,
+  loadAvatar = true,
 }) {
   const prefersDark = usePrefersDark()
   const warnedRef = useRef(false)
@@ -49,18 +68,20 @@ export default function CarteirinhaAssociado({
   const [uiSide, setUiSide] = useState(side)
   const [matchHeight, setMatchHeight] = useState(null)
 
-  // avatar
+  // avatar (Blob URL vindo do BFF)
   const [avatarBlobUrl, setAvatarBlobUrl] = useState(null)
   const lastObjUrlRef = useRef(null)
 
   // tenant
   const empresa = useTenant(s => s.empresa)
-  const tenantName = empresa?.nomeFantasia || empresa?.razaoSocial || 'Sua Marca'
+  const tenantName = empresa?.nomeFantasia || empresa?.razaoSocial || 'Sua Marca Aqui'
   const tenantLogo =
     empresa?.logo || empresa?.logoUrl || empresa?.logo_path ||
-    (typeof window !== 'undefined' && window.__TENANT__?.logo) || '/img/logo.png'
+    (typeof window !== 'undefined' && window.__TENANT__?.logo) ||
+    '/img/logo.png'
   const tenantPhone = empresa?.telefone || empresa?.whatsapp || ''
-  const verifyBase = empresa?.siteOficial || empresa?.dominio || (typeof window !== 'undefined' ? window.location.origin : '')
+  const verifyBase =
+    empresa?.siteOficial || empresa?.dominio || (typeof window !== 'undefined' ? window.location.origin : '')
 
   // dados
   const nome = contrato.nomeTitular || user?.nome || user?.name || 'Associado(a)'
@@ -78,32 +99,47 @@ export default function CarteirinhaAssociado({
   const qrCodeUrl = contrato?.qrCodeUrl || contrato?.qr || ''
   const validade = todayBR()
 
-  // carregar avatar via BFF
+  // ===== Carregar avatar do usuário via BFF (Blob) =====
   useEffect(() => {
     let active = true
-    if (!loadAvatar) {
-      if (lastObjUrlRef.current) { URL.revokeObjectURL(lastObjUrlRef.current); lastObjUrlRef.current = null }
-      setAvatarBlobUrl(null)
-      return
-    }
+
     async function load() {
+      if (!loadAvatar) return
       try {
+        // busca imagem do avatar autenticada; retorna ObjectURL
         const objUrl = await getAvatarBlobUrl()
-        if (!active) { if (objUrl) URL.revokeObjectURL(objUrl); return }
+        if (!active) {
+          // se chegou depois do unmount, revoga imediatamente
+          if (objUrl) URL.revokeObjectURL(objUrl)
+          return
+        }
+        // limpa o anterior (se existir) para evitar vazamento
         if (lastObjUrlRef.current) URL.revokeObjectURL(lastObjUrlRef.current)
         lastObjUrlRef.current = objUrl || null
         setAvatarBlobUrl(objUrl || null)
-        setImgErro(false)
-      } catch { setAvatarBlobUrl(null) }
+        setImgErro(false) // reseta erro ao carregar novo blob
+      } catch (_e) {
+        // Silencioso: se o endpoint não tiver avatar, seguimos com fallback
+        // Opcional: showToast('Não foi possível carregar a foto do perfil.', 'warning')
+        setAvatarBlobUrl(null)
+      }
     }
+
+    // dispara no mount e quando o identificador do usuário / titular mudar
     load()
+
     return () => {
       active = false
-      if (lastObjUrlRef.current) { URL.revokeObjectURL(lastObjUrlRef.current); lastObjUrlRef.current = null }
+      if (lastObjUrlRef.current) {
+        URL.revokeObjectURL(lastObjUrlRef.current)
+        lastObjUrlRef.current = null
+      }
     }
+    // chaves: mudanças que indicam outro usuário
   }, [loadAvatar, user?.id, user?.email, cpf, contrato?.pessoaId])
 
-  const avatarUrl = fotoUrl || avatarBlobUrl || fotoDeclarada || ''
+  // URL final a exibir (prioriza Blob autenticado; cai para foto declarada; senão iniciais)
+  const avatarUrl = avatarBlobUrl || fotoDeclarada || ''
 
   // autoavaliação
   useEffect(() => {
@@ -115,15 +151,17 @@ export default function CarteirinhaAssociado({
     warnedRef.current = true
   }, [nome, plano, numero, cpf])
 
-  // equalizar altura ao card do contrato
+  // igualar altura ao card do contrato (desktop)
   useEffect(() => {
     if (!matchContratoHeight || printable || typeof window === 'undefined') return
     const target = document.getElementById('contrato-card-root')
     if (!target) return
     const isDesktop = () => window.matchMedia?.('(min-width: 1024px)').matches
     const apply = () => {
-      if (isDesktop()) setMatchHeight(Math.max(240, Math.round(target.getBoundingClientRect().height)))
-      else setMatchHeight(null)
+      if (isDesktop()) {
+        const h = Math.max(240, Math.round(target.getBoundingClientRect().height))
+        setMatchHeight(h)
+      } else setMatchHeight(null)
     }
     apply()
     const ro = new ResizeObserver(apply)
@@ -132,6 +170,7 @@ export default function CarteirinhaAssociado({
     return () => { try { ro.disconnect() } catch {} window.removeEventListener('resize', apply) }
   }, [matchContratoHeight, printable])
 
+  // tokens visuais
   const T = useMemo(() => ({
     gradTopPct: prefersDark ? 6 : 10,
     ringPct: prefersDark ? 32 : 38,
@@ -143,6 +182,7 @@ export default function CarteirinhaAssociado({
       : '0 10px 28px rgba(0,0,0,0.10), 0 3px 9px rgba(0,0,0,0.06)'
   }), [prefersDark, printable])
 
+  // container
   const cardStyle = {
     maxWidth: printable ? '600px' : '480px',
     width: '100%',
@@ -150,10 +190,11 @@ export default function CarteirinhaAssociado({
     marginTop: printable ? 0 : 'clamp(-4px, -0.4vw, -8px)',
     padding: printable ? '18px' : 'clamp(14px, 2.2vh, 18px)',
     background: 'var(--surface)',
-    backgroundImage: `linear-gradient(180deg,
-      color-mix(in srgb, var(--primary) ${T.gradTopPct}%, var(--surface)) 0%,
-      var(--surface) 70%,
-      color-mix(in srgb, var(--primary) 4%, var(--surface)) 100%)`,
+    backgroundImage:
+      `linear-gradient(180deg,
+        color-mix(in srgb, var(--primary) ${T.gradTopPct}%, var(--surface)) 0%,
+        var(--surface) 70%,
+        color-mix(in srgb, var(--primary) 4%, var(--surface)) 100%)`,
     border: '1px solid var(--c-border)',
     borderRadius: printable ? '12px' : '16px',
     boxShadow: T.shadow,
@@ -171,53 +212,95 @@ export default function CarteirinhaAssociado({
       aria-label={`Carteirinha do Associado • ${nome} (${sideToRender === 'front' ? 'Frente' : 'Verso'})`}
     >
       {/* faixa superior */}
-      <div aria-hidden="true" style={{
-        position: 'absolute', insetInline: 0, top: 0, height: printable ? '5px' : '6px',
-        background: 'linear-gradient(90deg, color-mix(in srgb, var(--primary) 55%, transparent), transparent 60%)'
-      }} />
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute', insetInline: 0, top: 0, height: printable ? '5px' : '6px',
+          background: 'linear-gradient(90deg, color-mix(in srgb, var(--primary) 55%, transparent), transparent 60%)'
+        }}
+      />
 
       {sideToRender === 'front' ? (
+        /* ===================== FRENTE ===================== */
         <>
           <header className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0">
-              {/* avatar */}
+            <div className="flex items-center gap-3 min-w-0">
+              {/* avatar + situação (chip) */}
               <div className="relative shrink-0" aria-label={`Foto de ${nome}`}>
                 {avatarUrl && !imgErro ? (
                   <img
                     src={avatarUrl}
                     alt={nome}
                     className="rounded-full object-cover"
-                    style={{ width: 58, height: 58, border: `2px solid color-mix(in srgb, var(--primary) ${T.ringPct}%, transparent)` }}
-                    onError={() => { setImgErro(true); if (avatarBlobUrl && lastObjUrlRef.current === avatarBlobUrl) { URL.revokeObjectURL(avatarBlobUrl); lastObjUrlRef.current = null; setAvatarBlobUrl(null) } }}
+                    style={{
+                      width: 58, height: 58,
+                      border: `2px solid color-mix(in srgb, var(--primary) ${T.ringPct}%, transparent)`
+                    }}
+                    onError={() => {
+                      setImgErro(true)
+                      // se o erro foi no Blob atual, revoga-o
+                      if (avatarBlobUrl && lastObjUrlRef.current === avatarBlobUrl) {
+                        URL.revokeObjectURL(avatarBlobUrl)
+                        lastObjUrlRef.current = null
+                        setAvatarBlobUrl(null)
+                      }
+                    }}
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <div className="rounded-full flex items-center justify-center font-semibold"
-                    style={{ width: 58, height: 58, background: 'color-mix(in srgb, var(--primary) 16%, transparent)',
-                      color: 'var(--primary)', border: `2px solid color-mix(in srgb, var(--primary) ${T.ringPct}%, transparent)` }}>
+                  <div
+                    className="rounded-full flex items-center justify-center font-semibold"
+                    style={{
+                      width: 58, height: 58,
+                      background: 'color-mix(in srgb, var(--primary) 16%, transparent)',
+                      color: 'var(--primary)',
+                      border: `2px solid color-mix(in srgb, var(--primary) ${T.ringPct}%, transparent)`
+                    }}
+                  >
                     {initials(nome)}
                   </div>
                 )}
-                <span className="absolute -bottom-1 -right-1 text-[10px] px-1.5 py-0.5 rounded-full"
-                  style={{ background: `color-mix(in srgb, var(--primary) ${T.badgeBgPct}%, ${prefersDark ? 'black' : 'white'})`,
-                    color: 'var(--primary)', border: '1px solid var(--c-border)', backdropFilter: 'blur(3px)' }}>
+                <span
+                  className="absolute -bottom-1 -right-1 text-[10px] px-1.5 py-0.5 rounded-full"
+                  style={{
+                    background: `color-mix(in srgb, var(--primary) ${T.badgeBgPct}%, ${prefersDark ? 'black' : 'white'})`,
+                    color: 'var(--primary)',
+                    border: '1px solid var(--c-border)',
+                    boxShadow: prefersDark ? '0 2px 6px rgba(0,0,0,0.35)' : '0 2px 6px rgba(0,0,0,0.08)',
+                    backdropFilter: 'blur(3px)'
+                  }}
+                >
                   {ativo ? 'ATIVO' : 'INATIVO'}
                 </span>
               </div>
 
+              {/* títulos */}
               <div className="min-w-0">
                 <div className="text-[10px] uppercase tracking-[0.06em] font-medium" style={{ color: T.textMuted }}>
                   Carteirinha do Associado • {tenantName}
                 </div>
-                <div title={nome} className="leading-tight font-semibold"
-                  style={{ color: T.text, fontSize: `${fontForName(nome)}px`, lineHeight: 1.1,
-                    maxHeight: printable ? 'unset' : '2.2em', display: printable ? 'block' : '-webkit-box',
-                    WebkitLineClamp: printable ? 'unset' : 2, WebkitBoxOrient: printable ? 'unset' : 'vertical',
-                    overflow: 'hidden', wordBreak: 'break-word' }}>
+
+                <div
+                  title={nome}
+                  aria-label={`Titular: ${nome}`}
+                  className="leading-tight font-semibold"
+                  style={{
+                    color: T.text,
+                    fontSize: `${fontForName(nome)}px`,
+                    lineHeight: 1.1,
+                    maxHeight: printable ? 'unset' : '2.2em',
+                    display: printable ? 'block' : '-webkit-box',
+                    WebkitLineClamp: printable ? 'unset' : 2,
+                    WebkitBoxOrient: printable ? 'unset' : 'vertical',
+                    overflow: 'hidden',
+                    wordBreak: 'break-word'
+                  }}
+                >
                   {nome}
                 </div>
+
                 <div className="text-[11px] lg:text-[12px] font-medium break-words" style={{ color: T.text }}>
-                  Plano: {plano} • Contrato #{numero}
+                  {plano} • Contrato #{numero}
                 </div>
               </div>
             </div>
@@ -233,25 +316,38 @@ export default function CarteirinhaAssociado({
 
           <div className="flex-1 min-h-[18px]" />
 
+          {/* rodapé frente */}
           <footer className="pt-1">
-            <div className="text-[9px]" style={{ color: T.textMuted }}>
-              Documento digital válido enquanto exibido pelo titular.
+            <div className="mt-2 text-[9px]" style={{ color: T.textMuted }}>
+              Documento digital válido enquanto exibido pelo titular. Em caso de perda ou dúvida, contate a unidade responsável.
             </div>
 
             {!printable && (
               <div className="mt-2 flex gap-1 self-start">
-                <button type="button" onClick={() => setUiSide('front')}
+                <button
+                  type="button"
+                  onClick={() => setUiSide('front')}
                   className="px-2 py-1 rounded text-[11px]"
-                  style={{ background: uiSide === 'front' ? 'var(--nav-active-bg)' : 'var(--surface)',
+                  style={{
+                    background: uiSide === 'front' ? 'var(--nav-active-bg)' : 'var(--surface)',
                     color: uiSide === 'front' ? 'var(--nav-active-color)' : T.text,
-                    border: '1px solid var(--c-border)' }} aria-pressed={uiSide === 'front'}>
+                    border: '1px solid var(--c-border)'
+                  }}
+                  aria-pressed={uiSide === 'front'}
+                >
                   Frente
                 </button>
-                <button type="button" onClick={() => setUiSide('back')}
+                <button
+                  type="button"
+                  onClick={() => setUiSide('back')}
                   className="px-2 py-1 rounded text-[11px]"
-                  style={{ background: uiSide === 'back' ? 'var(--nav-active-bg)' : 'var(--surface)',
+                  style={{
+                    background: uiSide === 'back' ? 'var(--nav-active-bg)' : 'var(--surface)',
                     color: uiSide === 'back' ? 'var(--nav-active-color)' : T.text,
-                    border: '1px solid var(--c-border)' }} aria-pressed={uiSide === 'back'}>
+                    border: '1px solid var(--c-border)'
+                  }}
+                  aria-pressed={uiSide === 'back'}
+                >
                   Verso
                 </button>
               </div>
@@ -259,6 +355,7 @@ export default function CarteirinhaAssociado({
           </footer>
         </>
       ) : (
+        /* ===================== VERSO ===================== */
         <>
           <header className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -275,50 +372,72 @@ export default function CarteirinhaAssociado({
             </div>
 
             <div className="shrink-0">
-              <img src={tenantLogo} alt={tenantName} className="object-contain"
-                   style={{ width: 90, height: 48, filter: printable ? 'none' : 'drop-shadow(0 2px 8px rgba(0,0,0,0.12))' }}
-                   referrerPolicy="no-referrer" />
+              <img
+                src={tenantLogo}
+                alt={tenantName}
+                className="object-contain"
+                style={{ width: 90, height: 48, filter: printable ? 'none' : 'drop-shadow(0 2px 8px rgba(0,0,0,0.12))' }}
+                referrerPolicy="no-referrer"
+              />
             </div>
           </header>
 
           <div className="flex-1" />
 
           <footer>
+            {/* bloco de verificação + QR opcional */}
             <div className="grid grid-cols-3 gap-8 items-center">
               <div className="col-span-2 text-[10px]" style={{ color: T.textMuted }}>
                 Verifique a autenticidade: <strong>{verifyUrl}</strong>
               </div>
-              {qrCodeUrl && (
+              {qrCodeUrl ? (
                 <div className="justify-self-end">
-                  <img src={qrCodeUrl} alt="QR code de verificação" style={{ width: 76, height: 76 }} referrerPolicy="no-referrer" />
+                  <img
+                    src={qrCodeUrl}
+                    alt="QR code de verificação"
+                    style={{ width: 76, height: 76 }}
+                    referrerPolicy="no-referrer"
+                  />
                 </div>
-              )}
+              ) : null}
             </div>
 
-            {tenantPhone && (
+            {(tenantPhone) && (
               <div className="mt-2 text-[10px]" style={{ color: T.textMuted }}>
                 Contato da unidade: {tenantPhone}
               </div>
             )}
 
             <div className="mt-2 text-[9px]" style={{ color: T.textMuted }}>
-              Em caso de achado, favor devolver à {tenantName}.
+              Em caso de achado, favor devolver à {tenantName}. 
             </div>
 
             {!printable && (
               <div className="mt-2 flex gap-1 self-start">
-                <button type="button" onClick={() => setUiSide('front')}
-                        className="px-2 py-1 rounded text-[11px]"
-                        style={{ background: uiSide === 'front' ? 'var(--nav-active-bg)' : 'var(--surface)',
-                          color: uiSide === 'front' ? 'var(--nav-active-color)' : T.text,
-                          border: '1px solid var(--c-border)' }} aria-pressed={uiSide === 'front'}>
+                <button
+                  type="button"
+                  onClick={() => setUiSide('front')}
+                  className="px-2 py-1 rounded text-[11px]"
+                  style={{
+                    background: uiSide === 'front' ? 'var(--nav-active-bg)' : 'var(--surface)',
+                    color: uiSide === 'front' ? 'var(--nav-active-color)' : T.text,
+                    border: '1px solid var(--c-border)'
+                  }}
+                  aria-pressed={uiSide === 'front'}
+                >
                   Frente
                 </button>
-                <button type="button" onClick={() => setUiSide('back')}
-                        className="px-2 py-1 rounded text-[11px]"
-                        style={{ background: uiSide === 'back' ? 'var(--nav-active-bg)' : 'var(--surface)',
-                          color: uiSide === 'back' ? 'var(--nav-active-color)' : T.text,
-                          border: '1px solid var(--c-border)' }} aria-pressed={uiSide === 'back'}>
+                <button
+                  type="button"
+                  onClick={() => setUiSide('back')}
+                  className="px-2 py-1 rounded text-[11px]"
+                  style={{
+                    background: uiSide === 'back' ? 'var(--nav-active-bg)' : 'var(--surface)',
+                    color: uiSide === 'back' ? 'var(--nav-active-color)' : T.text,
+                    border: '1px solid var(--c-border)'
+                  }}
+                  aria-pressed={uiSide === 'back'}
+                >
                   Verso
                 </button>
               </div>
