@@ -1,4 +1,3 @@
-// src/App.jsx
 import { Routes, Route, Navigate } from 'react-router-dom'
 
 import './styles/theme.css'
@@ -38,6 +37,9 @@ import ErrorBoundary from '@/components/ErrorBoundary.jsx'
 
 // Impressão da carteirinha
 import CarteirinhaPrint from '@/pages/CarteirinhaPrint.jsx'
+
+// 🔐 Perfil (senha e avatar)
+import Perfil from '@/pages/Perfil.jsx'
 
 export default function App() {
   return (
@@ -98,6 +100,16 @@ export default function App() {
               element={
                 <PrivateRoute redirectTo="/login">
                   <AreaUsuario />
+                </PrivateRoute>
+              }
+            />
+
+            {/* 🔒 Perfil (senha + avatar) */}
+            <Route
+              path="/perfil"
+              element={
+                <PrivateRoute redirectTo="/login">
+                  <Perfil />
                 </PrivateRoute>
               }
             />

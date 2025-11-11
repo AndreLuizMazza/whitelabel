@@ -1,8 +1,8 @@
-// src/components/CarteirinhaAssociado.jsx
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { showToast } from '@/lib/toast'
 import useTenant from '@/store/tenant'
 import { displayCPF, formatCPF } from '@/lib/cpf'
+import { getAvatarBlobUrl } from '@/lib/profile' // ⬅️ BUSCA o avatar via BFF
 
 /* =============== utils =============== */
 const onlyDigits = (v = '') => String(v).replace(/\D+/g, '')
@@ -52,6 +52,7 @@ function fontForName(n = '') {
  * - printable?: boolean
  * - side?: 'front' | 'back'
  * - matchContratoHeight?: boolean
+ * - loadAvatar?: boolean   // ⬅️ opcional (default true) para controlar o fetch do avatar
  */
 export default function CarteirinhaAssociado({
   user = {},
@@ -59,12 +60,17 @@ export default function CarteirinhaAssociado({
   printable = false,
   side = 'front',
   matchContratoHeight = true,
+  loadAvatar = true,
 }) {
   const prefersDark = usePrefersDark()
   const warnedRef = useRef(false)
   const [imgErro, setImgErro] = useState(false)
   const [uiSide, setUiSide] = useState(side)
   const [matchHeight, setMatchHeight] = useState(null)
+
+  // avatar (Blob URL vindo do BFF)
+  const [avatarBlobUrl, setAvatarBlobUrl] = useState(null)
+  const lastObjUrlRef = useRef(null)
 
   // tenant
   const empresa = useTenant(s => s.empresa)
@@ -83,15 +89,57 @@ export default function CarteirinhaAssociado({
   const numero = contrato.numeroContrato ?? contrato.id ?? contrato.contratoId ?? '—'
   const efetivacao = contrato.dataEfetivacao ?? contrato.dataContrato ?? contrato.criadoEm ?? ''
   const ativo = contrato.contratoAtivo ?? (String(contrato.status || '').toUpperCase() === 'ATIVO')
-  const avatarUrl = user?.fotoUrl || user?.photoURL || contrato?.fotoTitular
+  const fotoDeclarada = user?.fotoUrl || user?.photoURL || contrato?.fotoTitular || ''
   const cpf = user?.cpf || contrato?.cpfTitular || ''
   const cpfShown = useMemo(() => (printable ? formatCPF(cpf) : displayCPF(cpf, 'last2')), [cpf, printable])
 
   // verificação / QR opcional
   const verifyPath = `/verificar/${encodeURIComponent(numero)}`
   const verifyUrl = `${verifyBase}${verifyPath}`
-  const qrCodeUrl = contrato?.qrCodeUrl || contrato?.qr || '' // se existir, mostraremos no verso
+  const qrCodeUrl = contrato?.qrCodeUrl || contrato?.qr || ''
   const validade = todayBR()
+
+  // ===== Carregar avatar do usuário via BFF (Blob) =====
+  useEffect(() => {
+    let active = true
+
+    async function load() {
+      if (!loadAvatar) return
+      try {
+        // busca imagem do avatar autenticada; retorna ObjectURL
+        const objUrl = await getAvatarBlobUrl()
+        if (!active) {
+          // se chegou depois do unmount, revoga imediatamente
+          if (objUrl) URL.revokeObjectURL(objUrl)
+          return
+        }
+        // limpa o anterior (se existir) para evitar vazamento
+        if (lastObjUrlRef.current) URL.revokeObjectURL(lastObjUrlRef.current)
+        lastObjUrlRef.current = objUrl || null
+        setAvatarBlobUrl(objUrl || null)
+        setImgErro(false) // reseta erro ao carregar novo blob
+      } catch (_e) {
+        // Silencioso: se o endpoint não tiver avatar, seguimos com fallback
+        // Opcional: showToast('Não foi possível carregar a foto do perfil.', 'warning')
+        setAvatarBlobUrl(null)
+      }
+    }
+
+    // dispara no mount e quando o identificador do usuário / titular mudar
+    load()
+
+    return () => {
+      active = false
+      if (lastObjUrlRef.current) {
+        URL.revokeObjectURL(lastObjUrlRef.current)
+        lastObjUrlRef.current = null
+      }
+    }
+    // chaves: mudanças que indicam outro usuário
+  }, [loadAvatar, user?.id, user?.email, cpf, contrato?.pessoaId])
+
+  // URL final a exibir (prioriza Blob autenticado; cai para foto declarada; senão iniciais)
+  const avatarUrl = avatarBlobUrl || fotoDeclarada || ''
 
   // autoavaliação
   useEffect(() => {
@@ -188,7 +236,15 @@ export default function CarteirinhaAssociado({
                       width: 58, height: 58,
                       border: `2px solid color-mix(in srgb, var(--primary) ${T.ringPct}%, transparent)`
                     }}
-                    onError={() => setImgErro(true)}
+                    onError={() => {
+                      setImgErro(true)
+                      // se o erro foi no Blob atual, revoga-o
+                      if (avatarBlobUrl && lastObjUrlRef.current === avatarBlobUrl) {
+                        URL.revokeObjectURL(avatarBlobUrl)
+                        lastObjUrlRef.current = null
+                        setAvatarBlobUrl(null)
+                      }
+                    }}
                     referrerPolicy="no-referrer"
                   />
                 ) : (
@@ -218,7 +274,7 @@ export default function CarteirinhaAssociado({
                 </span>
               </div>
 
-              {/* títulos — nome sem truncar, com clamp 2 linhas */}
+              {/* títulos */}
               <div className="min-w-0">
                 <div className="text-[10px] uppercase tracking-[0.06em] font-medium" style={{ color: T.textMuted }}>
                   Carteirinha do Associado • {tenantName}
@@ -260,7 +316,7 @@ export default function CarteirinhaAssociado({
 
           <div className="flex-1 min-h-[18px]" />
 
-          {/* rodapé frente — limpo, sem CPF nem Situação (evita duplicidade) */}
+          {/* rodapé frente */}
           <footer className="pt-1">
             <div className="mt-2 text-[9px]" style={{ color: T.textMuted }}>
               Documento digital válido enquanto exibido pelo titular. Em caso de perda ou dúvida, contate a unidade responsável.
@@ -331,8 +387,9 @@ export default function CarteirinhaAssociado({
           <footer>
             {/* bloco de verificação + QR opcional */}
             <div className="grid grid-cols-3 gap-8 items-center">
-          
-
+              <div className="col-span-2 text-[10px]" style={{ color: T.textMuted }}>
+                Verifique a autenticidade: <strong>{verifyUrl}</strong>
+              </div>
               {qrCodeUrl ? (
                 <div className="justify-self-end">
                   <img
@@ -345,7 +402,6 @@ export default function CarteirinhaAssociado({
               ) : null}
             </div>
 
-            {/* contato */}
             {(tenantPhone) && (
               <div className="mt-2 text-[10px]" style={{ color: T.textMuted }}>
                 Contato da unidade: {tenantPhone}

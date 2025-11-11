@@ -1,4 +1,3 @@
-// src/pages/AreaUsuario.jsx
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import useAuth from '@/store/auth'
@@ -9,7 +8,7 @@ import PagamentoFacil from '@/components/PagamentoFacil'
 import CarteirinhaAssociado from '@/components/CarteirinhaAssociado'
 import { showToast } from '@/lib/toast'
 import { displayCPF, formatCPF } from '@/lib/cpf'
-import { Lock, Printer } from 'lucide-react' // ícones
+import { Lock, Printer, UserCog } from 'lucide-react' // ícones
 
 /* ===== analytics opcional (no-op) ===== */
 const track = (..._args) => {}
@@ -214,7 +213,20 @@ export default function AreaUsuario() {
             </p>
           </div>
 
-          <button className="btn-outline" onClick={logout} aria-label="Sair">Sair</button>
+          <div className="flex items-center gap-2">
+            {/* 🔗 Atalho para Perfil (senha + avatar) */}
+            <Link
+              to="/perfil"
+              className="btn-outline inline-flex items-center gap-1"
+              aria-label="Abrir meu perfil"
+              data-bottom-avoid
+              title="Editar senha e foto de perfil"
+            >
+              <UserCog size={16} /> Meu perfil
+            </Link>
+
+            <button className="btn-outline" onClick={logout} aria-label="Sair">Sair</button>
+          </div>
         </div>
 
         {/* Seletor de contrato */}
