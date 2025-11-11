@@ -24,12 +24,19 @@ function buildWhats(number, msg = 'Olá! Preciso de ajuda com meu contrato.') {
   return `https://wa.me/${justDigits}?text=${encodeURIComponent(msg)}`
 }
 
-function formatEndereco(e = {}) {
-  const { logradouro, numero, bairro, cidade, uf, cep } = e || {}
-  const linha1 = [logradouro, numero].filter(Boolean).join(', ')
-  const linha2 = [bairro, cidade, uf].filter(Boolean).join(' / ')
-  const linha3 = cep ? `CEP ${cep}` : ''
-  return { linha1, linha2, linha3 }
+const fmt = {
+  enderecoCompact(e = {}) {
+    const { bairro, cidade, uf } = e || {}
+    const compact = [bairro, cidade, uf].filter(Boolean).join(' • ')
+    return compact || '—'
+  },
+  enderecoCompleto(e = {}) {
+    const { logradouro, numero, bairro, cidade, uf, cep } = e || {}
+    const l1 = [logradouro, numero].filter(Boolean).join(', ')
+    const l2 = [bairro, cidade, uf].filter(Boolean).join(' / ')
+    const l3 = cep ? `CEP ${cep}` : ''
+    return [l1, l2, l3].filter(Boolean).join(' · ')
+  },
 }
 
 function buildMapsLink(endereco = {}, latitude, longitude) {
@@ -44,12 +51,13 @@ function buildMapsLink(endereco = {}, latitude, longitude) {
 }
 
 /* ===================================================================
-   CONTRATO CARD — enxuto, elegante e funcional
-   - Prioriza contrato.endereco; fallback: unidade.endereco
-   - Exibe endereço completo + botão “Ver no mapa”
-   - Mantém CTA WhatsApp e alerta contextual
+   CONTRATO CARD — mais simples de ler
+   - Endereço compacto por padrão + toggle “Ver endereço completo”
 =================================================================== */
+import { useState } from 'react'
+
 export default function ContratoCard({ contrato }) {
+  const [expandEndereco, setExpandEndereco] = useState(false)
   if (!contrato) return null
 
   const ativo   = contrato.contratoAtivo ?? (String(contrato.status).toUpperCase() === 'ATIVO')
@@ -62,18 +70,21 @@ export default function ContratoCard({ contrato }) {
 
   const waHref   = buildWhats(unidade.whatsapp || contatos.celular)
   const mapsHref = buildMapsLink(endereco, endereco.latitude, endereco.longitude)
-  const { linha1, linha2, linha3 } = formatEndereco(endereco)
+
+  const enderecoCompact = fmt.enderecoCompact(endereco)
+  const enderecoFull    = fmt.enderecoCompleto(endereco)
 
   return (
     <section
+      id="contrato-card-root"
       className="card p-5 md:p-6 rounded-xl"
-      aria-label="Informações do contrato"
+      aria-label="Seu contrato"
       style={{ background: 'var(--surface)', border: '1px solid var(--c-border)' }}
     >
       {/* HEADER */}
       <header className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h3 className="text-base md:text-lg font-semibold tracking-[-0.01em]" style={{ color: 'var(--text)' }}>
+          <h3 className="text-lg font-semibold tracking-[-0.01em]" style={{ color: 'var(--text)' }}>
             Seu contrato
           </h3>
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -89,30 +100,27 @@ export default function ContratoCard({ contrato }) {
             target="_blank"
             rel="noreferrer"
             className="btn-primary shrink-0 inline-flex items-center justify-center h-9 px-4 rounded-lg text-sm font-medium"
-            aria-label="Falar com a unidade pelo WhatsApp"
+            aria-label="Falar com a unidade no WhatsApp"
             style={{
               background: 'var(--primary)',
               color: 'var(--on-primary)',
               border: '1px solid color-mix(in srgb, var(--primary) 15%, transparent)'
             }}
           >
-            Fale conosco
+            Falar com a unidade
           </a>
         )}
       </header>
 
-      {/* DIVISOR SUTIL */}
       <div className="mt-4" style={{ height: 1, background: 'var(--c-border)' }} />
 
-      {/* INFO PRINCIPAIS */}
+      {/* INFO */}
       <dl className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
         <div className="min-w-0">
           <dt className="text-[12px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
             Dia de vencimento
           </dt>
-          <dd className="mt-1 text-sm font-medium truncate" style={{ color: 'var(--text)' }}>
-            {dia}
-          </dd>
+          <dd className="mt-1 text-sm font-medium" style={{ color: 'var(--text)' }}>{dia}</dd>
         </div>
 
         <div className="min-w-0">
@@ -130,30 +138,47 @@ export default function ContratoCard({ contrato }) {
         </div>
       </dl>
 
-      {/* ENDEREÇO COMPLETO + VER NO MAPA */}
-      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-        <div className="min-w-0">
-          <p className="text-[12px] uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>
-            Endereço
-          </p>
-          <div className="leading-relaxed" style={{ color: 'var(--text)' }}>
-            {linha1 && <div>{linha1}</div>}
-            {linha2 && <div style={{ color: 'var(--text-muted)' }}>{linha2}</div>}
-            {linha3 && <div style={{ color: 'var(--text-muted)' }}>{linha3}</div>}
-            {mapsHref && (
-              <a
-                href={mapsHref}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 mt-2 text-sm font-medium underline-offset-2 hover:underline focus:underline"
-                style={{ color: 'var(--primary)' }}
-                aria-label="Abrir endereço no Google Maps"
-              >
-                Ver no mapa
-              </a>
+      {/* ENDEREÇO */}
+      <div className="mt-4 text-sm">
+        <p className="text-[12px] uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>
+          Endereço
+        </p>
+
+        {/* Compacto */}
+        <div className="leading-relaxed" style={{ color: 'var(--text)' }}>
+          <div>{enderecoCompact}</div>
+          {mapsHref && (
+            <a
+              href={mapsHref}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 mt-1 text-sm font-medium underline-offset-2 hover:underline focus:underline"
+              style={{ color: 'var(--primary)' }}
+            >
+              Ver no mapa
+            </a>
+          )}
+        </div>
+
+        {/* Toggle “completo” */}
+        {!!enderecoFull && (
+          <div className="mt-1">
+            <button
+              type="button"
+              className="btn-link text-xs"
+              onClick={() => setExpandEndereco(v => !v)}
+              aria-expanded={expandEndereco}
+              aria-controls="endereco-completo"
+            >
+              {expandEndereco ? 'Ocultar endereço completo' : 'Ver endereço completo'}
+            </button>
+            {expandEndereco && (
+              <div id="endereco-completo" className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
+                {enderecoFull}
+              </div>
             )}
           </div>
-        </div>
+        )}
       </div>
 
       {/* ALERTA CONTEXTUAL */}
@@ -166,12 +191,10 @@ export default function ContratoCard({ contrato }) {
             background: 'color-mix(in srgb, var(--primary) 10%, transparent)'
           }}
         >
-          <p className="font-medium text-sm" style={{ color: 'var(--primary)' }}>
-            Próximos passos
-          </p>
+          <p className="font-medium text-sm" style={{ color: 'var(--primary)' }}>Próximos passos</p>
           <p className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--text)' }}>
             {contrato.motivoInativo || contrato.motivoStatus || 'Aguardando ativação.'}
-            {waHref ? ' Se precisar de ajuda, utilize o botão “Fale conosco”.' : ''}
+            {waHref ? ' Se precisar de ajuda, use “Falar com a unidade”.' : ''}
           </p>
         </div>
       )}

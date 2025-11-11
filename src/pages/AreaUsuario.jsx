@@ -9,12 +9,10 @@ import PagamentoFacil from '@/components/PagamentoFacil'
 import CarteirinhaAssociado from '@/components/CarteirinhaAssociado'
 import { showToast } from '@/lib/toast'
 import { displayCPF, formatCPF } from '@/lib/cpf'
-import { Lock, Printer, User } from 'lucide-react' // adiciona ícone de usuário
+import { Lock, Printer, User } from 'lucide-react'
 
-/* ===== analytics opcional (no-op) ===== */
 const track = (..._args) => {}
 
-/* ===== preferências de tema ===== */
 function usePrefersDark() {
   const [dark, setDark] = useState(() =>
     typeof window !== 'undefined' && window.matchMedia
@@ -31,83 +29,29 @@ function usePrefersDark() {
   return dark
 }
 
-/* ===== skeleton simples ===== */
-function Skeleton({ className = '' }) {
-  return (
-    <div
-      className={`animate-pulse rounded ${className}`}
-      style={{
-        background:
-          'linear-gradient(90deg, rgba(0,0,0,0.06), rgba(0,0,0,0.10), rgba(0,0,0,0.06))',
-        backgroundSize: '200% 100%',
-      }}
-    />
-  )
-}
-
-/* ===== Tooltip acessível leve (hover/focus) ===== */
 function InfoTooltip({ text, children }) {
   return (
     <span className="relative inline-flex items-center group">
       {children}
-      <span
-        role="tooltip"
+      <span role="tooltip"
         className="pointer-events-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity
                    absolute left-1/2 -translate-x-1/2 top-full mt-2 text-xs px-2 py-1 rounded shadow-sm z-10"
-        style={{
-          background: 'var(--surface)',
-          color: 'var(--text)',
-          border: '1px solid var(--c-border)'
-        }}
-      >
+        style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--c-border)' }}>
         {text}
       </span>
     </span>
   )
 }
 
-/* ===== Segmented control (Frente/Verso) ===== */
 function SegmentedPrintButtons({ user, contrato }) {
-  const btnBase = {
-    padding: '6px 10px',
-    fontSize: '12px',
-    border: '1px solid var(--c-border)',
-    background: 'var(--surface)',
-    color: 'var(--text)',
-    lineHeight: 1,
-  }
-
-  const activeStyles = {
-    background: 'var(--nav-active-bg)',
-    color: 'var(--nav-active-color)',
-    borderColor: 'var(--nav-active-bg)',
-  }
-
+  const btnBase = { padding: '6px 10px', fontSize: '12px', border: '1px solid var(--c-border)', background: 'var(--surface)', color: 'var(--text)', lineHeight: 1 }
+  const activeStyles = { background: 'var(--nav-active-bg)', color: 'var(--nav-active-color)', borderColor: 'var(--nav-active-bg)' }
   return (
-    <div
-      role="group"
-      aria-label="Opções de impressão"
-      className="inline-flex items-center rounded-md overflow-hidden"
-      style={{ border: '1px solid var(--c-border)' }}
-    >
-      <Link
-        to="/carteirinha/print?side=front"
-        state={{ user, contrato }}
-        className="no-underline"
-        style={{ ...btnBase, border: 'none', borderRight: '1px solid var(--c-border)' }}
-        aria-pressed="false"
-      >
-        Frente
-      </Link>
-      <Link
-        to="/carteirinha/print?side=back"
-        state={{ user, contrato }}
-        className="no-underline"
-        style={{ ...btnBase, border: 'none', ...activeStyles }}
-        aria-pressed="true"
-      >
-        Verso
-      </Link>
+    <div role="group" aria-label="Opções de impressão" className="inline-flex items-center rounded-md overflow-hidden" style={{ border: '1px solid var(--c-border)' }}>
+      <Link to="/carteirinha/print?side=front" state={{ user, contrato }} className="no-underline"
+            style={{ ...btnBase, border: 'none', borderRight: '1px solid var(--c-border)' }} aria-pressed="false">Frente</Link>
+      <Link to="/carteirinha/print?side=back" state={{ user, contrato }} className="no-underline"
+            style={{ ...btnBase, border: 'none', ...activeStyles }} aria-pressed="true">Verso</Link>
     </div>
   )
 }
@@ -117,15 +61,8 @@ export default function AreaUsuario() {
   const logout = useAuth((s) => s.logout)
   usePrefersDark()
 
-  /* ===== CPF bruto (nunca formate aqui) ===== */
-  const cpf =
-    user?.cpf ||
-    user?.documento ||
-    (() => {
-      try { return JSON.parse(localStorage.getItem('auth_user') || '{}').cpf } catch { return '' }
-    })() || ''
+  const cpf = user?.cpf || user?.documento || (() => { try { return JSON.parse(localStorage.getItem('auth_user') || '{}').cpf } catch { return '' } })() || ''
 
-  /* ===== revelação temporária (10s) ===== */
   const [cpfReveal, setCpfReveal] = useState(false)
   const [cpfSeconds, setCpfSeconds] = useState(0)
   const timerRef = useRef(null)
@@ -133,61 +70,30 @@ export default function AreaUsuario() {
 
   function startReveal10s() {
     if (!cpf) return
-    setCpfReveal(true)
-    setCpfSeconds(10)
-    track('cpf_reveal', { ts: Date.now() })
-    showToast('CPF visível por 10 segundos.', null, null, 3500)
-
+    setCpfReveal(true); setCpfSeconds(10); track('cpf_reveal', { ts: Date.now() }); showToast('CPF visível por 10 segundos.', null, null, 3500)
     tickRef.current && clearInterval(tickRef.current)
-    tickRef.current = setInterval(() => {
-      setCpfSeconds((s) => (s > 0 ? s - 1 : 0))
-    }, 1000)
-
+    tickRef.current = setInterval(() => setCpfSeconds((s) => (s > 0 ? s - 1 : 0)), 1000)
     timerRef.current && clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
-      setCpfReveal(false)
-      setCpfSeconds(0)
-      clearInterval(tickRef.current)
-      tickRef.current = null
-      showToast('CPF ocultado novamente.')
-    }, 10000)
+    timerRef.current = setTimeout(() => { setCpfReveal(false); setCpfSeconds(0); clearInterval(tickRef.current); tickRef.current = null; showToast('CPF ocultado novamente.') }, 10000)
   }
+  useEffect(() => () => { timerRef.current && clearTimeout(timerRef.current); tickRef.current && clearInterval(tickRef.current) }, [])
 
-  useEffect(() => {
-    return () => {
-      timerRef.current && clearTimeout(timerRef.current)
-      tickRef.current && clearInterval(tickRef.current)
-    }
-  }, [])
+  const { contratos, contrato, selectedId, dependentes, proximaParcela, proximas, historico, isAtraso, chooseContrato, loading, erro } =
+    useContratoDoUsuario({ cpf })
 
-  /* ===== dados do contrato/área ===== */
-  const {
-    contratos, contrato, selectedId,
-    dependentes, proximaParcela, proximas, historico, isAtraso,
-    chooseContrato, loading, erro
-  } = useContratoDoUsuario({ cpf })
-
-  const nomeExibicao = useMemo(
-    () => user?.nome ?? user?.email ?? 'Usuário',
-    [user]
-  )
-
-  useEffect(() => {
-    if (erro) showToast('Não foi possível carregar seus contratos. Tente novamente em instantes.')
-  }, [erro])
+  const nomeExibicao = useMemo(() => user?.nome ?? user?.email ?? 'Usuário', [user])
+  useEffect(() => { if (erro) showToast('Não foi possível carregar seus contratos. Tente novamente em instantes.') }, [erro])
 
   const getId = (c) => c?.id ?? c?.contratoId ?? c?.numeroContrato
-  const isAtivo = (c) =>
-    c?.contratoAtivo === true || String(c?.status || '').toUpperCase() === 'ATIVO'
+  const isAtivo = (c) => c?.contratoAtivo === true || String(c?.status || '').toUpperCase() === 'ATIVO'
 
   return (
     <section className="section" key={cpf}>
       <div className="container-max">
+        {/* Cabeçalho */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Área do associado</h2>
-
-            {/* Cabeçalho com CPF protegido + cadeado + tooltip */}
             <p className="mt-2 text-sm flex items-center gap-1" style={{ color: 'var(--text)' }}>
               <span>Bem-vindo, {nomeExibicao}!</span>
               {cpf && (
@@ -199,31 +105,15 @@ export default function AreaUsuario() {
                       <span>CPF {cpfReveal ? formatCPF(cpf) : displayCPF(cpf, 'last2')}</span>
                     </span>
                   </InfoTooltip>
-                  <button
-                    type="button"
-                    className="btn-link text-xs"
-                    onClick={startReveal10s}
-                    aria-label="Mostrar CPF completo por 10 segundos"
-                    disabled={cpfReveal}
-                    title={cpfReveal ? 'CPF já está visível' : 'Mostrar CPF por 10 segundos'}
-                  >
+                  <button type="button" className="btn-link text-xs" onClick={startReveal10s} disabled={cpfReveal}>
                     {cpfReveal ? `Visível (${cpfSeconds}s)` : 'Mostrar por 10s'}
                   </button>
                 </>
               )}
             </p>
           </div>
-
-          {/* Ações (responsivo): Meu Perfil e Sair */}
           <div className="flex items-center gap-2 self-start">
-            <Link
-              to="/perfil"
-              className="btn-outline inline-flex items-center gap-1"
-              aria-label="Abrir Meu Perfil"
-              title="Meu Perfil"
-            >
-              <User size={16} /> Meu Perfil
-            </Link>
+            <Link to="/perfil" className="btn-outline inline-flex items-center gap-1" aria-label="Abrir Meu Perfil"><User size={16} /> Meu Perfil</Link>
             <button className="btn-outline" onClick={logout} aria-label="Sair">Sair</button>
           </div>
         </div>
@@ -231,15 +121,10 @@ export default function AreaUsuario() {
         {/* Seletor de contrato */}
         {!loading && Array.isArray(contratos) && contratos.length > 1 && (
           <div className="mt-4 card p-4">
-            <label className="block text-sm mb-2" style={{ color: 'var(--text)' }}>
-              Selecione o contrato para visualizar
-            </label>
-            <select
-              className="w-full rounded px-3 py-2 text-sm"
-              style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--c-border)' }}
-              value={selectedId ?? ''}
-              onChange={(e) => chooseContrato(e.target.value)}
-            >
+            <label className="block text-sm mb-2" style={{ color: 'var(--text)' }}>Selecione o contrato para visualizar</label>
+            <select className="w-full rounded px-3 py-2 text-sm"
+                    style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--c-border)' }}
+                    value={selectedId ?? ''} onChange={(e) => chooseContrato(e.target.value)}>
               {contratos.map((c) => {
                 const id = getId(c)
                 const labelPlano = c?.nomePlano ?? c?.plano?.nome ?? 'Plano'
@@ -251,88 +136,74 @@ export default function AreaUsuario() {
           </div>
         )}
 
-        {/* Loading */}
-        {loading && (
-          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1 space-y-6">
-              <Skeleton className="h-40" />
-              <Skeleton className="h-64" />
-            </div>
-            <div className="lg:col-span-2 space-y-6">
-              <Skeleton className="h-40" />
-              <Skeleton className="h-64" />
-            </div>
-          </div>
-        )}
-
-        {/* Erro */}
+        {/* Loading / Erro */}
+        {loading && <div className="mt-8 text-sm" style={{ color: 'var(--text-muted)' }}>Carregando seus dados…</div>}
         {!loading && erro && (
-          <div
-            className="mt-6 card p-6"
-            style={{
-              border: '1px solid var(--primary)',
-              background: 'color-mix(in srgb, var(--primary) 10%, transparent)'
-            }}
-          >
-            <p className="font-medium" style={{ color: 'var(--primary)' }}>
-              Não foi possível carregar os contratos
-            </p>
+          <div className="mt-6 card p-6" style={{ border: '1px solid var(--primary)', background: 'color-mix(in srgb, var(--primary) 10%, transparent)' }}>
+            <p className="font-medium" style={{ color: 'var(--primary)' }}>Não foi possível carregar os contratos</p>
             <p className="text-sm mt-1" style={{ color: 'var(--primary)' }}>{erro}</p>
           </div>
         )}
 
-        {/* Conteúdo */}
-        {!loading && !erro && (
-          contrato ? (
-            <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* ESQUERDA */}
-              <div className="lg:col-span-1 space-y-6">
-                <h4 className="sr-only">Resumo do Associado</h4>
-                <CarteirinhaAssociado user={user} contrato={contrato} />
-
-                {/* Barra de ações de impressão */}
-                <div className="flex items-center justify-between gap-2">
-                  <Link
-                    to="/carteirinha/print"
-                    state={{ user, contrato, side: 'both' }}
-                    className="btn-outline text-sm inline-flex items-center gap-1"
-                    title="Imprimir frente e verso"
-                    aria-label="Imprimir frente e verso"
-                  >
-                    <Printer size={14} /> Imprimir (frente e verso)
-                  </Link>
-
-                  <SegmentedPrintButtons user={user} contrato={contrato} />
+        {/* Conteúdo principal — seções colapsáveis (nativas) */}
+        {!loading && !erro && (contrato ? (
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Coluna esquerda */}
+            <div className="lg:col-span-1 space-y-6">
+              <details open className="card p-0 overflow-hidden">
+                <summary className="px-5 py-3 text-sm font-semibold cursor-pointer select-none" style={{ borderBottom: '1px solid var(--c-border)' }}>
+                  🪪 Carteirinha do Associado
+                </summary>
+                <div className="p-5">
+                  <CarteirinhaAssociado user={user} contrato={contrato} />
+                  <div className="flex items-center justify-between gap-2 mt-3">
+                    <Link to="/carteirinha/print" state={{ user, contrato, side: 'both' }}
+                          className="btn-outline text-sm inline-flex items-center gap-1" title="Imprimir frente e verso" aria-label="Imprimir frente e verso">
+                      <Printer size={14} /> Imprimir (frente e verso)
+                    </Link>
+                    <SegmentedPrintButtons user={user} contrato={contrato} />
+                  </div>
                 </div>
+              </details>
 
-                <div id="pagamento" />
-                <PagamentoFacil
-                  contrato={contrato}
-                  parcelaFoco={proximaParcela}
-                  proximas={proximas}
-                  historico={historico}
-                  isAtraso={isAtraso}
-                />
-              </div>
+              <details open className="card p-0 overflow-hidden" id="pagamento">
+                <summary className="px-5 py-3 text-sm font-semibold cursor-pointer select-none" style={{ borderBottom: '1px solid var(--c-border)' }}>
+                  💳 Pagamentos
+                </summary>
+                <div className="p-5">
+                  <PagamentoFacil contrato={contrato} parcelaFoco={proximaParcela} proximas={proximas} historico={historico} isAtraso={isAtraso} />
+                </div>
+              </details>
+            </div>
 
-              {/* DIREITA */}
-              <div className="lg:col-span-2 space-y-6">
-                <ContratoCard contrato={contrato} />
-                <DependentesList dependentes={dependentes} contrato={contrato} />
-              </div>
+            {/* Coluna direita */}
+            <div className="lg:col-span-2 space-y-6">
+              <details open className="card p-0 overflow-hidden">
+                <summary className="px-5 py-3 text-sm font-semibold cursor-pointer select-none" style={{ borderBottom: '1px solid var(--c-border)' }}>
+                  📄 Seu Contrato
+                </summary>
+                <div className="p-5">
+                  <ContratoCard contrato={contrato} />
+                </div>
+              </details>
+
+              <details open className="card p-0 overflow-hidden">
+                <summary className="px-5 py-3 text-sm font-semibold cursor-pointer select-none" style={{ borderBottom: '1px solid var(--c-border)' }}>
+                  👨‍👩‍👧‍👦 Dependentes
+                </summary>
+                <div className="p-5">
+                  <DependentesList dependentes={dependentes} contrato={contrato} />
+                </div>
+              </details>
             </div>
-          ) : (
-            <div className="mt-8 card p-6 text-center">
-              <h3 className="text-lg font-semibold">Nenhum contrato localizado</h3>
-              <p className="mt-1" style={{ color: 'var(--text)' }}>
-                Este CPF não possui contratos para esta empresa no momento.
-              </p>
-              <div className="mt-4">
-                <Link to="/planos" className="btn-primary">Contratar um plano</Link>
-              </div>
-            </div>
-          )
-        )}
+          </div>
+        ) : (
+          <div className="mt-8 card p-6 text-center">
+            <h3 className="text-lg font-semibold">Nenhum contrato localizado</h3>
+            <p className="mt-1" style={{ color: 'var(--text)' }}>Este CPF não possui contratos para esta empresa no momento.</p>
+            <div className="mt-4"><Link to="/planos" className="btn-primary">Contratar um plano</Link></div>
+          </div>
+        ))}
       </div>
     </section>
   )

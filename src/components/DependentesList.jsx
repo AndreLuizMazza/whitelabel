@@ -16,17 +16,17 @@ const PARENTESCO_LABELS = {
   PAI: 'Pai', MAE: 'Mãe', SOGRO: 'Sogro', SOGRA: 'Sogra', ENTEADO: 'Enteado(a)',
   COMPANHEIRO: 'Companheiro(a)', OUTRO: 'Outro'
 }
-
 const labelParentesco = (v) => {
   if (!v) return 'Dependente'
   const key = String(v).trim().toUpperCase()
   return PARENTESCO_LABELS[key] || v
 }
+const initials = (name = '') =>
+  String(name).trim().split(/\s+/).slice(0, 2).map(p => p[0]?.toUpperCase() || '').join('')
 
 function buildWhats(number, msg) {
   const digits = String(number || '').replace(/\D+/g, '')
-  if (!digits) return null
-  return `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`
+  return digits ? `https://wa.me/${digits}?text=${encodeURIComponent(msg)}` : null
 }
 
 export default function DependentesList({ dependentes = [], contrato }) {
@@ -39,15 +39,7 @@ export default function DependentesList({ dependentes = [], contrato }) {
       warnedRef.current = true
       return
     }
-
-    if (dependentes.length === 0) {
-      showToast('Nenhum dependente cadastrado ainda.')
-    } else {
-      dependentes.forEach((d) => {
-        if (!d.nome) showToast('Dependente sem nome detectado.', null, null, 5000)
-        if (!d.dataNascimento) showToast(`Data de nascimento ausente para ${d.nome || 'dependente'}.`, null, null, 5000)
-      })
-    }
+    if (dependentes.length === 0) showToast('Nenhum dependente cadastrado ainda.')
     warnedRef.current = true
   }, [dependentes, contrato])
 
@@ -59,72 +51,76 @@ export default function DependentesList({ dependentes = [], contrato }) {
     contrato?.unidade?.whatsapp || contrato?.contatos?.celular,
     'Olá! Preciso de ajuda com meus dependentes ou com a telemedicina.'
   )
-
   function avisar(motivo) {
     track('feature_unavailable', { motivo })
-    showToast(
-      `${motivo} — funcionalidade ainda não disponível.`,
-      waHref ? () => window.open(waHref, '_blank', 'noopener,noreferrer') : null
-    )
+    showToast(`${motivo} — funcionalidade ainda não disponível.`,
+      waHref ? () => window.open(waHref, '_blank', 'noopener,noreferrer') : null)
   }
 
   return (
     <div className="card p-5">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-lg font-semibold">Dependentes</h3>
+        <h3 className="text-lg font-semibold">
+          Dependentes e Beneficiários {dependentes?.length ? `(${dependentes.length})` : ''}
+        </h3>
         <div className="flex gap-2">
           {podeAdicionar && (
-            <button
-              className="btn-primary text-xs"
-              onClick={() => avisar('Adicionar dependente')}
-              aria-label="Adicionar dependente"
-            >
+            <button className="btn-primary text-xs" onClick={() => avisar('Adicionar dependente')}>
               Adicionar dependente
             </button>
           )}
-          <button
-            className="btn-outline text-xs"
-            onClick={() => avisar('Baixar carteirinhas')}
-            aria-label="Baixar carteirinhas"
-          >
+          <button className="btn-outline text-xs" onClick={() => avisar('Baixar carteirinhas')}>
             Baixar carteirinhas
           </button>
         </div>
       </div>
 
       {dependentes.length === 0 ? (
-        <p className="text-sm mt-2" style={{ color: 'var(--text)' }}>
-          Nenhum dependente cadastrado.
-        </p>
+        <p className="text-sm mt-2" style={{ color: 'var(--text)' }}>Nenhum dependente cadastrado.</p>
       ) : (
         <ul className="mt-3 divide-y" style={{ borderColor: 'var(--c-border)' }}>
-          {dependentes.map((d) => (
-            <li key={d.id ?? d.dependenteId} className="py-3">
-              <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="font-medium truncate">{d.nome || '—'}</p>
-                  <p className="text-sm" style={{ color: 'var(--text)' }}>
-                    {labelParentesco(d.parentesco)}
-                  </p>
-                </div>
-                <div className="text-right text-sm">
-                  <p style={{ color: 'var(--text)' }}>Nascimento</p>
-                  <p className="font-medium">{fmtDataNasc(d.dataNascimento)}</p>
-                  <div className="mt-2 flex justify-end gap-2 flex-wrap">
-                    <button className="btn-outline text-xs" onClick={() => avisar('Editar dependente')} aria-label="Editar dependente">
-                      Editar
-                    </button>
-                    <button className="btn-outline text-xs" onClick={() => avisar('Carteirinha do dependente')} aria-label="Carteirinha do dependente">
-                      Carteirinha
-                    </button>
-                    <button className="btn-primary text-xs" onClick={() => avisar('Ativar Telemedicina')} aria-label="Ativar Telemedicina do dependente">
-                      Ativar Telemedicina
-                    </button>
+          {dependentes.map((d) => {
+            const nome = d.nome || '—'
+            return (
+              <li key={d.id ?? d.dependenteId} className="py-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0 flex items-center gap-3">
+                    {/* avatar iniciais */}
+                    <div className="rounded-full bg-[color-mix(in_srgb,var(--primary)_16%,transparent)] text-[12px] font-semibold
+                                    flex items-center justify-center shrink-0"
+                         style={{ width: 34, height: 34, color: 'var(--primary)',
+                                  border: '1px solid color-mix(in srgb, var(--primary) 30%, transparent)' }}>
+                      {initials(nome)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{nome}</p>
+                      <p className="text-sm" style={{ color: 'var(--text)' }}>
+                        {labelParentesco(d.parentesco)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right text-sm">
+                    <p style={{ color: 'var(--text)' }}>Nascimento</p>
+                    <p className="font-medium">{fmtDataNasc(d.dataNascimento)}</p>
+
+                    {/* Ações (ícone + rótulo curtos) */}
+                    <div className="mt-2 flex justify-end gap-2 flex-wrap">
+                      <button className="btn-outline text-xs" onClick={() => avisar('Editar dependente')} aria-label="Editar">
+                        ✏️ Editar
+                      </button>
+                      <button className="btn-outline text-xs" onClick={() => avisar('Carteirinha do dependente')} aria-label="Carteirinha">
+                        🎫 Carteirinha
+                      </button>
+                      <button className="btn-primary text-xs" onClick={() => avisar('Ativar Telemedicina')} aria-label="Telemedicina">
+                        💊 Telemedicina
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </li>
-          ))}
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>
