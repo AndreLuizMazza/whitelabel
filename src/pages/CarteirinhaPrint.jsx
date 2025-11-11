@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import CarteirinhaAssociado from '@/components/CarteirinhaAssociado'
 import useAuth from '@/store/auth'
+import useTenant from '@/store/tenant'
 import { getAvatarBlobUrl } from '@/lib/profile'
 
 /**
@@ -24,10 +25,42 @@ export default function CarteirinhaPrint() {
   const user = state?.user || userFromStore || {}
   const contrato = state?.contrato || state?.data || {}
 
-  // avatar pré-carregado para impressão (Blob URL via BFF)
+  // tenant (para logo)
+  const empresa = useTenant((s) => s.empresa)
+  const tenantLogoCandidate =
+    empresa?.logo || empresa?.logoUrl || empresa?.logo_path ||
+    (typeof window !== 'undefined' && window.__TENANT__?.logo) ||
+    '/img/logo.png'
+
+  // estados de pré-carregamento
   const [avatarUrl, setAvatarUrl] = useState('')
+  const [tenantLogoUrl, setTenantLogoUrl] = useState(tenantLogoCandidate || '')
+  const [avatarReady, setAvatarReady] = useState(false)
+  const [logoReady, setLogoReady] = useState(false)
   const [readyToPrint, setReadyToPrint] = useState(false)
 
+  // util para decodificar imagem (não falha a cadeia se der erro)
+  const decodeImage = async (url) => {
+    if (!url) return true
+    try {
+      const img = new Image()
+      img.crossOrigin = 'anonymous' // não atrapalha; ajuda se CORS permitir
+      img.src = url
+      if ('decode' in img) {
+        await img.decode()
+      } else {
+        await new Promise((res) => {
+          img.onload = () => res()
+          img.onerror = () => res()
+        })
+      }
+      return true
+    } catch {
+      return true
+    }
+  }
+
+  // carrega avatar (blob via BFF) e decodifica
   useEffect(() => {
     let revoked = false
     let currentUrl = ''
@@ -38,35 +71,10 @@ export default function CarteirinhaPrint() {
         if (revoked) return
         currentUrl = url || ''
         setAvatarUrl(currentUrl)
-
-        // Se houver avatar, aguarde a decodificação de imagem
-        if (currentUrl) {
-          const img = new Image()
-          img.src = currentUrl
-          try {
-            if ('decode' in img) {
-              await img.decode()
-            } else {
-              await new Promise((res) => {
-                img.onload = () => res()
-                img.onerror = () => res() // não bloqueia em caso de erro
-              })
-            }
-          } catch {
-            // não bloqueia
-          }
-        }
-
-        // Aguarda fontes e um frame de render antes de imprimir
-        try {
-          if ('fonts' in document && document.fonts?.ready) {
-            await document.fonts.ready
-          }
-        } catch {}
-        await new Promise((r) => requestAnimationFrame(() => r()))
-        setReadyToPrint(true)
+        await decodeImage(currentUrl)
+        if (!revoked) setAvatarReady(true)
       } catch {
-        setReadyToPrint(true) // não bloqueia
+        if (!revoked) setAvatarReady(true)
       }
     })()
 
@@ -75,6 +83,41 @@ export default function CarteirinhaPrint() {
       if (currentUrl) URL.revokeObjectURL(currentUrl)
     }
   }, [])
+
+  // garante URL da logo e decodifica
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const url = tenantLogoCandidate || ''
+        setTenantLogoUrl(url)
+        await decodeImage(url)
+        if (!cancelled) setLogoReady(true)
+      } catch {
+        if (!cancelled) setLogoReady(true)
+      }
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantLogoCandidate])
+
+  // Aguarda fontes, avatar e logo antes de imprimir
+  useEffect(() => {
+    if (!(avatarReady && logoReady)) return
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        if ('fonts' in document && document.fonts?.ready) {
+          await document.fonts.ready
+        }
+      } catch {}
+      await new Promise((r) => requestAnimationFrame(() => r()))
+      if (!cancelled) setReadyToPrint(true)
+    })()
+
+    return () => { cancelled = true }
+  }, [avatarReady, logoReady])
 
   // Dispara diálogo de impressão somente quando tudo estiver ok
   useEffect(() => {
@@ -102,7 +145,7 @@ export default function CarteirinhaPrint() {
           </p>
           {!readyToPrint && (
             <p className="mt-2 text-sm" style={{ opacity: .7 }}>
-              Preparando impressão{avatarUrl ? ' (carregando foto do avatar)…' : '…'}
+              Preparando impressão{avatarUrl || tenantLogoUrl ? ' (carregando imagens)…' : '…'}
             </p>
           )}
         </div>
@@ -120,6 +163,7 @@ export default function CarteirinhaPrint() {
               matchContratoHeight={false}
               loadAvatar={false}           // evita refetch — usaremos o blob desta página
               fotoUrl={avatarUrl}          // prioriza avatar pré-carregado
+              tenantLogoUrl={tenantLogoUrl} // injeta logo já decodificada
             />
           </div>
         ))}

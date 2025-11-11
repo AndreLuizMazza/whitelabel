@@ -187,9 +187,7 @@ export default function PagamentoFacil({
             {focoAtraso
               ? <Badge kind="danger">EM ATRASO</Badge>
               : urgente ? <Badge kind="danger">URGENTE</Badge> : <Badge kind="warn">ABERTA</Badge>}
-            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              Total em aberto: <strong style={{ color: 'var(--text)' }}>{fmtBRL(totalEmAberto)}</strong>
-            </span>
+
           </div>
         )}
       </header>

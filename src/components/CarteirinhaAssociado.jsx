@@ -1,8 +1,9 @@
+// src/components/CarteirinhaAssociado.jsx
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { showToast } from '@/lib/toast'
 import useTenant from '@/store/tenant'
 import { displayCPF, formatCPF } from '@/lib/cpf'
-import { getAvatarBlobUrl } from '@/lib/profile' // ⬅️ BUSCA o avatar via BFF
+import { getAvatarBlobUrl } from '@/lib/profile' // busca avatar via BFF
 
 /* =============== utils =============== */
 const onlyDigits = (v = '') => String(v).replace(/\D+/g, '')
@@ -49,10 +50,13 @@ function fontForName(n = '') {
 
 /**
  * Props:
+ * - user, contrato
  * - printable?: boolean
  * - side?: 'front' | 'back'
  * - matchContratoHeight?: boolean
- * - loadAvatar?: boolean   // ⬅️ opcional (default true) para controlar o fetch do avatar
+ * - loadAvatar?: boolean   // default true (busca avatar via BFF)
+ * - fotoUrl?: string       // se fornecido, tem prioridade (ex.: fluxo de impressão)
+ * - tenantLogoUrl?: string // PRIORIDADE para a logo (usada na impressão para evitar race)
  */
 export default function CarteirinhaAssociado({
   user = {},
@@ -61,6 +65,8 @@ export default function CarteirinhaAssociado({
   side = 'front',
   matchContratoHeight = true,
   loadAvatar = true,
+  fotoUrl = null,
+  tenantLogoUrl = null,
 }) {
   const prefersDark = usePrefersDark()
   const warnedRef = useRef(false)
@@ -75,10 +81,11 @@ export default function CarteirinhaAssociado({
   // tenant
   const empresa = useTenant(s => s.empresa)
   const tenantName = empresa?.nomeFantasia || empresa?.razaoSocial || 'Sua Marca Aqui'
-  const tenantLogo =
+  const tenantLogoFromStore =
     empresa?.logo || empresa?.logoUrl || empresa?.logo_path ||
     (typeof window !== 'undefined' && window.__TENANT__?.logo) ||
     '/img/logo.png'
+  const tenantLogo = tenantLogoUrl || tenantLogoFromStore
   const tenantPhone = empresa?.telefone || empresa?.whatsapp || ''
   const verifyBase =
     empresa?.siteOficial || empresa?.dominio || (typeof window !== 'undefined' ? window.location.origin : '')
@@ -99,33 +106,35 @@ export default function CarteirinhaAssociado({
   const qrCodeUrl = contrato?.qrCodeUrl || contrato?.qr || ''
   const validade = todayBR()
 
-  // ===== Carregar avatar do usuário via BFF (Blob) =====
+  // ===== Carregar avatar do usuário via BFF (Blob) quando necessário =====
   useEffect(() => {
     let active = true
+    if (!loadAvatar) {
+      // se não for carregar, limpe qualquer blob antigo
+      if (lastObjUrlRef.current) {
+        URL.revokeObjectURL(lastObjUrlRef.current)
+        lastObjUrlRef.current = null
+      }
+      setAvatarBlobUrl(null)
+      return () => {}
+    }
 
     async function load() {
-      if (!loadAvatar) return
       try {
-        // busca imagem do avatar autenticada; retorna ObjectURL
         const objUrl = await getAvatarBlobUrl()
         if (!active) {
-          // se chegou depois do unmount, revoga imediatamente
           if (objUrl) URL.revokeObjectURL(objUrl)
           return
         }
-        // limpa o anterior (se existir) para evitar vazamento
         if (lastObjUrlRef.current) URL.revokeObjectURL(lastObjUrlRef.current)
         lastObjUrlRef.current = objUrl || null
         setAvatarBlobUrl(objUrl || null)
-        setImgErro(false) // reseta erro ao carregar novo blob
-      } catch (_e) {
-        // Silencioso: se o endpoint não tiver avatar, seguimos com fallback
-        // Opcional: showToast('Não foi possível carregar a foto do perfil.', 'warning')
+        setImgErro(false)
+      } catch {
         setAvatarBlobUrl(null)
       }
     }
 
-    // dispara no mount e quando o identificador do usuário / titular mudar
     load()
 
     return () => {
@@ -135,11 +144,11 @@ export default function CarteirinhaAssociado({
         lastObjUrlRef.current = null
       }
     }
-    // chaves: mudanças que indicam outro usuário
+    // mudanças que indicam outro usuário
   }, [loadAvatar, user?.id, user?.email, cpf, contrato?.pessoaId])
 
-  // URL final a exibir (prioriza Blob autenticado; cai para foto declarada; senão iniciais)
-  const avatarUrl = avatarBlobUrl || fotoDeclarada || ''
+  // URL final a exibir (prioriza fotoUrl > Blob autenticado > foto declarada)
+  const avatarUrl = fotoUrl || avatarBlobUrl || fotoDeclarada || ''
 
   // autoavaliação
   useEffect(() => {
@@ -225,7 +234,7 @@ export default function CarteirinhaAssociado({
         <>
           <header className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              {/* avatar + situação (chip) */}
+              {/* avatar + status */}
               <div className="relative shrink-0" aria-label={`Foto de ${nome}`}>
                 {avatarUrl && !imgErro ? (
                   <img
@@ -238,7 +247,6 @@ export default function CarteirinhaAssociado({
                     }}
                     onError={() => {
                       setImgErro(true)
-                      // se o erro foi no Blob atual, revoga-o
                       if (avatarBlobUrl && lastObjUrlRef.current === avatarBlobUrl) {
                         URL.revokeObjectURL(avatarBlobUrl)
                         lastObjUrlRef.current = null
@@ -409,7 +417,7 @@ export default function CarteirinhaAssociado({
             )}
 
             <div className="mt-2 text-[9px]" style={{ color: T.textMuted }}>
-              Em caso de achado, favor devolver à {tenantName}. 
+              Em caso de achado, favor devolver à {tenantName}.
             </div>
 
             {!printable && (
