@@ -1,7 +1,7 @@
-/* === TOKENS BASE (sobrescritos pelo theme-inline.js gerado do tenant) === */
+/* src/styles/theme.css */
+/* === TOKENS BASE (serão sobrescritos por vars/varsDark do tenant) === */
 :root{
   --primary:#0066ff;
-  --primary-dark:#004dc7;
   --on-primary:#ffffff;
 
   --surface:#ffffff;
@@ -12,20 +12,13 @@
 
   --c-border: rgba(0,0,0,.08);
 
-  --primary-08: color-mix(in srgb, var(--primary) 8%, transparent);
-  --primary-12: color-mix(in srgb, var(--primary) 12%, transparent);
-  --primary-20: color-mix(in srgb, var(--primary) 20%, transparent);
-  --primary-33: color-mix(in srgb, var(--primary) 33%, transparent);
-  --primary-66: color-mix(in srgb, var(--primary) 66%, transparent);
-
-  /* nav defaults */
   --nav-hover-bg: color-mix(in srgb, var(--primary) 10%, transparent);
   --nav-active-bg: color-mix(in srgb, var(--primary) 18%, transparent);
   --nav-active-color: var(--primary);
 }
 
 /* base */
-html,body{ background:var(--surface); color:var(--text); }
+html, body { background: var(--surface); color: var(--text); }
 
 /* helpers */
 .text-muted{ color:var(--text-muted); }
@@ -35,44 +28,12 @@ html,body{ background:var(--surface); color:var(--text); }
 .text-primary{ color:var(--primary); }
 .bg-primary{ background:var(--primary); }
 
-/* === BOTÕES NO TEMA (usam as variáveis do tenant) === */
-.btn-primary{
-  display:inline-flex; align-items:center; justify-content:center;
-  gap:.5rem; padding:.5rem 1.25rem;
-  font-weight:600; font-size:.875rem; line-height:1rem;
-  border-radius:9999px;
-  background:var(--primary);
-  color:var(--on-primary);
-  border:1px solid color-mix(in srgb, var(--primary) 35%, transparent);
-  transition:background .15s ease, box-shadow .15s ease, transform .05s ease;
-}
-.btn-primary:hover{ background: color-mix(in srgb, var(--primary) 90%, black); }
-.btn-primary:active{ transform: translateY(1px); }
-
-/* botão secundário */
-.btn-outline{
-  display:inline-flex; align-items:center; justify-content:center;
-  gap:.5rem; padding:.5rem 1.25rem;
-  font-weight:600; font-size:.875rem; line-height:1rem;
-  border-radius:9999px;
-  border:1px solid var(--c-border);
-  color:var(--primary);
-  background:transparent;
-  transition:background .15s ease, border-color .15s ease;
-}
-.btn-outline:hover{
-  background: color-mix(in srgb, var(--primary) 10%, transparent);
-  border-color: color-mix(in srgb, var(--primary) 25%, transparent);
-}
-
-/* cartões */
+/* componentes */
 .card{
   background:var(--surface);
   border:1px solid var(--c-border);
   border-radius:1rem;
 }
-
-/* inputs */
 .input{
   width:100%;
   border:1px solid var(--c-border);
@@ -83,51 +44,30 @@ html,body{ background:var(--surface); color:var(--text); }
 }
 .input:focus{
   outline: none;
-  box-shadow: 0 0 0 3px var(--primary-12);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
   border-color: color-mix(in srgb, var(--primary) 35%, transparent);
 }
-.label{ display:block; font-weight:600; margin-bottom:.25rem; color:var(--text); }
 
-/* === Dark mode via sistema (aplica só se usuário não escolheu "light") === */
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]) body{ background:#0b1220; color:#e7edf6; }
-  :root:not([data-theme="light"]) .card{ background:#111827; border:1px solid rgba(255,255,255,.14); }
-  :root:not([data-theme="light"]) .card:hover{ background:#132036; }
-  :root:not([data-theme="light"]) .border-default{ border-color: rgba(255,255,255,.16); }
-  :root:not([data-theme="light"]) .text-muted{ color:#c9d5e1; }
+/* ============ DARK MODE ============ */
+/* Nada hard-coded: apenas tokens que virão de varsDark do tenant */
+html.theme-dark, body.theme-dark { color-scheme: dark; }
+
+html.theme-dark, body.theme-dark {
+  --nav-hover-bg: color-mix(in srgb, var(--primary) 20%, transparent);
+  --nav-active-bg: color-mix(in srgb, var(--primary) 35%, transparent);
+  /* --nav-active-color: var(--on-primary); opcional, pode vir do tenant */
 }
 
-/* === Dark mode explícito === */
-body.theme-dark, html.theme-dark{
-  color-scheme: dark;
-  background:#0b1220; color:#e7edf6;
-
-  --nav-hover-bg: color-mix(in srgb, var(--primary) 18%, transparent);
-  --nav-active-bg: color-mix(in srgb, var(--primary) 30%, transparent);
-  --nav-active-color: var(--on-primary);
+html.theme-dark .card, body.theme-dark .card{
+  background: var(--surface-alt);
+  border: 1px solid var(--c-border);
 }
-body.theme-dark .card, html.theme-dark .card{
-  background:#111827; border:1px solid rgba(255,255,255,.14);
+html.theme-dark .border-default, body.theme-dark .border-default{
+  border-color: var(--c-border);
 }
-body.theme-dark .border-default, html.theme-dark .border-default{
-  border-color: rgba(255,255,255,.16);
-}
-body.theme-dark .text-muted, html.theme-dark .text-muted{
-  color:#c9d5e1;
+html.theme-dark .text-muted, body.theme-dark .text-muted{
+  color: var(--text-muted);
 }
 
-/* === Dark mode via sistema (aplica só se usuário não escolheu "light") === */
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]) body{ background:#0b1220; color:#e7edf6; }
-  :root:not([data-theme="light"]) .card{ background:#111827; border:1px solid rgba(255,255,255,.14); }
-  :root:not([data-theme="light"]) .card:hover{ background:#132036; }
-  :root:not([data-theme="light"]) .border-default{ border-color: rgba(255,255,255,.16); }
-  :root:not([data-theme="light"]) .text-muted{ color:#c9d5e1; }
-}
-
-/* === Dark mode explícito === */
-body.theme-dark, html.theme-dark{ /* … */ }
-/* … */
-
-
+/* Safe area */
 body, main { padding-bottom: var(--app-bottom-safe, 0px); }

@@ -1,4 +1,4 @@
-// src/theme/useTheme.js (corrigido)
+// src/theme/useTheme.js
 import { useEffect, useState } from 'react'
 import { applyTheme, resolveTheme } from '@/theme/initTheme'
 
@@ -9,7 +9,6 @@ export function useTheme() {
     applyTheme(theme)
   }, [theme])
 
-  // quando em "system", reagir a mudanças do SO
   useEffect(() => {
     if (theme !== 'system') return
     try {
