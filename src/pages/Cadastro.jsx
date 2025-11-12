@@ -48,7 +48,35 @@ import { efetivacaoProxMesPorDiaD, ageFromDate } from "@/lib/dates";
 import { useDebouncedCallback } from "@/lib/hooks";
 import { useViaCep } from "@/lib/useViaCep";
 
-// =============== minis locais ===============
+/* =============================================================================
+   PEQUENOS COMPONENTES DE UI (para reduzir verbosidade e melhorar legibilidade)
+============================================================================= */
+const isEmpty = (v) => !String(v || "").trim();
+const requiredRing = (cond) => (cond ? "ring-1 ring-red-500" : "");
+const requiredStar = <span aria-hidden="true" className="text-red-600">*</span>;
+const AREA_ASSOCIADO_PATH = (import.meta?.env?.VITE_ASSOC_AREA_PATH || "/area").toString();
+
+function FieldRead({ label, value, mono = false }) {
+  return (
+    <div className="rounded-lg border border-[var(--c-border)] px-3 py-2">
+      <p className="text-[10px] uppercase tracking-wide text-[var(--c-muted)]">{label}</p>
+      <p className={`font-medium ${mono ? "tabular-nums" : ""} break-words`}>{value || "—"}</p>
+    </div>
+  );
+}
+
+function SectionTitle({ children, right = null }) {
+  return (
+    <div className="flex items-center justify-between">
+      <h2 className="text-lg font-semibold">{children}</h2>
+      {right}
+    </div>
+  );
+}
+
+/* =============================================================================
+   PÁGINA
+============================================================================= */
 function useQuery() {
   const { search } = useLocation();
   return useMemo(() => new URLSearchParams(search), [search]);
@@ -70,21 +98,6 @@ function decodePayloadParam(p) {
   }
 }
 
-function openWhatsApp(number, message) {
-  const n = number ? onlyDigits(number) : "";
-  const text = encodeURIComponent(message || "");
-  const url = n ? `https://wa.me/${n}?text=${text}` : `https://wa.me/?text=${text}`;
-  window.open(url, "_blank", "noopener");
-}
-
-// --------- UI helpers padronizados ---------
-const isEmpty = (v) => !String(v || "").trim();
-const requiredRing = (cond) => (cond ? "ring-1 ring-red-500" : "");
-const requiredStar = <span aria-hidden="true" className="text-red-600">*</span>;
-
-const AREA_ASSOCIADO_PATH = (import.meta?.env?.VITE_ASSOC_AREA_PATH || "/area").toString();
-
-// =============== Página ===============
 export default function Cadastro() {
   const q = useQuery();
   const navigate = useNavigate();
@@ -119,7 +132,7 @@ export default function Cadastro() {
     id: null, // sempre id da Pessoa (nunca do usuário)
     nome: "",
     cpf: "",
-    rg: "", // mantido no estado para compatibilidade (não exibido)
+    rg: "", // compatibilidade silenciosa (não exibido)
     estado_civil: "",
     sexo: "",
     data_nascimento: "",
@@ -130,14 +143,14 @@ export default function Cadastro() {
 
   const [titular, setTitular] = useState(defaultTitular);
 
-  // Dependentes existentes (somente leitura) e novos (editáveis)
+  // Dependentes
   const [depsExistentes, setDepsExistentes] = useState([]);
   const [depsNovos, setDepsNovos] = useState([]);
 
-  // Dia D (vencimento)
+  // Dia D
   const [diaDSelecionado, setDiaDSelecionado] = useState(10);
 
-  // ===== Estado da checagem CPF/Pessoa/Contrato =====
+  // Checagem CPF/Pessoa/Contrato
   const [lookupState, setLookupState] = useState({
     running: false,
     pessoaEncontrada: null,
@@ -148,7 +161,7 @@ export default function Cadastro() {
   });
 
   // ======= helpers de chamada =======
-  async function tryGet(apiCall, label) {
+  async function tryGet(apiCall) {
     try {
       const r = await apiCall();
       return r?.data ?? null;
@@ -157,15 +170,14 @@ export default function Cadastro() {
     }
   }
 
-  // Busca PESSOA pelo CPF — nunca retorna /app/me
   async function buscarPessoaPorCPF(cpfMasked) {
-    let data = await tryGet(() => api.get(`/api/v1/pessoas/cpf/${cpfMasked}`), "pessoas/cpf");
+    let data = await tryGet(() => api.get(`/api/v1/pessoas/cpf/${cpfMasked}`));
     if (data && (data.id || data.pessoaId)) return data;
 
-    data = await tryGet(() => api.get(`/api/v1/pessoas/by-cpf/${onlyDigits(cpfMasked)}`), "pessoas/by-cpf");
+    data = await tryGet(() => api.get(`/api/v1/pessoas/by-cpf/${onlyDigits(cpfMasked)}`));
     if (data && (data.id || data.pessoaId)) return data;
 
-    data = await tryGet(() => api.get(`/api/v1/pessoas`, { params: { cpf: onlyDigits(cpfMasked) } }), "pessoas?cpf");
+    data = await tryGet(() => api.get(`/api/v1/pessoas`, { params: { cpf: onlyDigits(cpfMasked) } }));
     if (Array.isArray(data) && data.length) return data[0];
     if (data && (data.id || data.pessoaId)) return data;
 
@@ -194,10 +206,10 @@ export default function Cadastro() {
     const ecNorm = p?.estadoCivil || "";
 
     return {
-      id: p?.id || p?.pessoaId || null, // IMPORTANTE: id da Pessoa
+      id: p?.id || p?.pessoaId || null,
       nome: p?.nome || "",
       cpf: p?.cpf || "",
-      rg: p?.rg || "", // compatibilidade silenciosa; não exibido
+      rg: p?.rg || "",
       estado_civil: ecNorm,
       sexo: sexoNorm,
       data_nascimento: normalizeISODate(p?.dataNascimento || ""),
@@ -209,16 +221,13 @@ export default function Cadastro() {
 
   async function buscarDependentesPorPessoaId(pessoaId) {
     if (!pessoaId) return [];
-    const data = await tryGet(
-      () => api.get(`/api/v1/dependentes/pessoa/${encodeURIComponent(pessoaId)}`),
-      "dependentes/pessoa"
-    );
+    const data = await tryGet(() => api.get(`/api/v1/dependentes/pessoa/${encodeURIComponent(pessoaId)}`));
     if (!Array.isArray(data)) return [];
     return data;
   }
 
   async function buscarContratosDaPessoaPorCPF(cpfMasked) {
-    const data = await tryGet(() => api.get(`/api/v1/contratos/cpf/${cpfMasked}`), "contratos/cpf");
+    const data = await tryGet(() => api.get(`/api/v1/contratos/cpf/${cpfMasked}`));
     if (Array.isArray(data)) return data;
     if (data?.contratos && Array.isArray(data.contratos)) return data.contratos;
     return [];
@@ -229,7 +238,7 @@ export default function Cadastro() {
     if (status === "ATIVO" || status === "TRUE" || status === "1") return true;
     if (typeof c?.contratoAtivo === "boolean") return c.contratoAtivo;
     if (typeof c?.ativo === "boolean") return c.ativo;
-    return true; // fallback otimista
+    return true; // fallback
   }
 
   async function runLookupByCpf(cpfMasked, { prefillFromPessoa = true } = {}) {
@@ -255,7 +264,6 @@ export default function Cadastro() {
       erro: "",
     });
     try {
-      // 1) pessoa
       const pessoaRaw = await buscarPessoaPorCPF(cpfFmt);
 
       if (pessoaRaw && prefillFromPessoa) {
@@ -266,7 +274,6 @@ export default function Cadastro() {
           cpf: pessoaNorm.cpf || cpfFmt,
         }));
 
-        // dependentes existentes (somente leitura)
         const deps = await buscarDependentesPorPessoaId(pessoaNorm.id);
         setDepsExistentes(
           deps.map((d) => ({
@@ -283,7 +290,6 @@ export default function Cadastro() {
         setDepsExistentes([]);
       }
 
-      // 2) contratos por CPF
       const contratos = await buscarContratosDaPessoaPorCPF(cpfFmt);
       const ativos = contratos.filter(contratoAtivoPredicate);
 
@@ -311,7 +317,7 @@ export default function Cadastro() {
     }
   }
 
-  // ===== Busca o usuário logado -> pessoa(cpf) -> contratos(cpf) =====
+  // Prefill pelo usuário logado
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -320,7 +326,6 @@ export default function Cadastro() {
         if (!alive || !me) return;
 
         const cpfFromMe = me?.cpf || "";
-        // Prefill básico
         setTitular((prev) => ({
           ...prev,
           cpf: prev?.cpf || cpfFromMe || "",
@@ -342,7 +347,7 @@ export default function Cadastro() {
     };
   }, []);
 
-  // --------- ViaCEP (hook dedicado) ----------
+  /* -------------------- ViaCEP -------------------- */
   const [addressTouched, setAddressTouched] = useState({
     logradouro: false,
     bairro: false,
@@ -370,7 +375,7 @@ export default function Cadastro() {
     fetchCEP(cepRaw, applyViaCepData);
   }, 500);
 
-  // --------- Valores e cálculos ----------
+  /* -------------------- Cálculos -------------------- */
   const baseMensal = Number(plano?.mensal || 0);
   const numDepsIncl = Number(plano?.numeroDependentes || 0);
   const valorIncAnual = Number(plano?.valorIncremental || 0);
@@ -382,7 +387,7 @@ export default function Cadastro() {
   const valorMensalidadePlano = Number(totalMensal);
   const dataEfetivacaoISO = efetivacaoProxMesPorDiaD(diaDSelecionado);
 
-  // idade limites (dependentes)
+  // limites etários
   const idadeMinDep = Number.isFinite(plano?.idadeMinimaDependente)
     ? Number(plano.idadeMinimaDependente)
     : undefined;
@@ -402,6 +407,7 @@ export default function Cadastro() {
   });
   const countDepsFora = depsIssuesNovos.filter((x) => x.fora).length;
 
+  /* -------------------- Mutators -------------------- */
   const updTit = (patch) => setTitular((t) => ({ ...t, ...patch }));
   const updTitEndereco = (patch) =>
     setTitular((t) => ({ ...t, endereco: { ...t.endereco, ...patch } }));
@@ -412,7 +418,7 @@ export default function Cadastro() {
     setDepsNovos((prev) => [...prev, { nome: "", cpf: "", sexo: "", parentesco: "", data_nascimento: "" }]);
   const delDepNovo = (i) => setDepsNovos((prev) => prev.filter((_, idx) => idx !== i));
 
-  // ====== Validações desta etapa ======
+  /* -------------------- Validações -------------------- */
   const e = titular.endereco || {};
   const cepDigits = onlyDigits(e.cep || "");
   const ufClean = (e.uf || "").toUpperCase().slice(0, 2);
@@ -420,7 +426,7 @@ export default function Cadastro() {
   function buildErrorList() {
     const items = [];
 
-    // Titular: obrigatórios
+    // Titular
     if (!(titular.nome && titular.nome.trim().length >= 3))
       items.push({ field: "fixo", label: "Titular: nome ausente." });
     if (!cpfIsValid(titular.cpf)) items.push({ field: "fixo", label: "Titular: CPF inválido ou ausente." });
@@ -430,7 +436,7 @@ export default function Cadastro() {
     if (!titular.sexo) items.push({ field: "sexo", label: "Titular: selecione o sexo." });
     if (!titular.estado_civil) items.push({ field: "estado_civil", label: "Titular: selecione o estado civil." });
 
-    // Endereço: obrigatórios
+    // Endereço
     if (!(cepDigits.length === 8)) items.push({ field: "cep", label: "Endereço: CEP deve ter 8 dígitos." });
     if (!e.logradouro?.trim()) items.push({ field: "logradouro", label: "Endereço: informe o logradouro." });
     if (!e.numero?.trim()) items.push({ field: "numero", label: "Endereço: informe o número." });
@@ -439,7 +445,7 @@ export default function Cadastro() {
     if (!(ufClean && ufClean.length === 2)) items.push({ field: "uf", label: "Endereço: informe a UF (2 letras)." });
     if (cepState.error) items.push({ field: "cep", label: `Endereço: ${cepState.error}` });
 
-    // Dependentes novos: tudo obrigatório exceto CPF
+    // Dependentes novos
     depsNovos.forEach((d, i) => {
       const issue = depsIssuesNovos[i];
       if (!((d.nome || "").trim().length >= 3))
@@ -475,7 +481,7 @@ export default function Cadastro() {
       map[field].current.focus();
       return;
     }
-    if (field.startsWith("depN-")) {
+    if (field?.startsWith?.("depN-")) {
       const el = document.getElementById(field);
       if (el) el.focus();
     }
@@ -491,7 +497,7 @@ export default function Cadastro() {
     }
   }, [submitAttempted, errorList]);
 
-  // ===== Monitora alteração manual do CPF e reexecuta lookup (com debounce) =====
+  // Lookup por alteração manual do CPF
   const debouncedCpfLookup = useDebouncedCallback(async (cpfMasked) => {
     await runLookupByCpf(cpfMasked, { prefillFromPessoa: true });
   }, 600);
@@ -501,6 +507,7 @@ export default function Cadastro() {
     debouncedCpfLookup(titular.cpf);
   }, [titular?.cpf]);
 
+  /* -------------------- Submissão -------------------- */
   async function handleSalvarEnviar() {
     setSubmitAttempted(true);
     setError("");
@@ -513,9 +520,9 @@ export default function Cadastro() {
       const addr = titular.endereco || {};
       const payloadPessoa = {
         nome: (titular.nome || "").trim(),
-        cpf: formatCPF(titular.cpf || ""), // API aceita mascarado; ajuste para onlyDigits se necessário
-        rg: titular.rg || null, // preservado como compatibilidade (sempre null sem campo)
-        dataNascimento: titular.data_nascimento || null, // yyyy-mm-dd
+        cpf: formatCPF(titular.cpf || ""),
+        rg: titular.rg || null,
+        dataNascimento: titular.data_nascimento || null,
         sexo: titular.sexo === "MULHER" ? "MULHER" : titular.sexo === "HOMEM" ? "HOMEM" : null,
         estadoCivil: titular.estado_civil || null,
         contatos: {
@@ -534,21 +541,18 @@ export default function Cadastro() {
         },
       };
 
-      // Sempre trabalhar com ID da PESSOA se existir
       let titularId =
         titular?.id ||
         lookupState?.pessoaEncontrada?.id ||
         lookupState?.pessoaEncontrada?.pessoaId ||
         null;
 
-      // 1) cria pessoa só se NÃO existir
       if (!titularId) {
         const pessoaRes = await api.post("/api/v1/pessoas", payloadPessoa);
         titularId = pessoaRes?.data?.id || pessoaRes?.data?.pessoaId || pessoaRes?.data?.uuid;
         if (!titularId) throw new Error("Não foi possível obter o ID do titular (etapa pessoa).");
       }
 
-      // 2) cria APENAS dependentes novos
       if (depsNovos.length > 0) {
         const depsToCreate = depsNovos.map((d) => ({
           cpf: d.cpf ? onlyDigits(d.cpf) : null,
@@ -566,10 +570,9 @@ export default function Cadastro() {
         for (const depPayload of depsToCreate) await api.post("/api/v1/dependentes", depPayload);
       }
 
-      // 3) cria contrato
       const todayISO = new Date().toISOString().slice(0, 10);
       const payloadContrato = {
-        titularId: Number(titularId), // SEMPRE ID DA PESSOA
+        titularId: Number(titularId),
         planoId: Number(planoId),
         vendedorId: 717, // ajuste se necessário
         dataContrato: todayISO,
@@ -603,7 +606,7 @@ export default function Cadastro() {
     return SEXO_OPTIONS.find(([val]) => val === v)?.[1] || "";
   }
 
-  // helper local: normaliza texto para WhatsApp
+  // Mensagem para fallback WhatsApp
   function normalizeWaText(str) {
     let s = (str ?? "").toString();
     s = s.normalize("NFKC").replace(/\r\n?/g, "\n").replace(/\u00A0/g, " ");
@@ -617,7 +620,6 @@ export default function Cadastro() {
   }
 
   function sendWhatsFallback() {
-    // 1) resolve número do tenant com fallback global
     let number =
       resolveTenantPhone(empresa) ||
       resolveGlobalFallback() ||
@@ -625,11 +627,9 @@ export default function Cadastro() {
       window.__WHATSAPP__ ||
       "";
 
-    // 2) normaliza (só dígitos) e garante DDI 55 se faltar
     number = onlyDigits(number);
     if (number && !number.startsWith("55")) number = `55${number}`;
 
-    // 3) montar mensagem (linhas cruas)
     const L = [];
     L.push("*Solicitação de Contratação*\n");
     L.push(`Plano: ${plano?.nome || planoId}`);
@@ -646,7 +646,6 @@ export default function Cadastro() {
     L.push(`Sexo: ${sexoLabelFromValue(titular.sexo)}`);
     L.push(`Celular: ${formatPhoneBR(titular.celular || "")}`);
     L.push(`E-mail: ${titular.email || "(não informado)"}`);
-    // Linha de RG removida deliberadamente
     L.push(`Estado civil: ${ESTADO_CIVIL_LABEL[titular.estado_civil] || titular.estado_civil || ""}`);
     L.push(`Nascimento: ${formatDateBR(titular.data_nascimento) || ""}`);
     const e = titular.endereco || {};
@@ -673,13 +672,12 @@ export default function Cadastro() {
       )
     );
 
-    // 4) normaliza e abre o WhatsApp
     const message = normalizeWaText(L.join("\n"));
     const href = buildWaHref({ number, message });
     window.open(href, "_blank", "noopener,noreferrer");
   }
 
-  // CEP interactions helpers
+  // CEP helpers
   const onCepChange = (v) => {
     setCepState((s) => ({ ...s, error: "", found: false }));
     updTitEndereco({ cep: v });
@@ -688,12 +686,15 @@ export default function Cadastro() {
   const onCepBlur = (v) => fetchCEP(v, applyViaCepData);
 
   const errorCount = errorList.length;
-
   const bloquearCadastro = lookupState.temContratoAtivo === true;
 
+  /* =============================================================================
+     RENDER
+  ============================================================================= */
   return (
     <section className="section">
       <div className="container-max">
+        {/* Voltar */}
         <div className="mb-4 flex items-center gap-2">
           <button
             onClick={() => navigate(-1)}
@@ -704,7 +705,7 @@ export default function Cadastro() {
           </button>
         </div>
 
-        {/* ====== Banner de checagem CPF/Pessoa/Contrato ====== */}
+        {/* Banner de checagem CPF/Pessoa/Contrato */}
         {(lookupState.running || lookupState.mensagem || lookupState.erro) && (
           <div
             className="mb-4 rounded-xl border p-4"
@@ -730,8 +731,6 @@ export default function Cadastro() {
                 {!lookupState.running && lookupState.erro && (
                   <p className="text-sm text-red-700">Falha na verificação automática: {lookupState.erro}</p>
                 )}
-
-                {/* Se há contrato ativo, oferece CTA para a área do associado */}
                 {!lookupState.running && lookupState.temContratoAtivo && (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <CTAButton onClick={() => navigate(AREA_ASSOCIADO_PATH)} className="h-10">
@@ -747,7 +746,7 @@ export default function Cadastro() {
           </div>
         )}
 
-        {/* ALERTA GLOBAL DE ERRO API */}
+        {/* ALERTA GLOBAL DE ERRO */}
         {error && (
           <div
             ref={alertRef}
@@ -765,637 +764,646 @@ export default function Cadastro() {
           </div>
         )}
 
-        <div className="space-y-8">
-          {/* Card 1: Dados do Titular (sempre exibimos leitura) */}
-          <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
-            <h1 className="text-2xl font-extrabold tracking-tight">Cadastro</h1>
-            <p className="mt-1 text-sm text-[var(--c-muted)]">
-              Plano <b>{plano?.nome || ""}</b> — Base mensal {money(baseMensal)}
-            </p>
+        {/* HEADER + SUBHEAD (Plano) */}
+        <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
+          <h1 className="text-2xl font-extrabold tracking-tight">Cadastro</h1>
+          <p className="mt-1 text-sm text-[var(--c-muted)]">
+            Plano <b>{plano?.nome || ""}</b> — Base mensal {money(baseMensal)}
+          </p>
 
+          {/* DADOS DO TITULAR (COLAPSÁVEL E COMPACTO) */}
+          <details className="mt-6 group open:pb-2" open>
+            <summary className="cursor-pointer list-none">
+              <SectionTitle
+                right={
+                  <span className="text-xs text-[var(--c-muted)] group-open:hidden">
+                    (toque para ver detalhes)
+                  </span>
+                }
+              >
+                Seus dados (usuário/Pessoa)
+              </SectionTitle>
+            </summary>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-4">
+              <FieldRead label="Nome" value={titular.nome} />
+              <FieldRead label="CPF" value={formatCPF(titular.cpf || "")} mono />
+              <FieldRead label="Nascimento" value={formatDateBR(titular.data_nascimento) || "—"} mono />
+              <FieldRead label="Celular" value={formatPhoneBR(titular.celular || "") || "—"} mono />
+              <div className="md:col-span-4">
+                <FieldRead label="E-mail" value={titular.email} />
+              </div>
+            </div>
+          </details>
+
+          {/* COMPLEMENTO — Foco no que falta preencher */}
+          {!bloquearCadastro && (
             <div className="mt-6">
-              <h2 className="font-semibold text-lg">Seus dados (usuário/Pessoa)</h2>
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <div className="rounded-xl border border-[var(--c-border)] p-3">
-                  <p className="text-[var(--c-muted)] text-xs">Nome</p>
-                  <p className="font-medium break-words">{titular.nome || "—"}</p>
+              <SectionTitle>Complemento do cadastro</SectionTitle>
+
+              <div className="mt-3 grid gap-3 md:grid-cols-12">
+                <div className="md:col-span-6">
+                  <label className="label" htmlFor="titular-ec">
+                    Estado civil {requiredStar}
+                  </label>
+                  <select
+                    id="titular-ec"
+                    ref={ecRef}
+                    className={`input h-11 w-full ${requiredRing(
+                      submitAttempted && isEmpty(titular.estado_civil)
+                    )}`}
+                    value={titular.estado_civil}
+                    onChange={(e) => updTit({ estado_civil: e.target.value })}
+                    aria-required="true"
+                    aria-invalid={submitAttempted && isEmpty(titular.estado_civil) ? "true" : "false"}
+                  >
+                    <option value="">Selecione…</option>
+                    {ESTADO_CIVIL_OPTIONS.map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                  {submitAttempted && isEmpty(titular.estado_civil) && (
+                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                      Selecione o estado civil.
+                    </p>
+                  )}
                 </div>
-                <div className="rounded-xl border border-[var(--c-border)] p-3">
-                  <p className="text-[var(--c-muted)] text-xs">CPF</p>
-                  <p className="font-medium">{formatCPF(titular.cpf || "") || "—"}</p>
-                </div>
-                <div className="rounded-xl border border-[var(--c-border)] p-3">
-                  <p className="text-[var(--c-muted)] text-xs">Data de nascimento</p>
-                  <p className="font-medium">{formatDateBR(titular.data_nascimento) || "—"}</p>
-                </div>
-                <div className="rounded-xl border border-[var(--c-border)] p-3">
-                  <p className="text-[var(--c-muted)] text-xs">Celular</p>
-                  <p className="font-medium">{formatPhoneBR(titular.celular || "") || "—"}</p>
-                </div>
-                <div className="rounded-xl border border-[var(--c-border)] p-3 md:col-span-2">
-                  <p className="text-[var(--c-muted)] text-xs">E-mail</p>
-                  <p className="font-medium break-words">{titular.email || "—"}</p>
+
+                <div className="md:col-span-6">
+                  <label className="label" htmlFor="titular-sexo">
+                    Sexo {requiredStar}
+                  </label>
+                  <select
+                    id="titular-sexo"
+                    ref={sexoRef}
+                    className={`input h-11 w-full ${requiredRing(submitAttempted && isEmpty(titular.sexo))}`}
+                    value={titular.sexo}
+                    onChange={(e) => updTit({ sexo: e.target.value })}
+                    aria-required="true"
+                    aria-invalid={submitAttempted && isEmpty(titular.sexo) ? "true" : "false"}
+                  >
+                    <option value="">Selecione…</option>
+                    {SEXO_OPTIONS.map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                  {submitAttempted && isEmpty(titular.sexo) && (
+                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                      Selecione o sexo.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
+          )}
+        </div>
 
-            {/* Complemento — só se não houver contrato ativo */}
-            {!bloquearCadastro && (
-              <div className="mt-8">
-                <h2 className="font-semibold text-lg">Complemento do cadastro</h2>
+        {/* BLOCO: ENDEREÇO */}
+        {!bloquearCadastro && (
+          <div className="mt-6 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
+            <SectionTitle>Endereço</SectionTitle>
 
-                <div className="mt-3 grid gap-3 md:grid-cols-12">
-                  <div className="md:col-span-6">
-                    <label className="label" htmlFor="titular-ec">
-                      Estado civil {requiredStar}
+            <div className="mt-4 grid gap-3">
+              <div className="grid gap-3 md:grid-cols-[210px,1fr,140px]">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <label className="label" htmlFor="end-cep">
+                      CEP {requiredStar}
                     </label>
-                    <select
-                      id="titular-ec"
-                      ref={ecRef}
-                      className={`input h-11 w-full ${requiredRing(
-                        submitAttempted && isEmpty(titular.estado_civil)
-                      )}`}
-                      value={titular.estado_civil}
-                      onChange={(e) => updTit({ estado_civil: e.target.value })}
-                      aria-required="true"
-                      aria-invalid={submitAttempted && isEmpty(titular.estado_civil) ? "true" : "false"}
+                    <button
+                      type="button"
+                      className="text-xs underline text-[var(--c-muted)] hover:opacity-80 disabled:opacity-50"
+                      onClick={() => fetchCEP(titular.endereco.cep, applyViaCepData)}
+                      disabled={cepState.loading || onlyDigits(titular.endereco.cep).length !== 8}
+                      aria-label="Buscar endereço pelo CEP"
                     >
-                      <option value="">Selecione…</option>
-                      {ESTADO_CIVIL_OPTIONS.map(([v, l]) => (
-                        <option key={v} value={v}>
-                          {l}
-                        </option>
-                      ))}
-                    </select>
-                    {submitAttempted && isEmpty(titular.estado_civil) && (
+                      {cepState.loading ? "Buscando..." : "Buscar CEP"}
+                    </button>
+                  </div>
+                  <input
+                    id="end-cep"
+                    ref={cepRef}
+                    className={`input h-11 ${
+                      requiredRing(submitAttempted && onlyDigits(titular.endereco.cep || "").length !== 8) ||
+                      (cepState.error ? " ring-1 ring-red-500" : "")
+                    }`}
+                    inputMode="numeric"
+                    maxLength={9}
+                    value={formatCEP(titular.endereco.cep)}
+                    onChange={(e) => {
+                      const v = maskCEP(e.target.value);
+                      onCepChange(v);
+                    }}
+                    onBlur={(e) => onCepBlur(e.target.value)}
+                    placeholder="00000-000"
+                    autoComplete="postal-code"
+                    aria-required="true"
+                    aria-invalid={
+                      (submitAttempted && onlyDigits(titular.endereco.cep || "").length !== 8) || !!cepState.error
+                        ? "true"
+                        : "false"
+                    }
+                    aria-describedby={cepState.error ? "cep-error" : undefined}
+                  />
+                  {submitAttempted &&
+                    onlyDigits(titular.endereco.cep || "").length !== 8 &&
+                    !cepState.error && (
                       <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                        Selecione o estado civil.
+                        CEP deve ter 8 dígitos.
                       </p>
                     )}
-                  </div>
-
-                  <div className="md:col-span-6">
-                    <label className="label" htmlFor="titular-sexo">
-                      Sexo {requiredStar}
-                    </label>
-                    <select
-                      id="titular-sexo"
-                      ref={sexoRef}
-                      className={`input h-11 w-full ${requiredRing(submitAttempted && isEmpty(titular.sexo))}`}
-                      value={titular.sexo}
-                      onChange={(e) => updTit({ sexo: e.target.value })}
-                      aria-required="true"
-                      aria-invalid={submitAttempted && isEmpty(titular.sexo) ? "true" : "false"}
-                    >
-                      <option value="">Selecione…</option>
-                      {SEXO_OPTIONS.map(([v, l]) => (
-                        <option key={v} value={v}>
-                          {l}
-                        </option>
-                      ))}
-                    </select>
-                    {submitAttempted && isEmpty(titular.sexo) && (
-                      <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                        Selecione o sexo.
-                      </p>
-                    )}
-                  </div>
+                  {cepState.error && (
+                    <p id="cep-error" className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                      {cepState.error}
+                    </p>
+                  )}
+                  {!cepState.error && cepState.found && (
+                    <p className="text-xs text-green-700 mt-1" aria-live="polite">
+                      Endereço preenchido pelo CEP.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="label" htmlFor="end-log">
+                    Logradouro {requiredStar}
+                  </label>
+                  <input
+                    id="end-log"
+                    ref={logRef}
+                    className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.logradouro))}`}
+                    value={titular.endereco.logradouro}
+                    onChange={(e) => {
+                      setAddrTouched({ logradouro: true });
+                      updTitEndereco({ logradouro: e.target.value });
+                    }}
+                    autoComplete="address-line1"
+                    aria-required="true"
+                    aria-invalid={submitAttempted && isEmpty(titular.endereco.logradouro) ? "true" : "false"}
+                    disabled={cepState.loading}
+                  />
+                  {submitAttempted && isEmpty(titular.endereco.logradouro) && (
+                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                      Informe o logradouro.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="label" htmlFor="end-num">
+                    Número {requiredStar}
+                  </label>
+                  <input
+                    id="end-num"
+                    ref={numRef}
+                    className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.numero))}`}
+                    value={titular.endereco.numero}
+                    onChange={(e) => updTitEndereco({ numero: e.target.value })}
+                    autoComplete="address-line2"
+                    aria-required="true"
+                    aria-invalid={submitAttempted && isEmpty(titular.endereco.numero) ? "true" : "false"}
+                    disabled={cepState.loading}
+                  />
+                  {submitAttempted && isEmpty(titular.endereco.numero) && (
+                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                      Informe o número.
+                    </p>
+                  )}
                 </div>
               </div>
-            )}
+
+              <div className="grid gap-3 md:grid-cols-[1fr,1fr,1fr,100px]">
+                <div>
+                  <label className="label" htmlFor="end-comp">
+                    Complemento
+                  </label>
+                  <input
+                    id="end-comp"
+                    className="input h-11"
+                    value={titular.endereco.complemento}
+                    onChange={(e) => updTitEndereco({ complemento: e.target.value })}
+                    disabled={cepState.loading}
+                  />
+                </div>
+                <div>
+                  <label className="label" htmlFor="end-bairro">
+                    Bairro {requiredStar}
+                  </label>
+                  <input
+                    id="end-bairro"
+                    ref={bairroRef}
+                    className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.bairro))}`}
+                    value={titular.endereco.bairro}
+                    onChange={(e) => {
+                      setAddrTouched({ bairro: true });
+                      updTitEndereco({ bairro: e.target.value });
+                    }}
+                    aria-required="true"
+                    aria-invalid={submitAttempted && isEmpty(titular.endereco.bairro) ? "true" : "false"}
+                    disabled={cepState.loading}
+                  />
+                  {submitAttempted && isEmpty(titular.endereco.bairro) && (
+                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                      Informe o bairro.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="label" htmlFor="end-cidade">
+                    Cidade {requiredStar}
+                  </label>
+                  <input
+                    id="end-cidade"
+                    ref={cidadeRef}
+                    className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.cidade))}`}
+                    value={titular.endereco.cidade}
+                    onChange={(e) => {
+                      setAddrTouched({ cidade: true });
+                      const cidade = e.target.value;
+                      const uf = titular.endereco.uf || UF_PADRAO || "";
+                      updTitEndereco({ cidade, uf });
+                    }}
+                    autoComplete="address-level2"
+                    aria-required="true"
+                    aria-invalid={submitAttempted && isEmpty(titular.endereco.cidade) ? "true" : "false"}
+                    disabled={cepState.loading}
+                  />
+                  {submitAttempted && isEmpty(titular.endereco.cidade) && (
+                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                      Informe a cidade.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="label" htmlFor="end-uf">
+                    UF {requiredStar}
+                  </label>
+                  <input
+                    id="end-uf"
+                    ref={ufRef}
+                    className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.uf))}`}
+                    value={titular.endereco.uf}
+                    onChange={(e) => {
+                      setAddrTouched({ uf: true });
+                      const v = sanitizeUF(e.target.value);
+                      updTitEndereco({ uf: v });
+                    }}
+                    maxLength={2}
+                    autoComplete="address-level1"
+                    aria-required="true"
+                    aria-invalid={submitAttempted && isEmpty(titular.endereco.uf) ? "true" : "false"}
+                    disabled={cepState.loading}
+                  />
+                  {submitAttempted && isEmpty(titular.endereco.uf) && (
+                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                      Informe a UF.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
+        )}
 
-          {/* Endereço — só se não houver contrato ativo */}
-          {!bloquearCadastro && (
-            <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
-              <h2 className="font-semibold text-lg">Endereço</h2>
-
-              <div className="mt-4 grid gap-3">
-                <div className="grid gap-3 md:grid-cols-[210px,1fr,140px]">
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <label className="label" htmlFor="end-cep">
-                        CEP {requiredStar}
-                      </label>
-                      <button
-                        type="button"
-                        className="text-xs underline text-[var(--c-muted)] hover:opacity-80 disabled:opacity-50"
-                        onClick={() => fetchCEP(titular.endereco.cep, applyViaCepData)}
-                        disabled={cepState.loading || onlyDigits(titular.endereco.cep).length !== 8}
-                        aria-label="Buscar endereço pelo CEP"
-                      >
-                        {cepState.loading ? "Buscando..." : "Buscar CEP"}
-                      </button>
-                    </div>
-                    <input
-                      id="end-cep"
-                      ref={cepRef}
-                      className={`input h-11 ${
-                        requiredRing(submitAttempted && onlyDigits(titular.endereco.cep || "").length !== 8) ||
-                        (cepState.error ? " ring-1 ring-red-500" : "")
-                      }`}
-                      inputMode="numeric"
-                      maxLength={9}
-                      value={formatCEP(titular.endereco.cep)}
-                      onChange={(e) => {
-                        const v = maskCEP(e.target.value);
-                        onCepChange(v);
-                      }}
-                      onBlur={(e) => onCepBlur(e.target.value)}
-                      placeholder="00000-000"
-                      autoComplete="postal-code"
-                      aria-required="true"
-                      aria-invalid={
-                        (submitAttempted && onlyDigits(titular.endereco.cep || "").length !== 8) || !!cepState.error
-                          ? "true"
-                          : "false"
-                      }
-                      aria-describedby={cepState.error ? "cep-error" : undefined}
-                    />
-                    {submitAttempted &&
-                      onlyDigits(titular.endereco.cep || "").length !== 8 &&
-                      !cepState.error && (
-                        <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                          CEP deve ter 8 dígitos.
-                        </p>
-                      )}
-                    {cepState.error && (
-                      <p id="cep-error" className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                        {cepState.error}
-                      </p>
-                    )}
-                    {!cepState.error && cepState.found && (
-                      <p className="text-xs text-green-700 mt-1" aria-live="polite">
-                        Endereço preenchido pelo CEP.
-                      </p>
-                    )}
+        {/* Dependentes existentes (colapsável e compacto) */}
+        {!bloquearCadastro && depsExistentes.length > 0 && (
+          <details className="mt-6 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6" open>
+            <summary className="cursor-pointer list-none">
+              <SectionTitle>Dependentes existentes (somente leitura)</SectionTitle>
+            </summary>
+            <div className="mt-4 grid gap-3">
+              {depsExistentes.map((d, i) => (
+                <div
+                  key={d.id || i}
+                  className="rounded-xl border p-3 grid md:grid-cols-12 gap-3"
+                >
+                  <div className="md:col-span-4">
+                    <p className="text-xs text-[var(--c-muted)]">Nome</p>
+                    <p className="font-medium break-words">{d.nome}</p>
                   </div>
-                  <div>
-                    <label className="label" htmlFor="end-log">
-                      Logradouro {requiredStar}
-                    </label>
-                    <input
-                      id="end-log"
-                      ref={logRef}
-                      className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.logradouro))}`}
-                      value={titular.endereco.logradouro}
-                      onChange={(e) => {
-                        setAddrTouched({ logradouro: true });
-                        updTitEndereco({ logradouro: e.target.value });
-                      }}
-                      autoComplete="address-line1"
-                      aria-required="true"
-                      aria-invalid={submitAttempted && isEmpty(titular.endereco.logradouro) ? "true" : "false"}
-                      disabled={cepState.loading}
-                    />
-                    {submitAttempted && isEmpty(titular.endereco.logradouro) && (
-                      <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                        Informe o logradouro.
-                      </p>
-                    )}
+                  <div className="md:col-span-2">
+                    <p className="text-xs text-[var(--c-muted)]">CPF</p>
+                    <p className="font-medium">{formatCPF(d.cpf || "") || "—"}</p>
                   </div>
-                  <div>
-                    <label className="label" htmlFor="end-num">
-                      Número {requiredStar}
-                    </label>
-                    <input
-                      id="end-num"
-                      ref={numRef}
-                      className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.numero))}`}
-                      value={titular.endereco.numero}
-                      onChange={(e) => updTitEndereco({ numero: e.target.value })}
-                      autoComplete="address-line2"
-                      aria-required="true"
-                      aria-invalid={submitAttempted && isEmpty(titular.endereco.numero) ? "true" : "false"}
-                      disabled={cepState.loading}
-                    />
-                    {submitAttempted && isEmpty(titular.endereco.numero) && (
-                      <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                        Informe o número.
-                      </p>
-                    )}
+                  <div className="md:col-span-2">
+                    <p className="text-xs text-[var(--c-muted)]">Parentesco</p>
+                    <p className="font-medium">{PARENTESCO_LABELS[d.parentesco] || d.parentesco || "—"}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-xs text-[var(--c-muted)]">Sexo</p>
+                    <p className="font-medium">{sexoLabelFromValue(d.sexo) || "—"}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-xs text-[var(--c-muted)]">Nascimento</p>
+                    <p className="font-medium">{formatDateBR(d.data_nascimento) || "—"}</p>
                   </div>
                 </div>
-
-                <div className="grid gap-3 md:grid-cols-[1fr,1fr,1fr,100px]">
-                  <div>
-                    <label className="label" htmlFor="end-comp">
-                      Complemento
-                    </label>
-                    <input
-                      id="end-comp"
-                      className="input h-11"
-                      value={titular.endereco.complemento}
-                      onChange={(e) => updTitEndereco({ complemento: e.target.value })}
-                      disabled={cepState.loading}
-                    />
-                  </div>
-                  <div>
-                    <label className="label" htmlFor="end-bairro">
-                      Bairro {requiredStar}
-                    </label>
-                    <input
-                      id="end-bairro"
-                      ref={bairroRef}
-                      className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.bairro))}`}
-                      value={titular.endereco.bairro}
-                      onChange={(e) => {
-                        setAddrTouched({ bairro: true });
-                        updTitEndereco({ bairro: e.target.value });
-                      }}
-                      aria-required="true"
-                      aria-invalid={submitAttempted && isEmpty(titular.endereco.bairro) ? "true" : "false"}
-                      disabled={cepState.loading}
-                    />
-                    {submitAttempted && isEmpty(titular.endereco.bairro) && (
-                      <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                        Informe o bairro.
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="label" htmlFor="end-cidade">
-                      Cidade {requiredStar}
-                    </label>
-                    <input
-                      id="end-cidade"
-                      ref={cidadeRef}
-                      className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.cidade))}`}
-                      value={titular.endereco.cidade}
-                      onChange={(e) => {
-                        setAddrTouched({ cidade: true });
-                        const cidade = e.target.value;
-                        const uf = titular.endereco.uf || UF_PADRAO || "";
-                        updTitEndereco({ cidade, uf });
-                      }}
-                      autoComplete="address-level2"
-                      aria-required="true"
-                      aria-invalid={submitAttempted && isEmpty(titular.endereco.cidade) ? "true" : "false"}
-                      disabled={cepState.loading}
-                    />
-                    {submitAttempted && isEmpty(titular.endereco.cidade) && (
-                      <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                        Informe a cidade.
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="label" htmlFor="end-uf">
-                      UF {requiredStar}
-                    </label>
-                    <input
-                      id="end-uf"
-                      ref={ufRef}
-                      className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.uf))}`}
-                      value={titular.endereco.uf}
-                      onChange={(e) => {
-                        setAddrTouched({ uf: true });
-                        const v = sanitizeUF(e.target.value);
-                        updTitEndereco({ uf: v });
-                      }}
-                      maxLength={2}
-                      autoComplete="address-level1"
-                      aria-required="true"
-                      aria-invalid={submitAttempted && isEmpty(titular.endereco.uf) ? "true" : "false"}
-                      disabled={cepState.loading}
-                    />
-                    {submitAttempted && isEmpty(titular.endereco.uf) && (
-                      <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                        Informe a UF.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
-          )}
+          </details>
+        )}
 
-          {/* Dependentes existentes (somente leitura) */}
-          {!bloquearCadastro && depsExistentes.length > 0 && (
-            <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
-              <h2 className="font-semibold text-lg">Dependentes existentes (somente leitura)</h2>
-              <div className="mt-4 grid gap-3">
-                {depsExistentes.map((d, i) => (
-                  <div key={d.id || i} className="rounded-xl border p-3 grid md:grid-cols-12 gap-3 bg-[var(--c-muted-bg,transparent)]">
-                    <div className="md:col-span-4">
-                      <p className="text-xs text-[var(--c-muted)]">Nome</p>
-                      <p className="font-medium break-words">{d.nome}</p>
-                    </div>
-                    <div className="md:col-span-2">
-                      <p className="text-xs text-[var(--c-muted)]">CPF</p>
-                      <p className="font-medium">{formatCPF(d.cpf || "") || "—"}</p>
-                    </div>
-                    <div className="md:col-span-2">
-                      <p className="text-xs text-[var(--c-muted)]">Parentesco</p>
-                      <p className="font-medium">{PARENTESCO_LABELS[d.parentesco] || d.parentesco || "—"}</p>
-                    </div>
-                    <div className="md:col-span-2">
-                      <p className="text-xs text-[var(--c-muted)]">Sexo</p>
-                      <p className="font-medium">{sexoLabelFromValue(d.sexo) || "—"}</p>
-                    </div>
-                    <div className="md:col-span-2">
-                      <p className="text-xs text-[var(--c-muted)]">Nascimento</p>
-                      <p className="font-medium">{formatDateBR(d.data_nascimento) || "—"}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Dependentes novos — só se não houver contrato ativo */}
-          {!bloquearCadastro && (
-            <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold text-lg">
-                  Adicionar novos dependentes ({depsNovos.length})
-                </h2>
+        {/* Dependentes novos */}
+        {!bloquearCadastro && (
+          <div className="mt-6 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
+            <SectionTitle
+              right={
                 <CTAButton onClick={addDepNovo} className="h-10">
                   <Plus size={16} className="mr-2" />
                   Adicionar dependente
                 </CTAButton>
-              </div>
+              }
+            >
+              Adicionar novos dependentes ({depsNovos.length})
+            </SectionTitle>
 
-              <div className="mt-4 grid gap-4">
-                {depsNovos.map((d, i) => {
-                  const issue = depsIssuesNovos[i];
-                  return (
-                    <div key={i} className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-semibold">Dependente novo {i + 1}</span>
-                        <CTAButton variant="ghost" onClick={() => delDepNovo(i)} className="h-9 px-3" aria-label={`Remover dependente novo ${i + 1}`}>
-                          <Trash2 size={16} className="mr-2" /> Remover
-                        </CTAButton>
+            <div className="mt-4 grid gap-4">
+              {depsNovos.map((d, i) => {
+                const issue = depsIssuesNovos[i];
+                return (
+                  <div key={i} className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="inline-flex items-center gap-2 text-sm font-semibold">
+                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[var(--c-border)] text-xs">
+                          {i + 1}
+                        </span>
+                        Dependente novo
+                      </span>
+                      <CTAButton variant="ghost" onClick={() => delDepNovo(i)} className="h-9 px-3" aria-label={`Remover dependente novo ${i + 1}`}>
+                        <Trash2 size={16} className="mr-2" /> Remover
+                      </CTAButton>
+                    </div>
+
+                    {/* Linha 1 */}
+                    <div className="grid gap-3 md:grid-cols-12">
+                      <div className="md:col-span-6">
+                        <label className="label" htmlFor={`depN-${i}-nome`}>
+                          Nome completo {requiredStar}
+                        </label>
+                        <input
+                          id={`depN-${i}-nome`}
+                          className={`input h-11 w-full ${requiredRing(submitAttempted && !((d.nome || "").trim().length >= 3))}`}
+                          placeholder="Nome do dependente"
+                          value={d.nome}
+                          onChange={(e) => updDepNovo(i, { nome: e.target.value })}
+                          aria-required="true"
+                          aria-invalid={submitAttempted && !((d.nome || "").trim().length >= 3) ? "true" : "false"}
+                        />
+                        {submitAttempted && !((d.nome || "").trim().length >= 3) && (
+                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                            Informe o nome (mín. 3 caracteres).
+                          </p>
+                        )}
                       </div>
-
-                      {/* Linha 1 */}
-                      <div className="grid gap-3 md:grid-cols-12">
-                        <div className="md:col-span-6">
-                          <label className="label" htmlFor={`depN-${i}-nome`}>
-                            Nome completo {requiredStar}
-                          </label>
-                          <input
-                            id={`depN-${i}-nome`}
-                            className={`input h-11 w-full ${requiredRing(submitAttempted && !((d.nome || "").trim().length >= 3))}`}
-                            placeholder="Nome do dependente"
-                            value={d.nome}
-                            onChange={(e) => updDepNovo(i, { nome: e.target.value })}
-                            aria-required="true"
-                            aria-invalid={submitAttempted && !((d.nome || "").trim().length >= 3) ? "true" : "false"}
-                          />
-                          {submitAttempted && !((d.nome || "").trim().length >= 3) && (
-                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                              Informe o nome (mín. 3 caracteres).
-                            </p>
-                          )}
-                        </div>
-                        <div className="md:col-span-3">
-                          <label className="label" htmlFor={`depN-${i}-parentesco`}>
-                            Parentesco {requiredStar}
-                          </label>
-                          <select
-                            id={`depN-${i}-parentesco`}
-                            className={`input h-11 w-full ${requiredRing(submitAttempted && isEmpty(d.parentesco))}`}
-                            value={d.parentesco}
-                            onChange={(e) => updDepNovo(i, { parentesco: e.target.value })}
-                            aria-required="true"
-                            aria-invalid={submitAttempted && isEmpty(d.parentesco) ? "true" : "false"}
-                          >
-                            <option value="">Selecione…</option>
-                            {(plano?.parentescos?.length ? plano.parentescos : PARENTESCOS_FALLBACK.map(([v]) => v)).map((v) => (
-                              <option key={v} value={v}>
-                                {PARENTESCO_LABELS[v] || v}
-                              </option>
-                            ))}
-                          </select>
-                          {submitAttempted && isEmpty(d.parentesco) && (
-                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                              Selecione o parentesco.
-                            </p>
-                          )}
-                        </div>
-                        <div className="md:col-span-3">
-                          <label className="label" htmlFor={`depN-${i}-sexo`}>
-                            Sexo {requiredStar}
-                          </label>
-                          <select
-                            id={`depN-${i}-sexo`}
-                            className={`input h-11 w-full ${requiredRing(submitAttempted && isEmpty(d.sexo))}`}
-                            value={d.sexo || ""}
-                            onChange={(e) => updDepNovo(i, { sexo: e.target.value })}
-                            aria-required="true"
-                            aria-invalid={submitAttempted && isEmpty(d.sexo) ? "true" : "false"}
-                          >
-                            <option value="">Selecione…</option>
-                            {SEXO_OPTIONS.map(([v, l]) => (
-                              <option key={v} value={v}>
-                                {l}
-                              </option>
-                            ))}
-                          </select>
-                          {submitAttempted && isEmpty(d.sexo) && (
-                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                              Selecione o sexo.
-                            </p>
-                          )}
-                        </div>
+                      <div className="md:col-span-3">
+                        <label className="label" htmlFor={`depN-${i}-parentesco`}>
+                          Parentesco {requiredStar}
+                        </label>
+                        <select
+                          id={`depN-${i}-parentesco`}
+                          className={`input h-11 w-full ${requiredRing(submitAttempted && isEmpty(d.parentesco))}`}
+                          value={d.parentesco}
+                          onChange={(e) => updDepNovo(i, { parentesco: e.target.value })}
+                          aria-required="true"
+                          aria-invalid={submitAttempted && isEmpty(d.parentesco) ? "true" : "false"}
+                        >
+                          <option value="">Selecione…</option>
+                          {(plano?.parentescos?.length ? plano.parentescos : PARENTESCOS_FALLBACK.map(([v]) => v)).map((v) => (
+                            <option key={v} value={v}>
+                              {PARENTESCO_LABELS[v] || v}
+                            </option>
+                          ))}
+                        </select>
+                        {submitAttempted && isEmpty(d.parentesco) && (
+                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                            Selecione o parentesco.
+                          </p>
+                        )}
                       </div>
-
-                      {/* Linha 2 */}
-                      <div className="grid gap-3 md:grid-cols-12 mt-2">
-                        <div className="md:col-span-6">
-                          <label className="label" htmlFor={`depN-${i}-cpf`}>
-                            CPF (opcional)
-                          </label>
-                          <input
-                            id={`depN-${i}-cpf`}
-                            className={`input h-11 w-full ${d.cpf && !cpfIsValid(d.cpf) ? "ring-1 ring-red-500" : ""}`}
-                            inputMode="numeric"
-                            maxLength={14}
-                            placeholder="000.000.000-00"
-                            value={formatCPF(d.cpf || "")}
-                            onChange={(e) => updDepNovo(i, { cpf: maskCPF(e.target.value) })}
-                            aria-invalid={d.cpf && !cpfIsValid(d.cpf) ? "true" : "false"}
-                          />
-                          {d.cpf && !cpfIsValid(d.cpf) && (
-                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                              CPF inválido.
-                            </p>
-                          )}
-                        </div>
-                        <div className="md:col-span-6">
-                          <label className="label">Data de nascimento {requiredStar}</label>
-                          <DateSelectBR
-                            className="w-full"
-                            idPrefix={`depN-${i}-nasc`}
-                            valueISO={d.data_nascimento}
-                            onChangeISO={(iso) => updDepNovo(i, { data_nascimento: iso })}
-                            invalid={Boolean(submitAttempted && (!d.data_nascimento || issue?.fora))}
-                            minAge={Number.isFinite(idadeMinDep) ? Number(idadeMinDep) : undefined}
-                            maxAge={Number.isFinite(idadeMaxDep) ? Number(idadeMaxDep) : undefined}
-                          />
-                          {submitAttempted && !d.data_nascimento && (
-                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                              Informe a data de nascimento.
-                            </p>
-                          )}
-                          {submitAttempted && d.data_nascimento && issue?.fora && (
-                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                              Data fora do limite etário do plano.
-                            </p>
-                          )}
-                        </div>
+                      <div className="md:col-span-3">
+                        <label className="label" htmlFor={`depN-${i}-sexo`}>
+                          Sexo {requiredStar}
+                        </label>
+                        <select
+                          id={`depN-${i}-sexo`}
+                          className={`input h-11 w-full ${requiredRing(submitAttempted && isEmpty(d.sexo))}`}
+                          value={d.sexo || ""}
+                          onChange={(e) => updDepNovo(i, { sexo: e.target.value })}
+                          aria-required="true"
+                          aria-invalid={submitAttempted && isEmpty(d.sexo) ? "true" : "false"}
+                        >
+                          <option value="">Selecione…</option>
+                          {SEXO_OPTIONS.map(([v, l]) => (
+                            <option key={v} value={v}>
+                              {l}
+                            </option>
+                          ))}
+                        </select>
+                        {submitAttempted && isEmpty(d.sexo) && (
+                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                            Selecione o sexo.
+                          </p>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
 
-              {countDepsFora > 0 && (
-                <p className="mt-2 text-xs inline-flex items-center gap-1 text-red-600" role="alert" aria-live="polite">
-                  <AlertTriangle size={14} /> {countDepsFora} dependente(s) fora do limite etário do plano.
+                    {/* Linha 2 */}
+                    <div className="grid gap-3 md:grid-cols-12 mt-2">
+                      <div className="md:col-span-6">
+                        <label className="label" htmlFor={`depN-${i}-cpf`}>
+                          CPF (opcional)
+                        </label>
+                        <input
+                          id={`depN-${i}-cpf`}
+                          className={`input h-11 w-full ${d.cpf && !cpfIsValid(d.cpf) ? "ring-1 ring-red-500" : ""}`}
+                          inputMode="numeric"
+                          maxLength={14}
+                          placeholder="000.000.000-00"
+                          value={formatCPF(d.cpf || "")}
+                          onChange={(e) => updDepNovo(i, { cpf: maskCPF(e.target.value) })}
+                          aria-invalid={d.cpf && !cpfIsValid(d.cpf) ? "true" : "false"}
+                        />
+                        {d.cpf && !cpfIsValid(d.cpf) && (
+                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                            CPF inválido.
+                          </p>
+                        )}
+                      </div>
+                      <div className="md:col-span-6">
+                        <label className="label">Data de nascimento {requiredStar}</label>
+                        <DateSelectBR
+                          className="w-full"
+                          idPrefix={`depN-${i}-nasc`}
+                          valueISO={d.data_nascimento}
+                          onChangeISO={(iso) => updDepNovo(i, { data_nascimento: iso })}
+                          invalid={Boolean(submitAttempted && (!d.data_nascimento || issue?.fora))}
+                          minAge={Number.isFinite(idadeMinDep) ? Number(idadeMinDep) : undefined}
+                          maxAge={Number.isFinite(idadeMaxDep) ? Number(idadeMaxDep) : undefined}
+                        />
+                        {submitAttempted && !d.data_nascimento && (
+                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                            Informe a data de nascimento.
+                          </p>
+                        )}
+                        {submitAttempted && d.data_nascimento && issue?.fora && (
+                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                            Data fora do limite etário do plano.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {countDepsFora > 0 && (
+              <p className="mt-2 text-xs inline-flex items-center gap-1 text-red-600" role="alert" aria-live="polite">
+                <AlertTriangle size={14} /> {countDepsFora} dependente(s) fora do limite etário do plano.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Cobrança (Dia D) */}
+        {!bloquearCadastro && (
+          <div className="mt-6 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
+            <SectionTitle>Cobrança</SectionTitle>
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              <div className="md:col-span-1">
+                <label className="label" htmlFor="diaD">
+                  Dia D (vencimento)
+                </label>
+                <select
+                  id="diaD"
+                  className="input h-11 w-full"
+                  value={diaDSelecionado}
+                  onChange={(e) => setDiaDSelecionado(Number(e.target.value))}
+                >
+                  {DIA_D_OPTIONS.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-[var(--c-muted)] mt-1">
+                  A primeira cobrança ocorre na <b>data de efetivação</b> abaixo (próximo mês).
                 </p>
-              )}
-            </div>
-          )}
-
-          {/* Cobrança (Dia D) — só se não houver contrato ativo */}
-          {!bloquearCadastro && (
-            <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
-              <h3 className="text-lg font-semibold">Cobrança</h3>
-              <div className="mt-3 grid gap-3 md:grid-cols-3">
-                <div className="md:col-span-1">
-                  <label className="label" htmlFor="diaD">
-                    Dia D (vencimento)
-                  </label>
-                  <select
-                    id="diaD"
-                    className="input h-11 w-full"
-                    value={diaDSelecionado}
-                    onChange={(e) => setDiaDSelecionado(Number(e.target.value))}
-                  >
-                    {DIA_D_OPTIONS.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-[var(--c-muted)] mt-1">
-                    A primeira cobrança ocorre na <b>data de efetivação</b> abaixo (próximo mês).
-                  </p>
+              </div>
+              <div className="md:col-span-2 grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-[var(--c-border)] p-3">
+                  <p className="text-[var(--c-muted)] text-xs">Data de efetivação</p>
+                  <p className="font-medium">{formatDateBR(dataEfetivacaoISO)}</p>
                 </div>
-                <div className="md:col-span-2 grid grid-cols-2 gap-3">
-                  <div className="rounded-xl border border-[var(--c-border)] p-3">
-                    <p className="text-[var(--c-muted)] text-xs">Data de efetivação</p>
-                    <p className="font-medium">{formatDateBR(dataEfetivacaoISO)}</p>
-                  </div>
-                  <div className="rounded-xl border border-[var(--c-border)] p-3">
-                    <p className="text-[var(--c-muted)] text-xs">Mensalidade</p>
-                    <p className="font-medium">{money(valorMensalidadePlano)}</p>
-                  </div>
+                <div className="rounded-xl border border-[var(--c-border)] p-3">
+                  <p className="text-[var(--c-muted)] text-xs">Mensalidade</p>
+                  <p className="font-medium">{money(valorMensalidadePlano)}</p>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Resumo — sempre exibe (só leitura) */}
-          <div className="p-6 bg-[var(--c-surface)] rounded-2xl border border-[var(--c-border)] shadow-lg">
-            <h3 className="mb-3 text-lg font-semibold">Resumo</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-[var(--c-muted)]">Plano</span>
-                <span className="font-medium text-right">{plano?.nome}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[var(--c-muted)]">Base mensal</span>
-                <span>{money(baseMensal)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[var(--c-muted)]">Incluídos no plano</span>
-                <span>{numDepsIncl}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[var(--c-muted)]">
-                  Dependentes adicionais ({Math.max(0, (depsExistentes.length + depsNovos.length) - numDepsIncl)}) × {money(valorIncMensal)}
-                </span>
-                <span>{money(Math.max(0, (depsExistentes.length + depsNovos.length) - numDepsIncl) * valorIncMensal)}</span>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-[var(--c-muted)]">Adesão (única)</span>
-                <span>{money(valorAdesaoPlano)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[var(--c-muted)]">Dia D</span>
-                <span>{diaDSelecionado}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[var(--c-muted)]">Efetivação</span>
-                <span className="font-medium">{formatDateBR(dataEfetivacaoISO)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[var(--c-muted)]">Mensalidade</span>
-                <span>{money(valorMensalidadePlano)}</span>
-              </div>
-
-              <hr className="my-2" />
-              <div className="flex justify-between font-semibold text-base">
-                <span>Total mensal</span>
-                <span className="text-[color:var(--primary)] font-extrabold">{money(totalMensal)}</span>
-              </div>
-              {cupom ? (
-                <div className="flex justify-between">
-                  <span className="text-[var(--c-muted)]">Cupom</span>
-                  <span className="font-medium">{cupom}</span>
-                </div>
-              ) : null}
             </div>
           </div>
+        )}
 
-          {/* Ações — só se não houver contrato ativo */}
-          {!bloquearCadastro && (
-            <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
-              {submitAttempted && errorList.length > 0 && (
-                <div
-                  className="rounded-lg px-4 py-3 text-sm mb-4"
-                  style={{
-                    border: "1px solid color-mix(in srgb, var(--primary) 30%, transparent)",
-                    background: "color-mix(in srgb, var(--primary) 12%, transparent)",
-                    color: "var(--text)",
-                  }}
-                  role="alert"
-                  aria-live="assertive"
-                  ref={alertRef}
-                  tabIndex={-1}
-                >
-                  <p className="font-medium mb-1">Corrija os itens abaixo ({errorCount}):</p>
-                  <ul className="list-disc ml-5 space-y-1">
-                    {errorList.map((it, idx) => (
-                      <li key={idx}>
-                        <button
-                          type="button"
-                          className="underline hover:opacity-80"
-                          onClick={() => focusByField(it.field)}
-                        >
-                          {it.label}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+        {/* Resumo (sempre) */}
+        <div className="mt-6 p-6 bg-[var(--c-surface)] rounded-2xl border border-[var(--c-border)] shadow-lg">
+          <SectionTitle>Resumo</SectionTitle>
+          <div className="mt-3 space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-[var(--c-muted)]">Plano</span>
+              <span className="font-medium text-right">{plano?.nome}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--c-muted)]">Base mensal</span>
+              <span>{money(baseMensal)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--c-muted)]">Incluídos no plano</span>
+              <span>{numDepsIncl}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--c-muted)]">
+                Dependentes adicionais ({Math.max(0, (depsExistentes.length + depsNovos.length) - numDepsIncl)}) × {money(valorIncMensal)}
+              </span>
+              <span>{money(Math.max(0, (depsExistentes.length + depsNovos.length) - numDepsIncl) * valorIncMensal)}</span>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <CTAButton
-                  type="button"
-                  onClick={handleSalvarEnviar}
-                  disabled={saving}
-                  className="h-12 w-full"
-                  aria-disabled={saving ? "true" : "false"}
-                  title="Salvar e continuar"
-                >
-                  {saving ? "Enviando…" : "Salvar e continuar"}
-                </CTAButton>
+            <div className="flex justify-between">
+              <span className="text-[var(--c-muted)]">Adesão (única)</span>
+              <span>{money(valorAdesaoPlano)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--c-muted)]">Dia D</span>
+              <span>{diaDSelecionado}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--c-muted)]">Efetivação</span>
+              <span className="font-medium">{formatDateBR(dataEfetivacaoISO)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[var(--c-muted)]">Mensalidade</span>
+              <span>{money(valorMensalidadePlano)}</span>
+            </div>
+
+            <hr className="my-2" />
+            <div className="flex justify-between font-semibold text-base">
+              <span>Total mensal</span>
+              <span className="text-[color:var(--primary)] font-extrabold">{money(totalMensal)}</span>
+            </div>
+            {cupom ? (
+              <div className="flex justify-between">
+                <span className="text-[var(--c-muted)]">Cupom</span>
+                <span className="font-medium">{cupom}</span>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Ações */}
+        {!bloquearCadastro && (
+          <div className="mt-6 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
+            {submitAttempted && errorList.length > 0 && (
+              <div
+                className="rounded-lg px-4 py-3 text-sm mb-4"
+                style={{
+                  border: "1px solid color-mix(in srgb, var(--primary) 30%, transparent)",
+                  background: "color-mix(in srgb, var(--primary) 12%, transparent)",
+                  color: "var(--text)",
+                }}
+                role="alert"
+                aria-live="assertive"
+                ref={alertRef}
+                tabIndex={-1}
+              >
+                <p className="font-medium mb-1">Corrija os itens abaixo ({errorCount}):</p>
+                <ul className="list-disc ml-5 space-y-1">
+                  {errorList.map((it, idx) => (
+                    <li key={idx}>
+                      <button
+                        type="button"
+                        className="underline hover:opacity-80"
+                        onClick={() => focusByField(it.field)}
+                      >
+                        {it.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <CTAButton
+                type="button"
+                onClick={handleSalvarEnviar}
+                disabled={saving}
+                className="h-12 w-full"
+                aria-disabled={saving ? "true" : "false"}
+                title="Salvar e continuar"
+              >
+                {saving ? "Enviando…" : "Salvar e continuar"}
+              </CTAButton>
 
               <CTAButton
                 variant="outline"
@@ -1405,14 +1413,13 @@ export default function Cadastro() {
               >
                 <MessageCircle size={16} className="mr-2" /> Enviar por WhatsApp
               </CTAButton>
-              </div>
-
-              <p className="mt-3 text-xs text-[var(--c-muted)] inline-flex items-center gap-1">
-                <CheckCircle2 size={14} /> Seus dados não são gravados neste dispositivo.
-              </p>
             </div>
-          )}
-        </div>
+
+            <p className="mt-3 text-xs text-[var(--c-muted)] inline-flex items-center gap-1">
+              <CheckCircle2 size={14} /> Seus dados não são gravados neste dispositivo.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* mobile sticky footer */}
