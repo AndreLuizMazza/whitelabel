@@ -3,29 +3,94 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '@/lib/api.js'
 import { pick, money, getMensal } from '@/lib/planUtils.js'
-import { Sparkles, CheckCircle2, Clock3, MessageCircle } from 'lucide-react'
+import { Sparkles, CheckCircle2, Clock3, ShieldCheck, BadgeCheck, Info } from 'lucide-react'
 import CTAButton from '@/components/ui/CTAButton'
 import useAuth from '@/store/auth'
-import useTenant from '@/store/tenant'
-import {
-  resolveTenantPhone,
-  resolveGlobalFallback,
-  buildWaHref,
-} from '@/lib/whats'
 
-/* ---------- Toast (sutil, para feedbacks menores) ---------- */
+/* =========== util/infra =========== */
+const track = (..._args) => {} // plugar no seu analytics
+
+const toNum = (v) => {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : NaN
+}
+const isNum = (v) => Number.isFinite(toNum(v))
+
+/* ---------- Toast (sutil, acessível) ---------- */
 function Toast({ show, message }) {
   return (
     <div
-      className={`pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center transition-opacity duration-200 ${show ? 'opacity-100' : 'opacity-0'}`}
+      className={`pointer-events-none fixed inset-x-0 bottom-20 z-[60] flex justify-center transition-opacity duration-200 ${show ? 'opacity-100' : 'opacity-0'}`}
       aria-live="polite"
       aria-atomic="true"
+      role="status"
     >
       <div
-        className="pointer-events-auto rounded-full px-4 py-2 text-sm shadow-lg border"
-        style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)', color: 'var(--c-text)' }}
+        className="pointer-events-auto rounded-full px-4 py-2 text-sm shadow-lg border bg-[var(--c-surface)]"
+        style={{ borderColor: 'var(--c-border)', color: 'var(--c-text)' }}
       >
         {message}
+      </div>
+    </div>
+  )
+}
+
+/* ---------- Alert inline ---------- */
+function InlineNote({ icon, children }) {
+  return (
+    <div
+      className="mt-4 rounded-2xl p-4 border"
+      style={{
+        background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
+        borderColor: 'color-mix(in srgb, var(--primary) 35%, transparent)',
+      }}
+    >
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-start gap-3">
+          <div
+            className="rounded-full p-2 text-white"
+            style={{ background: 'color-mix(in srgb, var(--primary) 90%, black)' }}
+            aria-hidden
+          >
+            {icon || <Sparkles size={16} />}
+          </div>
+          <div className="text-sm leading-relaxed">{children}</div>
+        </div>
+        <div className="flex gap-3 text-xs">
+          <span className="inline-flex items-center gap-1"><Clock3 size={14} /> Rápido</span>
+          <span className="inline-flex items-center gap-1"><CheckCircle2 size={14} /> Seguro</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ---------- Bullets de valor ---------- */
+function Perks({ className='' }) {
+  return (
+    <div className={`rounded-2xl border bg-[var(--c-surface)] p-6 ${className}`} style={{ borderColor: 'var(--c-border)' }}>
+      <h3 className="text-lg font-semibold">O que você recebe</h3>
+      <ul className="mt-3 space-y-2 text-sm">
+        <li>• Assistência completa com suporte humanizado.</li>
+        <li>• Inclusão de dependentes conforme regras do plano.</li>
+        <li>• Gestão online do contrato e 2ª via com facilidade.</li>
+        <li>• Comunicação ágil com a equipe da unidade.</li>
+      </ul>
+    </div>
+  )
+}
+
+/* ---------- Grid de preços rápidos ---------- */
+function QuickPrices({ mensal, adesao }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 mt-4">
+      <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--c-border)' }}>
+        <p className="text-xs text-[var(--c-muted)]">Mensalidade base</p>
+        <p className="text-2xl font-extrabold">{money(mensal)}</p>
+      </div>
+      <div className="rounded-2xl border p-4" style={{ borderColor: 'var(--c-border)' }}>
+        <p className="text-xs text-[var(--c-muted)]">Adesão (uma vez)</p>
+        <p className="text-2xl font-extrabold">{money(adesao)}</p>
       </div>
     </div>
   )
@@ -35,42 +100,30 @@ export default function PlanoDetalhe() {
   const { id } = useParams()
   const navigate = useNavigate()
 
-  // 🔐 estado de autenticação (mantém compatibilidade com stores antigos)
+  // compat com store antiga (isAuthenticated() ou token)
   const isAuthenticated = useAuth((s) =>
     typeof s.isAuthenticated === 'function' ? s.isAuthenticated() : !!s.token
   )
 
-  // Dados da unidade/tenant (GET /api/v1/unidades/me carregado pelo bootstrap)
-  const empresa = useTenant(s => s.empresa)
-
   const [plano, setPlano] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  // cupom: lê da URL, mantém sincronizado, e dá feedback
   const [cupom, setCupom] = useState(() => {
     try {
       const qs = new URLSearchParams(window.location.search)
       return qs.get('cupom') || qs.get('coupon') || ''
-    } catch {
-      return ''
-    }
+    } catch { return '' }
   })
   const [toast, setToast] = useState({ show: false, message: '' })
   const triggerToast = (message) => {
     setToast({ show: true, message })
     window.clearTimeout(triggerToast._t)
-    triggerToast._t = window.setTimeout(() => setToast({ show: false, message: '' }), 1300)
+    triggerToast._t = window.setTimeout(() => setToast({ show: false, message: '' }), 1400)
   }
 
-  // Link do WhatsApp (tenant > fallback global)
-  const waHref = useMemo(() => {
-    const tel = resolveTenantPhone(empresa) || resolveGlobalFallback()
-    return buildWaHref({
-      number: tel,
-      message: plano?.nome ? `Olá! Tenho uma dúvida sobre o plano "${plano.nome}".` : 'Olá! Gostaria de tirar uma dúvida.',
-    })
-  }, [empresa, plano?.nome])
-
-  // ===== Carregamento do Plano (com fallback de header) =====
+  // ===== Carregamento do Plano =====
   async function fetchPlano(planId) {
     setLoading(true); setError('')
     try {
@@ -87,17 +140,26 @@ export default function PlanoDetalhe() {
         })
         setPlano(data)
       } catch (err) {
-        console.error(err); setError(`Falha ao carregar o plano (id: ${planId}).`)
+        console.error(err)
+        setError(`Falha ao carregar o plano (id: ${planId}).`)
       }
     } finally { setLoading(false) }
   }
   useEffect(() => { if (id) fetchPlano(id) }, [id])
 
-  // ===== Derivações de preço/limites =====
+  // Scroll top e título
+  useEffect(() => {
+    try { window.scrollTo(0, 0) } catch {}
+  }, [])
+  useEffect(() => {
+    if (plano?.nome) document.title = `${plano.nome} — Planos`
+  }, [plano?.nome])
+
+  // ===== Derivações =====
   const baseMensal = useMemo(() => getMensal(plano), [plano])
-  const valorAdesao = Number(pick(plano || {}, 'valorAdesao', 'valor_adesao') || 0)
-  const numDepsIncl = Number(pick(plano || {}, 'numeroDependentes', 'numero_dependentes') || 0)
-  const valorIncrementalAnual = Number(pick(plano || {}, 'valorIncremental', 'valor_incremental') || 0)
+  const valorAdesao = toNum(pick(plano || {}, 'valorAdesao', 'valor_adesao') || 0)
+  const numDepsIncl = toNum(pick(plano || {}, 'numeroDependentes', 'numero_dependentes') || 0)
+  const valorIncrementalAnual = toNum(pick(plano || {}, 'valorIncremental', 'valor_incremental') || 0)
   const valorIncrementalMensal = useMemo(() => valorIncrementalAnual / 12, [valorIncrementalAnual])
 
   const idadeMinTit = pick(plano||{}, 'idadeMinimaTitular','idade_minima_titular')
@@ -105,33 +167,38 @@ export default function PlanoDetalhe() {
   const idadeMinDep = pick(plano||{}, 'idadeMinimaDependente','idade_minima_dependente')
   const idadeMaxDep = pick(plano||{}, 'idadeMaximaDependente','idade_maxima_dependente')
 
-  // ===== CTA: seguir para cadastro imediato =====
+  const idadeMinTitN = toNum(idadeMinTit)
+  const idadeMaxTitN = toNum(idadeMaxTit)
+  const idadeMinDepN = toNum(idadeMinDep)
+  const idadeMaxDepN = toNum(idadeMaxDep)
+
+  // ===== CTA =====
   const handleContinuar = () => {
-    // Snapshot mínimo do plano para o fluxo de cadastro
     const planSnapshot = {
       id: String(id),
       nome: plano?.nome || '',
-      numeroDependentes: numDepsIncl,
-      valorIncremental: valorIncrementalAnual,
-      valorAdesao: valorAdesao,
-      idadeMinimaTitular: idadeMinTit ?? null,
-      idadeMaximaTitular: idadeMaxTit ?? null,
-      idadeMinimaDependente: idadeMinDep ?? null,
-      idadeMaximaDependente: idadeMaxDep ?? null,
+      numeroDependentes: isNum(numDepsIncl) ? numDepsIncl : 0,
+      valorIncremental: isNum(valorIncrementalAnual) ? valorIncrementalAnual : 0,
+      valorAdesao: isNum(valorAdesao) ? valorAdesao : 0,
+      idadeMinimaTitular: isNum(idadeMinTitN) ? idadeMinTitN : null,
+      idadeMaximaTitular: isNum(idadeMaxTitN) ? idadeMaxTitN : null,
+      idadeMinimaDependente: isNum(idadeMinDepN) ? idadeMinDepN : null,
+      idadeMaximaDependente: isNum(idadeMaxDepN) ? idadeMaxDepN : null,
       mensal: baseMensal,
     }
 
     const payload = {
       plano: String(id),
-      // Sem simulador: decisão de dependentes acontece no cadastro.
       qtdDependentes: 0,
       dependentes: [],
       cupom: cupom || '',
       planSnapshot,
+      sig: null, // futuro: HMAC/server-side
     }
 
     const params = new URLSearchParams({ p: btoa(encodeURIComponent(JSON.stringify(payload))) })
     const target = `/cadastro?${params.toString()}`
+    track('plano.continuar', { id, nome: planSnapshot.nome })
 
     if (!isAuthenticated) {
       navigate('/criar-conta', { state: { from: target } })
@@ -140,7 +207,7 @@ export default function PlanoDetalhe() {
     }
   }
 
-  // ===== Estados de carregamento/erro =====
+  // ===== Estados =====
   if (loading) {
     return (
       <section className="section">
@@ -175,184 +242,147 @@ export default function PlanoDetalhe() {
         <div className="mb-4">
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--c-border)] px-4 py-2 text-sm font-semibold hover:bg-[var(--c-surface)] focus:outline-none"
+            className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold hover:bg-[var(--c-surface)] focus:outline-none"
+            style={{ borderColor: 'var(--c-border)' }}
+            aria-label="Voltar"
           >
             ← Voltar
           </button>
         </div>
 
-        {/* Header do Plano */}
-        <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
+        {/* Header */}
+        <div className="rounded-2xl border bg-[var(--c-surface)] p-6" style={{ borderColor: 'var(--c-border)' }}>
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight">{plano.nome}</h1>
-              <p className="mt-1 text-sm text-[var(--c-muted)]">
-                Escolha segura para sua família. Cadastre-se em poucos minutos.
-              </p>
+              <p className="mt-1 text-sm text-[var(--c-muted)]">Contrate em poucos minutos.</p>
             </div>
 
             <div
-              className="inline-flex items-center gap-3 rounded-full px-5 h-12 border border-[var(--c-border)]"
-              style={{ background: 'color-mix(in srgb, var(--primary) 10%, transparent)' }}
+              className="inline-flex items-center gap-3 rounded-full px-5 h-12 border"
+              style={{ borderColor: 'var(--c-border)', background: 'color-mix(in srgb, var(--primary) 10%, transparent)' }}
+              aria-label="Mensalidade base"
             >
-              <span className="text-sm">Base mensal</span>
+              <span className="text-sm">Mensalidade base</span>
               <span className="text-2xl font-extrabold leading-none">{money(baseMensal)}</span>
             </div>
           </div>
 
-          {/* Chips informativos */}
+          {/* Chips essenciais */}
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
-              <span className="text-sm">Dependentes incluídos</span><strong>{numDepsIncl}</strong>
+            <div className="h-11 inline-flex items-center justify-between rounded-full border px-4" style={{ borderColor: 'var(--c-border)' }}>
+              <span className="text-sm">Dependentes incluídos</span><strong>{isNum(numDepsIncl) ? numDepsIncl : '—'}</strong>
             </div>
-            <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
+            <div className="h-11 inline-flex items-center justify-between rounded-full border px-4" style={{ borderColor: 'var(--c-border)' }}>
               <span className="text-sm">+ por dependente</span><strong>{money(valorIncrementalMensal)}</strong>
             </div>
-
-            {(Number.isFinite(idadeMinTit) || Number.isFinite(idadeMaxTit)) && (
-              <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
+            {(isNum(idadeMinTitN) || isNum(idadeMaxTitN)) && (
+              <div className="h-11 inline-flex items-center justify-between rounded-full border px-4" style={{ borderColor: 'var(--c-border)' }}>
                 <span className="text-sm">Idade titular</span>
                 <strong>
-                  {Number.isFinite(idadeMinTit) ? `${idadeMinTit}` : '—'}
-                  {Number.isFinite(idadeMaxTit) ? `–${idadeMaxTit}` : '+'} anos
+                  {isNum(idadeMinTitN) ? `${idadeMinTitN}` : '—'}
+                  {isNum(idadeMaxTitN) ? `–${idadeMaxTitN}` : '+'} anos
                 </strong>
               </div>
             )}
-
-            {(Number.isFinite(idadeMinDep) || Number.isFinite(idadeMaxDep)) && (
-              <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
+            {(isNum(idadeMinDepN) || isNum(idadeMaxDepN)) && (
+              <div className="h-11 inline-flex items-center justify-between rounded-full border px-4" style={{ borderColor: 'var(--c-border)' }}>
                 <span className="text-sm">Idade dependentes</span>
                 <strong>
-                  {Number.isFinite(idadeMinDep) ? `${idadeMinDep}` : '—'}
-                  {Number.isFinite(idadeMaxDep) ? `–${idadeMaxDep}` : '+'} anos
+                  {isNum(idadeMinDepN) ? `${idadeMinDepN}` : '—'}
+                  {isNum(idadeMaxDepN) ? `–${idadeMaxDepN}` : '+'} anos
                 </strong>
               </div>
             )}
           </div>
 
-          {/* Destaque orientativo */}
-          <div
-            className="mt-4 rounded-2xl p-4"
-            style={{
-              background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
-              border: '1px solid color-mix(in srgb, var(--primary) 35%, transparent)',
-            }}
-          >
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-start gap-3">
-                <div
-                  className="rounded-full p-2 text-white"
-                  style={{ background: 'color-mix(in srgb, var(--primary) 90%, black)' }}
-                  aria-hidden
-                >
-                  <Sparkles size={16} />
-                </div>
-                <p className="text-sm leading-relaxed">
-                  Prossiga para o cadastro para informar seus dados e adicionar dependentes.
-                  <br className="hidden md:block" />
-                  <span>As regras de idade e vínculos familiares são validadas durante o processo.</span>
-                </p>
-              </div>
+          <InlineNote icon={<ShieldCheck size={16} />}>
+            Informe seus dados, adicione dependentes e finalize a contratação com segurança.
+          </InlineNote>
 
-              <div className="flex gap-2">
-                <div className="inline-flex items-center gap-1 text-xs"><Clock3 size={14} /> Ativação rápida</div>
-                <div className="inline-flex items-center gap-1 text-xs"><CheckCircle2 size={14} /> Pagamento seguro</div>
-              </div>
-            </div>
-          </div>
+          {/* Valor percebido + preços rápidos */}
+          <Perks className="mt-6" />
+          <QuickPrices mensal={baseMensal} adesao={valorAdesao} />
         </div>
 
-        {/* Conteúdo principal: Resumo + Ações */}
+        {/* Principal: Cupom + Resumo/CTA */}
         <div className="mt-8 grid gap-6 md:grid-cols-[1.2fr,1fr]">
-          {/* Coluna de descrição/benefícios (opcional, estática ou futura dinâmica) */}
-          <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
-            <h3 className="text-lg font-semibold">O que você recebe</h3>
-            <ul className="mt-3 grid gap-2 text-sm leading-relaxed">
-              <li>• Assistência funeral completa com suporte humanizado.</li>
-              <li>• Inclusão de dependentes conforme regras do plano.</li>
-              <li>• Gestão online do contrato e 2ª via com facilidade.</li>
-              <li>• Comunicação ágil via WhatsApp com a equipe da unidade.</li>
-            </ul>
-
-            <div className="mt-6 grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-[var(--c-border)] p-4">
-                <p className="text-xs text-[var(--c-muted)]">Mensalidade base</p>
-                <p className="text-2xl font-extrabold mt-1">{money(baseMensal)}</p>
-              </div>
-              <div className="rounded-xl border border-[var(--c-border)] p-4">
-                <p className="text-xs text-[var(--c-muted)]">Adesão (uma vez)</p>
-                <p className="text-2xl font-extrabold mt-1">{money(valorAdesao)}</p>
-              </div>
+          {/* Cupom */}
+          <div className="rounded-2xl border bg-[var(--c-surface)] p-6" style={{ borderColor: 'var(--c-border)' }}>
+            <h3 className="text-lg font-semibold">Cupom de desconto</h3>
+            <div className="mt-3 flex gap-2">
+              <input
+                id="cupom"
+                className="input h-11 flex-1"
+                placeholder="EX.: BEMVINDO10"
+                value={cupom}
+                onChange={(e) => {
+                  const v = e.target.value.trim().toUpperCase()
+                  setCupom(v)
+                  // persiste na URL sem recarregar
+                  try {
+                    const url = new URL(window.location.href)
+                    if (v) url.searchParams.set('cupom', v); else url.searchParams.delete('cupom')
+                    window.history.replaceState({}, '', url.toString())
+                  } catch {}
+                }}
+                autoComplete="off"
+                aria-label="Código do cupom"
+              />
+              <button
+                type="button"
+                className="rounded-full border px-4 h-11 text-sm font-semibold hover:bg-[var(--c-surface-alt)]"
+                style={{ borderColor: 'var(--c-border)' }}
+                onClick={() => {
+                  if (!cupom) return triggerToast('Informe um cupom')
+                  // aqui você pode chamar /validar-cupom; por enquanto feedback otimista
+                  triggerToast('Cupom aplicado')
+                  track('cupom.aplicar', { cupom })
+                }}
+              >
+                Aplicar
+              </button>
             </div>
-
-            {/* Campo Cupom simples e direto */}
-            <div className="mt-6">
-              <label className="label" htmlFor="cupom">Cupom (opcional)</label>
-              <div className="flex gap-2">
-                <input
-                  id="cupom"
-                  className="input h-11 flex-1"
-                  placeholder="EX.: BEMVINDO10"
-                  value={cupom}
-                  onChange={(e) => setCupom(e.target.value)}
-                  autoComplete="off"
-                />
-                <button
-                  type="button"
-                  className="rounded-full border px-4 h-11 text-sm font-semibold hover:bg-[var(--c-surface-alt)]"
-                  onClick={() => cupom ? triggerToast('Cupom aplicado') : triggerToast('Informe um cupom')}
-                >
-                  Aplicar
-                </button>
-              </div>
-              <p className="mt-2 text-xs text-[var(--c-muted)]">
-                O desconto será validado no checkout.
-              </p>
-            </div>
+            <p className="mt-2 text-xs text-[var(--c-muted)] inline-flex items-center gap-1">
+              <Info size={14}/> O desconto é validado no checkout.
+            </p>
           </div>
 
-          {/* Resumo fixo com CTAs */}
-          <aside className="p-6 md:sticky md:top-24 bg-[var(--c-surface)] rounded-2xl border border-[var(--c-border)] shadow-lg">
-            <h3 className="mb-3 text-lg font-semibold">Resumo</h3>
+          {/* Resumo + CTA */}
+          <aside className="p-6 md:sticky md:top-24 bg-[var(--c-surface)] rounded-2xl border shadow-lg" style={{ borderColor: 'var(--c-border)' }}>
+            <h3 className="mb-3 text-lg font-semibold">Associe-se</h3>
             <div className="space-y-2 text-sm" aria-live="polite">
-              <div className="flex justify-between"><span>Base mensal</span><span>{money(baseMensal)}</span></div>
-              <div className="flex justify-between"><span>Adesão</span><span>{money(valorAdesao)}</span></div>
+              <div className="flex justify-between">
+                <span>Adesão (uma vez)</span><span>{money(valorAdesao)}</span>
+              </div>
               <hr className="my-2" />
               <p className="text-xs text-[var(--c-muted)]">
-                Dependentes e valores adicionais serão definidos no cadastro.
+                Dependentes e valores adicionais são definidos no cadastro.
               </p>
             </div>
-
-            <div className="mt-4 grid gap-2">
+            <div className="mt-4">
               <CTAButton className="w-full h-11" onClick={handleContinuar} title="Prosseguir para cadastro">
                 Continuar cadastro
               </CTAButton>
-
-              <CTAButton
-                as="a"
-                href={waHref || undefined}
-                target={waHref ? "_blank" : undefined}
-                rel={waHref ? "noopener noreferrer" : undefined}
-                variant="outline"
-                className="w-full h-11 justify-center"
-                disabled={!waHref}
-                title={waHref ? undefined : 'Telefone da unidade não informado'}
-              >
-                <MessageCircle size={16} className="mr-2" />
-                Tirar dúvida no WhatsApp
-              </CTAButton>
+            </div>
+            {/* Selo de confiança */}
+            <div className="mt-3 flex items-center gap-2 text-xs text-[var(--c-muted)]">
+              <BadgeCheck size={14}/> Pagamento seguro • Dados protegidos
             </div>
           </aside>
         </div>
       </div>
 
-      {/* Barra inferior (mobile) */}
+      {/* Dock inferior (mobile) — sem colidir com outros CTAs */}
       <div
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--c-border)] bg-[var(--c-surface)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-[50] border-t bg-[var(--c-surface)] md:hidden"
         style={{
+          borderColor: 'var(--c-border)',
           paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
           boxShadow: '0 -12px 30px rgba(0,0,0,.12)'
         }}
+        role="region"
+        aria-label="Resumo rápido e ação"
       >
         <div className="mx-auto max-w-7xl px-3 py-3 flex items-center gap-3">
           <div className="flex-1">
@@ -365,6 +395,24 @@ export default function PlanoDetalhe() {
         </div>
       </div>
       <div className="h-16 md:hidden" aria-hidden />
+
+      {/* JSON-LD básico para SEO */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            name: plano?.nome || 'Plano',
+            offers: {
+              '@type': 'Offer',
+              priceCurrency: 'BRL',
+              price: Number(baseMensal || 0).toFixed(2),
+              availability: 'https://schema.org/InStock'
+            }
+          })
+        }}
+      />
 
       <Toast show={toast.show} message={toast.message} />
     </section>

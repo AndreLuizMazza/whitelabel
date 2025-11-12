@@ -119,7 +119,7 @@ export default function Cadastro() {
     id: null, // sempre id da Pessoa (nunca do usuário)
     nome: "",
     cpf: "",
-    rg: "",
+    rg: "", // mantido no estado para compatibilidade (não exibido)
     estado_civil: "",
     sexo: "",
     data_nascimento: "",
@@ -151,21 +151,17 @@ export default function Cadastro() {
   async function tryGet(apiCall, label) {
     try {
       const r = await apiCall();
-      // console.log("[GET OK]", label, r?.status, r?.data);
       return r?.data ?? null;
-    } catch (e) {
-      // console.warn("[GET ERR]", label, e?.response?.status, e?.response?.data);
+    } catch {
       return null;
     }
   }
 
   // Busca PESSOA pelo CPF — nunca retorna /app/me
   async function buscarPessoaPorCPF(cpfMasked) {
-    // rota principal (esperada no BFF)
     let data = await tryGet(() => api.get(`/api/v1/pessoas/cpf/${cpfMasked}`), "pessoas/cpf");
     if (data && (data.id || data.pessoaId)) return data;
 
-    // fallbacks (caso teu BFF exponha outras variantes)
     data = await tryGet(() => api.get(`/api/v1/pessoas/by-cpf/${onlyDigits(cpfMasked)}`), "pessoas/by-cpf");
     if (data && (data.id || data.pessoaId)) return data;
 
@@ -201,7 +197,7 @@ export default function Cadastro() {
       id: p?.id || p?.pessoaId || null, // IMPORTANTE: id da Pessoa
       nome: p?.nome || "",
       cpf: p?.cpf || "",
-      rg: p?.rg || "",
+      rg: p?.rg || "", // compatibilidade silenciosa; não exibido
       estado_civil: ecNorm,
       sexo: sexoNorm,
       data_nascimento: normalizeISODate(p?.dataNascimento || ""),
@@ -283,7 +279,6 @@ export default function Cadastro() {
           }))
         );
       } else {
-        // se não encontrou Pessoa, mantem cpf e FORÇA id null para futura criação
         setTitular((prev) => ({ ...prev, id: null, cpf: cpfFmt }));
         setDepsExistentes([]);
       }
@@ -519,7 +514,7 @@ export default function Cadastro() {
       const payloadPessoa = {
         nome: (titular.nome || "").trim(),
         cpf: formatCPF(titular.cpf || ""), // API aceita mascarado; ajuste para onlyDigits se necessário
-        rg: titular.rg || null,
+        rg: titular.rg || null, // preservado como compatibilidade (sempre null sem campo)
         dataNascimento: titular.data_nascimento || null, // yyyy-mm-dd
         sexo: titular.sexo === "MULHER" ? "MULHER" : titular.sexo === "HOMEM" ? "HOMEM" : null,
         estadoCivil: titular.estado_civil || null,
@@ -608,89 +603,81 @@ export default function Cadastro() {
     return SEXO_OPTIONS.find(([val]) => val === v)?.[1] || "";
   }
 
- // helper local: normaliza texto para WhatsApp
-function normalizeWaText(str) {
-  let s = (str ?? "").toString();
-
-  // 1) normalização unicode e quebras de linha
-  s = s.normalize("NFKC").replace(/\r\n?/g, "\n").replace(/\u00A0/g, " "); // NBSP -> espaço
-
-  // 2) trim por linha + colapsar espaços internos
-  const rawLines = s.split("\n").map((l) => l.replace(/\s+/g, " ").trim());
-
-  // 3) remover linhas em branco duplicadas (permitir no máx. 1 consecutiva)
-  const lines = [];
-  for (const l of rawLines) {
-    if (l === "" && lines[lines.length - 1] === "") continue;
-    lines.push(l);
+  // helper local: normaliza texto para WhatsApp
+  function normalizeWaText(str) {
+    let s = (str ?? "").toString();
+    s = s.normalize("NFKC").replace(/\r\n?/g, "\n").replace(/\u00A0/g, " ");
+    const rawLines = s.split("\n").map((l) => l.replace(/\s+/g, " ").trim());
+    const lines = [];
+    for (const l of rawLines) {
+      if (l === "" && lines[lines.length - 1] === "") continue;
+      lines.push(l);
+    }
+    return lines.join("\n").trim();
   }
 
-  // 4) trim geral (sem espaço no começo/fim)
-  return lines.join("\n").trim();
-}
+  function sendWhatsFallback() {
+    // 1) resolve número do tenant com fallback global
+    let number =
+      resolveTenantPhone(empresa) ||
+      resolveGlobalFallback() ||
+      import.meta?.env?.VITE_WHATSAPP ||
+      window.__WHATSAPP__ ||
+      "";
 
-function sendWhatsFallback() {
-  // 1) resolve número do tenant com fallback global
-  let number =
-    resolveTenantPhone(empresa) ||
-    resolveGlobalFallback() ||
-    import.meta?.env?.VITE_WHATSAPP ||
-    window.__WHATSAPP__ ||
-    "";
+    // 2) normaliza (só dígitos) e garante DDI 55 se faltar
+    number = onlyDigits(number);
+    if (number && !number.startsWith("55")) number = `55${number}`;
 
-  // 2) normaliza (só dígitos) e garante DDI 55 se faltar
-  number = onlyDigits(number);
-  if (number && !number.startsWith("55")) number = `55${number}`;
+    // 3) montar mensagem (linhas cruas)
+    const L = [];
+    L.push("*Solicitação de Contratação*\n");
+    L.push(`Plano: ${plano?.nome || planoId}`);
+    L.push(`Valor base: ${money(baseMensal)} | Total mensal: ${money(totalMensal)}`);
+    L.push(`Adesão (única): ${money(valorAdesaoPlano)}`);
+    L.push(`Mensalidade: ${money(valorMensalidadePlano)}`);
+    L.push(`Dia D: ${diaDSelecionado}`);
+    L.push(`Efetivação: ${formatDateBR(dataEfetivacaoISO)}`);
+    if (cupom) L.push(`Cupom de desconto: ${cupom}`);
 
-  // 3) montar mensagem (linhas cruas)
-  const L = [];
-  L.push("*Solicitação de Contratação*\n");
-  L.push(`Plano: ${plano?.nome || planoId}`);
-  L.push(`Valor base: ${money(baseMensal)} | Total mensal: ${money(totalMensal)}`);
-  L.push(`Adesão (única): ${money(valorAdesaoPlano)}`);
-  L.push(`Mensalidade: ${money(valorMensalidadePlano)}`);
-  L.push(`Dia D: ${diaDSelecionado}`);
-  L.push(`Efetivação: ${formatDateBR(dataEfetivacaoISO)}`);
-  if (cupom) L.push(`Cupom de desconto: ${cupom}`);
+    L.push("\n*Titular*:");
+    L.push(`Nome: ${titular.nome || ""}`);
+    L.push(`CPF: ${formatCPF(titular.cpf || "")}`);
+    L.push(`Sexo: ${sexoLabelFromValue(titular.sexo)}`);
+    L.push(`Celular: ${formatPhoneBR(titular.celular || "")}`);
+    L.push(`E-mail: ${titular.email || "(não informado)"}`);
+    // Linha de RG removida deliberadamente
+    L.push(`Estado civil: ${ESTADO_CIVIL_LABEL[titular.estado_civil] || titular.estado_civil || ""}`);
+    L.push(`Nascimento: ${formatDateBR(titular.data_nascimento) || ""}`);
+    const e = titular.endereco || {};
+    L.push(`End.: ${e.logradouro || ""}, ${e.numero || ""} ${e.complemento || ""} - ${e.bairro || ""}`);
+    L.push(`${e.cidade || ""}/${e.uf || ""} - CEP ${e.cep || ""}`);
 
-  L.push("\n*Titular*:");
-  L.push(`Nome: ${titular.nome || ""}`);
-  L.push(`CPF: ${formatCPF(titular.cpf || "")}`);
-  L.push(`Sexo: ${sexoLabelFromValue(titular.sexo)}`);
-  L.push(`Celular: ${formatPhoneBR(titular.celular || "")}`);
-  L.push(`E-mail: ${titular.email || "(não informado)"}`);
-  L.push(`RG: ${titular.rg || ""}`);
-  L.push(`Estado civil: ${ESTADO_CIVIL_LABEL[titular.estado_civil] || titular.estado_civil || ""}`);
-  L.push(`Nascimento: ${formatDateBR(titular.data_nascimento) || ""}`);
-  const e = titular.endereco || {};
-  L.push(`End.: ${e.logradouro || ""}, ${e.numero || ""} ${e.complemento || ""} - ${e.bairro || ""}`);
-  L.push(`${e.cidade || ""}/${e.uf || ""} - CEP ${e.cep || ""}`);
+    L.push("\n*Dependentes existentes*:");
+    if (!depsExistentes.length) L.push("(Nenhum)");
+    depsExistentes.forEach((d, i) =>
+      L.push(
+        `${i + 1}. ${d.nome} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(d.sexo)} - CPF: ${
+          formatCPF(d.cpf || "") || "(não informado)"
+        } - nasc.: ${d.data_nascimento || ""}`
+      )
+    );
 
-  L.push("\n*Dependentes existentes*:");
-  if (!depsExistentes.length) L.push("(Nenhum)");
-  depsExistentes.forEach((d, i) =>
-    L.push(
-      `${i + 1}. ${d.nome} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(d.sexo)} - CPF: ${
-        formatCPF(d.cpf || "") || "(não informado)"
-      } - nasc.: ${d.data_nascimento || ""}`
-    )
-  );
+    L.push("\n*Dependentes novos*:");
+    if (!depsNovos.length) L.push("(Nenhum)");
+    depsNovos.forEach((d, i) =>
+      L.push(
+        `${i + 1}. ${d.nome || "(sem nome)"} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(d.sexo)} - CPF: ${
+          formatCPF(d.cpf || "") || "(não informado)"
+        } - nasc.: ${d.data_nascimento || ""}`
+      )
+    );
 
-  L.push("\n*Dependentes novos*:");
-  if (!depsNovos.length) L.push("(Nenhum)");
-  depsNovos.forEach((d, i) =>
-    L.push(
-      `${i + 1}. ${d.nome || "(sem nome)"} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(d.sexo)} - CPF: ${
-        formatCPF(d.cpf || "") || "(não informado)"
-      } - nasc.: ${d.data_nascimento || ""}`
-    )
-  );
-
-  // 4) normaliza e abre o WhatsApp
-  const message = normalizeWaText(L.join("\n"));
-  const href = buildWaHref({ number, message });
-  window.open(href, "_blank", "noopener,noreferrer");
-}
+    // 4) normaliza e abre o WhatsApp
+    const message = normalizeWaText(L.join("\n"));
+    const href = buildWaHref({ number, message });
+    window.open(href, "_blank", "noopener,noreferrer");
+  }
 
   // CEP interactions helpers
   const onCepChange = (v) => {
@@ -818,7 +805,7 @@ function sendWhatsFallback() {
                 <h2 className="font-semibold text-lg">Complemento do cadastro</h2>
 
                 <div className="mt-3 grid gap-3 md:grid-cols-12">
-                  <div className="md:col-span-4">
+                  <div className="md:col-span-6">
                     <label className="label" htmlFor="titular-ec">
                       Estado civil {requiredStar}
                     </label>
@@ -847,7 +834,7 @@ function sendWhatsFallback() {
                     )}
                   </div>
 
-                  <div className="md:col-span-4">
+                  <div className="md:col-span-6">
                     <label className="label" htmlFor="titular-sexo">
                       Sexo {requiredStar}
                     </label>
@@ -872,20 +859,6 @@ function sendWhatsFallback() {
                         Selecione o sexo.
                       </p>
                     )}
-                  </div>
-
-                  <div className="md:col-span-4">
-                    <label className="label" htmlFor="titular-rg">
-                      RG
-                    </label>
-                    <input
-                      id="titular-rg"
-                      className="input h-11 w-full"
-                      value={titular.rg}
-                      onChange={(e) => updTit({ rg: e.target.value })}
-                      placeholder="RG"
-                      autoComplete="off"
-                    />
                   </div>
                 </div>
               </div>
@@ -1424,14 +1397,14 @@ function sendWhatsFallback() {
                   {saving ? "Enviando…" : "Salvar e continuar"}
                 </CTAButton>
 
-                <CTAButton
-                  variant="outline"
-                  onClick={sendWhatsFallback}
-                  className="h-12 w-full"
-                  title="Enviar cadastro por WhatsApp"
-                >
-                  <MessageCircle size={16} className="mr-2" /> Enviar por WhatsApp
-                </CTAButton>
+              <CTAButton
+                variant="outline"
+                onClick={sendWhatsFallback}
+                className="h-12 w-full"
+                title="Enviar cadastro por WhatsApp"
+              >
+                <MessageCircle size={16} className="mr-2" /> Enviar por WhatsApp
+              </CTAButton>
               </div>
 
               <p className="mt-3 text-xs text-[var(--c-muted)] inline-flex items-center gap-1">
