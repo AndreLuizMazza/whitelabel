@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { track } from '@/lib/analytics'
 import { showToast } from '@/lib/toast'
-import { UserPlus, Download, Pencil, IdCard } from 'lucide-react'
+import { Pencil, IdCard } from 'lucide-react'
 
 /* ===================== utils ===================== */
 const fmtDataNasc = (s) => {
@@ -57,10 +57,6 @@ export default function DependentesList({ dependentes = [], contrato }) {
     warnedRef.current = true
   }, [dependentes, contrato])
 
-  const podeAdicionar = Number(contrato?.limiteDependentes || 0) === 0
-    ? true
-    : (dependentes?.length || 0) < Number(contrato?.limiteDependentes || 0)
-
   const waHref = buildWhats(
     contrato?.unidade?.whatsapp || contrato?.contatos?.celular,
     'Olá! Preciso de ajuda com meus dependentes.'
@@ -86,25 +82,8 @@ export default function DependentesList({ dependentes = [], contrato }) {
           <span className="ml-2 text-sm font-normal opacity-70">({hintLimite})</span>
         </h3>
       </div>
-
-      <div className="flex gap-2">
-        {podeAdicionar && (
-          <button
-            className="btn-primary inline-flex items-center gap-2 text-xs sm:text-sm"
-            onClick={() => avisar('Adicionar dependente')}
-          >
-            <UserPlus size={16} aria-hidden="true" /> Adicionar
-          </button>
-        )}
-        <button
-          className="btn-outline inline-flex items-center gap-2 text-xs sm:text-sm"
-          onClick={() => avisar('Baixar carteirinhas')}
-        >
-          <Download size={16} aria-hidden="true" /> Baixar carteirinhas
-        </button>
-      </div>
     </div>
-  ), [podeAdicionar, hintLimite])
+  ), [hintLimite])
 
   return (
     <section className="card p-5">
@@ -121,18 +100,9 @@ export default function DependentesList({ dependentes = [], contrato }) {
         >
           <p className="text-base font-medium">Nenhum dependente cadastrado.</p>
           <p className="opacity-80 mt-1">
-            Adicione seus dependentes para que todos tenham acesso à carteirinha digital e aos benefícios do plano.
+            Seus dependentes ainda não foram adicionados ao contrato. 
+            Entre em contato com a administração para mais informações.
           </p>
-          {podeAdicionar && (
-            <div className="mt-4">
-              <button
-                className="btn-primary inline-flex items-center gap-2"
-                onClick={() => avisar('Adicionar dependente')}
-              >
-                <UserPlus size={18} aria-hidden="true" /> Adicionar dependente
-              </button>
-            </div>
-          )}
         </div>
       )}
 
@@ -142,7 +112,6 @@ export default function DependentesList({ dependentes = [], contrato }) {
           className="mt-4 grid gap-3"
           role="list"
           aria-label="Lista de dependentes e beneficiários"
-          /* 1-col mobile / 2-col >= md quando couber visualmente */
           style={{ gridTemplateColumns: 'repeat(1, minmax(0, 1fr))' }}
         >
           {dependentes.map((d) => {
