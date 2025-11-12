@@ -1,4 +1,3 @@
-// src/pages/AreaUsuario.jsx
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import useAuth from '@/store/auth'
@@ -9,7 +8,7 @@ import PagamentoFacil from '@/components/PagamentoFacil'
 import CarteirinhaAssociado from '@/components/CarteirinhaAssociado'
 import { showToast } from '@/lib/toast'
 import { displayCPF, formatCPF } from '@/lib/cpf'
-import { Lock, Printer, User } from 'lucide-react' // adiciona ícone de usuário
+import { Lock, Printer, User } from 'lucide-react'
 
 /* ===== analytics opcional (no-op) ===== */
 const track = (..._args) => {}
@@ -205,7 +204,7 @@ export default function AreaUsuario() {
                     onClick={startReveal10s}
                     aria-label="Mostrar CPF completo por 10 segundos"
                     disabled={cpfReveal}
-                    title={cpfReveal ? 'CPF já está visível' : 'Mostrar CPF por 10 segundos'}
+                    title={cpfReveal ? 'CPF já está visível' : 'Mostrar por 10 segundos'}
                   >
                     {cpfReveal ? `Visível (${cpfSeconds}s)` : 'Mostrar por 10s'}
                   </button>
@@ -254,11 +253,11 @@ export default function AreaUsuario() {
         {/* Loading */}
         {loading && (
           <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1 space-y-6">
+            <div className="lg:col-span-2 space-y-6">
               <Skeleton className="h-40" />
               <Skeleton className="h-64" />
             </div>
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-1 space-y-6">
               <Skeleton className="h-40" />
               <Skeleton className="h-64" />
             </div>
@@ -285,9 +284,11 @@ export default function AreaUsuario() {
         {!loading && !erro && (
           contrato ? (
             <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* ESQUERDA */}
-              <div className="lg:col-span-1 space-y-6">
-                <h4 className="sr-only">Resumo do Associado</h4>
+              {/* BLOCO 1 — Carteirinha + Impressão + Pagamento
+                  Mobile: primeiro (order-1)
+                  Desktop: coluna direita (order-2, col-span-1) */}
+              <div className="order-1 lg:order-2 lg:col-span-1 space-y-6">
+                <h4 className="sr-only">Resumo do Associado e Pagamentos</h4>
                 <CarteirinhaAssociado user={user} contrato={contrato} />
 
                 {/* Barra de ações de impressão */}
@@ -305,18 +306,23 @@ export default function AreaUsuario() {
                   <SegmentedPrintButtons user={user} contrato={contrato} />
                 </div>
 
-                <div id="pagamento" />
-                <PagamentoFacil
-                  contrato={contrato}
-                  parcelaFoco={proximaParcela}
-                  proximas={proximas}
-                  historico={historico}
-                  isAtraso={isAtraso}
-                />
+                {/* Pagamento (sticky apenas no desktop) */}
+                <div className="lg:sticky lg:top-3">
+                  <div id="pagamento" />
+                  <PagamentoFacil
+                    contrato={contrato}
+                    parcelaFoco={proximaParcela}
+                    proximas={proximas}
+                    historico={historico}
+                    isAtraso={isAtraso}
+                  />
+                </div>
               </div>
 
-              {/* DIREITA */}
-              <div className="lg:col-span-2 space-y-6">
+              {/* BLOCO 2 — Contrato + Dependentes
+                  Mobile: depois (order-2)
+                  Desktop: coluna esquerda larga (order-1, col-span-2) */}
+              <div className="order-2 lg:order-1 lg:col-span-2 space-y-6">
                 <ContratoCard contrato={contrato} />
                 <DependentesList dependentes={dependentes} contrato={contrato} />
               </div>
