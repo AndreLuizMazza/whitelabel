@@ -1,12 +1,9 @@
 // src/pages/PlanoDetalhe.jsx
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '@/lib/api.js'
 import { pick, money, getMensal } from '@/lib/planUtils.js'
-import {
-  Sparkles, CheckCircle2, Clock3,
-  Minus, Plus as PlusIcon, MessageCircle
-} from 'lucide-react'
+import { Sparkles, CheckCircle2, Clock3, MessageCircle } from 'lucide-react'
 import CTAButton from '@/components/ui/CTAButton'
 import useAuth from '@/store/auth'
 import useTenant from '@/store/tenant'
@@ -16,25 +13,18 @@ import {
   buildWaHref,
 } from '@/lib/whats'
 
-/* ---------- Parentescos (fallback enum completo) ---------- */
-const PARENTESCOS_ENUM = [
-  ['CONJUGE','Cônjuge'], ['COMPANHEIRO','Companheiro(a)'], ['FILHO','Filho(a)'],
-  ['PAI','Pai'], ['MAE','Mãe'], ['IRMAO','Irmã(o)'], ['AVO','Avô(ó)'], ['TITULAR','Titular'],
-  ['RESPONSAVEL','Responsável'], ['TIO','Tio(a)'], ['SOBRINHO','Sobrinho(a)'], ['PRIMO','Primo(a)'],
-  ['NETO','Neto(a)'], ['BISNETO','Bisneto(a)'], ['PADRASTO','Padrasto'], ['MADRASTRA','Madrasta'],
-  ['AFILHADO','Afilhado(a)'], ['ENTEADA','Enteado(a)'], ['SOGRO','Sogro(a)'], ['GENRO','Genro'],
-  ['NORA','Nora'], ['CUNHADO','Cunhado(a)'], ['BISAVO','Bisavô(ó)'], ['MADRINHA','Madrinha'],
-  ['PADRINHO','Padrinho'], ['AMIGO','Amigo(a)'], ['AGREGADO','Agregado'], ['DEPENDENTE','Dependente'],
-  ['COLABORADOR','Colaborador'], ['EX_CONJUGE','Ex Cônjuge'], ['EX_TITULAR','Ex Titular'], ['EX_RESPONSAVEL','Ex Responsável'],
-]
-const PARENTESCOS_OPTIONS = PARENTESCOS_ENUM.map(([value,label])=>({value,label}))
-const parentescoLabel = (val) => PARENTESCOS_OPTIONS.find(o=>o.value===String(val))?.label || String(val)
-
-/* ---------- Toast ---------- */
+/* ---------- Toast (sutil, para feedbacks menores) ---------- */
 function Toast({ show, message }) {
   return (
-    <div className={`pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center transition-opacity duration-200 ${show ? 'opacity-100' : 'opacity-0'}`} aria-live="polite" aria-atomic="true">
-      <div className="pointer-events-auto rounded-full px-4 py-2 text-sm shadow-lg border" style={{background:'var(--c-surface)',borderColor:'var(--c-border)',color:'var(--c-text)'}}>
+    <div
+      className={`pointer-events-none fixed inset-x-0 bottom-20 z-50 flex justify-center transition-opacity duration-200 ${show ? 'opacity-100' : 'opacity-0'}`}
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <div
+        className="pointer-events-auto rounded-full px-4 py-2 text-sm shadow-lg border"
+        style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)', color: 'var(--c-text)' }}
+      >
         {message}
       </div>
     </div>
@@ -45,37 +35,33 @@ export default function PlanoDetalhe() {
   const { id } = useParams()
   const navigate = useNavigate()
 
-  // 🔐 auth state para decidir o destino do CTA
+  // 🔐 estado de autenticação (mantém compatibilidade com stores antigos)
   const isAuthenticated = useAuth((s) =>
     typeof s.isAuthenticated === 'function' ? s.isAuthenticated() : !!s.token
   )
 
-  // Dados da unidade/tenant (GET /api/v1/unidades/me) já carregados via TenantBootstrapper
+  // Dados da unidade/tenant (GET /api/v1/unidades/me carregado pelo bootstrap)
   const empresa = useTenant(s => s.empresa)
 
   const [plano, setPlano] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-
-  // simulador
-  const [depsCount, setDepsCount] = useState(0)
-  const [depsParentescos, setDepsParentescos] = useState([])
-
-  const simRef = useRef(null)
-  const resumoRef = useRef(null)
-
   const [cupom, setCupom] = useState(() => {
-    try { const qs = new URLSearchParams(window.location.search); return qs.get('cupom') || qs.get('coupon') || '' } catch { return '' }
+    try {
+      const qs = new URLSearchParams(window.location.search)
+      return qs.get('cupom') || qs.get('coupon') || ''
+    } catch {
+      return ''
+    }
   })
-
   const [toast, setToast] = useState({ show: false, message: '' })
   const triggerToast = (message) => {
     setToast({ show: true, message })
     window.clearTimeout(triggerToast._t)
-    triggerToast._t = window.setTimeout(() => setToast({ show: false, message: '' }), 1400)
+    triggerToast._t = window.setTimeout(() => setToast({ show: false, message: '' }), 1300)
   }
 
-  // Link de WhatsApp (tenant > fallback global). Não depende de "loaded".
+  // Link do WhatsApp (tenant > fallback global)
   const waHref = useMemo(() => {
     const tel = resolveTenantPhone(empresa) || resolveGlobalFallback()
     return buildWaHref({
@@ -84,7 +70,7 @@ export default function PlanoDetalhe() {
     })
   }, [empresa, plano?.nome])
 
-  // fetch do plano (primeiro sem header, depois com)
+  // ===== Carregamento do Plano (com fallback de header) =====
   async function fetchPlano(planId) {
     setLoading(true); setError('')
     try {
@@ -107,42 +93,21 @@ export default function PlanoDetalhe() {
   }
   useEffect(() => { if (id) fetchPlano(id) }, [id])
 
-  // preços
+  // ===== Derivações de preço/limites =====
   const baseMensal = useMemo(() => getMensal(plano), [plano])
   const valorAdesao = Number(pick(plano || {}, 'valorAdesao', 'valor_adesao') || 0)
   const numDepsIncl = Number(pick(plano || {}, 'numeroDependentes', 'numero_dependentes') || 0)
   const valorIncrementalAnual = Number(pick(plano || {}, 'valorIncremental', 'valor_incremental') || 0)
   const valorIncrementalMensal = useMemo(() => valorIncrementalAnual / 12, [valorIncrementalAnual])
 
-  // limites etários
   const idadeMinTit = pick(plano||{}, 'idadeMinimaTitular','idade_minima_titular')
   const idadeMaxTit = pick(plano||{}, 'idadeMaximaTitular','idade_maxima_titular')
   const idadeMinDep = pick(plano||{}, 'idadeMinimaDependente','idade_minima_dependente')
   const idadeMaxDep = pick(plano||{}, 'idadeMaximaDependente','idade_maxima_dependente')
 
-  // parentescos (do plano > fallback)
-  const parentescosAPI = pick(plano || {}, 'parentescos') || []
-  const parentescosValues = (Array.isArray(parentescosAPI) && parentescosAPI.length)
-    ? parentescosAPI.map(String)
-    : PARENTESCOS_OPTIONS.map(o=>o.value)
-
-  // sync parentescos com a contagem
-  function syncParentescos(nextCount) {
-    setDepsParentescos(prev => {
-      const arr = prev.slice(0, nextCount)
-      while (arr.length < nextCount) arr.push("")
-      return arr
-    })
-  }
-
-  // totais
-  const excedentes = Math.max(0, depsCount - Number(numDepsIncl))
-  const custoExcedentes = excedentes * valorIncrementalMensal
-  const totalMensal = (baseMensal || 0) + custoExcedentes
-
-  // CTA cadastro — monta payload & rota de destino
+  // ===== CTA: seguir para cadastro imediato =====
   const handleContinuar = () => {
-    const dependentesPayload = depsParentescos.map((p) => ({ parentesco: p || "" }))
+    // Snapshot mínimo do plano para o fluxo de cadastro
     const planSnapshot = {
       id: String(id),
       nome: plano?.nome || '',
@@ -153,20 +118,21 @@ export default function PlanoDetalhe() {
       idadeMaximaTitular: idadeMaxTit ?? null,
       idadeMinimaDependente: idadeMinDep ?? null,
       idadeMaximaDependente: idadeMaxDep ?? null,
-      parentescos: parentescosValues,
       mensal: baseMensal,
     }
+
     const payload = {
       plano: String(id),
-      qtdDependentes: depsCount,
-      dependentes: dependentesPayload,
+      // Sem simulador: decisão de dependentes acontece no cadastro.
+      qtdDependentes: 0,
+      dependentes: [],
       cupom: cupom || '',
-      planSnapshot
+      planSnapshot,
     }
+
     const params = new URLSearchParams({ p: btoa(encodeURIComponent(JSON.stringify(payload))) })
     const target = `/cadastro?${params.toString()}`
 
-    // 🔀 decisão de rota baseada no auth:
     if (!isAuthenticated) {
       navigate('/criar-conta', { state: { from: target } })
     } else {
@@ -174,6 +140,7 @@ export default function PlanoDetalhe() {
     }
   }
 
+  // ===== Estados de carregamento/erro =====
   if (loading) {
     return (
       <section className="section">
@@ -200,9 +167,11 @@ export default function PlanoDetalhe() {
   }
   if (!plano) return null
 
+  // ===== UI =====
   return (
     <section className="section">
       <div className="container-max">
+        {/* Voltar */}
         <div className="mb-4">
           <button
             onClick={() => navigate(-1)}
@@ -212,18 +181,29 @@ export default function PlanoDetalhe() {
           </button>
         </div>
 
+        {/* Header do Plano */}
         <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
-            <h1 className="text-3xl font-extrabold tracking-tight">{plano.nome}</h1>
-            <div className="inline-flex items-center gap-2 rounded-full px-5 h-12 border border-[var(--c-border)] bg-[color-mix(in_srgb,var(--primary)_10%,transparent)]">
+            <div>
+              <h1 className="text-3xl font-extrabold tracking-tight">{plano.nome}</h1>
+              <p className="mt-1 text-sm text-[var(--c-muted)]">
+                Escolha segura para sua família. Cadastre-se em poucos minutos.
+              </p>
+            </div>
+
+            <div
+              className="inline-flex items-center gap-3 rounded-full px-5 h-12 border border-[var(--c-border)]"
+              style={{ background: 'color-mix(in srgb, var(--primary) 10%, transparent)' }}
+            >
               <span className="text-sm">Base mensal</span>
-              <span className="text-xl font-extrabold">{money(baseMensal)}</span>
+              <span className="text-2xl font-extrabold leading-none">{money(baseMensal)}</span>
             </div>
           </div>
 
+          {/* Chips informativos */}
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
-              <span className="text-sm">Incluídos</span><strong>{numDepsIncl}</strong>
+              <span className="text-sm">Dependentes incluídos</span><strong>{numDepsIncl}</strong>
             </div>
             <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
               <span className="text-sm">+ por dependente</span><strong>{money(valorIncrementalMensal)}</strong>
@@ -231,7 +211,7 @@ export default function PlanoDetalhe() {
 
             {(Number.isFinite(idadeMinTit) || Number.isFinite(idadeMaxTit)) && (
               <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
-                <span className="text-sm">Titular</span>
+                <span className="text-sm">Idade titular</span>
                 <strong>
                   {Number.isFinite(idadeMinTit) ? `${idadeMinTit}` : '—'}
                   {Number.isFinite(idadeMaxTit) ? `–${idadeMaxTit}` : '+'} anos
@@ -241,7 +221,7 @@ export default function PlanoDetalhe() {
 
             {(Number.isFinite(idadeMinDep) || Number.isFinite(idadeMaxDep)) && (
               <div className="h-11 inline-flex items-center justify-between rounded-full border border-[var(--c-border)] px-4">
-                <span className="text-sm">Dependentes</span>
+                <span className="text-sm">Idade dependentes</span>
                 <strong>
                   {Number.isFinite(idadeMinDep) ? `${idadeMinDep}` : '—'}
                   {Number.isFinite(idadeMaxDep) ? `–${idadeMaxDep}` : '+'} anos
@@ -250,6 +230,7 @@ export default function PlanoDetalhe() {
             )}
           </div>
 
+          {/* Destaque orientativo */}
           <div
             className="mt-4 rounded-2xl p-4"
             style={{
@@ -267,123 +248,79 @@ export default function PlanoDetalhe() {
                   <Sparkles size={16} />
                 </div>
                 <p className="text-sm leading-relaxed">
-                  Informe apenas a <b>quantidade de dependentes</b>. Se quiser, identifique o <b>parentesco</b> agora (opcional).
+                  Prossiga para o cadastro para informar seus dados e adicionar dependentes.
                   <br className="hidden md:block" />
-                  <span>Limites etários são <b>validados no cadastro</b>.</span>
+                  <span>As regras de idade e vínculos familiares são validadas durante o processo.</span>
                 </p>
               </div>
 
-              <CTAButton
-                onClick={() => simRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                aria-label="Ir para o simulador"
-                className="h-11 w-full md:w-auto"
-              >
-                Ir para o simulador
-              </CTAButton>
+              <div className="flex gap-2">
+                <div className="inline-flex items-center gap-1 text-xs"><Clock3 size={14} /> Ativação rápida</div>
+                <div className="inline-flex items-center gap-1 text-xs"><CheckCircle2 size={14} /> Pagamento seguro</div>
+              </div>
             </div>
-
-            <ul className="mt-3 flex flex-wrap gap-4 text-xs">
-              <li className="inline-flex items-center gap-1"><Clock3 size={14} /> Ativação rápida</li>
-              <li className="inline-flex items-center gap-1"><CheckCircle2 size={14} /> Pagamento seguro</li>
-            </ul>
           </div>
         </div>
 
-        {/* ---------- SIMULADOR + RESUMO ---------- */}
-        <div ref={simRef} className="mt-8 grid gap-6 md:grid-cols-3">
-          {/* Simulador */}
-          <div className="md:col-span-2 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6 shadow-sm">
-            <h3 className="text-lg font-semibold">Simulador</h3>
+        {/* Conteúdo principal: Resumo + Ações */}
+        <div className="mt-8 grid gap-6 md:grid-cols-[1.2fr,1fr]">
+          {/* Coluna de descrição/benefícios (opcional, estática ou futura dinâmica) */}
+          <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
+            <h3 className="text-lg font-semibold">O que você recebe</h3>
+            <ul className="mt-3 grid gap-2 text-sm leading-relaxed">
+              <li>• Assistência funeral completa com suporte humanizado.</li>
+              <li>• Inclusão de dependentes conforme regras do plano.</li>
+              <li>• Gestão online do contrato e 2ª via com facilidade.</li>
+              <li>• Comunicação ágil via WhatsApp com a equipe da unidade.</li>
+            </ul>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              {/* Stepper dependentes */}
-              <div>
-                <label className="label">Dependentes (qtde)</label>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { const v = Math.max(0, depsCount - 1); setDepsCount(v); syncParentescos(v); triggerToast('Quantidade atualizada'); }}
-                    className="rounded-full h-11 w-11 grid place-items-center border border-[var(--c-border)] hover:bg-[var(--c-surface-alt)]"
-                    aria-label="Diminuir dependentes"
-                    disabled={depsCount === 0}
-                  >
-                    <Minus size={16}/>
-                  </button>
-                  <input
-                    className="input h-11 w-24 text-center"
-                    type="number" min="0" max="99"
-                    value={depsCount}
-                    onChange={(e) => {
-                      const target = Math.max(0, Number(e.target.value) || 0)
-                      setDepsCount(target)
-                      syncParentescos(target)
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => { const v = depsCount + 1; setDepsCount(v); syncParentescos(v); triggerToast('Quantidade atualizada'); }}
-                    className="rounded-full h-11 w-11 grid place-items-center border border-[var(--c-border)] hover:bg-[var(--c-surface-alt)]"
-                    aria-label="Aumentar dependentes"
-                  >
-                    <PlusIcon size={16}/>
-                  </button>
-                </div>
-                <p className="mt-2 text-xs text-[var(--c-muted)]">
-                  Incluídos no plano: <b>{numDepsIncl}</b>. Adicionais: <b>{Math.max(0, depsCount - numDepsIncl)}</b> × {money(valorIncrementalMensal)}
-                </p>
+            <div className="mt-6 grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-[var(--c-border)] p-4">
+                <p className="text-xs text-[var(--c-muted)]">Mensalidade base</p>
+                <p className="text-2xl font-extrabold mt-1">{money(baseMensal)}</p>
+              </div>
+              <div className="rounded-xl border border-[var(--c-border)] p-4">
+                <p className="text-xs text-[var(--c-muted)]">Adesão (uma vez)</p>
+                <p className="text-2xl font-extrabold mt-1">{money(valorAdesao)}</p>
               </div>
             </div>
 
-            {/* Opcional: identificar parentescos */}
-            <details className="mt-5 rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4">
-              <summary className="cursor-pointer list-none font-semibold">Identificar dependentes (opcional)</summary>
-              <div className="mt-4 grid gap-3">
-                {depsCount === 0 ? (
-                  <div className="text-sm text-[var(--c-muted)]">Nenhum dependente informado.</div>
-                ) : (
-                  Array.from({ length: depsCount }).map((_, i) => (
-                    <div key={i} className="grid gap-2 md:grid-cols-[1fr,260px]">
-                      <div className="flex items-center text-sm text-[var(--c-muted)]">Dependente {i + 1}</div>
-                      <select
-                        className="input h-11"
-                        value={depsParentescos[i] || ""}
-                        onChange={(e) => {
-                          const v = e.target.value
-                          setDepsParentescos(prev => {
-                            const copy = prev.slice()
-                            copy[i] = v
-                            return copy
-                          })
-                        }}
-                      >
-                        <option value="">Selecione…</option>
-                        {(parentescosValues?.length ? parentescosValues : PARENTESCOS_OPTIONS.map(o=>o.value))
-                          .map(v => (<option key={v} value={v}>{parentescoLabel(v)}</option>))}
-                      </select>
-                    </div>
-                  ))
-                )}
+            {/* Campo Cupom simples e direto */}
+            <div className="mt-6">
+              <label className="label" htmlFor="cupom">Cupom (opcional)</label>
+              <div className="flex gap-2">
+                <input
+                  id="cupom"
+                  className="input h-11 flex-1"
+                  placeholder="EX.: BEMVINDO10"
+                  value={cupom}
+                  onChange={(e) => setCupom(e.target.value)}
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  className="rounded-full border px-4 h-11 text-sm font-semibold hover:bg-[var(--c-surface-alt)]"
+                  onClick={() => cupom ? triggerToast('Cupom aplicado') : triggerToast('Informe um cupom')}
+                >
+                  Aplicar
+                </button>
               </div>
-            </details>
+              <p className="mt-2 text-xs text-[var(--c-muted)]">
+                O desconto será validado no checkout.
+              </p>
+            </div>
           </div>
 
-          {/* Resumo */}
-          <aside ref={resumoRef} className="p-6 md:sticky md:top-24 bg-[var(--c-surface)] rounded-2xl border border-[var(--c-border)] shadow-lg">
+          {/* Resumo fixo com CTAs */}
+          <aside className="p-6 md:sticky md:top-24 bg-[var(--c-surface)] rounded-2xl border border-[var(--c-border)] shadow-lg">
             <h3 className="mb-3 text-lg font-semibold">Resumo</h3>
             <div className="space-y-2 text-sm" aria-live="polite">
               <div className="flex justify-between"><span>Base mensal</span><span>{money(baseMensal)}</span></div>
-              <div className="flex justify-between">
-                <span>Dependentes adicionais ({Math.max(0, depsCount - numDepsIncl)}) × {money(valorIncrementalMensal)}</span>
-                <span>{money(Math.max(0, depsCount - numDepsIncl) * valorIncrementalMensal)}</span>
-              </div>
+              <div className="flex justify-between"><span>Adesão</span><span>{money(valorAdesao)}</span></div>
               <hr className="my-2" />
-              <div className="flex justify-between font-semibold text-base"><span>Total mensal</span><span>{money(totalMensal)}</span></div>
-              <div className="flex justify-between"><span>Adesão (uma vez)</span><span>{money(valorAdesao)}</span></div>
-
-              <div className="pt-2">
-                <label className="label" htmlFor="cupom">Cupom (opcional)</label>
-                <input id="cupom" className="input h-11" placeholder="EX.: BEMVINDO10" value={cupom} onChange={(e) => setCupom(e.target.value)} autoComplete="off"/>
-              </div>
+              <p className="text-xs text-[var(--c-muted)]">
+                Dependentes e valores adicionais serão definidos no cadastro.
+              </p>
             </div>
 
             <div className="mt-4 grid gap-2">
@@ -391,7 +328,6 @@ export default function PlanoDetalhe() {
                 Continuar cadastro
               </CTAButton>
 
-              {/* WhatsApp: âncora com href montado; desabilita só se vazio */}
               <CTAButton
                 as="a"
                 href={waHref || undefined}
@@ -410,7 +346,7 @@ export default function PlanoDetalhe() {
         </div>
       </div>
 
-      {/* Mobile bottom bar */}
+      {/* Barra inferior (mobile) */}
       <div
         className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--c-border)] bg-[var(--c-surface)] md:hidden"
         style={{
@@ -419,10 +355,10 @@ export default function PlanoDetalhe() {
         }}
       >
         <div className="mx-auto max-w-7xl px-3 py-3 flex items-center gap-3">
-          <button onClick={()=>resumoRef.current?.scrollIntoView({behavior:'smooth'})} className="flex-1 text-left" aria-label="Ir para resumo do valor">
-            <p className="text-xs text-[var(--c-muted)] leading-tight">Total mensal</p>
-            <p className="text-xl font-extrabold leading-tight">{money(totalMensal)}</p>
-          </button>
+          <div className="flex-1">
+            <p className="text-xs text-[var(--c-muted)] leading-tight">Mensalidade base</p>
+            <p className="text-xl font-extrabold leading-tight">{money(baseMensal)}</p>
+          </div>
           <CTAButton className="min-w-[46%] h-12" onClick={handleContinuar}>
             Continuar
           </CTAButton>
