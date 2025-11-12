@@ -40,25 +40,16 @@ function isStrongPassword(s = '') {
   return c.len && c.upper && c.lower && c.digit
 }
 
-/** ================== Validação de CPF (com DV) ==================
- * Regras:
- * - 11 dígitos
- * - rejeita sequências repetidas (000..., 111..., etc.)
- * - confere DV1 e DV2
- */
+/** ================== Validação de CPF (com DV) ================== */
 function isValidCPF(cpf = '') {
   const d = onlyDigits(cpf)
   if (d.length !== 11) return false
-  if (/^(\d)\1{10}$/.test(d)) return false // todos iguais
-
-  // Cálculo DV1
+  if (/^(\d)\1{10}$/.test(d)) return false
   let sum = 0
   for (let i = 0; i < 9; i++) sum += Number(d[i]) * (10 - i)
   let rest = sum % 11
   const dv1 = rest < 2 ? 0 : 11 - rest
   if (dv1 !== Number(d[9])) return false
-
-  // Cálculo DV2
   sum = 0
   for (let i = 0; i < 10; i++) sum += Number(d[i]) * (11 - i)
   rest = sum % 11
@@ -113,17 +104,8 @@ function DateSelectBR({
   }, [valueISO]) // eslint-disable-line
 
   const today = new Date()
-
-  const minDate = (() => {
-    const d = new Date(today)
-    d.setFullYear(d.getFullYear() - (maxAge || 100))
-    return d
-  })()
-  const maxDate = (() => {
-    const d = new Date(today)
-    d.setFullYear(d.getFullYear() - (minAge || 18))
-    return d
-  })()
+  const minDate = (() => { const d = new Date(today); d.setFullYear(d.getFullYear() - (maxAge || 100)); return d })()
+  const maxDate = (() => { const d = new Date(today); d.setFullYear(d.getFullYear() - (minAge || 18)); return d })()
 
   const minY = minDate.getFullYear()
   const maxY = maxDate.getFullYear()
@@ -288,6 +270,7 @@ export default function RegisterPage() {
   // Mostrar/ocultar senha
   const [showPass, setShowPass] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [senhaFocused, setSenhaFocused] = useState(false) // <-- controla a visibilidade da regra
 
   // Refs para foco em erro
   const alertRef = useRef(null)
@@ -400,7 +383,6 @@ export default function RegisterPage() {
       return
     }
 
-    // Dupla checagem de segurança no submit
     if (!isValidCPF(form.cpf)) {
       setError('CPF inválido. Verifique os números digitados.')
       setTimeout(() => alertRef.current?.focus(), 0)
@@ -408,7 +390,6 @@ export default function RegisterPage() {
       return
     }
 
-    // 🔁 suporta state.from como string OU objeto
     const rawFrom = location.state?.from
     const from =
       typeof rawFrom === 'string'
@@ -418,8 +399,6 @@ export default function RegisterPage() {
             : '/area')
 
     const identificador = form.email?.trim() || onlyDigits(form.cpf)
-
-    // envia os campos como estão (máscaras são tratadas na API de auth)
     const payload = { ...form }
 
     try {
@@ -429,7 +408,6 @@ export default function RegisterPage() {
       await registerUser(payload)
       await login(identificador, form.senha)
 
-      // ✅ salva um prefill leve para a próxima etapa (Cadastro)
       try {
         const prefill = {
           cpf: onlyDigits(form.cpf),
@@ -652,12 +630,14 @@ export default function RegisterPage() {
                     ref={senhaRef}
                     value={form.senha}
                     onChange={onChange}
+                    onFocus={() => setSenhaFocused(true)}
+                    onBlur={() => setSenhaFocused(false)}
                     className="input pr-12"
                     placeholder="Mín. 8, c/ maiúscula, minúscula e dígito"
                     autoComplete="new-password"
                     aria-required="true"
                     aria-invalid={submitted && !senhaOk}
-                    aria-describedby="senha-policy"
+                    aria-describedby={senhaFocused ? 'senha-policy' : undefined}
                   />
                   <button
                     type="button"
@@ -671,26 +651,28 @@ export default function RegisterPage() {
                   </button>
                 </div>
 
-                {/* Checklist em tempo real */}
-                <div
-                  id="senha-policy"
-                  className="rounded-md px-3 py-2 mt-2"
-                  style={{
-                    background: 'color-mix(in srgb, var(--surface) 80%, transparent)',
-                    border: '1px solid var(--c-border)'
-                  }}
-                  aria-live="polite"
-                >
-                  <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                    Sua senha deve conter:
-                  </p>
-                  <ul className="text-sm space-y-1">
-                    <Rule ok={senhaChecks.len}>Pelo menos 8 caracteres</Rule>
-                    <Rule ok={senhaChecks.upper}>Ao menos 1 letra maiúscula (A–Z)</Rule>
-                    <Rule ok={senhaChecks.lower}>Ao menos 1 letra minúscula (a–z)</Rule>
-                    <Rule ok={senhaChecks.digit}>Ao menos 1 dígito (0–9)</Rule>
-                  </ul>
-                </div>
+                {/* Checklist em tempo real — visível APENAS com foco no campo senha */}
+                {senhaFocused && (
+                  <div
+                    id="senha-policy"
+                    className="rounded-md px-3 py-2 mt-2"
+                    style={{
+                      background: 'color-mix(in srgb, var(--surface) 80%, transparent)',
+                      border: '1px solid var(--c-border)'
+                    }}
+                    aria-live="polite"
+                  >
+                    <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                      Sua senha deve conter:
+                    </p>
+                    <ul className="text-sm space-y-1">
+                      <Rule ok={senhaChecks.len}>Pelo menos 8 caracteres</Rule>
+                      <Rule ok={senhaChecks.upper}>Ao menos 1 letra maiúscula (A–Z)</Rule>
+                      <Rule ok={senhaChecks.lower}>Ao menos 1 letra minúscula (a–z)</Rule>
+                      <Rule ok={senhaChecks.digit}>Ao menos 1 dígito (0–9)</Rule>
+                    </ul>
+                  </div>
+                )}
 
                 {submitted && !senhaOk && (
                   <p className="text-xs mt-2 text-red-600">
