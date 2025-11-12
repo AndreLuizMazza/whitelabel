@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, Trash2, Loader2 } from "lucide-react";
 import { showToast } from "@/lib/toast";
 
+const MAX_BYTES = 1 * 1024 * 1024; // 1 MB
+
 export default function AvatarUploader({ fotoUrl, onUpload, onDelete }) {
   const fileRef = useRef(null);
   const [loading, setLoading] = useState(false);
@@ -14,8 +16,19 @@ export default function AvatarUploader({ fotoUrl, onUpload, onDelete }) {
   const handleSelectFile = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // valida tipo
     if (!file.type.startsWith("image/")) {
       showToast("Envie apenas imagens (JPG, PNG, etc.)", "warning");
+      e.target.value = "";
+      return;
+    }
+
+    // valida tamanho (máximo 1MB)
+    if (file.size > MAX_BYTES) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      showToast(`A imagem deve ter no máximo 1 MB (arquivo atual: ${sizeMB} MB).`, "warning");
+      e.target.value = "";
       return;
     }
 
@@ -28,8 +41,16 @@ export default function AvatarUploader({ fotoUrl, onUpload, onDelete }) {
       setLoading(true);
       Promise.resolve(onUpload(file))
         .then(() => showToast("Foto atualizada com sucesso."))
-        .catch(() => showToast("Falha ao enviar foto.", "error"))
-        .finally(() => setLoading(false));
+        .catch(() => {
+          showToast("Falha ao enviar foto.", "error");
+          // em caso de falha, restaura estado visual anterior
+          setPreview(fotoUrl || "");
+        })
+        .finally(() => {
+          setLoading(false);
+          // permite selecionar o mesmo arquivo novamente se quiser
+          if (fileRef.current) fileRef.current.value = "";
+        });
     }
   };
 
@@ -41,6 +62,7 @@ export default function AvatarUploader({ fotoUrl, onUpload, onDelete }) {
       .then(() => {
         setPreview("");
         showToast("Foto removida com sucesso.");
+        if (fileRef.current) fileRef.current.value = "";
       })
       .catch(() => showToast("Falha ao remover foto.", "error"))
       .finally(() => setLoading(false));

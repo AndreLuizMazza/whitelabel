@@ -393,7 +393,7 @@ export default function Perfil() {
                 disabled={photoSaving}
               />
               <p className="text-sm text-[var(--text-muted)]">
-                A imagem enviada é vinculada ao seu perfil. Use uma foto nítida e centralizada.
+                A imagem enviada é vinculada a sua carteirinha. Use uma foto nítida e centralizada.
               </p>
             </div>
           </Card>
