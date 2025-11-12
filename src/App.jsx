@@ -34,7 +34,7 @@ import StickyContactDock from './components/StickyContactDock.jsx'
 import MemorialList from '@/pages/MemorialList.jsx'
 import MemorialDetail from '@/pages/MemorialDetail.jsx'
 import ErrorBoundary from '@/components/ErrorBoundary.jsx'
-
+import VerificarCarteirinha from '@/pages/VerificarCarteirinha'
 // Impressão da carteirinha
 import CarteirinhaPrint from '@/pages/CarteirinhaPrint.jsx'
 
@@ -68,7 +68,7 @@ export default function App() {
             <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
             <Route path="/termos-uso" element={<TermosUso />} />
             <Route path="/filiais" element={<Filiais />} />
-
+            <Route path="/verificar/:cpf" element={<VerificarCarteirinha />} />
             {/* Memorial */}
             <Route path="/memorial" element={<MemorialList />} />
             <Route path="/memorial/:slug" element={<MemorialDetail />} />

@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { showToast } from '@/lib/toast'
 import useTenant from '@/store/tenant'
 import { displayCPF, formatCPF } from '@/lib/cpf'
-import { getAvatarBlobUrl } from '@/lib/profile' // busca avatar via BFF
+import { getAvatarBlobUrl } from '@/lib/profile'
+import QRCode from 'qrcode' // <— gerar QR localmente
 
 /* =============== utils =============== */
 const onlyDigits = (v = '') => String(v).replace(/\D+/g, '')
@@ -54,9 +55,9 @@ function fontForName(n = '') {
  * - printable?: boolean
  * - side?: 'front' | 'back'
  * - matchContratoHeight?: boolean
- * - loadAvatar?: boolean   // default true (busca avatar via BFF)
- * - fotoUrl?: string       // se fornecido, tem prioridade (ex.: fluxo de impressão)
- * - tenantLogoUrl?: string // PRIORIDADE para a logo (usada na impressão para evitar race)
+ * - loadAvatar?: boolean
+ * - fotoUrl?: string
+ * - tenantLogoUrl?: string
  */
 export default function CarteirinhaAssociado({
   user = {},
@@ -98,19 +99,39 @@ export default function CarteirinhaAssociado({
   const ativo = contrato.contratoAtivo ?? (String(contrato.status || '').toUpperCase() === 'ATIVO')
   const fotoDeclarada = user?.fotoUrl || user?.photoURL || contrato?.fotoTitular || ''
   const cpf = user?.cpf || contrato?.cpfTitular || ''
+  const cpfDigits = onlyDigits(cpf)
   const cpfShown = useMemo(() => (printable ? formatCPF(cpf) : displayCPF(cpf, 'last2')), [cpf, printable])
 
-  // verificação / QR opcional
-  const verifyPath = `/verificar/${encodeURIComponent(numero)}`
+  // verificação (AGORA POR CPF) + QR
+  const verifyPath = `/verificar/${encodeURIComponent(cpfDigits)}`
   const verifyUrl = `${verifyBase}${verifyPath}`
-  const qrCodeUrl = contrato?.qrCodeUrl || contrato?.qr || ''
   const validade = todayBR()
+  const [qrDataUrl, setQrDataUrl] = useState(contrato?.qrCodeUrl || contrato?.qr || '')
 
-  // ===== Carregar avatar do usuário via BFF (Blob) quando necessário =====
+  // Gera QR local se não vier do backend
+  useEffect(() => {
+    let disposed = false
+    ;(async () => {
+      try {
+        if (!qrDataUrl && cpfDigits) {
+          const dataUrl = await QRCode.toDataURL(verifyUrl, {
+            errorCorrectionLevel: 'M',
+            margin: 1,
+            width: 220
+          })
+          if (!disposed) setQrDataUrl(dataUrl)
+        }
+      } catch {
+        // silêncio: QR é apenas um plus visual
+      }
+    })()
+    return () => { disposed = true }
+  }, [cpfDigits, verifyUrl]) // eslint-disable-line
+
+  // ===== Avatar via BFF =====
   useEffect(() => {
     let active = true
     if (!loadAvatar) {
-      // se não for carregar, limpe qualquer blob antigo
       if (lastObjUrlRef.current) {
         URL.revokeObjectURL(lastObjUrlRef.current)
         lastObjUrlRef.current = null
@@ -118,7 +139,6 @@ export default function CarteirinhaAssociado({
       setAvatarBlobUrl(null)
       return () => {}
     }
-
     async function load() {
       try {
         const objUrl = await getAvatarBlobUrl()
@@ -134,9 +154,7 @@ export default function CarteirinhaAssociado({
         setAvatarBlobUrl(null)
       }
     }
-
     load()
-
     return () => {
       active = false
       if (lastObjUrlRef.current) {
@@ -144,10 +162,8 @@ export default function CarteirinhaAssociado({
         lastObjUrlRef.current = null
       }
     }
-    // mudanças que indicam outro usuário
-  }, [loadAvatar, user?.id, user?.email, cpf, contrato?.pessoaId])
+  }, [loadAvatar, user?.id, user?.email, cpfDigits, contrato?.pessoaId])
 
-  // URL final a exibir (prioriza fotoUrl > Blob autenticado > foto declarada)
   const avatarUrl = fotoUrl || avatarBlobUrl || fotoDeclarada || ''
 
   // autoavaliação
@@ -156,9 +172,9 @@ export default function CarteirinhaAssociado({
     if (!nome) showToast('Nome do titular ausente na carteirinha.')
     if (!plano) showToast('Plano não identificado.')
     if (!numero) showToast('Número do contrato ausente.')
-    if (!cpf || onlyDigits(cpf).length < 11) showToast('CPF inválido ou não informado.')
+    if (!cpfDigits || cpfDigits.length !== 11) showToast('CPF inválido ou não informado.')
     warnedRef.current = true
-  }, [nome, plano, numero, cpf])
+  }, [nome, plano, numero, cpfDigits])
 
   // igualar altura ao card do contrato (desktop)
   useEffect(() => {
@@ -375,7 +391,7 @@ export default function CarteirinhaAssociado({
               </div>
               <div className="mt-1 text-[11px]" style={{ color: T.text }}>
                 CPF: <strong>{cpfShown || '—'}</strong><br />
-                Validade: <strong>{validade}</strong>
+                Gerada em: <strong>{validade}</strong>
               </div>
             </div>
 
@@ -393,15 +409,15 @@ export default function CarteirinhaAssociado({
           <div className="flex-1" />
 
           <footer>
-            {/* bloco de verificação + QR opcional */}
+            {/* verificação + QR */}
             <div className="grid grid-cols-3 gap-8 items-center">
               <div className="col-span-2 text-[10px]" style={{ color: T.textMuted }}>
-                Verifique a autenticidade: <strong>{verifyUrl}</strong>
+                Verifique a autenticidade: 
               </div>
-              {qrCodeUrl ? (
+              {qrDataUrl ? (
                 <div className="justify-self-end">
                   <img
-                    src={qrCodeUrl}
+                    src={qrDataUrl}
                     alt="QR code de verificação"
                     style={{ width: 76, height: 76 }}
                     referrerPolicy="no-referrer"
@@ -416,9 +432,6 @@ export default function CarteirinhaAssociado({
               </div>
             )}
 
-            <div className="mt-2 text-[9px]" style={{ color: T.textMuted }}>
-              Em caso de achado, favor devolver à {tenantName}.
-            </div>
 
             {!printable && (
               <div className="mt-2 flex gap-1 self-start">
