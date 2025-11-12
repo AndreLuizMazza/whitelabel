@@ -89,24 +89,7 @@ function SegmentedPrintButtons({ user, contrato }) {
       className="inline-flex items-center rounded-md overflow-hidden"
       style={{ border: '1px solid var(--c-border)' }}
     >
-      <Link
-        to="/carteirinha/print?side=front"
-        state={{ user, contrato }}
-        className="no-underline"
-        style={{ ...btnBase, border: 'none', borderRight: '1px solid var(--c-border)' }}
-        aria-pressed="false"
-      >
-        Frente
-      </Link>
-      <Link
-        to="/carteirinha/print?side=back"
-        state={{ user, contrato }}
-        className="no-underline"
-        style={{ ...btnBase, border: 'none', ...activeStyles }}
-        aria-pressed="true"
-      >
-        Verso
-      </Link>
+
     </div>
   )
 }

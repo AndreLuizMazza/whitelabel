@@ -343,7 +343,7 @@ export default function CarteirinhaAssociado({
           {/* rodapé frente */}
           <footer className="pt-1">
             <div className="mt-2 text-[9px]" style={{ color: T.textMuted }}>
-              Documento digital válido enquanto exibido pelo titular. Em caso de perda ou dúvida, contate a unidade responsável.
+              Documento digital válido enquanto exibido pelo Associado. Em caso de perda ou dúvida, contate a unidade responsável.
             </div>
 
             {!printable && (

@@ -1,5 +1,5 @@
-/* Gerado de D:\whitelabel-clean\config\tenants\rosapax.json */
-window.__TENANT__ = {"slug":"rosapax","v":5,"vars":{"--primary":"#D643D9","--primary-dark":"#A456A6","--primary-light":"#EE05F2","--secondary":"#EE05F2","--on-primary":"#ffffff","--surface":"#ffffff","--surface-alt":"#F2F2F2","--text":"#0D0D0D","--text-muted":"rgba(13,13,13,0.65)","--c-border":"rgba(0,0,0,0.08)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 10%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 20%, transparent)","--nav-active-color":"#D643D9","--highlight":"#EE05F2","--button-hover":"color-mix(in srgb, var(--primary) 15%, var(--secondary))"},"varsDark":{"--surface":"#0D0D0D","--surface-alt":"#1A1A1A","--text":"#F2F2F2","--text-muted":"rgba(242,242,242,0.7)","--c-border":"rgba(255,255,255,0.12)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 20%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 35%, transparent)","--nav-active-color":"#EE05F2","--highlight":"#D643D9","--button-hover":"color-mix(in srgb, var(--primary) 25%, var(--secondary))"},"logo":"https://app.progem.com.br/progem/api/downloads/empresa/257/arquivo?nome=e7d5f6cf-0af2-4390-9cd3-d451089f1c28_rosapax.png","domain":"rosapax.com.br"};
+/* Gerado de D:\whitelabel-clean\config\tenants\patense.json */
+window.__TENANT__ = {"slug":"patense","v":7,"vars":{"--primary":"#004C3F","--primary-dark":"#003B31","--on-primary":"#ffffff","--surface":"#ffffff","--surface-alt":"#f6f7fb","--text":"#0b1220","--text-muted":"#5f6b7a","--c-border":"rgba(0,0,0,0.08)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 12%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 22%, transparent)","--nav-active-color":"#004C3F"},"varsDark":{"--surface":"#0b1220","--surface-alt":"#0f172a","--text":"#e5e7eb","--text-muted":"#94a3b8","--c-border":"rgba(255,255,255,0.12)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 22%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 36%, transparent)","--nav-active-color":"#ffffff"},"logo":"https://app.progem.com.br/progem/api/downloads/empresa/274/arquivo?nome=ea3aa504-e9fd-4f19-9021-eebd659ca841_Marca_Dagua_Logo_Funeraria_Patense.png","domain":"patense.com.br"};
 
 (function(){
   try {
@@ -26,7 +26,7 @@ window.__TENANT__ = {"slug":"rosapax","v":5,"vars":{"--primary":"#D643D9","--pri
       }
     }
     if (docEl){
-      docEl.setAttribute('data-tenant', t.slug || 'rosapax');
+      docEl.setAttribute('data-tenant', t.slug || 'patense');
       docEl.setAttribute('data-theme', mode);
       docEl.setAttribute('data-theme-ready', '1');
     }
