@@ -20,8 +20,33 @@ const initial = {
 
 const onlyDigits = (s = '') => s.replace(/\D/g, '')
 const isValidEmail = (e = '') => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim())
-const isValidCPF = (cpf = '') => onlyDigits(cpf).length === 11
 const isStrongPassword = (s = '') => s.length >= 6
+
+/** ================== Validação de CPF (com DV) ==================
+ * Regras:
+ * - 11 dígitos
+ * - rejeita sequências repetidas (000..., 111..., etc.)
+ * - confere DV1 e DV2
+ */
+function isValidCPF(cpf = '') {
+  const d = onlyDigits(cpf)
+  if (d.length !== 11) return false
+  if (/^(\d)\1{10}$/.test(d)) return false // todos iguais
+
+  // Cálculo DV1
+  let sum = 0
+  for (let i = 0; i < 9; i++) sum += Number(d[i]) * (10 - i)
+  let rest = sum % 11
+  const dv1 = rest < 2 ? 0 : 11 - rest
+  if (dv1 !== Number(d[9])) return false
+
+  // Cálculo DV2
+  sum = 0
+  for (let i = 0; i < 10; i++) sum += Number(d[i]) * (11 - i)
+  rest = sum % 11
+  const dv2 = rest < 2 ? 0 : 11 - rest
+  return dv2 === Number(d[10])
+}
 
 /* =================== Máscaras =================== */
 function formatCPF(v = '') {
@@ -286,11 +311,10 @@ export default function RegisterPage() {
   useEffect(() => { if (error) setTimeout(() => alertRef.current?.focus(), 0) }, [error])
 
   // Handlers especializados para aplicar máscara imediatamente
-  const onChangeMasked = (name, formatter, ref) => (e) => {
+  const onChangeMasked = (name, formatter, _ref) => (e) => {
     const raw = e.target.value || ''
     setForm((prev) => ({ ...prev, [name]: formatter(raw) }))
     if (submitted) setErrorList(buildErrorList({ ...form, [name]: formatter(raw) }))
-    if (!ref) return
   }
   const onPasteMasked = (name, formatter) => (e) => {
     e.preventDefault()
@@ -309,7 +333,7 @@ export default function RegisterPage() {
     const items = []
     if (!(values.nome || '').trim()) items.push({ field: 'nome', label: 'Nome completo é obrigatório.' })
     if (!isValidEmail(values.email)) items.push({ field: 'email', label: 'Informe um e-mail válido.' })
-    if (!isValidCPF(values.cpf)) items.push({ field: 'cpf', label: 'Informe um CPF válido (11 dígitos).' })
+    if (!isValidCPF(values.cpf)) items.push({ field: 'cpf', label: 'Informe um CPF válido.' })
     if (!phoneIsValid(values.celular)) items.push({ field: 'celular', label: 'Informe um celular válido com DDD.' })
     if (!values.dataNascimento || !(idadeFrom(values.dataNascimento))) items.push({ field: 'dataNascimento', label: 'Informe sua data de nascimento.' })
     if (values.dataNascimento && !idadeOk) items.push({ field: 'dataNascimento', label: 'Você precisa ter entre 18 e 100 anos.' })
@@ -337,8 +361,15 @@ export default function RegisterPage() {
     setErrorList(list)
 
     if (list.length > 0) {
-      // foca o primeiro campo com erro
       focusByField(list[0].field)
+      return
+    }
+
+    // Dupla checagem de segurança no submit
+    if (!isValidCPF(form.cpf)) {
+      setError('CPF inválido. Verifique os números digitados.')
+      setTimeout(() => alertRef.current?.focus(), 0)
+      focusByField('cpf')
       return
     }
 
@@ -373,7 +404,6 @@ export default function RegisterPage() {
           nome: (form.nome || '').trim(),
         }
         sessionStorage.setItem('reg_prefill', JSON.stringify(prefill))
-        // opcional: último registro também no localStorage (fallback)
         localStorage.setItem('register:last', JSON.stringify(prefill))
       } catch {}
 
@@ -481,7 +511,7 @@ export default function RegisterPage() {
                   aria-invalid={submitted && !cpfOk}
                 />
                 {submitted && !cpfOk && (
-                  <p className="text-xs mt-1 text-red-600">Digite os 11 números do CPF.</p>
+                  <p className="text-xs mt-1 text-red-600">CPF inválido. Verifique os números digitados.</p>
                 )}
               </div>
               
