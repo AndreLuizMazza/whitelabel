@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 
 import './styles/theme.css'
 import './styles/print.css' // impressão (CR-80 / A4)
-
+import ScrollToTop from '@/components/ScrollToTop'
 import TenantBootstrapper from '@/components/TenantBootstrapper'
 
 import Navbar from './components/Navbar.jsx'
@@ -51,6 +51,7 @@ export default function App() {
 
       <main className="flex-1">
         <ErrorBoundary>
+              <ScrollToTop />
           <Routes>
             {/* Páginas públicas */}
             <Route path="/" element={<Home />} />
