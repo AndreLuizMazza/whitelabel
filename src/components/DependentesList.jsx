@@ -49,7 +49,7 @@ export default function DependentesList({ dependentes = [], contrato }) {
 
   const waHref = buildWhats(
     contrato?.unidade?.whatsapp || contrato?.contatos?.celular,
-    'Olá! Preciso de ajuda com meus dependentes ou com a telemedicina.'
+    'Olá! Preciso de ajuda com meus dependentes.'
   )
   function avisar(motivo) {
     track('feature_unavailable', { motivo })
@@ -86,10 +86,16 @@ export default function DependentesList({ dependentes = [], contrato }) {
                 <div className="flex items-center justify-between gap-4">
                   <div className="min-w-0 flex items-center gap-3">
                     {/* avatar iniciais */}
-                    <div className="rounded-full bg-[color-mix(in_srgb,var(--primary)_16%,transparent)] text-[12px] font-semibold
-                                    flex items-center justify-center shrink-0"
-                         style={{ width: 34, height: 34, color: 'var(--primary)',
-                                  border: '1px solid color-mix(in srgb, var(--primary) 30%, transparent)' }}>
+                    <div
+                      className="rounded-full bg-[color-mix(in_srgb,var(--primary)_16%,transparent)] text-[12px] font-semibold
+                                 flex items-center justify-center shrink-0"
+                      style={{
+                        width: 34,
+                        height: 34,
+                        color: 'var(--primary)',
+                        border: '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
+                      }}
+                    >
                       {initials(nome)}
                     </div>
                     <div className="min-w-0">
@@ -111,9 +117,6 @@ export default function DependentesList({ dependentes = [], contrato }) {
                       </button>
                       <button className="btn-outline text-xs" onClick={() => avisar('Carteirinha do dependente')} aria-label="Carteirinha">
                         🎫 Carteirinha
-                      </button>
-                      <button className="btn-primary text-xs" onClick={() => avisar('Ativar Telemedicina')} aria-label="Telemedicina">
-                        💊 Telemedicina
                       </button>
                     </div>
                   </div>
