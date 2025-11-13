@@ -20,8 +20,42 @@ const initial = {
 
 const onlyDigits = (s = '') => s.replace(/\D/g, '')
 const isValidEmail = (e = '') => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim())
-const isValidCPF = (cpf = '') => onlyDigits(cpf).length === 11
-const isStrongPassword = (s = '') => s.length >= 6
+
+/** ===== Política de senha exigida =====
+ * - Pelo menos 8 caracteres
+ * - Ao menos 1 letra maiúscula (A-Z)
+ * - Ao menos 1 letra minúscula (a-z)
+ * - Ao menos 1 dígito (0-9)
+ */
+function getPasswordChecks(s = '') {
+  return {
+    len: s.length >= 8,
+    upper: /[A-Z]/.test(s),
+    lower: /[a-z]/.test(s),
+    digit: /\d/.test(s),
+  }
+}
+function isStrongPassword(s = '') {
+  const c = getPasswordChecks(s)
+  return c.len && c.upper && c.lower && c.digit
+}
+
+/** ================== Validação de CPF (com DV) ================== */
+function isValidCPF(cpf = '') {
+  const d = onlyDigits(cpf)
+  if (d.length !== 11) return false
+  if (/^(\d)\1{10}$/.test(d)) return false
+  let sum = 0
+  for (let i = 0; i < 9; i++) sum += Number(d[i]) * (10 - i)
+  let rest = sum % 11
+  const dv1 = rest < 2 ? 0 : 11 - rest
+  if (dv1 !== Number(d[9])) return false
+  sum = 0
+  for (let i = 0; i < 10; i++) sum += Number(d[i]) * (11 - i)
+  rest = sum % 11
+  const dv2 = rest < 2 ? 0 : 11 - rest
+  return dv2 === Number(d[10])
+}
 
 /* =================== Máscaras =================== */
 function formatCPF(v = '') {
@@ -70,17 +104,8 @@ function DateSelectBR({
   }, [valueISO]) // eslint-disable-line
 
   const today = new Date()
-
-  const minDate = (() => {
-    const d = new Date(today)
-    d.setFullYear(d.getFullYear() - (maxAge || 100))
-    return d
-  })()
-  const maxDate = (() => {
-    const d = new Date(today)
-    d.setFullYear(d.getFullYear() - (minAge || 18))
-    return d
-  })()
+  const minDate = (() => { const d = new Date(today); d.setFullYear(d.getFullYear() - (maxAge || 100)); return d })()
+  const maxDate = (() => { const d = new Date(today); d.setFullYear(d.getFullYear() - (minAge || 18)); return d })()
 
   const minY = minDate.getFullYear()
   const maxY = maxDate.getFullYear()
@@ -245,6 +270,7 @@ export default function RegisterPage() {
   // Mostrar/ocultar senha
   const [showPass, setShowPass] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
+  const [senhaFocused, setSenhaFocused] = useState(false) // <-- controla a visibilidade da regra
 
   // Refs para foco em erro
   const alertRef = useRef(null)
@@ -266,6 +292,10 @@ export default function RegisterPage() {
     if (m < 0 || (m === 0 && t.getDate() < d.getDate())) a--
     return a
   }
+  const idadeFrom = (iso) => {
+    const a = ageFromISO(iso)
+    return a !== null && a >= 0 ? a : null
+  }
 
   const idade = useMemo(() => ageFromISO(form.dataNascimento), [form.dataNascimento])
   const idadeOk = idade !== null && idade >= 18 && idade <= 100
@@ -274,6 +304,7 @@ export default function RegisterPage() {
   const nomeOk = useMemo(() => form.nome.trim().length >= 3, [form.nome])
   const emailOk = useMemo(() => isValidEmail(form.email), [form.email])
   const cpfOk = useMemo(() => isValidCPF(form.cpf), [form.cpf])
+  const senhaChecks = useMemo(() => getPasswordChecks(form.senha), [form.senha])
   const senhaOk = useMemo(() => isStrongPassword(form.senha), [form.senha])
   const confirmOk = useMemo(() => form.confirmSenha.length > 0 && form.confirmSenha === form.senha, [form.confirmSenha, form.senha])
   const celularOk = useMemo(() => phoneIsValid(form.celular), [form.celular])
@@ -286,16 +317,17 @@ export default function RegisterPage() {
   useEffect(() => { if (error) setTimeout(() => alertRef.current?.focus(), 0) }, [error])
 
   // Handlers especializados para aplicar máscara imediatamente
-  const onChangeMasked = (name, formatter, ref) => (e) => {
+  const onChangeMasked = (name, formatter, _ref) => (e) => {
     const raw = e.target.value || ''
-    setForm((prev) => ({ ...prev, [name]: formatter(raw) }))
-    if (submitted) setErrorList(buildErrorList({ ...form, [name]: formatter(raw) }))
-    if (!ref) return
+    const nextVal = formatter(raw)
+    setForm((prev) => ({ ...prev, [name]: nextVal }))
+    if (submitted) setErrorList(buildErrorList({ ...form, [name]: nextVal }))
   }
   const onPasteMasked = (name, formatter) => (e) => {
     e.preventDefault()
     const pasted = (e.clipboardData || window.clipboardData).getData('text')
-    setForm((prev) => ({ ...prev, [name]: formatter(pasted) }))
+    const nextVal = formatter(pasted)
+    setForm((prev) => ({ ...prev, [name]: nextVal }))
   }
 
   function onChange(e) {
@@ -307,20 +339,30 @@ export default function RegisterPage() {
 
   function buildErrorList(values) {
     const items = []
+    const age = idadeFrom(values.dataNascimento)
+
     if (!(values.nome || '').trim()) items.push({ field: 'nome', label: 'Nome completo é obrigatório.' })
     if (!isValidEmail(values.email)) items.push({ field: 'email', label: 'Informe um e-mail válido.' })
-    if (!isValidCPF(values.cpf)) items.push({ field: 'cpf', label: 'Informe um CPF válido (11 dígitos).' })
+    if (!isValidCPF(values.cpf)) items.push({ field: 'cpf', label: 'Informe um CPF válido.' })
     if (!phoneIsValid(values.celular)) items.push({ field: 'celular', label: 'Informe um celular válido com DDD.' })
-    if (!values.dataNascimento || !(idadeFrom(values.dataNascimento))) items.push({ field: 'dataNascimento', label: 'Informe sua data de nascimento.' })
-    if (values.dataNascimento && !idadeOk) items.push({ field: 'dataNascimento', label: 'Você precisa ter entre 18 e 100 anos.' })
-    if (!isStrongPassword(values.senha)) items.push({ field: 'senha', label: 'A senha deve ter ao menos 6 caracteres.' })
-    if (!(values.confirmSenha && values.confirmSenha === values.senha)) items.push({ field: 'confirmSenha', label: 'As senhas não conferem.' })
-    if (!(values.aceiteTermos && values.aceitePrivacidade)) items.push({ field: 'aceites', label: 'É necessário aceitar os Termos e a Política de Privacidade.' })
+    if (!values.dataNascimento || age === null) {
+      items.push({ field: 'dataNascimento', label: 'Informe sua data de nascimento.' })
+    } else if (age < 18 || age > 100) {
+      items.push({ field: 'dataNascimento', label: 'Você precisa ter entre 18 e 100 anos.' })
+    }
+    if (!isStrongPassword(values.senha)) {
+      items.push({
+        field: 'senha',
+        label: 'A senha deve ter ao menos 8 caracteres, com letra MAIÚSCULA, letra minúscula e dígito.',
+      })
+    }
+    if (!(values.confirmSenha && values.confirmSenha === values.senha)) {
+      items.push({ field: 'confirmSenha', label: 'As senhas não conferem.' })
+    }
+    if (!(values.aceiteTermos && values.aceitePrivacidade)) {
+      items.push({ field: 'aceites', label: 'É necessário aceitar os Termos e a Política de Privacidade.' })
+    }
     return items
-  }
-  const idadeFrom = (iso) => {
-    const a = ageFromISO(iso)
-    return a !== null && a >= 0 ? a : null
   }
 
   function focusByField(field) {
@@ -337,12 +379,17 @@ export default function RegisterPage() {
     setErrorList(list)
 
     if (list.length > 0) {
-      // foca o primeiro campo com erro
       focusByField(list[0].field)
       return
     }
 
-    // 🔁 suporta state.from como string OU objeto
+    if (!isValidCPF(form.cpf)) {
+      setError('CPF inválido. Verifique os números digitados.')
+      setTimeout(() => alertRef.current?.focus(), 0)
+      focusByField('cpf')
+      return
+    }
+
     const rawFrom = location.state?.from
     const from =
       typeof rawFrom === 'string'
@@ -352,8 +399,6 @@ export default function RegisterPage() {
             : '/area')
 
     const identificador = form.email?.trim() || onlyDigits(form.cpf)
-
-    // envia os campos como estão (máscaras são tratadas na API de auth)
     const payload = { ...form }
 
     try {
@@ -363,7 +408,6 @@ export default function RegisterPage() {
       await registerUser(payload)
       await login(identificador, form.senha)
 
-      // ✅ salva um prefill leve para a próxima etapa (Cadastro)
       try {
         const prefill = {
           cpf: onlyDigits(form.cpf),
@@ -373,7 +417,6 @@ export default function RegisterPage() {
           nome: (form.nome || '').trim(),
         }
         sessionStorage.setItem('reg_prefill', JSON.stringify(prefill))
-        // opcional: último registro também no localStorage (fallback)
         localStorage.setItem('register:last', JSON.stringify(prefill))
       } catch {}
 
@@ -391,6 +434,26 @@ export default function RegisterPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  function Rule({ ok, children }) {
+    return (
+      <li className="flex items-center gap-2">
+        <span
+          aria-hidden="true"
+          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]"
+          style={{
+            background: ok
+              ? 'color-mix(in srgb, var(--primary) 18%, transparent)'
+              : 'color-mix(in srgb, var(--text) 15%, transparent)',
+            color: ok ? 'var(--primary)' : 'var(--text-muted)'
+          }}
+        >
+          {ok ? '✓' : '•'}
+        </span>
+        <span style={{ color: ok ? 'var(--text)' : 'var(--text-muted)' }}>{children}</span>
+      </li>
+    )
   }
 
   return (
@@ -459,9 +522,8 @@ export default function RegisterPage() {
               )}
             </div>
 
-            {/* Grid 2 col: e-mail + CPF */}
+            {/* Grid 2 col: CPF + e-mail */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              
               <div>
                 <label htmlFor="cpf" className="label font-medium">
                   CPF <span aria-hidden="true" className="text-red-600">*</span>
@@ -481,10 +543,10 @@ export default function RegisterPage() {
                   aria-invalid={submitted && !cpfOk}
                 />
                 {submitted && !cpfOk && (
-                  <p className="text-xs mt-1 text-red-600">Digite os 11 números do CPF.</p>
+                  <p className="text-xs mt-1 text-red-600">CPF inválido. Verifique os números digitados.</p>
                 )}
               </div>
-              
+
               <div>
                 <label htmlFor="email" className="label font-medium">
                   E-mail <span aria-hidden="true" className="text-red-600">*</span>
@@ -507,14 +569,10 @@ export default function RegisterPage() {
                   <p className="text-xs mt-1 text-red-600">Informe um e-mail válido.</p>
                 )}
               </div>
-
-              
             </div>
 
-            {/* Grid: celular + data de nascimento */}
+            {/* Grid: data de nascimento + celular */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              
-
               <div>
                 <label className="label font-medium">
                   Data de nascimento <span aria-hidden="true" className="text-red-600">*</span>
@@ -533,7 +591,6 @@ export default function RegisterPage() {
                   </p>
                 )}
               </div>
-
 
               <div>
                 <label htmlFor="celular" className="label font-medium">
@@ -573,11 +630,14 @@ export default function RegisterPage() {
                     ref={senhaRef}
                     value={form.senha}
                     onChange={onChange}
+                    onFocus={() => setSenhaFocused(true)}
+                    onBlur={() => setSenhaFocused(false)}
                     className="input pr-12"
-                    placeholder="Crie uma senha (mín. 6)"
+                    placeholder="Mín. 8, c/ maiúscula, minúscula e dígito"
                     autoComplete="new-password"
                     aria-required="true"
                     aria-invalid={submitted && !senhaOk}
+                    aria-describedby={senhaFocused ? 'senha-policy' : undefined}
                   />
                   <button
                     type="button"
@@ -590,8 +650,34 @@ export default function RegisterPage() {
                     {showPass ? '🙈' : '👁️'}
                   </button>
                 </div>
+
+                {/* Checklist em tempo real — visível APENAS com foco no campo senha */}
+                {senhaFocused && (
+                  <div
+                    id="senha-policy"
+                    className="rounded-md px-3 py-2 mt-2"
+                    style={{
+                      background: 'color-mix(in srgb, var(--surface) 80%, transparent)',
+                      border: '1px solid var(--c-border)'
+                    }}
+                    aria-live="polite"
+                  >
+                    <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                      Sua senha deve conter:
+                    </p>
+                    <ul className="text-sm space-y-1">
+                      <Rule ok={senhaChecks.len}>Pelo menos 8 caracteres</Rule>
+                      <Rule ok={senhaChecks.upper}>Ao menos 1 letra maiúscula (A–Z)</Rule>
+                      <Rule ok={senhaChecks.lower}>Ao menos 1 letra minúscula (a–z)</Rule>
+                      <Rule ok={senhaChecks.digit}>Ao menos 1 dígito (0–9)</Rule>
+                    </ul>
+                  </div>
+                )}
+
                 {submitted && !senhaOk && (
-                  <p className="text-xs mt-1 text-red-600">A senha deve ter pelo menos 6 caracteres.</p>
+                  <p className="text-xs mt-2 text-red-600">
+                    A senha deve ter ao menos 8 caracteres, com letra MAIÚSCULA, letra minúscula e dígito.
+                  </p>
                 )}
               </div>
 

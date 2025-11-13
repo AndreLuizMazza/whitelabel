@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 
 import './styles/theme.css'
 import './styles/print.css' // impressão (CR-80 / A4)
-
+import ScrollToTop from '@/components/ScrollToTop'
 import TenantBootstrapper from '@/components/TenantBootstrapper'
 
 import Navbar from './components/Navbar.jsx'
@@ -34,7 +34,7 @@ import StickyContactDock from './components/StickyContactDock.jsx'
 import MemorialList from '@/pages/MemorialList.jsx'
 import MemorialDetail from '@/pages/MemorialDetail.jsx'
 import ErrorBoundary from '@/components/ErrorBoundary.jsx'
-
+import VerificarCarteirinha from '@/pages/VerificarCarteirinha'
 // Impressão da carteirinha
 import CarteirinhaPrint from '@/pages/CarteirinhaPrint.jsx'
 
@@ -51,6 +51,7 @@ export default function App() {
 
       <main className="flex-1">
         <ErrorBoundary>
+              <ScrollToTop />
           <Routes>
             {/* Páginas públicas */}
             <Route path="/" element={<Home />} />
@@ -68,7 +69,7 @@ export default function App() {
             <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
             <Route path="/termos-uso" element={<TermosUso />} />
             <Route path="/filiais" element={<Filiais />} />
-
+            <Route path="/verificar/:cpf" element={<VerificarCarteirinha />} />
             {/* Memorial */}
             <Route path="/memorial" element={<MemorialList />} />
             <Route path="/memorial/:slug" element={<MemorialDetail />} />

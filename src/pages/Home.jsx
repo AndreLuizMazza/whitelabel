@@ -193,7 +193,7 @@ export default function Home() {
             title="Área do Associado"
             desc="Acesse contratos, dependentes e pagamentos."
             to={isLogged ? '/area' : '/login'}
-            cta="Abrir área"
+            cta="Acessar área"
             mounted={mounted}
             delay={270}
           />

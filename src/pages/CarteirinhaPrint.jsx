@@ -119,7 +119,7 @@ export default function CarteirinhaPrint() {
     return () => { cancelled = true }
   }, [avatarReady, logoReady])
 
-  // Dispara diálogo de impressão somente quando tudo estiver ok
+  // Dispara diálogo de impressão automaticamente (comportamento original preservado)
   useEffect(() => {
     if (!readyToPrint) return
     const t = setTimeout(() => {
@@ -127,6 +127,10 @@ export default function CarteirinhaPrint() {
     }, 150)
     return () => clearTimeout(t)
   }, [readyToPrint])
+
+  const handlePrint = () => {
+    try { window.print() } catch {}
+  }
 
   const renderBoth = sideParam === 'both'
   const sides = useMemo(
@@ -136,38 +140,153 @@ export default function CarteirinhaPrint() {
 
   return (
     <div className="print-wrapper">
-      {/* Cabeçalho apenas quando não for autoprint */}
+      <ScreenStyles />
+
+      {/* Cabeçalho apenas quando não for autoprint (desktop e mobile) */}
       {!autoprint && (
-        <div className="no-print" style={{ padding: 16 }}>
-          <h1 className="text-lg font-semibold">Impressão da carteirinha</h1>
-          <p style={{ opacity: .7 }}>
+        <div className="no-print head-note">
+          <h1 className="title">Impressão da carteirinha</h1>
+          <p className="muted">
             Use a impressão frente e verso do navegador para produzir o cartão físico.
           </p>
           {!readyToPrint && (
-            <p className="mt-2 text-sm" style={{ opacity: .7 }}>
+            <p className="muted small">
               Preparando impressão{avatarUrl || tenantLogoUrl ? ' (carregando imagens)…' : '…'}
             </p>
           )}
         </div>
       )}
 
-      {/* Folha A4 com cartões em tamanho físico (mm) */}
-      <div className="sheet-a4">
-        {sides.map((side) => (
-          <div key={side} className="card-physical">
-            <CarteirinhaAssociado
-              user={user}
-              contrato={contrato}
-              printable
-              side={side === 'front' ? 'front' : 'back'}
-              matchContratoHeight={false}
-              loadAvatar={false}           // evita refetch — usaremos o blob desta página
-              fotoUrl={avatarUrl}          // prioriza avatar pré-carregado
-              tenantLogoUrl={tenantLogoUrl} // injeta logo já decodificada
-            />
-          </div>
-        ))}
+      {/* MOBILE: barra superior sticky com o botão Imprimir (fica longe do CTA inferior) */}
+      <div className="no-print mobile-printbar">
+        <button
+          type="button"
+          onClick={handlePrint}
+          disabled={!readyToPrint}
+          className="btn-primary"
+          aria-label="Imprimir carteirinha"
+          title="Imprimir carteirinha"
+        >
+          🖨️ Imprimir
+        </button>
+      </div>
+
+      {/* LAYOUT EM GRADE: folha + toolbar lateral (desktop) */}
+      <div className="print-grid">
+        {/* Folha A4 com cartões em tamanho físico (mm) */}
+        <div className="sheet-a4">
+          {sides.map((side) => (
+            <div key={side} className="card-physical">
+              <CarteirinhaAssociado
+                user={user}
+                contrato={contrato}
+                printable
+                side={side === 'front' ? 'front' : 'back'}
+                matchContratoHeight={false}
+                loadAvatar={false}            // evita refetch — usaremos o blob desta página
+                fotoUrl={avatarUrl}           // prioriza avatar pré-carregado
+                tenantLogoUrl={tenantLogoUrl} // injeta logo já decodificada
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* DESKTOP: toolbar lateral sticky, sempre próxima da folha */}
+        <aside className="no-print side-tools">
+          <button
+            type="button"
+            onClick={handlePrint}
+            disabled={!readyToPrint}
+            className="btn-ghost"
+            aria-label="Imprimir carteirinha"
+            title="Imprimir carteirinha"
+          >
+            🖨️ Imprimir
+          </button>
+        </aside>
       </div>
     </div>
+  )
+}
+
+/** CSS essencial (sem depender do seu pipeline) */
+function ScreenStyles() {
+  return (
+    <style>{`
+      @media print {
+        .no-print { display: none !important; }
+        .mobile-printbar { display: none !important; }
+        .side-tools { display: none !important; }
+      }
+
+      .head-note { padding: 16px; }
+      .title { font-size: 1.125rem; font-weight: 600; margin: 0 0 4px; }
+      .muted { opacity: .7; margin: 0; }
+      .small { font-size: .875rem; margin-top: 8px; }
+
+      /* Grade: folha + toolbar lateral (só ativa no desktop) */
+      .print-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+        align-items: start;
+      }
+      @media (min-width: 1024px) {
+        .print-grid {
+          grid-template-columns: 1fr auto; /* folha | toolbar */
+          gap: 24px;
+        }
+      }
+
+      /* Toolbar lateral (desktop) */
+      .side-tools {
+        position: sticky;
+        top: 24px;
+        align-self: start;
+        display: none;
+      }
+      @media (min-width: 1024px) {
+        .side-tools { display: flex; flex-direction: column; gap: 12px; }
+      }
+
+      /* Barra superior (mobile) */
+      .mobile-printbar {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        padding: 8px 12px;
+        background: var(--surface, #fff);
+        border-bottom: 1px solid var(--c-border, rgba(0,0,0,.08));
+        display: flex;
+        gap: 8px;
+        justify-content: flex-end;
+      }
+      @media (min-width: 1024px) {
+        .mobile-printbar { display: none; }
+      }
+
+      /* Botões */
+      .btn-primary, .btn-ghost {
+        border-radius: 12px;
+        font-weight: 600;
+        padding: 10px 14px;
+        border: 1px solid var(--c-border, rgba(0,0,0,.12));
+        background: var(--surface, #fff);
+        color: var(--text, #0b1220);
+        box-shadow: 0 6px 24px rgba(0,0,0,.08);
+        transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+        cursor: pointer;
+      }
+      .btn-primary:active, .btn-ghost:active {
+        transform: translateY(1px);
+        box-shadow: 0 3px 16px rgba(0,0,0,.12);
+      }
+      .btn-primary[disabled], .btn-ghost[disabled] {
+        cursor: not-allowed; opacity: .6;
+      }
+
+      /* Você já tem estilos para .sheet-a4 e .card-physical;
+         mantive-os como estão no seu projeto. */
+    `}</style>
   )
 }

@@ -30,6 +30,6 @@
     "--highlight": "#F1C40F",
     "--button-hover": "color-mix(in srgb, var(--primary) 25%, var(--secondary))"
   },
-  "logo": "https://app.progem.com.br/progem/api/downloads/empresa/42/arquivo?nome=08ba9336-1ee7-4abc-8c12-a8f39a87aac4_9ceb4b3bed1f4d74a26b9d6831eb7b61_logoempresaadbf8ee6a2984670ac536ff67f79ddfe___nsaremovebgpreview.png",
+  "logo": "https://app.progem.com.br/progem/api/downloads/empresa/42/arquivo?nome=013c5366-168f-425b-8d87-9e4142212c53_logosemfundo2.png",
   "domain": "nsa.progem.com.br"
 }
