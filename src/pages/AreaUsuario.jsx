@@ -1,5 +1,7 @@
+// src/pages/AreaUsuario.jsx
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import api from '@/lib/api.js'
 import useAuth from '@/store/auth'
 import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
 import ContratoCard from '@/components/ContratoCard'
@@ -66,22 +68,7 @@ function InfoTooltip({ text, children }) {
 }
 
 /* ===== Segmented control (Frente/Verso) ===== */
-function SegmentedPrintButtons({ user, contrato }) {
-  const btnBase = {
-    padding: '6px 10px',
-    fontSize: '12px',
-    border: '1px solid var(--c-border)',
-    background: 'var(--surface)',
-    color: 'var(--text)',
-    lineHeight: 1,
-  }
-
-  const activeStyles = {
-    background: 'var(--nav-active-bg)',
-    color: 'var(--nav-active-color)',
-    borderColor: 'var(--nav-active-bg)',
-  }
-
+function SegmentedPrintButtons() {
   return (
     <div
       role="group"
@@ -89,9 +76,15 @@ function SegmentedPrintButtons({ user, contrato }) {
       className="inline-flex items-center rounded-md overflow-hidden"
       style={{ border: '1px solid var(--c-border)' }}
     >
-
+      {/* Mantido vazio para não alterar comportamento existente */}
     </div>
   )
+}
+
+/* ===== helpers para links do plano (apenas existência) ===== */
+function extractPlanoLinks(plano) {
+  if (!plano || !Array.isArray(plano.links)) return []
+  return plano.links.filter((item) => item && item.link && item.visivel !== false)
 }
 
 export default function AreaUsuario() {
@@ -161,6 +154,68 @@ export default function AreaUsuario() {
   const getId = (c) => c?.id ?? c?.contratoId ?? c?.numeroContrato
   const isAtivo = (c) =>
     c?.contratoAtivo === true || String(c?.status || '').toUpperCase() === 'ATIVO'
+
+  /* ===== PLANO do contrato (para identificar se há links) ===== */
+  const [plano, setPlano] = useState(null)
+  const [loadingPlano, setLoadingPlano] = useState(false)
+  const [planoErro, setPlanoErro] = useState('')
+
+  useEffect(() => {
+    setPlanoErro('')
+    const planoId = contrato?.planoId || contrato?.plano_id || contrato?.plano?.id
+    if (!planoId) {
+      setPlano(null)
+      return
+    }
+
+    let cancelado = false
+
+    async function fetchPlano(planId) {
+      setLoadingPlano(true)
+      try {
+        // igual padrão do PlanoDetalhe: remove Authorization para usar o client token do BFF
+        const { data } = await api.get(`/api/v1/planos/${planId}`, {
+          transformRequest: [(d, headers) => {
+            try { delete headers.Authorization } catch {}
+            return d
+          }],
+          __skipAuthRedirect: true,
+        })
+        if (!cancelado) setPlano(data)
+      } catch (e1) {
+        try {
+          const { data } = await api.get(`/api/v1/planos/${planId}`, {
+            headers: { Authorization: '' },
+            __skipAuthRedirect: true,
+          })
+          if (!cancelado) setPlano(data)
+        } catch (e2) {
+          console.error('Falha ao carregar plano da Área do Associado', e2)
+          if (!cancelado) {
+            setPlano(null)
+            setPlanoErro('Não foi possível carregar os acessos digitais do plano.')
+          }
+        }
+      } finally {
+        if (!cancelado) setLoadingPlano(false)
+      }
+    }
+
+    fetchPlano(planoId)
+
+    return () => { cancelado = true }
+  }, [contrato?.planoId, contrato?.plano_id, contrato?.plano?.id])
+
+  useEffect(() => {
+    if (planoErro) showToast(planoErro)
+  }, [planoErro])
+
+  const planoLinks = useMemo(() => extractPlanoLinks(plano), [plano])
+
+  const planoIdForRoute =
+    contrato?.planoId || contrato?.plano_id || plano?.id || null
+  const numeroContrato = contrato?.numeroContrato ?? contrato?.id ?? null
+  const nomePlano = contrato?.nomePlano ?? plano?.nome ?? null
 
   return (
     <section className="section" key={cpf}>
@@ -267,9 +322,7 @@ export default function AreaUsuario() {
         {!loading && !erro && (
           contrato ? (
             <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* BLOCO 1 — Carteirinha + Impressão + Pagamento
-                  Mobile: primeiro (order-1)
-                  Desktop: coluna direita (order-2, col-span-1) */}
+              {/* BLOCO 1 — Carteirinha + Impressão + Pagamento */}
               <div className="order-1 lg:order-2 lg:col-span-1 space-y-6">
                 <h4 className="sr-only">Resumo do Associado e Pagamentos</h4>
                 <CarteirinhaAssociado user={user} contrato={contrato} />
@@ -286,7 +339,7 @@ export default function AreaUsuario() {
                     <Printer size={14} /> Imprimir (frente e verso)
                   </Link>
 
-                  <SegmentedPrintButtons user={user} contrato={contrato} />
+                  <SegmentedPrintButtons />
                 </div>
 
                 {/* Pagamento (sticky apenas no desktop) */}
@@ -302,11 +355,53 @@ export default function AreaUsuario() {
                 </div>
               </div>
 
-              {/* BLOCO 2 — Contrato + Dependentes
-                  Mobile: depois (order-2)
-                  Desktop: coluna esquerda larga (order-1, col-span-2) */}
+              {/* BLOCO 2 — Contrato + CTA Serviços Digitais + Dependentes */}
               <div className="order-2 lg:order-1 lg:col-span-2 space-y-6">
                 <ContratoCard contrato={contrato} />
+
+                {/* Serviços digitais: se o plano tiver pelo menos 1 link */}
+                {loadingPlano && !plano && (
+                  <div className="card p-4">
+                    <p className="text-sm" style={{ color: 'var(--text)' }}>
+                      Carregando serviços digitais do seu plano...
+                    </p>
+                  </div>
+                )}
+
+                {planoLinks.length > 0 && planoIdForRoute && (
+                  <div className="card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-semibold">
+                        Serviços digitais incluídos no seu plano
+                      </h4>
+                      <p
+                        className="text-xs mt-1"
+                        style={{ color: 'var(--text)' }}
+                      >
+                        Acesse plataformas e benefícios online vinculados ao seu plano,
+                        como clubes de descontos, aplicativos e outros serviços digitais.
+                      </p>
+                    </div>
+                    <Link
+                      to="/servicos-digitais"
+                      state={{
+                        planoId: planoIdForRoute,
+                        numeroContrato,
+                        nomePlano,
+                      }}
+                      className="btn-primary text-sm whitespace-nowrap"
+                      onClick={() =>
+                        track('servicos_digitais_open', {
+                          planoId: planoIdForRoute,
+                          numeroContrato,
+                        })
+                      }
+                    >
+                      Ver serviços digitais
+                    </Link>
+                  </div>
+                )}
+
                 <DependentesList dependentes={dependentes} contrato={contrato} />
               </div>
             </div>

@@ -37,6 +37,7 @@ import ErrorBoundary from '@/components/ErrorBoundary.jsx'
 import VerificarCarteirinha from '@/pages/VerificarCarteirinha'
 // Impressão da carteirinha
 import CarteirinhaPrint from '@/pages/CarteirinhaPrint.jsx'
+import ServicosDigitais from '@/pages/ServicosDigitais.jsx'
 
 // 🔐 Perfil (senha e avatar)
 import Perfil from '@/pages/Perfil.jsx'
@@ -76,6 +77,7 @@ export default function App() {
 
             {/* Impressão da carteirinha */}
             <Route path="/carteirinha/print" element={<CarteirinhaPrint />} />
+              <Route path="/servicos-digitais" element={<ServicosDigitais />} />
 
             {/* 🔒 Fluxo de contratação: prioriza registro */}
             <Route

@@ -337,8 +337,8 @@ app.put('/api/v1/app/me/avatar', async (req, res) => {
         Authorization: incomingAuth,
         ...(incomingType ? { 'Content-Type': incomingType } : {}),
       }),
-      body: req,           // stream
-      duplex: 'half',      // << necessário no Node 18+
+      body: req,           
+      duplex: 'half',      
     });
 
     const data = await readAsJsonOrText(r);
