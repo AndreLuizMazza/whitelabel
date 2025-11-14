@@ -100,6 +100,17 @@ async function forward(req, res, path) {
     const ct = r.headers.get('content-type') || 'application/json';
     const txt = await r.text();
 
+    // log extra quando der erro no upstream
+    if (!r.ok) {
+      console.error(
+        '[NaLapide BFF] UPSTREAM ERROR',
+        r.status,
+        ct,
+        '| body=',
+        short(txt, 300)
+      );
+    }
+
     console.log('[NaLapide BFF] ←', r.status, ct);
     res.status(r.status).type(ct).send(txt);
   } catch (err) {
