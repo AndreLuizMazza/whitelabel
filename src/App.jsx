@@ -77,7 +77,18 @@ export default function App() {
 
             {/* Impressão da carteirinha */}
             <Route path="/carteirinha/print" element={<CarteirinhaPrint />} />
-              <Route path="/servicos-digitais" element={<ServicosDigitais />} />
+          
+
+
+            {/* 🔒 Servicos digitais */}
+            <Route
+              path="/servicos-digitais"
+              element={
+                <PrivateRoute redirectTo="/login">
+                  <Cadastro />
+                </PrivateRoute>
+              }
+            />
 
             {/* 🔒 Fluxo de contratação: prioriza registro */}
             <Route
