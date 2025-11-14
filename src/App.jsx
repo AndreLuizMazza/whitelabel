@@ -85,7 +85,7 @@ export default function App() {
               path="/servicos-digitais"
               element={
                 <PrivateRoute redirectTo="/login">
-                  <Cadastro />
+                  <ServicosDigitais />
                 </PrivateRoute>
               }
             />

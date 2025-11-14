@@ -4,9 +4,10 @@ import dotenv from 'dotenv';
 import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
-import nalapideProxy from './nalapide-proxy.js';
+import nalapideProxy, { logNalapideBoot } from './nalapide-proxy.js';
 
 dotenv.config();
+logNalapideBoot();
 
 /**
  * ENV esperadas:
@@ -22,7 +23,6 @@ dotenv.config();
  * - TRUST_PROXY (opcional: "1" na Vercel; vazio/0 em dev)
  */
 const app = express();
-
 
 // logger simples (ajuda a ver o path real na Vercel)
 app.use((req, _res, next) => {
@@ -92,7 +92,7 @@ const ALLOWLIST = [
   'http://localhost:5174',
   'http://127.0.0.1:5174',
   'http://localhost:3000',
-  'https://whitelabel-lyart.vercel.app'
+  'https://whitelabel-lyart.vercel.app',
 ].filter(Boolean);
 
 // permite subdomínios vercel.app, domínios whitelabel, etc.
@@ -117,7 +117,14 @@ const corsOptionsDelegate = (req, cb) => {
         origin: true,
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Progem-ID', 'X-Device-ID'],
+        allowedHeaders: [
+          'Content-Type',
+          'Authorization',
+          'X-Requested-With',
+          'X-Progem-ID',
+          'X-Device-ID',
+          'x-tenant-slug',
+        ],
         exposedHeaders: ['Content-Length'],
         maxAge: 86400,
       }
@@ -143,7 +150,8 @@ const limiter = rateLimit({
 app.use(limiter);
 
 /* ===== Monta o BFF do NaLápide ===== */
-app.use('/api/nalapide', nalapideProxy);
+// aceita tanto /api/nalapide quanto /nalapide
+app.use(['/api/nalapide', '/nalapide'], nalapideProxy);
 
 /* ===== Helpers ===== */
 const b64 = (s) => Buffer.from(s).toString('base64');
@@ -290,16 +298,23 @@ async function fetchDedup(url, options = {}, { dedupMs = 400, cacheMs = 0 } = {}
 async function fetchWithClientTokenDedupRetry(url, req, { dedupMs = 400, cacheMs = 0 } = {}) {
   const baseHeaders = injectHeadersFromReq(req);
   let token = await getClientToken();
-  let r = await fetchDedup(url, { headers: { ...baseHeaders, Authorization: `Bearer ${token}` } }, { dedupMs, cacheMs });
+  let r = await fetchDedup(
+    url,
+    { headers: { ...baseHeaders, Authorization: `Bearer ${token}` } },
+    { dedupMs, cacheMs }
+  );
   if (r.status === 401) {
     cachedToken = null;
     cachedExp = 0;
     token = await getClientToken();
-    r = await fetchDedup(url, { headers: { ...baseHeaders, Authorization: `Bearer ${token}` } }, { dedupMs, cacheMs });
+    r = await fetchDedup(
+      url,
+      { headers: { ...baseHeaders, Authorization: `Bearer ${token}` } },
+      { dedupMs, cacheMs }
+    );
   }
   return r;
 }
-
 
 /* ===== Avatar do usuário (restrito) — definir ANTES do express.json() ===== */
 
@@ -337,8 +352,8 @@ app.put('/api/v1/app/me/avatar', async (req, res) => {
         Authorization: incomingAuth,
         ...(incomingType ? { 'Content-Type': incomingType } : {}),
       }),
-      body: req,           
-      duplex: 'half',      
+      body: req,
+      duplex: 'half',
     });
 
     const data = await readAsJsonOrText(r);
@@ -349,7 +364,6 @@ app.put('/api/v1/app/me/avatar', async (req, res) => {
     return res.status(500).json({ error: 'Falha ao enviar avatar', message: String(e) });
   }
 });
-
 
 /** DELETE /api/v1/app/me/avatar */
 app.delete('/api/v1/app/me/avatar', async (req, res) => {
@@ -371,7 +385,6 @@ app.delete('/api/v1/app/me/avatar', async (req, res) => {
 // Body parser para JSON — deve vir APÓS as rotas de avatar
 app.use(express.json());
 
-
 /* ===== /auth/client-token (somente DEV/LOCAL) ===== */
 if (!isProd) {
   app.post('/auth/client-token', async (req, res) => {
@@ -390,7 +403,10 @@ app.post('/api/v1/app/auth/login', async (req, res) => {
     const token = await getClientToken();
     const r = await fetch(`${BASE}/api/v1/app/auth/login`, {
       method: 'POST',
-      headers: injectHeadersFromReq(req, { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }),
+      headers: injectHeadersFromReq(req, {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      }),
       body: JSON.stringify(req.body || {}),
     });
     const data = await readAsJsonOrText(r);
@@ -484,7 +500,12 @@ app.get('/api/v1/contratos/:id/dependentes', async (req, res) => {
     const headers = injectHeadersFromReq(req, { Authorization: auth });
     const r = await fetchDedup(url, { headers }, { dedupMs: 400 });
     const data = await readAsJsonOrText(r);
-    console.log('BFF /api/v1/contratos/:id/dependentes ->', r.status, url, r._cached ? '(cached/dedup)' : '');
+    console.log(
+      'BFF /api/v1/contratos/:id/dependentes ->',
+      r.status,
+      url,
+      r._cached ? '(cached/dedup)' : ''
+    );
     if (!r.ok) return res.status(r.status).send(data);
     res.status(r.status).send(data);
   } catch (e) {
@@ -526,7 +547,12 @@ app.get('/api/v1/contratos/:id/pagamentos/mes', async (req, res) => {
     const headers = injectHeadersFromReq(req, { Authorization: auth });
     const r = await fetchDedup(url, { headers }, { dedupMs: 400 });
     const data = await readAsJsonOrText(r);
-    console.log('BFF /api/v1/contratos/:id/pagamentos/mes ->', r.status, url, r._cached ? '(cached/dedup)' : '');
+    console.log(
+      'BFF /api/v1/contratos/:id/pagamentos/mes ->',
+      r.status,
+      url,
+      r._cached ? '(cached/dedup)' : ''
+    );
     if (!r.ok) return res.status(r.status).send(data);
     res.status(r.status).send(data);
   } catch (e) {
@@ -541,7 +567,12 @@ app.get('/api/v1/locais/parceiros', async (req, res) => {
     const url = `${BASE}/api/v1/locais/parceiros${qs}`;
     const r = await fetchWithClientTokenDedupRetry(url, req, { dedupMs: 400 });
     const data = await readAsJsonOrText(r);
-    console.log('BFF GET /api/v1/locais/parceiros ->', r.status, url, r._cached ? '(cached/dedup)' : '');
+    console.log(
+      'BFF GET /api/v1/locais/parceiros ->',
+      r.status,
+      url,
+      r._cached ? '(cached/dedup)' : ''
+    );
     if (!r.ok) return res.status(r.status).send(data);
     return res.status(r.status).send(data);
   } catch (e) {
@@ -573,7 +604,12 @@ app.get('/api/v1/unidades/all', async (req, res) => {
     const r = await fetchWithClientTokenDedupRetry(url, req, { dedupMs: 400, cacheMs: 5_000 });
     const data = await readAsJsonOrText(r);
 
-    console.log('[BFF] GET /api/v1/unidades/all ->', r.status, url, r._cached ? '(cached/dedup)' : '');
+    console.log(
+      '[BFF] GET /api/v1/unidades/all ->',
+      r.status,
+      url,
+      r._cached ? '(cached/dedup)' : ''
+    );
     if (!r.ok) return res.status(r.status).send(data);
     return res.status(r.status).send(data);
   } catch (e) {
@@ -623,13 +659,14 @@ app.patch('/api/v1/app/me', async (req, res) => {
   }
 });
 
-
 /* ===== Pessoa por CPF ===== */
 app.get('/api/v1/pessoas/cpf/:cpf', async (req, res) => {
   try {
     const cpf = req.params.cpf;
     const url = `${BASE}/api/v1/pessoas/cpf/${encodeURIComponent(cpf)}`;
-    console.log('[BFF] GET /api/v1/pessoas/cpf/:cpf →', { url: url.replace(cpf, maskCpf(cpf)) });
+    console.log('[BFF] GET /api/v1/pessoas/cpf/:cpf →', {
+      url: url.replace(cpf, maskCpf(cpf)),
+    });
 
     // usa client credentials + dedup + retry 401 (1x)
     const r = await fetchWithClientTokenDedupRetry(url, req, { dedupMs: 400 });
@@ -662,8 +699,6 @@ app.get('/api/v1/dependentes/pessoa/:pessoaId', async (req, res) => {
     return res.status(500).json({ error: 'Falha ao buscar dependentes por pessoa', message: String(e) });
   }
 });
-
-
 
 /* ===== Pessoas (criar) ===== */
 app.post('/api/v1/pessoas', async (req, res) => {
@@ -730,8 +765,6 @@ app.post('/api/v1/contratos', async (req, res) => {
     return res.status(500).json({ error: 'Falha ao criar contrato', message: String(e) });
   }
 });
-
-
 
 /* ===================================================================== */
 /* ==================  Recuperação / Troca de Senha  ==================== */
@@ -812,9 +845,6 @@ app.post('/api/v1/app/password/change', async (req, res) => {
   }
 });
 
-
-
-
 /* ===== Execução local vs Vercel ===== */
 if (!isVercel) {
   app.listen(PORT, () => {
@@ -824,9 +854,8 @@ if (!isVercel) {
 
 // 404 logger para rotas /api que não bateram em nenhuma handler
 app.use('/api', (req, res) => {
-  console.error('[BFF][404]', req.method, req.originalUrl)
-  res.status(404).json({ error: 'Not Found', path: req.originalUrl })
-})
-
+  console.error('[BFF][404]', req.method, req.originalUrl);
+  res.status(404).json({ error: 'Not Found', path: req.originalUrl });
+});
 
 export default app;
