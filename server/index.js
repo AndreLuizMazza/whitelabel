@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import nalapideProxy, { logNalapideBoot } from './nalapide-proxy.js';
+import progemWebhookRouter from './webhook-progem.js';
 
 dotenv.config();
 logNalapideBoot();
@@ -381,6 +382,13 @@ app.delete('/api/v1/app/me/avatar', async (req, res) => {
     return res.status(500).json({ error: 'Falha ao remover avatar', message: String(e) });
   }
 });
+
+
+app.use(
+  '/api/webhooks/progem',
+  express.raw({ type: '*/*' }),
+  progemWebhookRouter
+);
 
 // Body parser para JSON — deve vir APÓS as rotas de avatar
 app.use(express.json());

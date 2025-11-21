@@ -1,4 +1,3 @@
-// src/pages/AreaUsuario.jsx
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '@/lib/api.js'
@@ -8,9 +7,10 @@ import ContratoCard from '@/components/ContratoCard'
 import DependentesList from '@/components/DependentesList'
 import PagamentoFacil from '@/components/PagamentoFacil'
 import CarteirinhaAssociado from '@/components/CarteirinhaAssociado'
+import NotificationsCenter from '@/components/NotificationsCenter'
 import { showToast } from '@/lib/toast'
 import { displayCPF, formatCPF } from '@/lib/cpf'
-import { Lock, Printer, User } from 'lucide-react'
+import { Lock, Printer, User, Bell } from 'lucide-react'
 
 /* ===== analytics opcional (no-op) ===== */
 const track = (..._args) => {}
@@ -58,7 +58,7 @@ function InfoTooltip({ text, children }) {
         style={{
           background: 'var(--surface)',
           color: 'var(--text)',
-          border: '1px solid var(--c-border)'
+          border: '1px solid var(--c-border)',
         }}
       >
         {text}
@@ -87,6 +87,82 @@ function extractPlanoLinks(plano) {
   return plano.links.filter((item) => item && item.link && item.visivel !== false)
 }
 
+/* ===== helpers de formatação ===== */
+function fmtCurrencyBRL(v) {
+  if (v == null) return '—'
+  const num = Number(v)
+  if (Number.isNaN(num)) return String(v)
+  return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+function fmtDatePT(d) {
+  if (!d) return '—'
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    const [Y, M, D] = d.split('-')
+    return `${D}/${M}/${Y}`
+  }
+  const dt = new Date(d)
+  if (Number.isNaN(dt.getTime())) return String(d)
+  return dt.toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+}
+
+/* ===== Botão minimalista de notificações no header ===== */
+function HeaderNotificationsBell({ unread = 0 }) {
+  const showBadge = unread > 0
+  const badgeText = unread > 9 ? '9+' : String(unread)
+
+  function handleClick() {
+    const el = document.getElementById('alertas-automaticos')
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      // foco após o scroll para acessibilidade (teclado/leitor de tela)
+      setTimeout(() => {
+        try {
+          el.focus?.()
+        } catch {
+          /* ignore */
+        }
+      }, 300)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--c-border)] bg-[color:var(--c-surface)]"
+      aria-label={
+        showBadge
+          ? `Ver alertas automáticos do sistema. Você tem ${badgeText} novos.`
+          : 'Ver alertas automáticos do sistema'
+      }
+      title="Alertas automáticos"
+    >
+      <Bell size={16} aria-hidden="true" />
+      {showBadge && (
+        <span
+          className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-semibold"
+          style={{
+            background: 'var(--c-badge, #f02849)',
+            color: '#fff',
+            border: '1px solid rgba(0,0,0,0.15)',
+            boxShadow: '0 0 0 2px rgba(255,255,255,0.95)',
+            transform: 'translateZ(0)',
+            zIndex: 2,
+          }}
+          aria-hidden="true"
+        >
+          {badgeText}
+        </span>
+      )}
+    </button>
+  )
+}
+
 export default function AreaUsuario() {
   const user = useAuth((s) => s.user)
   const logout = useAuth((s) => s.logout)
@@ -97,8 +173,13 @@ export default function AreaUsuario() {
     user?.cpf ||
     user?.documento ||
     (() => {
-      try { return JSON.parse(localStorage.getItem('auth_user') || '{}').cpf } catch { return '' }
-    })() || ''
+      try {
+        return JSON.parse(localStorage.getItem('auth_user') || '{}').cpf
+      } catch {
+        return ''
+      }
+    })() ||
+    ''
 
   /* ===== revelação temporária (10s) ===== */
   const [cpfReveal, setCpfReveal] = useState(false)
@@ -135,11 +216,104 @@ export default function AreaUsuario() {
     }
   }, [])
 
+  /* ===== Notificações (histórico de eventos de pagamento) ===== */
+  const [notifications, setNotifications] = useState([])
+  const [loadingNotifications, setLoadingNotifications] = useState(false)
+  const [headerUnread, setHeaderUnread] = useState(0)
+  const lastEventIdRef = useRef(null)
+
+  useEffect(() => {
+    if (!cpf) return
+    let cancelado = false
+    let intervalId = null
+
+    async function fetchNotifications() {
+      try {
+        setLoadingNotifications(true)
+
+        const { data } = await api.get('/api/webhooks/progem/history', {
+          params: { cpf, limit: 10 },
+          __skipAuthRedirect: true,
+        })
+
+        if (cancelado) return
+
+        let list = []
+
+        if (Array.isArray(data)) {
+          list = data
+        } else if (data && typeof data === 'object') {
+          if (Array.isArray(data.items)) {
+            list = data.items
+          } else if (Array.isArray(data.eventos)) {
+            list = data.eventos
+          } else if (data.eventId || data.id || data.eventType || data.evento) {
+            list = [data]
+          }
+        }
+
+        if (!list.length) {
+          setNotifications([])
+          return
+        }
+
+        const normalizedList = list.slice()
+        const newest = normalizedList[0]
+
+        const eventId =
+          newest.eventId ||
+          newest.id ||
+          `${newest.eventType || newest.tipo || 'evt'}-${
+            newest.parcelaId || newest.numeroContrato || ''
+          }`
+
+        setNotifications(normalizedList)
+
+        if (eventId && eventId !== lastEventIdRef.current) {
+          lastEventIdRef.current = eventId
+
+          const status = String(newest.status || '').toUpperCase()
+          if (status === 'PAGA' || status === 'PAID') {
+            showToast(
+              `Pagamento da parcela do contrato #${
+                newest.numeroContrato || ''
+              } foi registrado com sucesso.`,
+              'success'
+            )
+          }
+        }
+      } catch (e) {
+        console.error('Falha ao carregar notificações de pagamento', e)
+        if (!cancelado) {
+          setNotifications([])
+        }
+      } finally {
+        if (!cancelado) setLoadingNotifications(false)
+      }
+    }
+
+    fetchNotifications()
+    intervalId = setInterval(fetchNotifications, 15000)
+
+    return () => {
+      cancelado = true
+      if (intervalId) clearInterval(intervalId)
+    }
+  }, [cpf])
+
   /* ===== dados do contrato/área ===== */
   const {
-    contratos, contrato, selectedId,
-    dependentes, proximaParcela, proximas, historico, isAtraso,
-    chooseContrato, loading, erro
+    contratos,
+    contrato,
+    selectedId,
+    dependentes,
+    proximaParcela,
+    proximas,
+    historico,
+    isAtraso,
+    chooseContrato,
+    loading,
+    erro,
   } = useContratoDoUsuario({ cpf })
 
   const nomeExibicao = useMemo(
@@ -148,12 +322,16 @@ export default function AreaUsuario() {
   )
 
   useEffect(() => {
-    if (erro) showToast('Não foi possível carregar seus contratos. Tente novamente em instantes.')
+    if (erro)
+      showToast(
+        'Não foi possível carregar seus contratos. Tente novamente em instantes.'
+      )
   }, [erro])
 
   const getId = (c) => c?.id ?? c?.contratoId ?? c?.numeroContrato
   const isAtivo = (c) =>
-    c?.contratoAtivo === true || String(c?.status || '').toUpperCase() === 'ATIVO'
+    c?.contratoAtivo === true ||
+    String(c?.status || '').toUpperCase() === 'ATIVO'
 
   /* ===== PLANO do contrato (para identificar se há links) ===== */
   const [plano, setPlano] = useState(null)
@@ -173,7 +351,6 @@ export default function AreaUsuario() {
     async function fetchPlano(planId) {
       setLoadingPlano(true)
       try {
-        // igual padrão do PlanoDetalhe: remove Authorization para usar o client token do BFF
         const { data } = await api.get(`/api/v1/planos/${planId}`, {
           transformRequest: [(d, headers) => {
             try { delete headers.Authorization } catch {}
@@ -193,7 +370,9 @@ export default function AreaUsuario() {
           console.error('Falha ao carregar plano da Área do Associado', e2)
           if (!cancelado) {
             setPlano(null)
-            setPlanoErro('Não foi possível carregar os acessos digitais do plano.')
+            setPlanoErro(
+              'Não foi possível carregar os acessos digitais do plano.'
+            )
           }
         }
       } finally {
@@ -203,7 +382,9 @@ export default function AreaUsuario() {
 
     fetchPlano(planoId)
 
-    return () => { cancelado = true }
+    return () => {
+      cancelado = true
+    }
   }, [contrato?.planoId, contrato?.plano_id, contrato?.plano?.id])
 
   useEffect(() => {
@@ -225,7 +406,10 @@ export default function AreaUsuario() {
             <h2 className="text-2xl font-bold tracking-tight">Área do associado</h2>
 
             {/* Cabeçalho com CPF protegido + cadeado + tooltip */}
-            <p className="mt-2 text-sm flex items-center gap-1" style={{ color: 'var(--text)' }}>
+            <p
+              className="mt-2 text-sm flex items-center gap-1"
+              style={{ color: 'var(--text)' }}
+            >
               <span>Bem-vindo, {nomeExibicao}!</span>
               {cpf && (
                 <>
@@ -233,7 +417,10 @@ export default function AreaUsuario() {
                   <InfoTooltip text="Por segurança (LGPD), exibimos o CPF parcialmente. Você pode revelar por 10 segundos.">
                     <span className="inline-flex items-center gap-1">
                       <Lock size={14} aria-hidden="true" />
-                      <span>CPF {cpfReveal ? formatCPF(cpf) : displayCPF(cpf, 'last2')}</span>
+                      <span>
+                        CPF{' '}
+                        {cpfReveal ? formatCPF(cpf) : displayCPF(cpf, 'last2')}
+                      </span>
                     </span>
                   </InfoTooltip>
                   <button
@@ -242,7 +429,11 @@ export default function AreaUsuario() {
                     onClick={startReveal10s}
                     aria-label="Mostrar CPF completo por 10 segundos"
                     disabled={cpfReveal}
-                    title={cpfReveal ? 'CPF já está visível' : 'Mostrar por 10 segundos'}
+                    title={
+                      cpfReveal
+                        ? 'CPF já está visível'
+                        : 'Mostrar por 10 segundos'
+                    }
                   >
                     {cpfReveal ? `Visível (${cpfSeconds}s)` : 'Mostrar por 10s'}
                   </button>
@@ -251,8 +442,9 @@ export default function AreaUsuario() {
             </p>
           </div>
 
-          {/* Ações (responsivo): Meu Perfil e Sair */}
+          {/* Ações (responsivo): sineta + Meu Perfil + Sair */}
           <div className="flex items-center gap-2 self-start">
+            <HeaderNotificationsBell unread={headerUnread} />
             <Link
               to="/perfil"
               className="btn-outline inline-flex items-center gap-1"
@@ -261,19 +453,32 @@ export default function AreaUsuario() {
             >
               <User size={16} /> Meu Perfil
             </Link>
-            <button className="btn-outline" onClick={logout} aria-label="Sair">Sair</button>
+            <button
+              className="btn-outline"
+              onClick={logout}
+              aria-label="Sair"
+            >
+              Sair
+            </button>
           </div>
         </div>
 
         {/* Seletor de contrato */}
         {!loading && Array.isArray(contratos) && contratos.length > 1 && (
           <div className="mt-4 card p-4">
-            <label className="block text-sm mb-2" style={{ color: 'var(--text)' }}>
+            <label
+              className="block text-sm mb-2"
+              style={{ color: 'var(--text)' }}
+            >
               Selecione o contrato para visualizar
             </label>
             <select
               className="w-full rounded px-3 py-2 text-sm"
-              style={{ background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--c-border)' }}
+              style={{
+                background: 'var(--surface)',
+                color: 'var(--text)',
+                border: '1px solid var(--c-border)',
+              }}
               value={selectedId ?? ''}
               onChange={(e) => chooseContrato(e.target.value)}
             >
@@ -281,8 +486,14 @@ export default function AreaUsuario() {
                 const id = getId(c)
                 const labelPlano = c?.nomePlano ?? c?.plano?.nome ?? 'Plano'
                 const ativoTag = isAtivo(c) ? ' (ATIVO)' : ''
-                const label = `#${c?.numeroContrato ?? id} — ${labelPlano} — efetivado em ${c?.dataEfetivacao ?? '—'}${ativoTag}`
-                return <option key={String(id)} value={String(id)}>{label}</option>
+                const label = `#${c?.numeroContrato ?? id} — ${labelPlano} — efetivado em ${
+                  c?.dataEfetivacao ?? '—'
+                }${ativoTag}`
+                return (
+                  <option key={String(id)} value={String(id)}>
+                    {label}
+                  </option>
+                )
               })}
             </select>
           </div>
@@ -308,13 +519,15 @@ export default function AreaUsuario() {
             className="mt-6 card p-6"
             style={{
               border: '1px solid var(--primary)',
-              background: 'color-mix(in srgb, var(--primary) 10%, transparent)'
+              background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
             }}
           >
             <p className="font-medium" style={{ color: 'var(--primary)' }}>
               Não foi possível carregar os contratos
             </p>
-            <p className="text-sm mt-1" style={{ color: 'var(--primary)' }}>{erro}</p>
+            <p className="text-sm mt-1" style={{ color: 'var(--primary)' }}>
+              {erro}
+            </p>
           </div>
         )}
 
@@ -343,8 +556,17 @@ export default function AreaUsuario() {
                 </div>
 
                 {/* Pagamento (sticky apenas no desktop) */}
-                <div className="lg:sticky lg:top-3">
+                <div className="lg:sticky lg:top-3 space-y-4">
                   <div id="pagamento" />
+
+                  {/* Centro de notificações (histórico de eventos) */}
+                  <NotificationsCenter
+                    items={notifications}
+                    loading={loadingNotifications}
+                    contextKey={cpf || 'default'}
+                    onUnreadChange={setHeaderUnread}
+                  />
+
                   <PagamentoFacil
                     contrato={contrato}
                     parcelaFoco={proximaParcela}
@@ -359,10 +581,12 @@ export default function AreaUsuario() {
               <div className="order-2 lg:order-1 lg:col-span-2 space-y-6">
                 <ContratoCard contrato={contrato} />
 
-                {/* Serviços digitais: se o plano tiver pelo menos 1 link */}
                 {loadingPlano && !plano && (
                   <div className="card p-4">
-                    <p className="text-sm" style={{ color: 'var(--text)' }}>
+                    <p
+                      className="text-sm"
+                      style={{ color: 'var(--text)' }}
+                    >
                       Carregando serviços digitais do seu plano...
                     </p>
                   </div>
@@ -378,8 +602,9 @@ export default function AreaUsuario() {
                         className="text-xs mt-1"
                         style={{ color: 'var(--text)' }}
                       >
-                        Acesse plataformas e benefícios online vinculados ao seu plano,
-                        como clubes de descontos, aplicativos e outros serviços digitais.
+                        Acesse plataformas e benefícios online vinculados ao seu
+                        plano, como clubes de descontos, aplicativos e outros
+                        serviços digitais.
                       </p>
                     </div>
                     <Link
@@ -412,7 +637,9 @@ export default function AreaUsuario() {
                 Este CPF não possui contratos para esta empresa no momento.
               </p>
               <div className="mt-4">
-                <Link to="/planos" className="btn-primary">Contratar um plano</Link>
+                <Link to="/planos" className="btn-primary">
+                  Contratar um plano
+                </Link>
               </div>
             </div>
           )
