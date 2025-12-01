@@ -206,35 +206,7 @@ export default function StickyContactDock({
             {showLabels && <span>WhatsApp</span>}
           </a>
 
-          {/* Simular plano: neutro, tema-aware, com hover/active */}
-          {extraAction && (
-            <a
-              href={extraAction.href || "#"}
-              onClick={(e) => {
-                if (extraAction.onClick) {
-                  e.preventDefault();
-                  extraAction.onClick(e);
-                }
-              }}
-              className="flex flex-1 items-center justify-center gap-2 py-3 font-medium hover:brightness-95 active:brightness-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
-              style={{
-                background: surfaceAlt,
-                color: text,
-                borderLeft: `1px solid ${border}`,
-                borderRight: `1px solid ${border}`,
-                transition: "filter .15s ease",
-              }}
-              aria-label={extraAction.ariaLabel || extraAction.label}
-            >
-              <ClipboardList className="h-5 w-5" aria-hidden="true" />
-              {showLabels && (
-                <>
-                  <span>{extraAction.label}</span>
-                  {extraAction.badge ? <Badge>{extraAction.badge}</Badge> : null}
-                </>
-              )}
-            </a>
-          )}
+          
 
           {/* Ligar: cor do tenant */}
           <a
