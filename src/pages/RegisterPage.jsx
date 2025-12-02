@@ -5,6 +5,7 @@ import useTenant from '@/store/tenant'
 import useAuth from '@/store/auth'
 import { registerUser } from '@/lib/authApi'
 import { AlertTriangle } from 'lucide-react'
+import { registrarDispositivoFcmWeb } from '@/lib/fcm'
 
 const initial = {
   nome: '',
@@ -270,7 +271,7 @@ export default function RegisterPage() {
   // Mostrar/ocultar senha
   const [showPass, setShowPass] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
-  const [senhaFocused, setSenhaFocused] = useState(false) // <-- controla a visibilidade da regra
+  const [senhaFocused, setSenhaFocused] = useState(false)
 
   // Refs para foco em erro
   const alertRef = useRef(null)
@@ -405,9 +406,23 @@ export default function RegisterPage() {
       setLoading(true)
       setError(''); setOkMsg('')
 
+      // Cadastro do usuário
       await registerUser(payload)
+
+      // Login automático
       await login(identificador, form.senha)
 
+      // Registro do dispositivo FCM (mesma lógica do LoginPage)
+      try {
+        console.info('[Register] Iniciando registro do dispositivo FCM (WEB) após cadastro...')
+        await registrarDispositivoFcmWeb()
+        console.info('[Register] Registro do dispositivo FCM finalizado (WEB).')
+      } catch (err) {
+        console.error('[Register] Falha ao registrar dispositivo FCM (WEB):', err)
+        // não bloqueia o fluxo se der erro no FCM
+      }
+
+      // Prefill de dados para próximos fluxos
       try {
         const prefill = {
           cpf: onlyDigits(form.cpf),
@@ -420,6 +435,7 @@ export default function RegisterPage() {
         localStorage.setItem('register:last', JSON.stringify(prefill))
       } catch {}
 
+      // Redireciona para a área ou rota de origem
       navigate(from, { replace: true })
     } catch (err) {
       console.error(err)
