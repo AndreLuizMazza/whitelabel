@@ -441,6 +441,46 @@ app.get('/api/v1/app/me', async (req, res) => {
   }
 });
 
+
+/** =====================================================================
+ *  Dispositivos (FCM) do usuário logado
+ *  POST /api/v1/app/me/devices
+ *  Auth: Bearer do usuário (Authorization header)
+ * ===================================================================== */
+app.post('/api/v1/app/me/devices', async (req, res) => {
+  try {
+    const incomingAuth = req.headers.authorization || '';
+    const url = `${BASE}/api/v1/app/me/devices`;
+
+    console.log('[BFF] POST /api/v1/app/me/devices →', url);
+    console.log('[BFF] Payload recebido do front:', req.body);
+
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: injectHeadersFromReq(req, {
+        Authorization: incomingAuth,
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify(req.body || {}),
+    });
+
+    const data = await readAsJsonOrText(r);
+    console.log('[BFF] ← /api/v1/app/me/devices status', r.status, 'body:', data);
+
+    if (!r.ok) {
+      return res.status(r.status).send(data);
+    }
+
+    return res.status(r.status).send(data);
+  } catch (e) {
+    console.error('[BFF] ERRO /api/v1/app/me/devices:', e);
+    return res
+      .status(500)
+      .json({ error: 'Falha ao registrar dispositivo', message: String(e) });
+  }
+});
+
+
 /* ===== Planos ===== */
 app.get('/api/v1/planos', async (req, res) => {
   try {

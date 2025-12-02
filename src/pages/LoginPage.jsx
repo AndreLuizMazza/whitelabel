@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import useAuth from '@/store/auth'
+import { registrarDispositivoFcmWeb } from '@/lib/fcm'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -73,6 +74,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      // LOGIN
       await login(identificador.trim(), senha)
 
       if (lembrar) {
@@ -81,8 +83,22 @@ export default function LoginPage() {
         try { localStorage.removeItem('login_ident') } catch {}
       }
 
+      // ================================
+      // REGISTRO DO DISPOSITIVO NA API (FCM)
+      // ================================
+      try {
+        console.info('[Login] Iniciando registro do dispositivo FCM (WEB)...')
+        await registrarDispositivoFcmWeb()
+        console.info('[Login] Registro do dispositivo FCM finalizado (WEB).')
+      } catch (err) {
+        console.error('[Login] Falha ao registrar dispositivo FCM (WEB):', err)
+        // não bloqueia o login se der erro no FCM
+      }
+
+      // REDIRECIONA
       const from = location.state?.from?.pathname || '/area'
       navigate(from, { replace: true })
+
     } catch (err) {
       console.error(err)
       setErro('Falha no login. Verifique suas credenciais e tente novamente.')
