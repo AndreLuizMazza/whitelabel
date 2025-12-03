@@ -631,18 +631,22 @@ export default function AreaUsuario() {
               </div>
             </div>
           ) : (
-            <div className="mt-8 card p-6 text-center">
-              <h3 className="text-lg font-semibold">Nenhum contrato localizado</h3>
-              <p className="mt-1" style={{ color: 'var(--text)' }}>
-                Este CPF não possui contratos para esta empresa no momento.
-              </p>
-              <div className="mt-4">
-                <Link to="/planos" className="btn-primary">
-                  Contratar um plano
-                </Link>
+              <div className="mt-8 card p-6 text-center">
+                <h3 className="text-lg font-semibold">Nenhum contrato encontrado</h3>
+
+                <p className="mt-2" style={{ color: 'var(--text)' }}>
+                  Parece que você ainda não possui um plano ativo conosco.  
+                  Conheça nossas opções e garanta proteção completa para você e sua família.
+                </p>
+
+                <div className="mt-5">
+                  <Link to="/planos" className="btn-primary">
+                    Ver planos disponíveis
+                  </Link>
+                </div>
               </div>
-            </div>
-          )
+            )
+
         )}
       </div>
     </section>
