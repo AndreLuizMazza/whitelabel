@@ -32,25 +32,25 @@ function usePrimaryColor() {
 
 /* ===================== peças utilitárias ===================== */
 
-function IconBadge({ children, compact = false }) {
-  const size = compact ? 'h-9 w-9' : 'h-11 w-11'
-
+function IconBadge({ children }) {
   return (
     <span
-      className={`
-        inline-flex ${size} 
+      className="
+        inline-flex h-11 w-11 sm:h-11 sm:w-11
         items-center justify-center
-        rounded-2xl
-        bg-[var(--surface)]
+        rounded-xl
+        bg-[var(--surface)]/60
         text-[var(--primary)]
-        ring-1 ring-[var(--c-border)]
+        ring-1 ring-[var(--primary)]/15
         shadow-sm
-      `}
+        backdrop-blur-sm
+      "
     >
       {children}
     </span>
   )
 }
+
 
 
 /* ========================================================================

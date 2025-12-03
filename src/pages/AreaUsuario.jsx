@@ -1,3 +1,4 @@
+// src/pages/AreaUsuario.jsx
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '@/lib/api.js'
@@ -8,9 +9,10 @@ import DependentesList from '@/components/DependentesList'
 import PagamentoFacil from '@/components/PagamentoFacil'
 import CarteirinhaAssociado from '@/components/CarteirinhaAssociado'
 import NotificationsCenter from '@/components/NotificationsCenter'
+import useNotificationsStore from '@/store/notifications'
 import { showToast } from '@/lib/toast'
 import { displayCPF, formatCPF } from '@/lib/cpf'
-import { Lock, Printer, User, Bell } from 'lucide-react'
+import { Lock, Printer, User } from 'lucide-react'
 
 /* ===== analytics opcional (no-op) ===== */
 const track = (..._args) => {}
@@ -110,63 +112,18 @@ function fmtDatePT(d) {
   })
 }
 
-/* ===== Botão minimalista de notificações no header ===== */
-function HeaderNotificationsBell({ unread = 0 }) {
-  const showBadge = unread > 0
-  const badgeText = unread > 9 ? '9+' : String(unread)
-
-  function handleClick() {
-    const el = document.getElementById('alertas-automaticos')
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      // foco após o scroll para acessibilidade (teclado/leitor de tela)
-      setTimeout(() => {
-        try {
-          el.focus?.()
-        } catch {
-          /* ignore */
-        }
-      }, 300)
-    }
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--c-border)] bg-[color:var(--c-surface)]"
-      aria-label={
-        showBadge
-          ? `Ver alertas automáticos do sistema. Você tem ${badgeText} novos.`
-          : 'Ver alertas automáticos do sistema'
-      }
-      title="Alertas automáticos"
-    >
-      <Bell size={16} aria-hidden="true" />
-      {showBadge && (
-        <span
-          className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-semibold"
-          style={{
-            background: 'var(--c-badge, #f02849)',
-            color: '#fff',
-            border: '1px solid rgba(0,0,0,0.15)',
-            boxShadow: '0 0 0 2px rgba(255,255,255,0.95)',
-            transform: 'translateZ(0)',
-            zIndex: 2,
-          }}
-          aria-hidden="true"
-        >
-          {badgeText}
-        </span>
-      )}
-    </button>
-  )
-}
-
 export default function AreaUsuario() {
   const user = useAuth((s) => s.user)
   const logout = useAuth((s) => s.logout)
   usePrefersDark()
+
+  const {
+    items: notifications,
+    loading: loadingNotifications,
+    setLoading: setNotifLoading,
+    setNotifications: storeSetNotifications,
+    setUnread,
+  } = useNotificationsStore()
 
   /* ===== CPF bruto (nunca formate aqui) ===== */
   const cpf =
@@ -217,9 +174,6 @@ export default function AreaUsuario() {
   }, [])
 
   /* ===== Notificações (histórico de eventos de pagamento) ===== */
-  const [notifications, setNotifications] = useState([])
-  const [loadingNotifications, setLoadingNotifications] = useState(false)
-  const [headerUnread, setHeaderUnread] = useState(0)
   const lastEventIdRef = useRef(null)
 
   useEffect(() => {
@@ -229,7 +183,7 @@ export default function AreaUsuario() {
 
     async function fetchNotifications() {
       try {
-        setLoadingNotifications(true)
+        setNotifLoading(true)
 
         const { data } = await api.get('/api/webhooks/progem/history', {
           params: { cpf, limit: 10 },
@@ -253,21 +207,27 @@ export default function AreaUsuario() {
         }
 
         if (!list.length) {
-          setNotifications([])
+          storeSetNotifications([])
           return
         }
 
-        const normalizedList = list.slice()
+        const normalizedList = list.map((ev, idx) => {
+          const id =
+            ev.eventId ||
+            ev.id ||
+            `${ev.eventType || ev.tipo || 'evt'}-${
+              ev.parcelaId || ev.numeroContrato || idx
+            }`
+          return {
+            ...ev,
+            _id: id,
+          }
+        })
+
         const newest = normalizedList[0]
+        const eventId = newest?._id
 
-        const eventId =
-          newest.eventId ||
-          newest.id ||
-          `${newest.eventType || newest.tipo || 'evt'}-${
-            newest.parcelaId || newest.numeroContrato || ''
-          }`
-
-        setNotifications(normalizedList)
+        storeSetNotifications(normalizedList)
 
         if (eventId && eventId !== lastEventIdRef.current) {
           lastEventIdRef.current = eventId
@@ -285,10 +245,10 @@ export default function AreaUsuario() {
       } catch (e) {
         console.error('Falha ao carregar notificações de pagamento', e)
         if (!cancelado) {
-          setNotifications([])
+          storeSetNotifications([])
         }
       } finally {
-        if (!cancelado) setLoadingNotifications(false)
+        if (!cancelado) setNotifLoading(false)
       }
     }
 
@@ -299,7 +259,7 @@ export default function AreaUsuario() {
       cancelado = true
       if (intervalId) clearInterval(intervalId)
     }
-  }, [cpf])
+  }, [cpf, setNotifLoading, storeSetNotifications])
 
   /* ===== dados do contrato/área ===== */
   const {
@@ -352,10 +312,14 @@ export default function AreaUsuario() {
       setLoadingPlano(true)
       try {
         const { data } = await api.get(`/api/v1/planos/${planId}`, {
-          transformRequest: [(d, headers) => {
-            try { delete headers.Authorization } catch {}
-            return d
-          }],
+          transformRequest: [
+            (d, headers) => {
+              try {
+                delete headers.Authorization
+              } catch {}
+              return d
+            },
+          ],
           __skipAuthRedirect: true,
         })
         if (!cancelado) setPlano(data)
@@ -403,7 +367,9 @@ export default function AreaUsuario() {
       <div className="container-max">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Área do associado</h2>
+            <h2 className="text-2xl font-bold tracking-tight">
+              Área do associado
+            </h2>
 
             {/* Cabeçalho com CPF protegido + cadeado + tooltip */}
             <p
@@ -442,9 +408,8 @@ export default function AreaUsuario() {
             </p>
           </div>
 
-          {/* Ações (responsivo): sineta + Meu Perfil + Sair */}
+          {/* Ações (responsivo): Meu Perfil + Sair */}
           <div className="flex items-center gap-2 self-start">
-            <HeaderNotificationsBell unread={headerUnread} />
             <Link
               to="/perfil"
               className="btn-outline inline-flex items-center gap-1"
@@ -564,7 +529,7 @@ export default function AreaUsuario() {
                     items={notifications}
                     loading={loadingNotifications}
                     contextKey={cpf || 'default'}
-                    onUnreadChange={setHeaderUnread}
+                    onUnreadChange={setUnread}
                   />
 
                   <PagamentoFacil
@@ -627,26 +592,31 @@ export default function AreaUsuario() {
                   </div>
                 )}
 
-                <DependentesList dependentes={dependentes} contrato={contrato} />
+                <DependentesList
+                  dependentes={dependentes}
+                  contrato={contrato}
+                />
               </div>
             </div>
           ) : (
-              <div className="mt-8 card p-6 text-center">
-                <h3 className="text-lg font-semibold">Nenhum contrato encontrado</h3>
+            <div className="mt-8 card p-6 text-center">
+              <h3 className="text-lg font-semibold">
+                Nenhum contrato encontrado
+              </h3>
 
-                <p className="mt-2" style={{ color: 'var(--text)' }}>
-                  Parece que você ainda não possui um plano ativo conosco.  
-                  Conheça nossas opções e garanta proteção completa para você e sua família.
-                </p>
+              <p className="mt-2" style={{ color: 'var(--text)' }}>
+                Parece que você ainda não possui um plano ativo conosco.
+                Conheça nossas opções e garanta proteção completa para você e
+                sua família.
+              </p>
 
-                <div className="mt-5">
-                  <Link to="/planos" className="btn-primary">
-                    Ver planos disponíveis
-                  </Link>
-                </div>
+              <div className="mt-5">
+                <Link to="/planos" className="btn-primary">
+                  Ver planos disponíveis
+                </Link>
               </div>
-            )
-
+            </div>
+          )
         )}
       </div>
     </section>
