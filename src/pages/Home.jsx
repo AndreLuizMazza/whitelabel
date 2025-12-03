@@ -186,7 +186,7 @@ export default function Home() {
           <FeatureCard
             icon={<Layers size={22} />}
             title="Nossos Planos"
-            desc="Conheça nossos Planos. Proteção completa para você e toda sua família."
+            desc="Conheça nossos Planos. Proteção completa para toda família."
             to="/planos"
             cta="Ver planos"
             mounted={mounted}
