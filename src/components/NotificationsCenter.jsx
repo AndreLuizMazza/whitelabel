@@ -1,3 +1,4 @@
+// src/components/NotificationsCenter.jsx
 import { useEffect, useMemo, useState } from "react"
 import {
   Bell,
@@ -293,21 +294,33 @@ export default function NotificationsCenter({
     }
   })
 
+  // === NOVO: cálculo de não lidas priorizando o flag _read do store ===
   const unreadCount = useMemo(() => {
     if (!hasAlerts) return 0
+
+    // Se o backend/store já controla _read, usamos isso
+    const withReadFlag = normalized.filter(
+      (n) => n.raw && typeof n.raw._read === "boolean"
+    )
+
+    if (withReadFlag.length > 0) {
+      return withReadFlag.filter((n) => !n.raw._read).length
+    }
+
+    // Caso não exista _read (compatibilidade), usamos a lógica de lastSeenId
     if (!lastSeenId) return normalized.length
 
     const idx = normalized.findIndex((n) => n.id === lastSeenId)
     if (idx === -1) return normalized.length
 
     return idx
-  }, [hasAlerts, lastSeenId, normalized])
+  }, [hasAlerts, normalized, lastSeenId])
 
   useEffect(() => {
     if (typeof onUnreadChange === "function") {
       onUnreadChange(unreadCount)
     }
-  }, [unreadCount]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [unreadCount, onUnreadChange])
 
   useEffect(() => {
     if (!open || !hasAlerts) return
@@ -441,8 +454,12 @@ export default function NotificationsCenter({
           role="list"
           aria-label="Histórico de alertas"
         >
-          {normalized.slice(1).map((item, index) => {
-            const isNew = index + 1 < unreadCount
+          {normalized.slice(1).map((item) => {
+            const isNew =
+              item.raw && typeof item.raw._read === "boolean"
+                ? !item.raw._read
+                : false
+
             return (
               <div key={item.id} role="listitem">
                 {renderNotificationRow(item, { isNew, compact: false })}

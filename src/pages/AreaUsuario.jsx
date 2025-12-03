@@ -1,7 +1,6 @@
 // src/pages/AreaUsuario.jsx
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import api from '@/lib/api.js'
 import useAuth from '@/store/auth'
 import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
 import ContratoCard from '@/components/ContratoCard'
@@ -89,29 +88,6 @@ function extractPlanoLinks(plano) {
   return plano.links.filter((item) => item && item.link && item.visivel !== false)
 }
 
-/* ===== helpers de formatação ===== */
-function fmtCurrencyBRL(v) {
-  if (v == null) return '—'
-  const num = Number(v)
-  if (Number.isNaN(num)) return String(v)
-  return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-}
-
-function fmtDatePT(d) {
-  if (!d) return '—'
-  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-    const [Y, M, D] = d.split('-')
-    return `${D}/${M}/${Y}`
-  }
-  const dt = new Date(d)
-  if (Number.isNaN(dt.getTime())) return String(d)
-  return dt.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  })
-}
-
 export default function AreaUsuario() {
   const user = useAuth((s) => s.user)
   const logout = useAuth((s) => s.logout)
@@ -120,8 +96,6 @@ export default function AreaUsuario() {
   const {
     items: notifications,
     loading: loadingNotifications,
-    setLoading: setNotifLoading,
-    setNotifications: storeSetNotifications,
     setUnread,
   } = useNotificationsStore()
 
@@ -172,94 +146,6 @@ export default function AreaUsuario() {
       tickRef.current && clearInterval(tickRef.current)
     }
   }, [])
-
-  /* ===== Notificações (histórico de eventos de pagamento) ===== */
-  const lastEventIdRef = useRef(null)
-
-  useEffect(() => {
-    if (!cpf) return
-    let cancelado = false
-    let intervalId = null
-
-    async function fetchNotifications() {
-      try {
-        setNotifLoading(true)
-
-        const { data } = await api.get('/api/webhooks/progem/history', {
-          params: { cpf, limit: 10 },
-          __skipAuthRedirect: true,
-        })
-
-        if (cancelado) return
-
-        let list = []
-
-        if (Array.isArray(data)) {
-          list = data
-        } else if (data && typeof data === 'object') {
-          if (Array.isArray(data.items)) {
-            list = data.items
-          } else if (Array.isArray(data.eventos)) {
-            list = data.eventos
-          } else if (data.eventId || data.id || data.eventType || data.evento) {
-            list = [data]
-          }
-        }
-
-        if (!list.length) {
-          storeSetNotifications([])
-          return
-        }
-
-        const normalizedList = list.map((ev, idx) => {
-          const id =
-            ev.eventId ||
-            ev.id ||
-            `${ev.eventType || ev.tipo || 'evt'}-${
-              ev.parcelaId || ev.numeroContrato || idx
-            }`
-          return {
-            ...ev,
-            _id: id,
-          }
-        })
-
-        const newest = normalizedList[0]
-        const eventId = newest?._id
-
-        storeSetNotifications(normalizedList)
-
-        if (eventId && eventId !== lastEventIdRef.current) {
-          lastEventIdRef.current = eventId
-
-          const status = String(newest.status || '').toUpperCase()
-          if (status === 'PAGA' || status === 'PAID') {
-            showToast(
-              `Pagamento da parcela do contrato #${
-                newest.numeroContrato || ''
-              } foi registrado com sucesso.`,
-              'success'
-            )
-          }
-        }
-      } catch (e) {
-        console.error('Falha ao carregar notificações de pagamento', e)
-        if (!cancelado) {
-          storeSetNotifications([])
-        }
-      } finally {
-        if (!cancelado) setNotifLoading(false)
-      }
-    }
-
-    fetchNotifications()
-    intervalId = setInterval(fetchNotifications, 15000)
-
-    return () => {
-      cancelado = true
-      if (intervalId) clearInterval(intervalId)
-    }
-  }, [cpf, setNotifLoading, storeSetNotifications])
 
   /* ===== dados do contrato/área ===== */
   const {

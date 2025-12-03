@@ -4,6 +4,9 @@ import { Bell } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import useNotificationsStore from '@/store/notifications'
 
+import notificationSound from '@/assets/sounds/notifications.wav'
+
+
 export default function HeaderNotificationsBell({ className = '' }) {
   const [open, setOpen] = useState(false)
   const { items, unread, markAllRead, markAsRead } = useNotificationsStore()
@@ -14,6 +17,31 @@ export default function HeaderNotificationsBell({ className = '' }) {
   const showBadge = unread > 0
   const badgeText = unread > 9 ? '9+' : String(unread)
   const hasItems = items && items.length > 0
+
+  // controla som de notificação
+  const audioRef = useRef(null)
+  const prevUnreadRef = useRef(0)
+
+  useEffect(() => {
+    audioRef.current = new Audio(notificationSound)
+    audioRef.current.volume = 0.7
+  }, [])
+
+  // toca som sempre que o número de não lidas aumentar (novo webhook)
+  useEffect(() => {
+    const prev = prevUnreadRef.current
+    if (unread > prev && unread > 0 && audioRef.current) {
+      try {
+        audioRef.current.currentTime = 0
+        audioRef.current.play().catch(() => {
+          // navegador pode bloquear autoplay; ignorar erro silenciosamente
+        })
+      } catch {
+        /* ignore */
+      }
+    }
+    prevUnreadRef.current = unread
+  }, [unread])
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -79,11 +107,11 @@ export default function HeaderNotificationsBell({ className = '' }) {
           <span
             className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-semibold"
             style={{
-              background: 'var(--c-badge, var(--primary))',
+              // vermelho padrão da Área do Associado
+              background: 'var(--c-badge, #f02849)',
               color: '#fff',
-              border: '1px solid color-mix(in srgb, var(--primary) 55%, black 15%)',
-              boxShadow:
-                '0 0 0 2px color-mix(in srgb, var(--surface) 85%, white 15%)',
+              border: '1px solid rgba(0,0,0,0.15)',
+              boxShadow: '0 0 0 2px rgba(255,255,255,0.95)',
               transform: 'translateZ(0)',
               zIndex: 2,
             }}
@@ -95,10 +123,14 @@ export default function HeaderNotificationsBell({ className = '' }) {
       </button>
 
       {open && hasItems && (
-        <div className="absolute right-0 mt-2 w-80 max-w-xs rounded-xl border shadow-xl z-[60] bg-[var(--surface)]"
-             style={{ borderColor: 'var(--c-border)' }}>
-          <div className="px-3 py-2 border-b flex items-center justify-between"
-               style={{ borderColor: 'var(--c-border)' }}>
+        <div
+          className="absolute right-0 mt-2 w-80 max-w-xs rounded-xl border shadow-xl z-[60] bg-[var(--surface)]"
+          style={{ borderColor: 'var(--c-border)' }}
+        >
+          <div
+            className="px-3 py-2 border-b flex items-center justify-between"
+            style={{ borderColor: 'var(--c-border)' }}
+          >
             <span className="text-xs font-semibold">Alertas automáticos</span>
             {unread > 0 && (
               <button
@@ -127,7 +159,6 @@ export default function HeaderNotificationsBell({ className = '' }) {
               const isPaid = status === 'PAGA' || status === 'PAID'
               const subtle = status === 'EM_ABERTO' || status === 'PENDENTE'
 
-              // cores derivadas do tema (success/warning/primary)
               const bgColor = isPaid
                 ? 'color-mix(in srgb, var(--success, var(--primary)) 15%, transparent)'
                 : subtle

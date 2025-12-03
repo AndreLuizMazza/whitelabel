@@ -4,6 +4,7 @@ import './styles/theme.css'
 import './styles/print.css' // impressão (CR-80 / A4)
 import ScrollToTop from '@/components/ScrollToTop'
 import TenantBootstrapper from '@/components/TenantBootstrapper'
+import NotificationsBootstrapper from '@/components/NotificationsBootstrapper.jsx'
 
 import Navbar from './components/Navbar.jsx'
 import Footer from './components/Footer.jsx'
@@ -39,6 +40,7 @@ import VerificarCarteirinha from '@/pages/VerificarCarteirinha'
 import CarteirinhaPrint from '@/pages/CarteirinhaPrint.jsx'
 import ServicosDigitais from '@/pages/ServicosDigitais.jsx'
 
+
 // 🔐 Perfil (senha e avatar)
 import Perfil from '@/pages/Perfil.jsx'
 
@@ -47,6 +49,8 @@ export default function App() {
     <div className="min-h-screen flex flex-col">
       {/* carrega token + /unidades/me e aplica tema */}
       <TenantBootstrapper />
+      {/* escuta webhooks globalmente e atualiza store + unread */}
+      <NotificationsBootstrapper />
 
       <Navbar />
 
