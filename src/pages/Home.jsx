@@ -160,7 +160,8 @@ export default function Home() {
         </header>
 
         {/* QUADRO DE AÇÕES */}
-        <div className="relative grid gap-5 md:gap-6 md:grid-cols-2 lg:grid-cols-4">
+       
+        <div className="relative grid gap-5 md:gap-6 grid-cols-2 lg:grid-cols-4">
 
           <FeatureCard
             icon={<UserSquare2 size={22} />}
@@ -184,7 +185,7 @@ export default function Home() {
 
           <FeatureCard
             icon={<Layers size={22} />}
-            title="Planos"
+            title="Nossos Planos"
             desc="Veja planos, detalhes e simule preços."
             to="/planos"
             cta="Ver planos"
