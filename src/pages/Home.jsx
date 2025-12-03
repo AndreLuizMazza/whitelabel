@@ -161,6 +161,27 @@ export default function Home() {
 
         {/* QUADRO DE AÇÕES */}
         <div className="relative grid gap-5 md:gap-6 md:grid-cols-2 lg:grid-cols-4">
+
+          <FeatureCard
+            icon={<UserSquare2 size={22} />}
+            title="Área do Associado"
+            desc="Acesse contratos, dependentes e pagamentos."
+            to={isLogged ? '/area' : '/login'}
+            cta="Acessar área"
+            mounted={mounted}
+            delay={270}
+          />
+
+          <FeatureCard
+            icon={<Receipt size={22} />}
+            title="Segunda via do Boleto"
+            desc="Consulte contratos e situação de cobrança sem senha."
+            to="/contratos"
+            cta="Pesquisar"
+            mounted={mounted}
+            delay={200}
+          />
+
           <FeatureCard
             icon={<Layers size={22} />}
             title="Planos"
@@ -179,24 +200,8 @@ export default function Home() {
             mounted={mounted}
             delay={130}
           />
-          <FeatureCard
-            icon={<Receipt size={22} />}
-            title="Segunda via do Boleto"
-            desc="Consulte contratos e situação de cobrança sem senha."
-            to="/contratos"
-            cta="Pesquisar"
-            mounted={mounted}
-            delay={200}
-          />
-          <FeatureCard
-            icon={<UserSquare2 size={22} />}
-            title="Área do Associado"
-            desc="Acesse contratos, dependentes e pagamentos."
-            to={isLogged ? '/area' : '/login'}
-            cta="Acessar área"
-            mounted={mounted}
-            delay={270}
-          />
+
+
         </div>
 
         {/* APP SECTION */}
