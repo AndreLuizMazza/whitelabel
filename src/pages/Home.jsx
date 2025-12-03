@@ -175,8 +175,8 @@ export default function Home() {
 
           <FeatureCard
             icon={<Receipt size={22} />}
-            title="Segunda via do Boleto"
-            desc="Consulte contratos e situação de cobrança sem senha."
+            title="Segunda via de Boleto"
+            desc="Consulte segunda via de Boletos sem senha."
             to="/contratos"
             cta="Pesquisar"
             mounted={mounted}
@@ -186,7 +186,7 @@ export default function Home() {
           <FeatureCard
             icon={<Layers size={22} />}
             title="Nossos Planos"
-            desc="Veja planos, detalhes e simule preços."
+            desc="Conheça nossos Planos. Proteção completa para você e toda sua família."
             to="/planos"
             cta="Ver planos"
             mounted={mounted}
