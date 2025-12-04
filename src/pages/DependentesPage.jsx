@@ -1,52 +1,56 @@
 // src/pages/DependentesPage.jsx
-import { useLocation, Link } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import DependentesList from '@/components/DependentesList'
 import BackButton from "@/components/BackButton";
+
 export default function DependentesPage() {
   const location = useLocation()
-  const { dependentes = [], numeroContrato, nomePlano, unidadeNome } =
-    location.state || {}
+  const {
+    dependentes = [],
+    numeroContrato,
+    nomePlano,
+    unidadeNome,
+    contrato,
+  } = location.state || {}
 
   const hasData = Array.isArray(dependentes) && dependentes.length > 0
 
   return (
     <section className="section">
-
       <div className="container-max">
-        
-                {/* Barra superior com Voltar */}
-        <div className="mb-4 flex items-center justify-between">
-        <BackButton to="/area" className="mb-4" />
+
+        <div className="mb-4">
+          <BackButton to="/area" />
         </div>
+
         <header className="mb-6">
-          <p
-            className="text-[11px] uppercase tracking-[0.2em]"
-            style={{ color: 'var(--text-muted)' }}
-          >
+          <p className="text-[11px] uppercase tracking-[0.2em] opacity-70">
             Área do associado
           </p>
+
           <h1 className="text-2xl font-semibold mt-1">
             Dependentes e Beneficiários
           </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-            {nomePlano && <>Plano <strong>{nomePlano}</strong>{' • '}</>}
-            {numeroContrato && <>Contrato #{numeroContrato}{' • '}</>}
-            {unidadeNome && <>Administrado por {unidadeNome}</>}
-          </p>
 
-
+          {(nomePlano || numeroContrato || unidadeNome) && (
+            <p className="text-sm mt-1 opacity-75">
+              {nomePlano && <>Plano <strong>{nomePlano}</strong></>}
+              {numeroContrato && <> • Contrato #{numeroContrato}</>}
+              {unidadeNome && <> • Administrado por {unidadeNome}</>}
+            </p>
+          )}
         </header>
 
         {hasData ? (
-          <DependentesList dependentes={dependentes} contrato={null} />
+          <DependentesList dependentes={dependentes} contrato={contrato} />
         ) : (
           <div className="card p-6">
-            <p className="text-sm" style={{ color: 'var(--text)' }}>
-              Não recebemos a lista de dependentes. Volte para a Área do
-              Associado e tente novamente.
+            <p className="text-sm opacity-80">
+              Não foi possível carregar os dependentes deste contrato.
             </p>
           </div>
         )}
+
       </div>
     </section>
   )

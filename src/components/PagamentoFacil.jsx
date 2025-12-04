@@ -114,12 +114,48 @@ export default function PagamentoFacil({
     [showAllNext, proximasOrdenadas]
   )
 
-  const totalEmAberto = useMemo(() => {
-    const pend = [foco, ...proximasOrdenadas]
+  // total apenas do que estiver em atraso (foco + próximas)
+  const totalEmAtraso = useMemo(() => {
+    const all = [foco, ...proximasOrdenadas]
       .filter(Boolean)
-      .filter(p => !p?.status || String(p.status).toUpperCase() !== 'PAGA')
-    return pend.reduce((sum, it) => sum + Number(it?.valorParcela || 0), 0)
-  }, [foco, proximasOrdenadas])
+      .filter(p => {
+        const status = String(p.status || '').toUpperCase()
+        return status !== 'PAGA' && isAtraso(p)
+      })
+    return all.reduce((sum, it) => sum + Number(it?.valorParcela || 0), 0)
+  }, [foco, proximasOrdenadas, isAtraso])
+
+  const hasAtrasoGlobal = totalEmAtraso > 0
+
+  /* ========================= header copy dinâmico ========================= */
+  const headerTitle = (() => {
+    if (!temFoco) {
+      return 'Situação das suas mensalidades'
+    }
+    if (focoAtraso) {
+      return 'Mensalidade em atraso'
+    }
+    if (urgente) {
+      return 'Mensalidade com vencimento próximo'
+    }
+    return 'Próxima mensalidade'
+  })()
+
+  const headerSubtitle = (() => {
+    if (!temFoco && !hasAtrasoGlobal) {
+      return 'Você está em dia com suas mensalidades. Assim que houver uma nova cobrança, ela aparecerá aqui com as opções de pagamento.'
+    }
+    if (!temFoco && hasAtrasoGlobal) {
+      return 'Você tem parcelas em atraso. Utilize as opções abaixo para regularizar seus pagamentos com segurança.'
+    }
+    if (focoAtraso) {
+      return 'Organize o pagamento desta parcela para manter seus benefícios ativos e evitar novos encargos.'
+    }
+    if (urgente) {
+      return 'Antecipe o pagamento para evitar juros e manter suas mensalidades sempre em dia.'
+    }
+    return 'Veja os detalhes da sua próxima cobrança e escolha como deseja pagar.'
+  })()
 
   /* ========================= guard rails ========================= */
   useEffect(() => {
@@ -210,17 +246,12 @@ export default function PagamentoFacil({
             Cobranças do seu plano
           </p>
           <h3 className="mt-1 text-lg sm:text-xl font-semibold" style={{ color: 'var(--text)' }}>
-            {temFoco ? 'Próxima mensalidade' : 'Nenhuma mensalidade em foco'}
+            {headerTitle}
           </h3>
-          {temFoco && (
-            <p className="mt-0.5 text-[13px]" style={{ color: 'var(--text-muted)' }}>
-              Vence em{' '}
-              <span className="font-medium" style={{ color: 'var(--text)' }}>
-                {fmtData(foco?.dataVencimento)}
-              </span>{' '}
-              • {fmtBRL(foco?.valorParcela)}
-            </p>
-          )}
+          <p className="mt-0.5 text-[13px]" style={{ color: 'var(--text-muted)' }}>
+            {headerSubtitle}
+          </p>
+
           {temFoco && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {focoAtraso ? (
@@ -238,33 +269,45 @@ export default function PagamentoFacil({
           )}
         </div>
 
-        <div className="flex flex-col items-start sm:items-end gap-1">
-          <span className="text-[11px] uppercase tracking-[0.14em] font-medium" style={{ color: 'var(--text-muted)' }}>
-            Total em aberto
-          </span>
-          <div className="flex items-baseline gap-1">
-            <span className="text-xl sm:text-2xl font-semibold" style={{ color: 'var(--text)' }}>
-              {fmtBRL(totalEmAberto)}
+        {/* mostra só se tiver atraso */}
+        {totalEmAtraso > 0 && (
+          <div className="flex flex-col items-start sm:items-end gap-1">
+            <span
+              className="text-[11px] uppercase tracking-[0.14em] font-medium"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Total em atraso
+            </span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xl sm:text-2xl font-semibold" style={{ color: 'var(--text)' }}>
+                {fmtBRL(totalEmAtraso)}
+              </span>
+            </div>
+            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              Regularize para manter seus benefícios em dia.
             </span>
           </div>
-          {proximasOrdenadas.length > 0 && (
-            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-              Considerando a parcela atual e próximas
-            </span>
-          )}
-        </div>
+        )}
       </header>
 
       {/* bloco principal: foco + QR */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
         {/* coluna esquerda: detalhes & ações */}
-        <div className="rounded-2xl border px-4 py-3.5 sm:px-4.5 sm:py-4"
-             style={{ borderColor: 'var(--c-border)', background: 'color-mix(in srgb, var(--surface) 94%, var(--background) 6%)' }}>
+        <div
+          className="rounded-2xl border px-4 py-3.5 sm:px-4.5 sm:py-4"
+          style={{
+            borderColor: 'var(--c-border)',
+            background: 'color-mix(in srgb, var(--surface) 94%, var(--background) 6%)'
+          }}
+        >
           {temFoco ? (
             <>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-xs font-medium uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
+                  <p
+                    className="text-xs font-medium uppercase tracking-[0.16em]"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
                     Mensalidade em destaque
                   </p>
                   <p className="mt-1 text-base font-semibold" style={{ color: 'var(--text)' }}>
@@ -280,7 +323,11 @@ export default function PagamentoFacil({
               </div>
 
               {/* ações foco */}
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2" role="group" aria-label="Ações de pagamento">
+              <div
+                className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2"
+                role="group"
+                aria-label="Ações de pagamento"
+              >
                 {acoesFoco.map((a, idx) =>
                   a.href ? (
                     <a
@@ -318,8 +365,8 @@ export default function PagamentoFacil({
             </>
           ) : (
             <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              Nenhuma parcela em destaque no momento. Assim que houver uma próxima mensalidade, ela aparecerá aqui
-              com as opções de pagamento.
+              Assim que houver uma nova mensalidade, ela aparecerá aqui com o valor, vencimento
+              e opções de pagamento.
             </div>
           )}
         </div>
@@ -363,7 +410,10 @@ export default function PagamentoFacil({
             </div>
           )}
 
-          <figcaption className="text-[12px] mt-2 text-center max-w-xs" style={{ color: 'var(--text-muted)' }}>
+          <figcaption
+            className="text-[12px] mt-2 text-center max-w-xs"
+            style={{ color: 'var(--text-muted)' }}
+          >
             Aponte a câmera do app do seu banco para o QR Code para pagar com PIX em poucos segundos.
           </figcaption>
         </figure>
@@ -394,11 +444,15 @@ export default function PagamentoFacil({
 
           <ul
             className="rounded-2xl overflow-hidden border"
-            style={{ borderColor: 'var(--c-border)', background: 'color-mix(in srgb, var(--surface) 96%, var(--background) 4%)' }}
+            style={{
+              borderColor: 'var(--c-border)',
+              background: 'color-mix(in srgb, var(--surface) 96%, var(--background) 4%)'
+            }}
           >
             {proximasVisiveis.map((dup, idx) => {
               const atrasada = isAtraso(dup)
-              const dupKey = dup?.id ?? dup?.numero ?? dup?.numeroDuplicata ?? `${idx}-${dup?.dataVencimento}`
+              const dupKey =
+                dup?.id ?? dup?.numero ?? dup?.numeroDuplicata ?? `${idx}-${dup?.dataVencimento}`
               const leftBorder = atrasada
                 ? '#b42318'
                 : 'color-mix(in srgb, var(--primary) 60%, transparent)'
@@ -413,12 +467,21 @@ export default function PagamentoFacil({
                   }}
                 >
                   <div className="min-w-0">
-                    <p className="font-medium truncate text-sm" style={{ color: 'var(--text)' }}>
+                    <p
+                      className="font-medium truncate text-sm"
+                      style={{ color: 'var(--text)' }}
+                    >
                       #{dup?.numeroDuplicata || dup?.numero} • {fmtBRL(dup?.valorParcela)}
                     </p>
-                    <p className="text-[12px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                    <p
+                      className="text-[12px] mt-0.5"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
                       Vence em{' '}
-                      <span className="font-medium" style={{ color: 'var(--text)' }}>
+                      <span
+                        className="font-medium"
+                        style={{ color: 'var(--text)' }}
+                      >
                         {fmtData(dup?.dataVencimento)}
                       </span>
                     </p>
@@ -443,7 +506,7 @@ export default function PagamentoFacil({
                         aria-live="polite"
                         aria-label={`Copiar código PIX da duplicata ${dup?.numero || dup?.numeroDuplicata}`}
                       >
-                        {copiedId === dupKey ? '✅ PIX copiado' : 'PIX'}
+                        {copiedId === dupKey ? '✅ Copiado!' : 'PIX'}
                       </button>
                     )}
                   </div>
@@ -468,10 +531,14 @@ export default function PagamentoFacil({
           </summary>
           <ul
             className="mt-3 rounded-2xl overflow-hidden border"
-            style={{ borderColor: 'var(--c-border)', background: 'color-mix(in srgb, var(--surface) 96%, var(--background) 4%)' }}
+            style={{
+              borderColor: 'var(--c-border)',
+              background: 'color-mix(in srgb, var(--surface) 96%, var(--background) 4%)'
+            }}
           >
             {historico.map((dup, i) => {
-              const dupKey = dup?.id ?? dup?.numero ?? dup?.numeroDuplicata ?? `hist-${i}`
+              const dupKey =
+                dup?.id ?? dup?.numero ?? dup?.numeroDuplicata ?? `hist-${i}`
               const status = String(dup?.status || '').toUpperCase()
               return (
                 <li
@@ -480,10 +547,16 @@ export default function PagamentoFacil({
                   style={{ borderTop: i === 0 ? 'none' : '1px solid var(--c-border)' }}
                 >
                   <div className="min-w-0">
-                    <div className="font-medium text-sm" style={{ color: 'var(--text)' }}>
+                    <div
+                      className="font-medium text-sm"
+                      style={{ color: 'var(--text)' }}
+                    >
                       #{dup?.numeroDuplicata || dup?.numero} • {fmtBRL(dup?.valorParcela)}
                     </div>
-                    <div className="text-[12px]" style={{ color: 'var(--text-muted)' }}>
+                    <div
+                      className="text-[12px]"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
                       Venc.: {fmtData(dup?.dataVencimento)}
                       {dup?.dataRecebimento ? ` • Pago em ${fmtData(dup.dataRecebimento)}` : ''}
                     </div>

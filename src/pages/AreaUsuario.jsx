@@ -759,7 +759,8 @@ export default function AreaUsuario() {
                         </p>
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4">
+
                         <QuickAction
                           icon={FileText}
                           label="2ª via"
@@ -780,8 +781,8 @@ export default function AreaUsuario() {
                         />
                         <QuickAction
                           icon={IdCard}
-                          label="Meu cartão"
-                          helper="Carteirinha digital completa"
+                          label="Carteirinha"
+                          helper="Veja sua Carteirinha digital"
                           to="/carteirinha"
                         />
                         <QuickAction
@@ -857,40 +858,7 @@ export default function AreaUsuario() {
                       </div>
                     )}
 
-                    {planoLinks.length > 0 && planoIdForRoute && (
-                      <div className="card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <div>
-                          <h4 className="text-sm font-semibold">
-                            Benefícios do seu plano
-                          </h4>
-                          <p
-                            className="text-xs mt-1"
-                            style={{ color: 'var(--text)' }}
-                          >
-                            Consulte todos os serviços digitais e vantagens
-                            disponíveis, como clube de descontos, telemedicina
-                            e outras integrações.
-                          </p>
-                        </div>
-                        <Link
-                          to="/servicos-digitais"
-                          state={{
-                            planoId: planoIdForRoute,
-                            numeroContrato,
-                            nomePlano,
-                          }}
-                          className="btn-primary text-sm whitespace-nowrap"
-                          onClick={() =>
-                            track('servicos_digitais_open', {
-                              planoId: planoIdForRoute,
-                              numeroContrato,
-                            })
-                          }
-                        >
-                          Ver benefícios
-                        </Link>
-                      </div>
-                    )}
+                  
 
                     {!loadingPlano && planoLinks.length === 0 && (
                       <div className="card p-4">
