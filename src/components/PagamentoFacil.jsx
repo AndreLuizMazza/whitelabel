@@ -300,9 +300,9 @@ export default function PagamentoFacil({
         </div>
       )}
 
-      {/* histórico (opcional) */}
+        {/* histórico (opcional) */}
       {historico.length > 0 && (
-        <details className="mt-6 group">
+        <details className="mt-6 group" id="historico-pagamentos">
           <summary className="cursor-pointer text-sm font-medium select-none"
                    style={{ color: 'var(--text)' }}>
             Histórico de pagamentos ({historico.length})

@@ -36,10 +36,11 @@ import MemorialList from '@/pages/MemorialList.jsx'
 import MemorialDetail from '@/pages/MemorialDetail.jsx'
 import ErrorBoundary from '@/components/ErrorBoundary.jsx'
 import VerificarCarteirinha from '@/pages/VerificarCarteirinha'
+
 // Impressão da carteirinha
 import CarteirinhaPrint from '@/pages/CarteirinhaPrint.jsx'
 import ServicosDigitais from '@/pages/ServicosDigitais.jsx'
-
+import CarteirinhaPage from '@/pages/CarteirinhaPage.jsx'
 
 // 🔐 Perfil (senha e avatar)
 import Perfil from '@/pages/Perfil.jsx'
@@ -56,7 +57,7 @@ export default function App() {
 
       <main className="flex-1">
         <ErrorBoundary>
-              <ScrollToTop />
+          <ScrollToTop />
           <Routes>
             {/* Páginas públicas */}
             <Route path="/" element={<Home />} />
@@ -75,16 +76,15 @@ export default function App() {
             <Route path="/termos-uso" element={<TermosUso />} />
             <Route path="/filiais" element={<Filiais />} />
             <Route path="/verificar/:cpf" element={<VerificarCarteirinha />} />
+
             {/* Memorial */}
             <Route path="/memorial" element={<MemorialList />} />
             <Route path="/memorial/:slug" element={<MemorialDetail />} />
 
             {/* Impressão da carteirinha */}
             <Route path="/carteirinha/print" element={<CarteirinhaPrint />} />
-          
 
-
-            {/* 🔒 Servicos digitais */}
+            {/* 🔒 Serviços digitais */}
             <Route
               path="/servicos-digitais"
               element={
@@ -118,6 +118,26 @@ export default function App() {
               element={
                 <PrivateRoute redirectTo="/login">
                   <AreaUsuario />
+                </PrivateRoute>
+              }
+            />
+
+            {/* 🔒 Carteirinha (nova página dedicada) */}
+            <Route
+              path="/carteirinha"
+              element={
+                <PrivateRoute redirectTo="/login">
+                  <CarteirinhaPage />
+                </PrivateRoute>
+              }
+            />
+
+            {/* 🔒 Carteirinha (nova página dedicada) */}
+            <Route
+              path="/carteirinha"
+              element={
+                <PrivateRoute redirectTo="/login">
+                  <CarteirinhaPage />
                 </PrivateRoute>
               }
             />
