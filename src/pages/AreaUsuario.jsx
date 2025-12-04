@@ -1,11 +1,9 @@
 // src/pages/AreaUsuario.jsx
-import { useMemo, useEffect, useState } from 'react'
+import { useMemo, useEffect, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import api from '@/lib/api.js'
 import useAuth from '@/store/auth'
 import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
-import ContratoCard from '@/components/ContratoCard'
-import DependentesList from '@/components/DependentesList'
 import PagamentoFacil from '@/components/PagamentoFacil'
 import NotificationsCenter from '@/components/NotificationsCenter'
 import useNotificationsStore from '@/store/notifications'
@@ -19,6 +17,9 @@ import {
   Eye,
   EyeOff,
   CreditCard,
+  ChevronDown,
+  LogOut,
+  Smartphone,         // ⬅ novo ícone para serviços digitais
 } from 'lucide-react'
 
 /* ===== analytics opcional (no-op) ===== */
@@ -75,10 +76,17 @@ function buildWhats(number, msg) {
 }
 
 /* ============================================================
-   CARD DE DESTAQUE DO PLANO – estilo “home de banco premium”
+   CARD DE RESUMO DO PLANO – estilo “home de banco premium”
    ============================================================ */
-function PlanoHighlightCard({ contrato, proximaParcela, totalPago, nomeExibicao }) {
-  const [mostrarTotal, setMostrarTotal] = useState(false)
+function PlanoHighlightCard({
+  contrato,
+  proximaParcela,
+  totalPago,
+  totalEmAtraso,
+  hasAtraso,
+  nomeExibicao,
+}) {
+  const [mostrarValores, setMostrarValores] = useState(false)
 
   if (!contrato) return null
 
@@ -94,6 +102,9 @@ function PlanoHighlightCard({ contrato, proximaParcela, totalPago, nomeExibicao 
 
   const dataProx = proximaParcela?.dataVencimento ?? null
   const valorProx = proximaParcela?.valorParcela ?? null
+
+  const situacaoLabel = hasAtraso ? 'Em atraso' : 'Em dia'
+  const situacaoCor = hasAtraso ? '#fb7185' : '#4ade80'
 
   return (
     <section
@@ -117,6 +128,7 @@ function PlanoHighlightCard({ contrato, proximaParcela, totalPago, nomeExibicao 
         }}
       />
 
+      {/* conteúdo principal */}
       <div className="relative z-[1] flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         {/* lado esquerdo – título, status e usuário */}
         <div className="min-w-0">
@@ -126,7 +138,7 @@ function PlanoHighlightCard({ contrato, proximaParcela, totalPago, nomeExibicao 
             </p>
           )}
           <p className="text-[11px] uppercase tracking-[0.16em] opacity-80">
-            Plano de assinatura
+            Resumo do seu plano
           </p>
           <h3 className="mt-1 text-lg sm:text-2xl font-semibold leading-snug">
             {nomePlano}
@@ -162,7 +174,7 @@ function PlanoHighlightCard({ contrato, proximaParcela, totalPago, nomeExibicao 
             {dataProx && valorProx ? (
               <>
                 <p className="mt-1 text-2xl sm:text-3xl font-semibold leading-tight">
-                  {fmtBRL(valorProx)}
+                  {mostrarValores ? fmtBRL(valorProx) : '••••••'}
                 </p>
                 <p className="text-xs sm:text-sm opacity-90">
                   Vence em {fmtDate(dataProx)}
@@ -194,24 +206,50 @@ function PlanoHighlightCard({ contrato, proximaParcela, totalPago, nomeExibicao 
         </div>
       </div>
 
-      {/* resumo financeiro inferior */}
-      <div className="relative z-[1] mt-6 pt-4 border-t border-white/25 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.16em] opacity-80">
-            Total já pago
-          </p>
-          <p className="mt-1 text-sm sm:text-base font-semibold">
-            {mostrarTotal ? fmtBRL(totalPago) : '••••••'}
-          </p>
+      {/* métricas inferiores */}
+      <div className="relative z-[1] mt-6 pt-4 border-t border-white/25 flex flex-wrap items-center justify-between gap-4 text-xs sm:text-sm">
+        <div className="flex flex-wrap gap-4 sm:gap-8">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.16em] opacity-80">
+              Total já pago
+            </p>
+            <p className="mt-1 text-sm sm:text-base font-semibold">
+              {mostrarValores ? fmtBRL(totalPago) : '••••••'}
+            </p>
+          </div>
+
+          {hasAtraso && totalEmAtraso > 0 && (
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.16em] opacity-80">
+                Valor em atraso
+              </p>
+              <p className="mt-1 text-sm sm:text-base font-semibold">
+                {mostrarValores ? fmtBRL(totalEmAtraso) : '••••••'}
+              </p>
+            </div>
+          )}
+
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.16em] opacity-80">
+              Situação
+            </p>
+            <p className="mt-1 inline-flex items-center gap-1 text-sm sm:text-base font-semibold">
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{ background: situacaoCor }}
+              />
+              {situacaoLabel}
+            </p>
+          </div>
         </div>
 
         <button
           type="button"
-          onClick={() => setMostrarTotal((v) => !v)}
+          onClick={() => setMostrarValores((v) => !v)}
           className="inline-flex items-center gap-1 text-[11px] sm:text-xs font-medium underline underline-offset-2 opacity-95 hover:opacity-100"
         >
-          {mostrarTotal ? <EyeOff size={14} /> : <Eye size={14} />}
-          {mostrarTotal ? 'Ocultar valor' : 'Mostrar valor'}
+          {mostrarValores ? <EyeOff size={14} /> : <Eye size={14} />}
+          {mostrarValores ? 'Ocultar valores' : 'Mostrar valores'}
         </button>
       </div>
     </section>
@@ -219,10 +257,10 @@ function PlanoHighlightCard({ contrato, proximaParcela, totalPago, nomeExibicao 
 }
 
 /* ============================================================
-   AÇÕES RÁPIDAS (2x2 / 4 colunas no desktop)
+   AÇÕES RÁPIDAS
    ============================================================ */
 
-function QuickAction({ icon: Icon, label, helper, to, onClick }) {
+function QuickAction({ icon: Icon, label, helper, to, onClick, state }) {
   const content = (
     <div className="flex items-center gap-3">
       <span
@@ -253,7 +291,7 @@ function QuickAction({ icon: Icon, label, helper, to, onClick }) {
 
   const baseProps = {
     className:
-      'card h-full px-3 py-3 sm:px-4 sm:py-3.5 rounded-2xl border text-left hover:shadow-sm transition-shadow',
+      'card h-full px-4 py-4 sm:px-5 sm:py-5 rounded-2xl border text-left hover:shadow-md transition-shadow',
     style: {
       borderColor: 'var(--c-border)',
       background: 'var(--surface)',
@@ -262,7 +300,7 @@ function QuickAction({ icon: Icon, label, helper, to, onClick }) {
 
   if (to) {
     return (
-      <Link to={to} {...baseProps} aria-label={label}>
+      <Link to={to} state={state} {...baseProps} aria-label={label}>
         {content}
       </Link>
     )
@@ -317,7 +355,7 @@ export default function AreaUsuario() {
     proximaParcela,
     proximas,
     historico,
-    isAtraso,
+    isAtraso: _isAtrasoRaw, // ignorado
     chooseContrato,
     loading,
     erro,
@@ -327,6 +365,25 @@ export default function AreaUsuario() {
     () => user?.nome ?? user?.email ?? 'Usuário',
     [user]
   )
+
+  const avatarInitial = useMemo(() => {
+    const base = user?.nome || user?.email || 'U'
+    return base.trim().charAt(0).toUpperCase()
+  }, [user])
+
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    if (!showProfileMenu) return
+    const handleClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setShowProfileMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showProfileMenu])
 
   useEffect(() => {
     if (erro)
@@ -354,7 +411,8 @@ export default function AreaUsuario() {
 
   useEffect(() => {
     setPlanoErro('')
-    const planoId = contrato?.planoId || contrato?.plano_id || contrato?.plano?.id
+    const planoId =
+      contrato?.planoId || contrato?.plano_id || contrato?.plano?.id
     if (!planoId) {
       setPlano(null)
       return
@@ -419,26 +477,33 @@ export default function AreaUsuario() {
   const numeroContrato = contrato?.numeroContrato ?? contrato?.id ?? null
   const nomePlano = contrato?.nomePlano ?? plano?.nome ?? null
 
-  /* ===== total em aberto (para uso futuro) ===== */
-  const totalEmAberto = useMemo(() => {
-    const arr = []
-    if (proximaParcela) arr.push(proximaParcela)
-    if (Array.isArray(proximas)) arr.push(...proximas)
+  /* ===== função de atraso por parcela (para PagamentoFacil) ===== */
+  const isParcelaEmAtraso = (p) => {
+    if (!p?.dataVencimento) return false
+    const status = String(p.status || '').toUpperCase()
+    if (status === 'PAGA' || status === 'PAID' || status === 'CANCELADA') {
+      return false
+    }
+    const dt = new Date(p.dataVencimento)
+    if (Number.isNaN(dt.getTime())) return false
+    const hoje = new Date()
+    dt.setHours(0, 0, 0, 0)
+    hoje.setHours(0, 0, 0, 0)
+    return dt < hoje
+  }
 
-    const vistos = new Set()
-    return arr
+  /* ===== total em atraso (somente parcelas vencidas e não pagas) ===== */
+  const totalEmAtraso = useMemo(() => {
+    const todas = []
+    if (proximaParcela) todas.push(proximaParcela)
+    if (Array.isArray(proximas)) todas.push(...proximas)
+    if (Array.isArray(historico)) todas.push(...historico)
+
+    return todas
       .filter(Boolean)
-      .filter((p) => {
-        const status = String(p.status || '').toUpperCase()
-        if (status === 'PAGA' || status === 'PAID') return false
-        const key = p.id ?? p.numeroDuplicata ?? p.numero
-        if (!key) return true
-        if (vistos.has(key)) return false
-        vistos.add(key)
-        return true
-      })
+      .filter(isParcelaEmAtraso)
       .reduce((s, it) => s + Number(it.valorParcela || 0), 0)
-  }, [proximaParcela, proximas])
+  }, [proximaParcela, proximas, historico])
 
   /* ===== total já pago (baseado no histórico) ===== */
   const totalPago = useMemo(() => {
@@ -460,14 +525,12 @@ export default function AreaUsuario() {
       )
   }, [historico])
 
-  /* ===== ações rápidas (anchors) ===== */
+  /* ===== boolean de atraso para o card ===== */
+  const hasAtraso = totalEmAtraso > 0
+
+  /* ===== âncoras ===== */
   function scrollToPagamento() {
     const el = document.getElementById('pagamento')
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }
-
-  function scrollToHistorico() {
-    const el = document.getElementById('historico-pagamentos')
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
@@ -485,6 +548,10 @@ export default function AreaUsuario() {
     }
   }
 
+  const handleAtalhoPagamento = () => {
+    scrollToPagamento()
+  }
+
   return (
     <section className="section relative" key={cpf}>
       {/* halo de fundo geral da página */}
@@ -499,7 +566,7 @@ export default function AreaUsuario() {
       />
 
       <div className="container-max relative">
-        {/* HEADER + HERO WRAPPER */}
+        {/* HEADER + HERO WRAPPER (capa da área do associado) */}
         <div className="relative mb-6">
           {/* halo extra atrás do card */}
           <div
@@ -512,53 +579,98 @@ export default function AreaUsuario() {
             }}
           />
 
-          {/* barra superior: título + ações */}
-          <div className="relative z-[2] flex items-center justify-between gap-3 mb-4 mt-1">
+          {/* barra superior da capa */}
+          <div className="relative z-[5] flex items-center justify-between gap-3 mb-4 mt-1">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">
+              <p
+                className="text-[11px] uppercase tracking-[0.2em]"
+                style={{ color: 'var(--text-muted)' }}
+              >
                 Área do associado
-              </h2>
+              </p>
               {unidadeNome && (
-                <p
-                  className="mt-0.5 text-xs sm:text-sm"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  Plano administrado por <strong>{unidadeNome}</strong>.
-                </p>
+                <h2 className="text-xl font-semibold tracking-tight mt-1">
+                  {unidadeNome}
+                </h2>
               )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <Link
-                to="/perfil"
-                className="btn-outline inline-flex items-center gap-1 text-xs sm:text-sm"
-              >
-                <User size={16} /> Meu Perfil
-              </Link>
+            {/* avatar com menu */}
+            <div className="relative z-[10]" ref={menuRef}>
               <button
-                className="btn-outline text-xs sm:text-sm"
-                onClick={logout}
+                type="button"
+                onClick={() => setShowProfileMenu((v) => !v)}
+                className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-full border text-xs sm:text-sm"
+                style={{
+                  borderColor: 'var(--c-border)',
+                  background:
+                    'color-mix(in srgb, var(--surface-elevated, var(--surface)) 80%, var(--primary) 20%)',
+                }}
               >
-                Sair
+                <span
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold"
+                  style={{ background: 'var(--primary)', color: '#fff' }}
+                >
+                  {avatarInitial}
+                </span>
+
+                <span className="hidden sm:inline max-w-[160px] truncate">
+                  {nomeExibicao || 'Meu perfil'}
+                </span>
+
+                <ChevronDown size={14} aria-hidden="true" />
               </button>
+
+              {showProfileMenu && (
+                <div
+                  className="absolute right-0 mt-2 w-48 rounded-xl overflow-hidden shadow-xl border z-[15]"
+                  style={{
+                    borderColor: 'var(--c-border-strong, var(--c-border))',
+                    background: 'var(--surface-elevated, var(--surface))',
+                    color: 'var(--text)',
+                  }}
+                >
+                  <Link
+                    to="/perfil"
+                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg.white/5"
+                    onClick={() => setShowProfileMenu(false)}
+                  >
+                    <User size={14} />
+                    <span>Meu perfil</span>
+                  </Link>
+
+                  <button
+                    type="button"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg.white/5"
+                    onClick={() => {
+                      setShowProfileMenu(false)
+                      logout()
+                    }}
+                  >
+                    <LogOut size={14} />
+                    <span>Sair</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Loading apenas no topo */}
           {loading && (
-            <div className="relative z-[2]">
+            <div className="relative z-[4]">
               <Skeleton className="h-40" />
             </div>
           )}
 
-          {/* Card principal colado ao topo visual */}
+          {/* Card principal – colado na capa */}
           {!loading && !erro && contrato && (
-            <div className="relative z-[2]">
+            <div className="relative z-[4]">
               <PlanoHighlightCard
                 contrato={contrato}
                 proximaParcela={proximaParcela}
                 totalPago={totalPago}
-                totalEmAberto={totalEmAberto}
+                totalEmAtraso={totalEmAtraso}
+                hasAtraso={hasAtraso}
                 nomeExibicao={nomeExibicao}
               />
             </div>
@@ -589,7 +701,7 @@ export default function AreaUsuario() {
             <>
               {/* Seletor de contrato (após o card) */}
               {Array.isArray(contratos) && contratos.length > 1 && (
-                <div className="mt-4 card p-4">
+                <div className="mt-2 card p-4">
                   <label
                     className="block text-sm mb-2"
                     style={{ color: 'var(--text)' }}
@@ -624,120 +736,184 @@ export default function AreaUsuario() {
                 </div>
               )}
 
-              {/* Ações rápidas */}
-              <div className="mt-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                    Atalhos do seu plano
-                  </h3>
-                  <p
-                    className="text-[11px] sm:text-xs"
-                    style={{ color: 'var(--text-muted)' }}
-                  >
-                    Acesse as funções mais usadas em poucos toques.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <QuickAction
-                    icon={FileText}
-                    label="2ª via"
-                    helper="Emita o boleto ou código de pagamento"
-                    onClick={scrollToPagamento}
-                  />
-                  <QuickAction
-                    icon={IdCard}
-                    label="Meu cartão"
-                    helper="Veja sua carteirinha digital completa"
-                    to="/carteirinha"
-                  />
-                  <QuickAction
-                    icon={MessageCircle}
-                    label="Atendimento"
-                    helper="Fale com a unidade pelo WhatsApp"
-                    onClick={abrirAtendimento}
-                  />
-                  <QuickAction
-                    icon={Clock3}
-                    label="Histórico"
-                    helper="Veja os pagamentos já realizados"
-                    onClick={scrollToHistorico}
-                  />
-                </div>
-              </div>
-
-              {/* Grid principal – dependentes + pagamentos + contrato + alertas */}
-              <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Grid principal – conteúdo + notificações */}
+              <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* COLUNA PRINCIPAL */}
                 <div className="lg:col-span-2 space-y-6">
-                  <DependentesList
-                    dependentes={dependentes}
-                    contrato={contrato}
-                  />
+                  {/* ===== BLOCO 1 – RESUMO / ATALHOS ===== */}
+                  <div>
+                    {/* Ações rápidas */}
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3
+                          className="text-sm font-semibold"
+                          style={{ color: 'var(--text)' }}
+                        >
+                          Atalhos do seu plano
+                        </h3>
+                        <p
+                          className="text-[11px] sm:text-xs"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          Acesse as funções mais usadas em poucos toques.
+                        </p>
+                      </div>
 
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <QuickAction
+                          icon={FileText}
+                          label="2ª via"
+                          helper="Emitir boleto ou código de pagamento"
+                          onClick={handleAtalhoPagamento}
+                        />
+                        <QuickAction
+                          icon={Clock3}
+                          label="Histórico"
+                          helper="Pagamentos já realizados"
+                          to="/area/pagamentos"
+                          state={{
+                            historico,
+                            numeroContrato,
+                            nomePlano,
+                            unidadeNome,
+                          }}
+                        />
+                        <QuickAction
+                          icon={IdCard}
+                          label="Meu cartão"
+                          helper="Carteirinha digital completa"
+                          to="/carteirinha"
+                        />
+                        <QuickAction
+                          icon={User}
+                          label="Dependentes"
+                          helper="Ver e gerenciar beneficiários"
+                          to="/area/dependentes"
+                          state={{
+                            dependentes,
+                            numeroContrato,
+                            nomePlano,
+                            unidadeNome,
+                          }}
+                        />
+                        {planoLinks.length > 0 && planoIdForRoute && (
+                          <QuickAction
+                            icon={Smartphone}
+                            label="Serviços digitais"
+                            helper="Acessar benefícios online do seu plano"
+                            to="/servicos-digitais"
+                            state={{
+                              planoId: planoIdForRoute,
+                              numeroContrato,
+                              nomePlano,
+                            }}
+                          />
+                        )}
+                        <QuickAction
+                          icon={MessageCircle}
+                          label="Atendimento"
+                          helper="Fale com a unidade pelo WhatsApp"
+                          onClick={abrirAtendimento}
+                        />
+                      </div>
+                    </div>
+
+                    {/* serviços digitais / benefícios (teaser no resumo) */}
+                    {loadingPlano && !plano && (
+                      <div className="card p-4 mt-5">
+                        <p
+                          className="text-sm"
+                          style={{ color: 'var(--text)' }}
+                        >
+                          Carregando serviços digitais do seu plano...
+                        </p>
+                      </div>
+                    )}
+
+  
+                  </div>
+
+                  {/* ===== BLOCO 2 – PAGAMENTOS ===== */}
                   <div id="pagamento">
                     <PagamentoFacil
                       contrato={contrato}
                       parcelaFoco={proximaParcela}
                       proximas={proximas}
                       historico={historico}
-                      isAtraso={isAtraso}
+                      isAtraso={isParcelaEmAtraso}
                     />
                   </div>
 
-                  <ContratoCard contrato={contrato} />
-
-                  {loadingPlano && !plano && (
-                    <div className="card p-4">
-                      <p
-                        className="text-sm"
-                        style={{ color: 'var(--text)' }}
-                      >
-                        Carregando serviços digitais do seu plano...
-                      </p>
-                    </div>
-                  )}
-
-                  {planoLinks.length > 0 && planoIdForRoute && (
-                    <div className="card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div>
-                        <h4 className="text-sm font-semibold">
-                          Serviços digitais incluídos no seu plano
-                        </h4>
+                  {/* ===== BLOCO 3 – BENEFÍCIOS / SERVIÇOS DIGITAIS ===== */}
+                  <div>
+                    {loadingPlano && !plano && (
+                      <div className="card p-4">
                         <p
-                          className="text-xs mt-1"
+                          className="text-sm"
                           style={{ color: 'var(--text)' }}
                         >
-                          Acesse plataformas e benefícios online vinculados ao
-                          seu plano, como clubes de descontos, aplicativos e
-                          outros serviços digitais.
+                          Carregando benefícios e serviços digitais...
                         </p>
                       </div>
-                      <Link
-                        to="/servicos-digitais"
-                        state={{
-                          planoId: planoIdForRoute,
-                          numeroContrato,
-                          nomePlano,
-                        }}
-                        className="btn-primary text-sm whitespace-nowrap"
-                        onClick={() =>
-                          track('servicos_digitais_open', {
+                    )}
+
+                    {planoLinks.length > 0 && planoIdForRoute && (
+                      <div className="card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                          <h4 className="text-sm font-semibold">
+                            Benefícios do seu plano
+                          </h4>
+                          <p
+                            className="text-xs mt-1"
+                            style={{ color: 'var(--text)' }}
+                          >
+                            Consulte todos os serviços digitais e vantagens
+                            disponíveis, como clube de descontos, telemedicina
+                            e outras integrações.
+                          </p>
+                        </div>
+                        <Link
+                          to="/servicos-digitais"
+                          state={{
                             planoId: planoIdForRoute,
                             numeroContrato,
-                          })
-                        }
-                      >
-                        Ver serviços digitais
-                      </Link>
-                    </div>
-                  )}
+                            nomePlano,
+                          }}
+                          className="btn-primary text-sm whitespace-nowrap"
+                          onClick={() =>
+                            track('servicos_digitais_open', {
+                              planoId: planoIdForRoute,
+                              numeroContrato,
+                            })
+                          }
+                        >
+                          Ver benefícios
+                        </Link>
+                      </div>
+                    )}
 
-                  {/* âncora para o histórico dentro dos pagamentos */}
-                  <div id="historico-pagamentos" className="h-0" aria-hidden="true" />
+                    {!loadingPlano && planoLinks.length === 0 && (
+                      <div className="card p-4">
+                        <p
+                          className="text-sm font-medium"
+                          style={{ color: 'var(--text)' }}
+                        >
+                          Seu plano ainda não possui serviços digitais
+                          cadastrados.
+                        </p>
+                        <p
+                          className="text-xs mt-1"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          Em caso de dúvidas, fale com a unidade pelo
+                          atendimento.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* COLUNA LATERAL: alertas / notificações */}
+                {/* COLUNA LATERAL: últimas notificações */}
                 <div className="lg:col-span-1">
                   <div className="lg:sticky lg:top-6 space-y-6">
                     <NotificationsCenter
@@ -747,7 +923,44 @@ export default function AreaUsuario() {
                       onUnreadChange={setUnread}
                     />
                   </div>
+
+                                    {planoLinks.length > 0 && planoIdForRoute && (
+                      <div className="card p-4 mt-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                          <h4 className="text-sm font-semibold">
+                            Serviços digitais incluídos no seu plano
+                          </h4>
+                          <p
+                            className="text-xs mt-1"
+                            style={{ color: 'var(--text)' }}
+                          >
+                            Acesse plataformas e benefícios online vinculados ao
+                            seu plano, como clubes de descontos, aplicativos e
+                            outros serviços digitais.
+                          </p>
+                        </div>
+                        <Link
+                          to="/servicos-digitais"
+                          state={{
+                            planoId: planoIdForRoute,
+                            numeroContrato,
+                            nomePlano,
+                          }}
+                          className="btn-primary text-sm whitespace-nowrap"
+                          onClick={() =>
+                            track('servicos_digitais_open', {
+                              planoId: planoIdForRoute,
+                              numeroContrato,
+                            })
+                          }
+                        >
+                          Ver serviços digitais
+                        </Link>
+                      </div>
+                    )}
                 </div>
+
+                
               </div>
             </>
           ) : (

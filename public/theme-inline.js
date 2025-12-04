@@ -1,5 +1,5 @@
-/* Gerado de D:\whitelabel-clean\config\tenants\patense.json */
-window.__TENANT__ = {"slug":"patense","v":7,"vars":{"--primary":"#004C3F","--primary-dark":"#003B31","--on-primary":"#ffffff","--surface":"#ffffff","--surface-alt":"#f6f7fb","--text":"#0b1220","--text-muted":"#5f6b7a","--c-border":"rgba(0,0,0,0.08)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 12%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 22%, transparent)","--nav-active-color":"#004C3F"},"varsDark":{"--surface":"#0b1220","--surface-alt":"#0f172a","--text":"#e5e7eb","--text-muted":"#94a3b8","--c-border":"rgba(255,255,255,0.12)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 22%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 36%, transparent)","--nav-active-color":"#ffffff"},"logo":"https://app.progem.com.br/progem/api/downloads/empresa/274/arquivo?nome=ea3aa504-e9fd-4f19-9021-eebd659ca841_Marca_Dagua_Logo_Funeraria_Patense.png","domain":"patense.com.br"};
+/* Gerado de D:\whitelabel-clean\config\tenants\demo.json */
+window.__TENANT__ = {"slug":"demo","v":3,"vars":{"--primary":"#5B3DF8","--primary-dark":"#3A2AB5","--primary-light":"#A594F9","--secondary":"#00C6AE","--on-primary":"#ffffff","--surface":"#ffffff","--surface-alt":"#F8F8F8","--text":"#1A1A1A","--text-muted":"rgba(26,26,26,0.65)","--c-border":"rgba(0,0,0,0.08)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 10%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 20%, transparent)","--nav-active-color":"#5B3DF8","--highlight":"#00C6AE","--button-hover":"color-mix(in srgb, var(--primary) 15%, var(--secondary))"},"varsDark":{"--surface":"#0D0D0D","--surface-alt":"#1A1A1A","--text":"#F2F2F2","--text-muted":"rgba(242,242,242,0.7)","--c-border":"rgba(255,255,255,0.12)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 20%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 35%, transparent)","--nav-active-color":"#A594F9","--highlight":"#5B3DF8","--button-hover":"color-mix(in srgb, var(--primary) 25%, var(--secondary))"},"logo":"https://app.progem.com.br/progem/api/downloads/empresa/128/arquivo?nome=8e7a72fd-f502-416a-97e7-1a10a8beaeb6_Design_sem_nome_3.png","domain":"demo.progem.com.br"};
 
 (function(){
   try {
@@ -26,7 +26,7 @@ window.__TENANT__ = {"slug":"patense","v":7,"vars":{"--primary":"#004C3F","--pri
       }
     }
     if (docEl){
-      docEl.setAttribute('data-tenant', t.slug || 'patense');
+      docEl.setAttribute('data-tenant', t.slug || 'demo');
       docEl.setAttribute('data-theme', mode);
       docEl.setAttribute('data-theme-ready', '1');
     }

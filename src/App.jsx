@@ -45,6 +45,10 @@ import CarteirinhaPage from '@/pages/CarteirinhaPage.jsx'
 // 🔐 Perfil (senha e avatar)
 import Perfil from '@/pages/Perfil.jsx'
 
+// 🔐 Novas páginas da área do associado
+import DependentesPage from '@/pages/DependentesPage.jsx'
+import HistoricoPagamentos from '@/pages/HistoricoPagamentos.jsx'
+
 export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
@@ -71,6 +75,7 @@ export default function App() {
             <Route path="/criar-conta" element={<RegisterPage />} />
             <Route path="/recuperar-senha" element={<RecuperarSenha />} />
             <Route path="/redefinir-senha" element={<VerificarCodigo />} />
+            <Route path="/trocar-senha" element={<TrocarSenha />} />
             <Route path="/politica-cookies" element={<PoliticaCookies />} />
             <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
             <Route path="/termos-uso" element={<TermosUso />} />
@@ -132,22 +137,32 @@ export default function App() {
               }
             />
 
-            {/* 🔒 Carteirinha (nova página dedicada) */}
-            <Route
-              path="/carteirinha"
-              element={
-                <PrivateRoute redirectTo="/login">
-                  <CarteirinhaPage />
-                </PrivateRoute>
-              }
-            />
-
             {/* 🔒 Perfil (senha + avatar) */}
             <Route
               path="/perfil"
               element={
                 <PrivateRoute redirectTo="/login">
                   <Perfil />
+                </PrivateRoute>
+              }
+            />
+
+            {/* 🔒 Dependentes – área do associado */}
+            <Route
+              path="/area/dependentes"
+              element={
+                <PrivateRoute redirectTo="/login">
+                  <DependentesPage />
+                </PrivateRoute>
+              }
+            />
+
+            {/* 🔒 Histórico de pagamentos – área do associado */}
+            <Route
+              path="/area/pagamentos"
+              element={
+                <PrivateRoute redirectTo="/login">
+                  <HistoricoPagamentos />
                 </PrivateRoute>
               }
             />
