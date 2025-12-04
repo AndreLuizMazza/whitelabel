@@ -7,7 +7,7 @@ import CarteirinhaAssociado from '@/components/CarteirinhaAssociado'
 import { displayCPF, formatCPF } from '@/lib/cpf'
 import { Lock, ArrowLeft } from 'lucide-react'
 import { showToast } from '@/lib/toast'
-
+import BackButton from "@/components/BackButton";
 /* simples helper para skeleton */
 function Skeleton({ className = '' }) {
   return (
@@ -100,18 +100,10 @@ export default function CarteirinhaPage() {
   return (
     <section className="section">
       <div className="container-max max-w-5xl">
-        {/* topo / breadcrumb */}
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3">
-            <Link
-              to="/area"
-              className="inline-flex items-center gap-1 text-sm btn-ghost"
-            >
-              <ArrowLeft size={16} />
-              Voltar para a Área do Associado
-            </Link>
-          </div>
-        </div>
+             {/* Barra superior com Voltar */}
+      <div className="mb-4 flex items-center justify-between">
+       <BackButton to="/area" className="mb-4" />
+      </div>
 
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
