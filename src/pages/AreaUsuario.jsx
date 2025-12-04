@@ -1,4 +1,5 @@
-import { useMemo, useEffect, useRef, useState } from 'react'
+// src/pages/AreaUsuario.jsx
+import { useMemo, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '@/lib/api.js'
 import useAuth from '@/store/auth'
@@ -9,8 +10,16 @@ import PagamentoFacil from '@/components/PagamentoFacil'
 import NotificationsCenter from '@/components/NotificationsCenter'
 import useNotificationsStore from '@/store/notifications'
 import { showToast } from '@/lib/toast'
-import { displayCPF, formatCPF } from '@/lib/cpf'
-import { Lock, User, FileText, IdCard, MessageCircle, Clock3 } from 'lucide-react'
+import {
+  FileText,
+  IdCard,
+  MessageCircle,
+  Clock3,
+  User,
+  Eye,
+  EyeOff,
+  CreditCard,
+} from 'lucide-react'
 
 /* ===== analytics opcional (no-op) ===== */
 const track = (..._args) => {}
@@ -46,27 +55,6 @@ function Skeleton({ className = '' }) {
   )
 }
 
-/* ===== Tooltip acessível leve (hover/focus) ===== */
-function InfoTooltip({ text, children }) {
-  return (
-    <span className="relative inline-flex items-center group">
-      {children}
-      <span
-        role="tooltip"
-        className="pointer-events-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity
-                   absolute left-1/2 -translate-x-1/2 top-full mt-2 text-xs px-2 py-1 rounded shadow-sm z-10"
-        style={{
-          background: 'var(--surface)',
-          color: 'var(--text)',
-          border: '1px solid var(--c-border)',
-        }}
-      >
-        {text}
-      </span>
-    </span>
-  )
-}
-
 /* ===== helpers locais ===== */
 const fmtBRL = (v) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
@@ -87,36 +75,60 @@ function buildWhats(number, msg) {
 }
 
 /* ============================================================
-   CARD DE DESTAQUE DO PLANO (estilo Nubank / whitelabel)
+   CARD DE DESTAQUE DO PLANO – estilo “home de banco premium”
    ============================================================ */
-function PlanoHighlightCard({ contrato, proximaParcela /* totalEmAberto */ }) {
+function PlanoHighlightCard({ contrato, proximaParcela, totalPago, nomeExibicao }) {
+  const [mostrarTotal, setMostrarTotal] = useState(false)
+
   if (!contrato) return null
 
   const ativo =
     contrato.contratoAtivo ??
     String(contrato.status || '').toUpperCase() === 'ATIVO'
-  const nomePlano = contrato.nomePlano ?? contrato.plano?.nome ?? 'Plano de assinatura'
-  const numeroContrato = contrato.numeroContrato ?? contrato.id ?? contrato.contratoId
+
+  const nomePlano =
+    contrato.nomePlano ?? contrato.plano?.nome ?? 'Plano de assinatura'
+
+  const numeroContrato =
+    contrato.numeroContrato ?? contrato.id ?? contrato.contratoId
+
   const dataProx = proximaParcela?.dataVencimento ?? null
   const valorProx = proximaParcela?.valorParcela ?? null
 
   return (
     <section
-      className="rounded-[24px] px-5 py-5 sm:px-6 sm:py-6 shadow-lg"
+      className="relative w-full rounded-[24px] p-6 sm:p-7 shadow-xl overflow-hidden"
       style={{
         background:
-          'radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--primary) 40%, #ffffff00) 0, transparent 55%),' +
-          'linear-gradient(135deg, color-mix(in srgb, var(--primary) 88%, #000000) 0%, color-mix(in srgb, var(--primary) 60%, #ffffff) 60%, color-mix(in srgb, var(--primary) 40%, #ffffff) 100%)',
+          'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 40%, white) 55%, color-mix(in srgb, var(--primary) 20%, white) 100%)',
         color: 'var(--on-primary, #ffffff)',
+        boxShadow:
+          '0 18px 50px rgba(15, 23, 42, 0.35), inset 0 0 0 1px rgba(255,255,255,0.18)',
       }}
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        {/* lado esquerdo */}
+      {/* halo interno para dar profundidade */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(circle at top left, rgba(255,255,255,0.16) 0, transparent 55%)',
+          mixBlendMode: 'screen',
+        }}
+      />
+
+      <div className="relative z-[1] flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        {/* lado esquerdo – título, status e usuário */}
         <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-[0.16em] opacity-90">
+          {nomeExibicao && (
+            <p className="text-[11px] sm:text-xs opacity-90 mb-1">
+              Olá, <span className="font-medium">{nomeExibicao}</span>
+            </p>
+          )}
+          <p className="text-[11px] uppercase tracking-[0.16em] opacity-80">
             Plano de assinatura
           </p>
-          <h3 className="mt-1 text-lg sm:text-xl font-semibold leading-snug">
+          <h3 className="mt-1 text-lg sm:text-2xl font-semibold leading-snug">
             {nomePlano}
           </h3>
 
@@ -124,42 +136,40 @@ function PlanoHighlightCard({ contrato, proximaParcela /* totalEmAberto */ }) {
             <span
               className="inline-flex items-center rounded-full px-2 py-0.5 font-medium"
               style={{
-                background: 'rgba(255,255,255,0.12)',
-                border: '1px solid rgba(255,255,255,0.25)',
+                background: 'rgba(255,255,255,0.18)',
+                border: '1px solid rgba(255,255,255,0.45)',
               }}
             >
               <span
                 className="mr-1 inline-block h-1.5 w-1.5 rounded-full"
                 style={{ background: ativo ? '#4ade80' : '#facc15' }}
               />
-              {ativo ? 'Ativo' : 'Aguardando ativação'}
+              {ativo ? 'Plano ativo' : 'Aguardando ativação'}
             </span>
-          </div>
 
-          {numeroContrato && (
-            <p className="mt-2 text-[11px] sm:text-xs opacity-80">
-              Contrato #{numeroContrato}
-            </p>
-          )}
+            {numeroContrato && (
+              <span className="opacity-90">Contrato #{numeroContrato}</span>
+            )}
+          </div>
         </div>
 
-        {/* lado direito */}
-        <div className="flex flex-col items-end justify-between gap-3 sm:items-end text-right">
+        {/* lado direito – próxima mensalidade */}
+        <div className="text-right flex flex-col items-end gap-2 sm:gap-3">
           <div>
             <p className="text-[11px] uppercase tracking-[0.18em] opacity-80">
-              Próximo pagamento
+              Próxima mensalidade
             </p>
             {dataProx && valorProx ? (
               <>
-                <p className="text-base sm:text-xl font-semibold leading-tight">
-                  {fmtDate(dataProx)}
+                <p className="mt-1 text-2xl sm:text-3xl font-semibold leading-tight">
+                  {fmtBRL(valorProx)}
                 </p>
                 <p className="text-xs sm:text-sm opacity-90">
-                  {fmtBRL(valorProx)}
+                  Vence em {fmtDate(dataProx)}
                 </p>
               </>
             ) : (
-              <p className="text-sm opacity-80">Nenhuma parcela em aberto</p>
+              <p className="text-sm opacity-85 mt-1">Nenhuma parcela em aberto</p>
             )}
           </div>
 
@@ -177,10 +187,32 @@ function PlanoHighlightCard({ contrato, proximaParcela /* totalEmAberto */ }) {
                 color: 'var(--on-primary, #ffffff)',
               }}
             >
+              <CreditCard size={16} className="mr-2" />
               Pagar agora
             </button>
           )}
         </div>
+      </div>
+
+      {/* resumo financeiro inferior */}
+      <div className="relative z-[1] mt-6 pt-4 border-t border-white/25 flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
+        <div>
+          <p className="text-[11px] uppercase tracking-[0.16em] opacity-80">
+            Total já pago
+          </p>
+          <p className="mt-1 text-sm sm:text-base font-semibold">
+            {mostrarTotal ? fmtBRL(totalPago) : '••••••'}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setMostrarTotal((v) => !v)}
+          className="inline-flex items-center gap-1 text-[11px] sm:text-xs font-medium underline underline-offset-2 opacity-95 hover:opacity-100"
+        >
+          {mostrarTotal ? <EyeOff size={14} /> : <Eye size={14} />}
+          {mostrarTotal ? 'Ocultar valor' : 'Mostrar valor'}
+        </button>
       </div>
     </section>
   )
@@ -263,7 +295,7 @@ export default function AreaUsuario() {
     setUnread,
   } = useNotificationsStore()
 
-  /* ===== CPF bruto (nunca formate aqui) ===== */
+  /* ===== CPF bruto (apenas para carregar contratos) ===== */
   const cpf =
     user?.cpf ||
     user?.documento ||
@@ -275,41 +307,6 @@ export default function AreaUsuario() {
       }
     })() ||
     ''
-
-  /* ===== revelação temporária (10s) ===== */
-  const [cpfReveal, setCpfReveal] = useState(false)
-  const [cpfSeconds, setCpfSeconds] = useState(0)
-  const timerRef = useRef(null)
-  const tickRef = useRef(null)
-
-  function startReveal10s() {
-    if (!cpf) return
-    setCpfReveal(true)
-    setCpfSeconds(10)
-    track('cpf_reveal', { ts: Date.now() })
-    showToast('CPF visível por 10 segundos.', null, null, 3500)
-
-    tickRef.current && clearInterval(tickRef.current)
-    tickRef.current = setInterval(() => {
-      setCpfSeconds((s) => (s > 0 ? s - 1 : 0))
-    }, 1000)
-
-    timerRef.current && clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
-      setCpfReveal(false)
-      setCpfSeconds(0)
-      clearInterval(tickRef.current)
-      tickRef.current = null
-      showToast('CPF ocultado novamente.')
-    }, 10000)
-  }
-
-  useEffect(() => {
-    return () => {
-      timerRef.current && clearTimeout(timerRef.current)
-      tickRef.current && clearInterval(tickRef.current)
-    }
-  }, [])
 
   /* ===== dados do contrato/área ===== */
   const {
@@ -343,14 +340,14 @@ export default function AreaUsuario() {
     c?.contratoAtivo === true ||
     String(c?.status || '').toUpperCase() === 'ATIVO'
 
-  /* ===== unidade / contatos para header e ações ===== */
+  /* ===== unidade / contatos ===== */
   const unidade = contrato?.unidade || contrato?.empresa || {}
   const contatos = contrato?.contatos || {}
   const unidadeNome =
     unidade?.nomeFantasia || unidade?.razaoSocial || null
   const whatsappAtendimento = unidade.whatsapp || contatos.celular || null
 
-  /* ===== PLANO do contrato (para identificar se há links) ===== */
+  /* ===== PLANO do contrato (para links digitais) ===== */
   const [plano, setPlano] = useState(null)
   const [loadingPlano, setLoadingPlano] = useState(false)
   const [planoErro, setPlanoErro] = useState('')
@@ -422,7 +419,7 @@ export default function AreaUsuario() {
   const numeroContrato = contrato?.numeroContrato ?? contrato?.id ?? null
   const nomePlano = contrato?.nomePlano ?? plano?.nome ?? null
 
-  /* ===== total em aberto para uso futuro, se precisar ===== */
+  /* ===== total em aberto (para uso futuro) ===== */
   const totalEmAberto = useMemo(() => {
     const arr = []
     if (proximaParcela) arr.push(proximaParcela)
@@ -442,6 +439,26 @@ export default function AreaUsuario() {
       })
       .reduce((s, it) => s + Number(it.valorParcela || 0), 0)
   }, [proximaParcela, proximas])
+
+  /* ===== total já pago (baseado no histórico) ===== */
+  const totalPago = useMemo(() => {
+    if (!Array.isArray(historico)) return 0
+    return historico
+      .filter((p) => {
+        const status = String(p.status || '').toUpperCase()
+        return status === 'PAGA' || status === 'PAID'
+      })
+      .reduce(
+        (s, it) =>
+          s +
+          Number(
+            it.valorParcelaRecebida ??
+              it.valorParcela ??
+              0
+          ),
+        0
+      )
+  }, [historico])
 
   /* ===== ações rápidas (anchors) ===== */
   function scrollToPagamento() {
@@ -470,152 +487,88 @@ export default function AreaUsuario() {
 
   return (
     <section className="section relative" key={cpf}>
-      {/* halo de fundo da página */}
+      {/* halo de fundo geral da página */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-40"
+        className="pointer-events-none absolute inset-x-0 top-0 h-52"
         style={{
           background:
-            'radial-gradient(circle at 0 0, color-mix(in srgb, var(--primary) 15%, transparent) 0, transparent 55%)',
+            'radial-gradient(circle at 0 0, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 60%)',
           opacity: 0.9,
         }}
       />
 
       <div className="container-max relative">
-        {/* HEADER */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">
-              Área do associado
-            </h2>
+        {/* HEADER + HERO WRAPPER */}
+        <div className="relative mb-6">
+          {/* halo extra atrás do card */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 -top-10 h-52 sm:h-56"
+            style={{
+              background:
+                'radial-gradient(circle at top right, color-mix(in srgb, var(--primary) 30%, transparent) 0, transparent 70%)',
+              filter: 'blur(18px)',
+            }}
+          />
 
-            {/* Sub-head com unidade / contexto */}
-            <p
-              className="mt-1 text-xs sm:text-sm"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              {unidadeNome
-                ? <>Plano administrado por <strong>{unidadeNome}</strong>. </>
-                : null}
-              Acompanhe seus pagamentos, dependentes e benefícios em um só lugar.
-            </p>
-
-            {/* Cabeçalho com CPF protegido + cadeado + tooltip */}
-            <p
-              className="mt-2 text-sm flex flex-wrap items-center gap-1"
-              style={{ color: 'var(--text)' }}
-            >
-              <span>Bem-vindo, {nomeExibicao}!</span>
-              {cpf && (
-                <>
-                  <span>•</span>
-                  <InfoTooltip text="Por segurança (LGPD), exibimos o CPF parcialmente. Você pode revelar por 10 segundos.">
-                    <span className="inline-flex items-center gap-1">
-                      <Lock size={14} aria-hidden="true" />
-                      <span>
-                        CPF{' '}
-                        {cpfReveal ? formatCPF(cpf) : displayCPF(cpf, 'last2')}
-                      </span>
-                    </span>
-                  </InfoTooltip>
-                  <button
-                    type="button"
-                    className="btn-link text-xs"
-                    onClick={startReveal10s}
-                    aria-label="Mostrar CPF completo por 10 segundos"
-                    disabled={cpfReveal}
-                    title={
-                      cpfReveal
-                        ? 'CPF já está visível'
-                        : 'Mostrar por 10 segundos'
-                    }
-                  >
-                    {cpfReveal ? `Visível (${cpfSeconds}s)` : 'Mostrar por 10s'}
-                  </button>
-                </>
+          {/* barra superior: título + ações */}
+          <div className="relative z-[2] flex items-center justify-between gap-3 mb-4 mt-1">
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight">
+                Área do associado
+              </h2>
+              {unidadeNome && (
+                <p
+                  className="mt-0.5 text-xs sm:text-sm"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Plano administrado por <strong>{unidadeNome}</strong>.
+                </p>
               )}
-            </p>
-          </div>
+            </div>
 
-          {/* Ações (responsivo): Meu Perfil + Sair */}
-          <div className="flex items-center gap-2 self-start">
-            <Link
-              to="/perfil"
-              className="btn-outline inline-flex items-center gap-1"
-              aria-label="Abrir Meu Perfil"
-              title="Meu Perfil"
-            >
-              <User size={16} /> Meu Perfil
-            </Link>
-            <button
-              className="btn-outline"
-              onClick={logout}
-              aria-label="Sair"
-            >
-              Sair
-            </button>
-          </div>
-        </div>
-
-        {/* Seletor de contrato */}
-        {!loading && Array.isArray(contratos) && contratos.length > 1 && (
-          <div className="mt-4 card p-4">
-            <label
-              className="block text-sm mb-2"
-              style={{ color: 'var(--text)' }}
-            >
-              Selecione o contrato para visualizar
-            </label>
-            <select
-              className="w-full rounded px-3 py-2 text-sm"
-              style={{
-                background: 'var(--surface)',
-                color: 'var(--text)',
-                border: '1px solid var(--c-border)',
-              }}
-              value={selectedId ?? ''}
-              onChange={(e) => chooseContrato(e.target.value)}
-            >
-              {contratos.map((c) => {
-                const id = getId(c)
-                const labelPlano =
-                  c?.nomePlano ?? c?.plano?.nome ?? 'Plano'
-                const ativoTag = isAtivo(c) ? ' (ATIVO)' : ''
-                const label = `#${c?.numeroContrato ?? id} — ${labelPlano} — efetivado em ${
-                  c?.dataEfetivacao ?? '—'
-                }${ativoTag}`
-                return (
-                  <option key={String(id)} value={String(id)}>
-                    {label}
-                  </option>
-                )
-              })}
-            </select>
-          </div>
-        )}
-
-        {/* Loading */}
-        {loading && (
-          <div className="mt-8 space-y-6">
-            <Skeleton className="h-40" />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-4">
-                <Skeleton className="h-32" />
-                <Skeleton className="h-64" />
-                <Skeleton className="h-64" />
-              </div>
-              <div className="lg:col-span-1 space-y-4">
-                <Skeleton className="h-40" />
-                <Skeleton className="h-56" />
-              </div>
+            <div className="flex items-center gap-2">
+              <Link
+                to="/perfil"
+                className="btn-outline inline-flex items-center gap-1 text-xs sm:text-sm"
+              >
+                <User size={16} /> Meu Perfil
+              </Link>
+              <button
+                className="btn-outline text-xs sm:text-sm"
+                onClick={logout}
+              >
+                Sair
+              </button>
             </div>
           </div>
-        )}
 
-        {/* Erro */}
+          {/* Loading apenas no topo */}
+          {loading && (
+            <div className="relative z-[2]">
+              <Skeleton className="h-40" />
+            </div>
+          )}
+
+          {/* Card principal colado ao topo visual */}
+          {!loading && !erro && contrato && (
+            <div className="relative z-[2]">
+              <PlanoHighlightCard
+                contrato={contrato}
+                proximaParcela={proximaParcela}
+                totalPago={totalPago}
+                totalEmAberto={totalEmAberto}
+                nomeExibicao={nomeExibicao}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Erro geral */}
         {!loading && erro && (
           <div
-            className="mt-6 card p-6"
+            className="mt-2 card p-6"
             style={{
               border: '1px solid var(--primary)',
               background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
@@ -630,20 +583,48 @@ export default function AreaUsuario() {
           </div>
         )}
 
-        {/* Conteúdo */}
+        {/* Conteúdo principal */}
         {!loading && !erro && (
           contrato ? (
             <>
-              {/* 1) Card de destaque do plano */}
-              <div className="mt-8">
-                <PlanoHighlightCard
-                  contrato={contrato}
-                  proximaParcela={proximaParcela}
-                  totalEmAberto={totalEmAberto}
-                />
-              </div>
+              {/* Seletor de contrato (após o card) */}
+              {Array.isArray(contratos) && contratos.length > 1 && (
+                <div className="mt-4 card p-4">
+                  <label
+                    className="block text-sm mb-2"
+                    style={{ color: 'var(--text)' }}
+                  >
+                    Selecione o contrato para visualizar
+                  </label>
+                  <select
+                    className="w-full rounded px-3 py-2 text-sm"
+                    style={{
+                      background: 'var(--surface)',
+                      color: 'var(--text)',
+                      border: '1px solid var(--c-border)',
+                    }}
+                    value={selectedId ?? ''}
+                    onChange={(e) => chooseContrato(e.target.value)}
+                  >
+                    {contratos.map((c) => {
+                      const id = getId(c)
+                      const labelPlano =
+                        c?.nomePlano ?? c?.plano?.nome ?? 'Plano'
+                      const ativoTag = isAtivo(c) ? ' (ATIVO)' : ''
+                      const label = `#${c?.numeroContrato ?? id} — ${labelPlano} — efetivado em ${
+                        c?.dataEfetivacao ?? '—'
+                      }${ativoTag}`
+                      return (
+                        <option key={String(id)} value={String(id)}>
+                          {label}
+                        </option>
+                      )
+                    })}
+                  </select>
+                </div>
+              )}
 
-              {/* 2) Ações rápidas */}
+              {/* Ações rápidas */}
               <div className="mt-6">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold" style={{ color: 'var(--text)' }}>
@@ -685,9 +666,9 @@ export default function AreaUsuario() {
                 </div>
               </div>
 
-              {/* 3) Grid principal – dependentes à esquerda, alertas à direita */}
+              {/* Grid principal – dependentes + pagamentos + contrato + alertas */}
               <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* COLUNA PRINCIPAL: dependentes + pagamentos + contrato */}
+                {/* COLUNA PRINCIPAL */}
                 <div className="lg:col-span-2 space-y-6">
                   <DependentesList
                     dependentes={dependentes}
@@ -756,7 +737,7 @@ export default function AreaUsuario() {
                   <div id="historico-pagamentos" className="h-0" aria-hidden="true" />
                 </div>
 
-                {/* COLUNA LATERAL: alertas / notificações (sticky) */}
+                {/* COLUNA LATERAL: alertas / notificações */}
                 <div className="lg:col-span-1">
                   <div className="lg:sticky lg:top-6 space-y-6">
                     <NotificationsCenter
