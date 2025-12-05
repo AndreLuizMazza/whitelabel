@@ -36,22 +36,24 @@ function IconBadge({ children }) {
   return (
     <span
       className="
-        inline-flex h-11 w-11 sm:h-11 sm:w-11
+        inline-flex
+        h-10 w-10
         items-center justify-center
-        rounded-xl
-        bg-[var(--surface)]/60
-        text-[var(--primary)]
-        ring-1 ring-[var(--primary)]/15
-        shadow-sm
-        backdrop-blur-sm
+        rounded-full
+        shrink-0
       "
+      style={{
+        background:
+          'color-mix(in srgb, var(--primary) 12%, var(--surface) 88%)',
+        color: 'var(--primary)',
+        border:
+          '1px solid color-mix(in srgb, var(--primary) 28%, var(--c-border))',
+      }}
     >
       {children}
     </span>
   )
 }
-
-
 
 /* ========================================================================
    FEATURE CARD – OPÇÃO A (PREMIUM / ENTERPRISE)
@@ -75,9 +77,7 @@ function FeatureCardPremium({ icon, title, desc, to, cta, mounted, delay = 0 }) 
       <article
         className={[
           'h-full flex flex-col justify-between rounded-2xl',
-          // MOBILE COMPACT ↓
           'p-3 sm:p-4 md:p-5',
-          // MOBILE HOVER ↓
           'transition-all duration-500 will-change-transform',
           'hover:-translate-y-[2px] hover:shadow-md sm:hover:shadow-xl',
           'hover:bg-[var(--surface)] hover:ring-1 hover:ring-[var(--c-border)]',
@@ -86,7 +86,7 @@ function FeatureCardPremium({ icon, title, desc, to, cta, mounted, delay = 0 }) 
         style={{ transitionDelay: `${delay}ms` }}
       >
         <div className="flex items-start gap-2 sm:gap-3">
-          <IconBadge compact>{icon}</IconBadge>
+          <IconBadge>{icon}</IconBadge>
 
           <div>
             <h3 className="text-sm sm:text-base md:text-lg font-semibold leading-tight">
@@ -115,7 +115,6 @@ function FeatureCardPremium({ icon, title, desc, to, cta, mounted, delay = 0 }) 
   )
 }
 
-
 /* ========================================================================
    FEATURE CARD – OPÇÃO B (MINIMALISTA CLEAN)
    ======================================================================== */
@@ -138,7 +137,6 @@ function FeatureCardMinimal({ icon, title, desc, to, cta, mounted, delay = 0 }) 
       <article
         className={[
           'h-full flex flex-col justify-between rounded-xl',
-          // MOBILE COMPACT ↓
           'p-3 sm:p-4 md:p-5',
           'transition-all duration-500',
           'hover:-translate-y-[1px] hover:bg-[var(--surface)]/70',
@@ -149,7 +147,7 @@ function FeatureCardMinimal({ icon, title, desc, to, cta, mounted, delay = 0 }) 
       >
         <div className="space-y-2 sm:space-y-3">
           <div className="flex items-center gap-2 sm:gap-3">
-            <IconBadge compact>{icon}</IconBadge>
+            <IconBadge>{icon}</IconBadge>
           </div>
 
           <div>
@@ -163,12 +161,14 @@ function FeatureCardMinimal({ icon, title, desc, to, cta, mounted, delay = 0 }) 
         </div>
 
         <div className="mt-3 sm:mt-4">
-          <span className="
+          <span
+            className="
             inline-flex items-center gap-1.5 
             text-[var(--primary)] 
             text-xs sm:text-sm font-medium
             group-hover:translate-x-0.5 transition-transform
-          ">
+          "
+          >
             <span>{cta}</span>
             <ArrowRight size={14} />
           </span>
@@ -178,10 +178,8 @@ function FeatureCardMinimal({ icon, title, desc, to, cta, mounted, delay = 0 }) 
   )
 }
 
-
 /* ============================================================
    Escolha rápida: qual versão usar nos cards da Home?
-   - Troque FeatureCardPremium por FeatureCardMinimal se quiser o estilo B.
    ============================================================ */
 
 const FeatureCard = FeatureCardPremium
@@ -283,9 +281,8 @@ export default function Home() {
             gap-3 sm:gap-5 lg:gap-6
           "
         >
-
           <FeatureCard
-            icon={<UserSquare2 size={22} />}
+            icon={<UserSquare2 size={22} strokeWidth={2} />}
             title="Área do Associado"
             desc="Acesse contratos, dependentes e pagamentos."
             to={isLogged ? '/area' : '/login'}
@@ -295,7 +292,7 @@ export default function Home() {
           />
 
           <FeatureCard
-            icon={<Receipt size={22} />}
+            icon={<Receipt size={22} strokeWidth={2} />}
             title="Segunda via de Boleto"
             desc="Consulte segunda via de Boletos sem senha."
             to="/contratos"
@@ -305,7 +302,7 @@ export default function Home() {
           />
 
           <FeatureCard
-            icon={<Layers size={22} />}
+            icon={<Layers size={22} strokeWidth={2} />}
             title="Nossos Planos"
             desc="Conheça nossos Planos. Proteção completa para toda família."
             to="/planos"
@@ -315,7 +312,7 @@ export default function Home() {
           />
 
           <FeatureCard
-            icon={<BadgePercent size={22} />}
+            icon={<Gift size={22} strokeWidth={2} />}
             title="Clube de Benefícios"
             desc="Parceiros com descontos e vantagens para associados."
             to="/beneficios"
