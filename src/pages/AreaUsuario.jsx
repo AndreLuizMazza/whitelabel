@@ -1,5 +1,5 @@
 // src/pages/AreaUsuario.jsx
-import { useMemo, useEffect, useRef, useState } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '@/lib/api.js'
 import useAuth from '@/store/auth'
@@ -17,11 +17,8 @@ import {
   Eye,
   EyeOff,
   CreditCard,
-  ChevronDown,
-  LogOut,
   Smartphone, // serviços digitais
 } from 'lucide-react'
-import { getAvatarBlobUrl } from '@/lib/profile'
 
 /* ===== analytics opcional (no-op) ===== */
 const track = (..._args) => {}
@@ -71,6 +68,21 @@ const fmtDate = (s) => {
   return Y && M && D ? `${D}/${M}/${Y}` : txt
 }
 
+function extractDiaFromDateString(s) {
+  if (!s) return null
+  const txt = String(s)
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(txt)) {
+    return txt.slice(0, 2)
+  }
+  const base = txt.split('T')[0]
+  const parts = base.split('-')
+  if (parts.length === 3) {
+    const [, , D] = parts
+    return D?.padStart(2, '0') || null
+  }
+  return null
+}
+
 function buildWhats(number, msg) {
   const digits = String(number || '').replace(/\D+/g, '')
   return digits ? `https://wa.me/${digits}?text=${encodeURIComponent(msg)}` : null
@@ -82,12 +94,17 @@ function buildWhats(number, msg) {
 function PlanoHighlightCard({
   contrato,
   proximaParcela,
-  totalPago,
+  totalPago, // mantido na assinatura, não exibido
   totalEmAtraso,
   hasAtraso,
   nomeExibicao,
 }) {
-  const [mostrarValores, setMostrarValores] = useState(false)
+  // valores visíveis por padrão
+  const [mostrarValores, setMostrarValores] = useState(true)
+
+  const tituloMensalidade = hasAtraso
+    ? 'Mensalidade em atraso'
+    : 'Próxima mensalidade'
 
   if (!contrato) return null
 
@@ -106,6 +123,8 @@ function PlanoHighlightCard({
 
   const situacaoLabel = hasAtraso ? 'Em atraso' : 'Em dia'
   const situacaoCor = hasAtraso ? '#fb7185' : '#4ade80'
+
+  const diaD = extractDiaFromDateString(dataProx)
 
   return (
     <section
@@ -170,8 +189,9 @@ function PlanoHighlightCard({
         <div className="text-right flex flex-col items-end gap-2 sm:gap-3">
           <div>
             <p className="text-[11px] uppercase tracking-[0.18em] opacity-80">
-              Próxima mensalidade
+              {tituloMensalidade}
             </p>
+
             {dataProx && valorProx ? (
               <>
                 <p className="mt-1 text-2xl sm:text-3xl font-semibold leading-tight">
@@ -207,17 +227,19 @@ function PlanoHighlightCard({
         </div>
       </div>
 
-      {/* métricas inferiores */}
+      {/* métricas inferiores (com Dia D e sem "Total já pago") */}
       <div className="relative z-[1] mt-6 pt-4 border-t border-white/25 flex flex-wrap items-center justify-between gap-4 text-xs sm:text-sm">
         <div className="flex flex-wrap gap-4 sm:gap-8">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.16em] opacity-80">
-              Total já pago
-            </p>
-            <p className="mt-1 text-sm sm:text-base font-semibold">
-              {mostrarValores ? fmtBRL(totalPago) : '••••••'}
-            </p>
-          </div>
+          {diaD && (
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.16em] opacity-80">
+                Dia do pagamento
+              </p>
+              <p className="mt-1 text-sm sm:text-base font-semibold">
+                Dia {diaD}
+              </p>
+            </div>
+          )}
 
           {hasAtraso && totalEmAtraso > 0 && (
             <div>
@@ -325,7 +347,6 @@ function QuickAction({ icon: Icon, label, helper, to, onClick, state }) {
 
 export default function AreaUsuario() {
   const user = useAuth((s) => s.user)
-  const logout = useAuth((s) => s.logout)
   usePrefersDark()
 
   const {
@@ -366,65 +387,6 @@ export default function AreaUsuario() {
     () => user?.nome ?? user?.email ?? 'Usuário',
     [user]
   )
-
-  const avatarInitial = useMemo(() => {
-    const base = user?.nome || user?.email || 'U'
-    return base.trim().charAt(0).toUpperCase()
-  }, [user])
-
-  // ===== Avatar com foto de perfil (BFF + foto declarada) =====
-  const [avatarBlobUrl, setAvatarBlobUrl] = useState(null)
-  const [avatarErro, setAvatarErro] = useState(false)
-  const lastObjUrlRef = useRef(null)
-
-  const fotoDeclarada = user?.fotoUrl || user?.photoURL || ''
-  const avatarUrl = avatarErro ? '' : (avatarBlobUrl || fotoDeclarada || '')
-
-  useEffect(() => {
-    let active = true
-
-    async function loadAvatar() {
-      try {
-        const objUrl = await getAvatarBlobUrl()
-        if (!active) {
-          if (objUrl) URL.revokeObjectURL(objUrl)
-          return
-        }
-        if (lastObjUrlRef.current) {
-          URL.revokeObjectURL(lastObjUrlRef.current)
-        }
-        lastObjUrlRef.current = objUrl || null
-        setAvatarBlobUrl(objUrl || null)
-        setAvatarErro(false)
-      } catch {
-        setAvatarBlobUrl(null)
-      }
-    }
-
-    loadAvatar()
-
-    return () => {
-      active = false
-      if (lastObjUrlRef.current) {
-        URL.revokeObjectURL(lastObjUrlRef.current)
-        lastObjUrlRef.current = null
-      }
-    }
-  }, [user?.id, user?.email])
-
-  const [showProfileMenu, setShowProfileMenu] = useState(false)
-  const menuRef = useRef(null)
-
-  useEffect(() => {
-    if (!showProfileMenu) return
-    const handleClick = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setShowProfileMenu(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [showProfileMenu])
 
   useEffect(() => {
     if (erro)
@@ -620,8 +582,8 @@ export default function AreaUsuario() {
             }}
           />
 
-          {/* barra superior da capa */}
-          <div className="relative z-[5] flex items-center justify-between gap-3 mb-4 mt-1">
+          {/* barra superior da capa – faixa mais "bancária" */}
+          <div className="relative z-[5] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 mt-1">
             <div>
               <p
                 className="text-[11px] uppercase tracking-[0.2em]"
@@ -636,77 +598,45 @@ export default function AreaUsuario() {
               )}
             </div>
 
-            {/* avatar com menu */}
-            <div className="relative z-[10]" ref={menuRef}>
-              <button
-                type="button"
-                onClick={() => setShowProfileMenu((v) => !v)}
-                className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-full border text-xs sm:text-sm"
+            {contrato && (
+              <div
+                className="inline-flex items-center gap-3 rounded-2xl px-3.5 py-2.5 border text-xs sm:text-sm shadow-sm"
                 style={{
                   borderColor: 'var(--c-border)',
                   background:
-                    'color-mix(in srgb, var(--surface-elevated, var(--surface)) 80%, var(--primary) 20%)',
+                    'color-mix(in srgb, var(--surface-elevated, var(--surface)) 85%, var(--primary) 15%)',
                 }}
               >
-                {avatarUrl && !avatarErro ? (
-                  <img
-                    src={avatarUrl}
-                    alt={nomeExibicao}
-                    className="h-7 w-7 rounded-full object-cover"
-                    style={{
-                      border: '1px solid color-mix(in srgb, var(--primary) 60%, transparent)',
-                    }}
-                    onError={() => setAvatarErro(true)}
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <span
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold"
-                    style={{ background: 'var(--primary)', color: '#fff' }}
-                  >
-                    {avatarInitial}
-                  </span>
-                )}
-
-                <span className="hidden sm:inline max-w-[160px] truncate">
-                  {nomeExibicao || 'Meu perfil'}
-                </span>
-
-                <ChevronDown size={14} aria-hidden="true" />
-              </button>
-
-              {showProfileMenu && (
-                <div
-                  className="absolute right-0 mt-2 w-48 rounded-xl overflow-hidden shadow-xl border z-[15]"
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium"
                   style={{
-                    borderColor: 'var(--c-border-strong, var(--c-border))',
-                    background: 'var(--surface-elevated, var(--surface))',
-                    color: 'var(--text)',
+                    background:
+                      'color-mix(in srgb, var(--primary) 18%, var(--surface) 82%)',
+                    color: 'var(--primary)',
                   }}
                 >
-                  <Link
-                    to="/perfil"
-                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
-                    onClick={() => setShowProfileMenu(false)}
-                  >
-                    <User size={14} />
-                    <span>Meu perfil</span>
-                  </Link>
-
-                  <button
-                    type="button"
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
-                    onClick={() => {
-                      setShowProfileMenu(false)
-                      logout()
+                  <span
+                    className="inline-block h-1.5 w-1.5 rounded-full"
+                    style={{
+                      background: hasAtraso ? '#fb7185' : '#4ade80',
                     }}
+                  />
+                  {hasAtraso ? 'Plano com parcelas em atraso' : 'Plano em dia'}
+                </span>
+
+                {proximaParcela?.dataVencimento && (
+                  <span
+                    className="hidden sm:inline text-[11px] sm:text-xs"
+                    style={{ color: 'var(--text-muted)' }}
                   >
-                    <LogOut size={14} />
-                    <span>Sair</span>
-                  </button>
-                </div>
-              )}
-            </div>
+                    Próximo vencimento:{' '}
+                    <strong>
+                      {fmtDate(proximaParcela.dataVencimento)}
+                    </strong>
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Loading apenas no topo */}
