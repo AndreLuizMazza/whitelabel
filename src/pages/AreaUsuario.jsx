@@ -1,5 +1,5 @@
 // src/pages/AreaUsuario.jsx
-import { useMemo, useEffect, useState, useRef } from 'react'
+import { useMemo, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '@/lib/api.js'
 import useAuth from '@/store/auth'
@@ -19,8 +19,9 @@ import {
   CreditCard,
   ChevronDown,
   LogOut,
-  Smartphone,         // ⬅ novo ícone para serviços digitais
+  Smartphone, // serviços digitais
 } from 'lucide-react'
+import { getAvatarBlobUrl } from '@/lib/profile'
 
 /* ===== analytics opcional (no-op) ===== */
 const track = (..._args) => {}
@@ -371,6 +372,46 @@ export default function AreaUsuario() {
     return base.trim().charAt(0).toUpperCase()
   }, [user])
 
+  // ===== Avatar com foto de perfil (BFF + foto declarada) =====
+  const [avatarBlobUrl, setAvatarBlobUrl] = useState(null)
+  const [avatarErro, setAvatarErro] = useState(false)
+  const lastObjUrlRef = useRef(null)
+
+  const fotoDeclarada = user?.fotoUrl || user?.photoURL || ''
+  const avatarUrl = avatarErro ? '' : (avatarBlobUrl || fotoDeclarada || '')
+
+  useEffect(() => {
+    let active = true
+
+    async function loadAvatar() {
+      try {
+        const objUrl = await getAvatarBlobUrl()
+        if (!active) {
+          if (objUrl) URL.revokeObjectURL(objUrl)
+          return
+        }
+        if (lastObjUrlRef.current) {
+          URL.revokeObjectURL(lastObjUrlRef.current)
+        }
+        lastObjUrlRef.current = objUrl || null
+        setAvatarBlobUrl(objUrl || null)
+        setAvatarErro(false)
+      } catch {
+        setAvatarBlobUrl(null)
+      }
+    }
+
+    loadAvatar()
+
+    return () => {
+      active = false
+      if (lastObjUrlRef.current) {
+        URL.revokeObjectURL(lastObjUrlRef.current)
+        lastObjUrlRef.current = null
+      }
+    }
+  }, [user?.id, user?.email])
+
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const menuRef = useRef(null)
 
@@ -607,12 +648,25 @@ export default function AreaUsuario() {
                     'color-mix(in srgb, var(--surface-elevated, var(--surface)) 80%, var(--primary) 20%)',
                 }}
               >
-                <span
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold"
-                  style={{ background: 'var(--primary)', color: '#fff' }}
-                >
-                  {avatarInitial}
-                </span>
+                {avatarUrl && !avatarErro ? (
+                  <img
+                    src={avatarUrl}
+                    alt={nomeExibicao}
+                    className="h-7 w-7 rounded-full object-cover"
+                    style={{
+                      border: '1px solid color-mix(in srgb, var(--primary) 60%, transparent)',
+                    }}
+                    onError={() => setAvatarErro(true)}
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold"
+                    style={{ background: 'var(--primary)', color: '#fff' }}
+                  >
+                    {avatarInitial}
+                  </span>
+                )}
 
                 <span className="hidden sm:inline max-w-[160px] truncate">
                   {nomeExibicao || 'Meu perfil'}
@@ -632,7 +686,7 @@ export default function AreaUsuario() {
                 >
                   <Link
                     to="/perfil"
-                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg.white/5"
+                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
                     onClick={() => setShowProfileMenu(false)}
                   >
                     <User size={14} />
@@ -641,7 +695,7 @@ export default function AreaUsuario() {
 
                   <button
                     type="button"
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg.white/5"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
                     onClick={() => {
                       setShowProfileMenu(false)
                       logout()
@@ -759,8 +813,7 @@ export default function AreaUsuario() {
                         </p>
                       </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4">
-
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4">
                         <QuickAction
                           icon={FileText}
                           label="2ª via"
@@ -830,8 +883,6 @@ export default function AreaUsuario() {
                         </p>
                       </div>
                     )}
-
-  
                   </div>
 
                   {/* ===== BLOCO 2 – PAGAMENTOS ===== */}
@@ -857,8 +908,6 @@ export default function AreaUsuario() {
                         </p>
                       </div>
                     )}
-
-                  
 
                     {!loadingPlano && planoLinks.length === 0 && (
                       <div className="card p-4">
@@ -892,43 +941,41 @@ export default function AreaUsuario() {
                     />
                   </div>
 
-                                    {planoLinks.length > 0 && planoIdForRoute && (
-                      <div className="card p-4 mt-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <div>
-                          <h4 className="text-sm font-semibold">
-                            Serviços digitais incluídos no seu plano
-                          </h4>
-                          <p
-                            className="text-xs mt-1"
-                            style={{ color: 'var(--text)' }}
-                          >
-                            Acesse plataformas e benefícios online vinculados ao
-                            seu plano, como clubes de descontos, aplicativos e
-                            outros serviços digitais.
-                          </p>
-                        </div>
-                        <Link
-                          to="/servicos-digitais"
-                          state={{
+                  {planoLinks.length > 0 && planoIdForRoute && (
+                    <div className="card p-4 mt-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <h4 className="text-sm font-semibold">
+                          Serviços digitais incluídos no seu plano
+                        </h4>
+                        <p
+                          className="text-xs mt-1"
+                          style={{ color: 'var(--text)' }}
+                        >
+                          Acesse plataformas e benefícios online vinculados ao
+                          seu plano, como clubes de descontos, aplicativos e
+                          outros serviços digitais.
+                        </p>
+                      </div>
+                      <Link
+                        to="/servicos-digitais"
+                        state={{
+                          planoId: planoIdForRoute,
+                          numeroContrato,
+                          nomePlano,
+                        }}
+                        className="btn-primary text-sm whitespace-nowrap"
+                        onClick={() =>
+                          track('servicos_digitais_open', {
                             planoId: planoIdForRoute,
                             numeroContrato,
-                            nomePlano,
-                          }}
-                          className="btn-primary text-sm whitespace-nowrap"
-                          onClick={() =>
-                            track('servicos_digitais_open', {
-                              planoId: planoIdForRoute,
-                              numeroContrato,
-                            })
-                          }
-                        >
-                          Ver serviços digitais
-                        </Link>
-                      </div>
-                    )}
+                          })
+                        }
+                      >
+                        Ver serviços digitais
+                      </Link>
+                    </div>
+                  )}
                 </div>
-
-                
               </div>
             </>
           ) : (
