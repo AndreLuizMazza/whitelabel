@@ -368,27 +368,7 @@ export default function PlanoDetalhe() {
         </div>
       </div>
 
-     {/* Dock inferior (mobile) — sem colidir com outros CTAs */}
-<div
-  className="fixed inset-x-0 bottom-0 z-[50] border-t bg-[var(--c-surface)] md:hidden"
-  style={{
-    borderColor: 'var(--c-border)',
-    paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
-    boxShadow: '0 -12px 30px rgba(0,0,0,.12)',
-  }}
-  role="region"
-  aria-label="Resumo rápido e ação"
->
-  <div className="mx-auto max-w-7xl px-3 py-3 flex items-center gap-3">
-    <div className="flex-1">
-      <p className="text-xs text-[var(--c-muted)] leading-tight">Mensalidade base</p>
-      <p className="text-xl font-extrabold leading-tight">{money(baseMensal)}</p>
-    </div>
-    <CTAButton className="min-w-[46%] h-12" onClick={handleContinuar}>
-      Continuar
-    </CTAButton>
-  </div>
-</div>
+
 <div className="h-16 md:hidden" aria-hidden />
 
       {/* JSON-LD básico para SEO */}
