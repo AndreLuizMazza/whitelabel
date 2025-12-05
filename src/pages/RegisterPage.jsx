@@ -15,7 +15,7 @@ const initial = {
   cpf: '',
   celular: '',
   dataNascimento: '', // ISO yyyy-mm-dd
-  // mantidos por compatibilidade, mas não exibidos/validados
+  // mantidos por compatibilidade, mas sempre true
   aceiteTermos: true,
   aceitePrivacidade: true,
 }
@@ -203,7 +203,7 @@ function DateSelectBR({
       setSoftWarn(
         'Data fora do intervalo permitido (entre 18 e 100 anos).'
       )
-    if (hydratedRef.current && valueISO === iso) return
+    // sempre notifica o pai (evita travar idadeOk)
     onChangeISO?.(iso)
   }, [dia, mes, ano]) // eslint-disable-line
 
@@ -451,15 +451,15 @@ export default function RegisterPage() {
     [form.celular]
   )
 
+  // botão habilita quando tudo visível está OK
   const formValido =
     nomeOk &&
     emailOk &&
     cpfOk &&
-    senhaOk &&
-    confirmOk &&
     celularOk &&
     idadeOk &&
-    !loading
+    senhaOk &&
+    confirmOk
 
   useEffect(() => {
     setError('')
@@ -553,7 +553,7 @@ export default function RegisterPage() {
         label: 'As senhas não conferem.',
       })
     }
-    // sem obrigar o usuário a marcar checkboxes de aceite
+    // sem obrigar aceites explícitos aqui
     return items
   }
 
@@ -601,7 +601,11 @@ export default function RegisterPage() {
 
     const identificador =
       form.email?.trim() || onlyDigits(form.cpf)
-    const payload = { ...form, aceiteTermos: true, aceitePrivacidade: true }
+    const payload = {
+      ...form,
+      aceiteTermos: true,
+      aceitePrivacidade: true,
+    }
 
     try {
       setLoading(true)
@@ -614,7 +618,7 @@ export default function RegisterPage() {
       // Login automático
       await login(identificador, form.senha)
 
-      // Registro do dispositivo FCM (mesma lógica do LoginPage)
+      // Registro do dispositivo FCM (WEB)
       try {
         console.info(
           '[Register] Iniciando registro do dispositivo FCM (WEB) após cadastro...'
@@ -628,7 +632,6 @@ export default function RegisterPage() {
           '[Register] Falha ao registrar dispositivo FCM (WEB):',
           err
         )
-        // não bloqueia o fluxo se der erro no FCM
       }
 
       // Prefill de dados para próximos fluxos
@@ -708,14 +711,15 @@ export default function RegisterPage() {
             </div>
 
             <h1 className="mt-4 text-3xl font-semibold tracking-tight">
-              Comece agora! Garanta o malhor para você e sua família
+              Comece agora sua área do associado
             </h1>
             <p
               className="mt-1 text-sm leading-relaxed"
               style={{ color: 'var(--text-muted)' }}
             >
               Cadastro rápido, em poucos minutos, para acompanhar planos,
-              dependentes e pagamentos em um ambiente seguro.
+              dependentes e pagamentos em um ambiente seguro, no padrão
+              dos melhores apps de banco.
             </p>
           </header>
 
@@ -973,8 +977,8 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* Grid: senha + confirmar senha */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Grid: senha + confirmar senha (lado a lado em todas as larguras) */}
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label
                     htmlFor="senha"
@@ -1004,8 +1008,8 @@ export default function RegisterPage() {
                       onChange={onChange}
                       onFocus={() => setSenhaFocused(true)}
                       onBlur={() => setSenhaFocused(false)}
-                      className="input pr-12 h-11 text-sm"
-                      placeholder="Mín. 8, com letras e números"
+                      className="input pr-12 h-11 text-xs sm:text-sm"
+                      placeholder="Mín. 8, letras e números"
                       autoComplete="new-password"
                       aria-required="true"
                       aria-invalid={submitted && !senhaOk}
@@ -1099,7 +1103,7 @@ export default function RegisterPage() {
                       name="confirmSenha"
                       value={form.confirmSenha}
                       onChange={onChange}
-                      className="input pr-12 h-11 text-sm"
+                      className="input pr-12 h-11 text-xs sm:text-sm"
                       placeholder="Repita a senha"
                       autoComplete="new-password"
                       aria-required="true"
@@ -1172,8 +1176,7 @@ export default function RegisterPage() {
                 <button
                   type="submit"
                   className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-11 text-[15px] font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
-                  aria-disabled={loading || !formValido}
-                  disabled={!formValido}
+                  disabled={!formValido || loading}
                 >
                   {loading ? 'Criando conta…' : 'Criar conta agora'}
                 </button>
@@ -1209,8 +1212,8 @@ export default function RegisterPage() {
                 >
                   Política de Privacidade
                 </a>
-                . Seus dados são protegidos com criptografia e em conformidade
-                com a LGPD.
+                . Seus dados são protegidos com criptografia e em
+                conformidade com a LGPD.
               </p>
             </fieldset>
           </form>
