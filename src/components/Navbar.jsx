@@ -1,7 +1,17 @@
 // src/components/Navbar.jsx
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { Menu, X } from 'lucide-react'
+import {
+  Menu,
+  X,
+  Home,
+  Layers,
+  Gift,
+  HeartHandshake,
+  MapPin,
+  FileText,
+  UserSquare2,
+} from 'lucide-react'
 import useAuth from '@/store/auth'
 import useTenant from '@/store/tenant'
 import ThemeToggle from './ThemeToggle.jsx'
@@ -10,7 +20,9 @@ import HeaderNotificationsBell from '@/components/HeaderNotificationsBell.jsx'
 // Resolve logo do tenant
 function cssVarUrlOrNull(name = '--tenant-logo') {
   try {
-    const v = getComputedStyle(document.documentElement).getPropertyValue(name)?.trim()
+    const v = getComputedStyle(document.documentElement)
+      .getPropertyValue(name)
+      ?.trim()
     const m = v.match(/^url\((['"]?)(.*?)\1\)$/i)
     return m?.[2] || null
   } catch {
@@ -21,7 +33,8 @@ function cssVarUrlOrNull(name = '--tenant-logo') {
 function resolveTenantLogoUrl() {
   try {
     const st = useTenant.getState?.()
-    const fromStore = st?.empresa?.logo || st?.empresa?.logoUrl || st?.empresa?.logo_path
+    const fromStore =
+      st?.empresa?.logo || st?.empresa?.logoUrl || st?.empresa?.logo_path
     if (fromStore) return fromStore
   } catch {}
 
@@ -73,7 +86,7 @@ export default function Navbar() {
   }, [mobileOpen])
 
   const linkClass = ({ isActive }) =>
-    'relative pl-4 pr-3 py-2 flex items-center whitespace-nowrap rounded-md transition-colors duration-150 ' +
+    'relative pl-4 pr-3 py-2 flex items-center gap-2 whitespace-nowrap rounded-md transition-colors duration-150 ' +
     (isActive
       ? 'text-[var(--nav-active-color)] font-semibold bg-[var(--nav-active-bg)]'
       : 'text-[var(--text)] hover:text-[var(--text)] hover:bg-[var(--nav-hover-bg)]')
@@ -115,7 +128,9 @@ export default function Navbar() {
           <NavLink to="/" className={linkClass} end>
             {({ isActive }) => (
               <>
-                <ActiveBar isActive={isActive} /> Home
+                <ActiveBar isActive={isActive} />
+                <Home className="h-4 w-4" />
+                <span>Home</span>
               </>
             )}
           </NavLink>
@@ -124,7 +139,9 @@ export default function Navbar() {
           <NavLink to="/planos" className={linkClass}>
             {({ isActive }) => (
               <>
-                <ActiveBar isActive={isActive} /> Planos
+                <ActiveBar isActive={isActive} />
+                <Layers className="h-4 w-4" />
+                <span>Planos</span>
               </>
             )}
           </NavLink>
@@ -132,7 +149,9 @@ export default function Navbar() {
           <NavLink to="/beneficios" className={linkClass}>
             {({ isActive }) => (
               <>
-                <ActiveBar isActive={isActive} /> Clube de Benefícios
+                <ActiveBar isActive={isActive} />
+                <Gift className="h-4 w-4" />
+                <span>Clube de Benefícios</span>
               </>
             )}
           </NavLink>
@@ -140,7 +159,9 @@ export default function Navbar() {
           <NavLink to="/memorial" className={linkClass}>
             {({ isActive }) => (
               <>
-                <ActiveBar isActive={isActive} /> Memorial
+                <ActiveBar isActive={isActive} />
+                <HeartHandshake className="h-4 w-4" />
+                <span>Memorial</span>
               </>
             )}
           </NavLink>
@@ -148,7 +169,9 @@ export default function Navbar() {
           <NavLink to="/filiais" className={linkClass}>
             {({ isActive }) => (
               <>
-                <ActiveBar isActive={isActive} /> Unidades
+                <ActiveBar isActive={isActive} />
+                <MapPin className="h-4 w-4" />
+                <span>Unidades</span>
               </>
             )}
           </NavLink>
@@ -156,7 +179,9 @@ export default function Navbar() {
           <NavLink to="/contratos" className={linkClass}>
             {({ isActive }) => (
               <>
-                <ActiveBar isActive={isActive} /> 2° Via
+                <ActiveBar isActive={isActive} />
+                <FileText className="h-4 w-4" />
+                <span>2° Via</span>
               </>
             )}
           </NavLink>
@@ -164,7 +189,9 @@ export default function Navbar() {
           <NavLink to={areaDest} className={linkClass}>
             {({ isActive }) => (
               <>
-                <ActiveBar isActive={isActive} /> Área do associado
+                <ActiveBar isActive={isActive} />
+                <UserSquare2 className="h-4 w-4" />
+                <span>Área do associado</span>
               </>
             )}
           </NavLink>
@@ -230,7 +257,9 @@ export default function Navbar() {
               <NavLink to="/" className={linkClass} end>
                 {({ isActive }) => (
                   <>
-                    <ActiveBar isActive={isActive} /> Home
+                    <ActiveBar isActive={isActive} />
+                    <Home className="h-4 w-4" />
+                    <span>Home</span>
                   </>
                 )}
               </NavLink>
@@ -238,7 +267,9 @@ export default function Navbar() {
               <NavLink to="/planos" className={linkClass}>
                 {({ isActive }) => (
                   <>
-                    <ActiveBar isActive={isActive} /> Planos
+                    <ActiveBar isActive={isActive} />
+                    <Layers className="h-4 w-4" />
+                    <span>Planos</span>
                   </>
                 )}
               </NavLink>
@@ -246,7 +277,9 @@ export default function Navbar() {
               <NavLink to="/memorial" className={linkClass}>
                 {({ isActive }) => (
                   <>
-                    <ActiveBar isActive={isActive} /> Memorial
+                    <ActiveBar isActive={isActive} />
+                    <HeartHandshake className="h-4 w-4" />
+                    <span>Memorial</span>
                   </>
                 )}
               </NavLink>
@@ -254,7 +287,9 @@ export default function Navbar() {
               <NavLink to="/filiais" className={linkClass}>
                 {({ isActive }) => (
                   <>
-                    <ActiveBar isActive={isActive} /> Unidades
+                    <ActiveBar isActive={isActive} />
+                    <MapPin className="h-4 w-4" />
+                    <span>Unidades</span>
                   </>
                 )}
               </NavLink>
@@ -262,7 +297,9 @@ export default function Navbar() {
               <NavLink to="/beneficios" className={linkClass}>
                 {({ isActive }) => (
                   <>
-                    <ActiveBar isActive={isActive} /> Clube de Benefícios
+                    <ActiveBar isActive={isActive} />
+                    <Gift className="h-4 w-4" />
+                    <span>Clube de Benefícios</span>
                   </>
                 )}
               </NavLink>
@@ -270,7 +307,9 @@ export default function Navbar() {
               <NavLink to="/contratos" className={linkClass}>
                 {({ isActive }) => (
                   <>
-                    <ActiveBar isActive={isActive} /> 2° Via
+                    <ActiveBar isActive={isActive} />
+                    <FileText className="h-4 w-4" />
+                    <span>2° Via</span>
                   </>
                 )}
               </NavLink>
@@ -278,7 +317,9 @@ export default function Navbar() {
               <NavLink to={areaDest} className={linkClass}>
                 {({ isActive }) => (
                   <>
-                    <ActiveBar isActive={isActive} /> Área do associado
+                    <ActiveBar isActive={isActive} />
+                    <UserSquare2 className="h-4 w-4" />
+                    <span>Área do associado</span>
                   </>
                 )}
               </NavLink>
