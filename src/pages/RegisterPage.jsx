@@ -4,7 +4,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom'
 import useTenant from '@/store/tenant'
 import useAuth from '@/store/auth'
 import { registerUser } from '@/lib/authApi'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, UserPlus } from 'lucide-react'
 import { registrarDispositivoFcmWeb } from '@/lib/fcm'
 
 const initial = {
@@ -15,12 +15,14 @@ const initial = {
   cpf: '',
   celular: '',
   dataNascimento: '', // ISO yyyy-mm-dd
-  aceiteTermos: false,
-  aceitePrivacidade: false,
+  // mantidos por compatibilidade, mas não exibidos/validados
+  aceiteTermos: true,
+  aceitePrivacidade: true,
 }
 
 const onlyDigits = (s = '') => s.replace(/\D/g, '')
-const isValidEmail = (e = '') => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim())
+const isValidEmail = (e = '') =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim())
 
 /** ===== Política de senha exigida =====
  * - Pelo menos 8 caracteres
@@ -63,14 +65,16 @@ function formatCPF(v = '') {
   const d = onlyDigits(v).slice(0, 11)
   if (d.length <= 3) return d
   if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`
-  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`
+  if (d.length <= 9)
+    return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
 }
 function formatPhoneBR(v = '') {
   const d = onlyDigits(v).slice(0, 11)
   if (d.length <= 2) return d
   if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
-  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
+  if (d.length === 10)
+    return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
 const phoneIsValid = (v = '') => {
@@ -95,7 +99,9 @@ function DateSelectBR({
   const hydratedRef = useRef(false)
 
   useEffect(() => {
-    const m = typeof valueISO === 'string' && /^(\d{4})-(\d{2})-(\d{2})$/.exec(valueISO)
+    const m =
+      typeof valueISO === 'string' &&
+      /^(\d{4})-(\d{2})-(\d{2})$/.exec(valueISO)
     if (!m) return
     const [, yy, mm, dd] = m
     if (ano !== yy) setAno(yy)
@@ -105,8 +111,16 @@ function DateSelectBR({
   }, [valueISO]) // eslint-disable-line
 
   const today = new Date()
-  const minDate = (() => { const d = new Date(today); d.setFullYear(d.getFullYear() - (maxAge || 100)); return d })()
-  const maxDate = (() => { const d = new Date(today); d.setFullYear(d.getFullYear() - (minAge || 18)); return d })()
+  const minDate = (() => {
+    const d = new Date(today)
+    d.setFullYear(d.getFullYear() - (maxAge || 100))
+    return d
+  })()
+  const maxDate = (() => {
+    const d = new Date(today)
+    d.setFullYear(d.getFullYear() - (minAge || 18))
+    return d
+  })()
 
   const minY = minDate.getFullYear()
   const maxY = maxDate.getFullYear()
@@ -118,9 +132,18 @@ function DateSelectBR({
   }, [minY, maxY])
 
   const mesesAll = [
-    ['01', 'Janeiro'], ['02', 'Fevereiro'], ['03', 'Março'], ['04', 'Abril'],
-    ['05', 'Maio'], ['06', 'Junho'], ['07', 'Julho'], ['08', 'Agosto'],
-    ['09', 'Setembro'], ['10', 'Outubro'], ['11', 'Novembro'], ['12', 'Dezembro'],
+    ['01', 'Janeiro'],
+    ['02', 'Fevereiro'],
+    ['03', 'Março'],
+    ['04', 'Abril'],
+    ['05', 'Maio'],
+    ['06', 'Junho'],
+    ['07', 'Julho'],
+    ['08', 'Agosto'],
+    ['09', 'Setembro'],
+    ['10', 'Outubro'],
+    ['11', 'Novembro'],
+    ['12', 'Dezembro'],
   ]
   const str2int = (s) => parseInt(s, 10) || 0
   const daysInMonth = (y, m) => new Date(y, m, 0).getDate()
@@ -128,8 +151,8 @@ function DateSelectBR({
   const mesesFiltrados = useMemo(() => {
     if (!ano) return mesesAll
     const y = str2int(ano)
-    const minM = (y === minY) ? (minDate.getMonth() + 1) : 1
-    const maxM = (y === maxY) ? (maxDate.getMonth() + 1) : 12
+    const minM = y === minY ? minDate.getMonth() + 1 : 1
+    const maxM = y === maxY ? maxDate.getMonth() + 1 : 12
     return mesesAll.filter(([v]) => {
       const mm = str2int(v)
       return mm >= minM && mm <= maxM
@@ -137,8 +160,8 @@ function DateSelectBR({
   }, [ano, minY, maxY])
 
   function clampMonthIfNeeded(y, m) {
-    const minM = (y === minY) ? (minDate.getMonth() + 1) : 1
-    const maxM = (y === maxY) ? (maxDate.getMonth() + 1) : 12
+    const minM = y === minY ? minDate.getMonth() + 1 : 1
+    const maxM = y === maxY ? maxDate.getMonth() + 1 : 12
     if (!m) return m
     if (m < minM) return minM
     if (m > maxM) return maxM
@@ -147,17 +170,27 @@ function DateSelectBR({
   function clampDayIfNeeded(y, m, d) {
     if (!y || !m || !d) return d
     const maxDMonth = daysInMonth(y, m)
-    let minD = 1, maxD = maxDMonth
-    if (y === minY && m === (minDate.getMonth() + 1)) minD = minDate.getDate()
-    if (y === maxY && m === (maxDate.getMonth() + 1)) maxD = Math.min(maxDMonth, maxDate.getDate())
+    let minD = 1,
+      maxD = maxDMonth
+    if (y === minY && m === minDate.getMonth() + 1) minD = minDate.getDate()
+    if (y === maxY && m === maxDate.getMonth() + 1)
+      maxD = Math.min(maxDMonth, maxDate.getDate())
     if (d < minD) return minD
     if (d > maxD) return maxD
     return d
   }
   function inRange(iso) {
     const d = new Date(iso)
-    const a = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate())
-    const b = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate())
+    const a = new Date(
+      minDate.getFullYear(),
+      minDate.getMonth(),
+      minDate.getDate()
+    )
+    const b = new Date(
+      maxDate.getFullYear(),
+      maxDate.getMonth(),
+      maxDate.getDate()
+    )
     return !isNaN(d) && d >= a && d <= b
   }
 
@@ -166,7 +199,10 @@ function DateSelectBR({
     if (!(dia && mes && ano)) return
     const iso = `${ano}-${mes}-${dia}`
     const ok = inRange(iso)
-    if (!ok) setSoftWarn('Data fora do intervalo permitido (entre 18 e 100 anos).')
+    if (!ok)
+      setSoftWarn(
+        'Data fora do intervalo permitido (entre 18 e 100 anos).'
+      )
     if (hydratedRef.current && valueISO === iso) return
     onChangeISO?.(iso)
   }, [dia, mes, ano]) // eslint-disable-line
@@ -189,7 +225,9 @@ function DateSelectBR({
         const dClamped = clampDayIfNeeded(y, m, d)
         if (dClamped !== d) {
           setDia(String(dClamped).padStart(2, '0'))
-          setSoftWarn('Ajustamos o dia para o máximo permitido no período.')
+          setSoftWarn(
+            'Ajustamos o dia para o máximo permitido no período.'
+          )
         }
       }
     }
@@ -204,7 +242,9 @@ function DateSelectBR({
       const dClamped = clampDayIfNeeded(y, m, d)
       if (dClamped !== d) {
         setDia(String(dClamped).padStart(2, '0'))
-        setSoftWarn('Ajustamos o dia para o máximo permitido no mês/limite.')
+        setSoftWarn(
+          'Ajustamos o dia para o máximo permitido no mês/limite.'
+        )
       }
     }
   }
@@ -215,38 +255,93 @@ function DateSelectBR({
 
   return (
     <div>
-      <div className={`grid grid-cols-3 gap-2 ${invalid ? 'ring-1 ring-red-500 rounded-md p-1' : ''} ${className}`}>
-        <label htmlFor={idDia} className="sr-only">Dia</label>
-        <select id={idDia} className="input h-11" value={dia} onChange={(e) => setDia(e.target.value)}>
+      <div
+        className={`grid grid-cols-3 gap-2 ${
+          invalid ? 'ring-1 ring-red-500 rounded-md p-1' : ''
+        } ${className}`}
+      >
+        <label htmlFor={idDia} className="sr-only">
+          Dia
+        </label>
+        <select
+          id={idDia}
+          className="input h-11"
+          value={dia}
+          onChange={(e) => setDia(e.target.value)}
+        >
           <option value="">Dia</option>
           {(() => {
-            const y = parseInt(ano || '', 10) || 0; const m = parseInt(mes || '', 10) || 0
-            let minD = 1, maxD = 31
+            const y = parseInt(ano || '', 10) || 0
+            const m = parseInt(mes || '', 10) || 0
+            let minD = 1,
+              maxD = 31
             if (y && m) {
               const maxDMonth = daysInMonth(y, m)
-              minD = (y === minY && m === (minDate.getMonth() + 1)) ? minDate.getDate() : 1
-              maxD = (y === maxY && m === (maxDate.getMonth() + 1)) ? Math.min(maxDMonth, maxDate.getDate()) : maxDMonth
+              minD =
+                y === minY && m === minDate.getMonth() + 1
+                  ? minDate.getDate()
+                  : 1
+              maxD =
+                y === maxY && m === maxDate.getMonth() + 1
+                  ? Math.min(maxDMonth, maxDate.getDate())
+                  : maxDMonth
             }
-            const arr = []; for (let d = minD; d <= maxD; d++) arr.push(String(d).padStart(2, '0'))
-            return arr.map(d => <option key={d} value={d}>{d}</option>)
+            const arr = []
+            for (let d = minD; d <= maxD; d++)
+              arr.push(String(d).padStart(2, '0'))
+            return arr.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))
           })()}
         </select>
 
-        <label htmlFor={idMes} className="sr-only">Mês</label>
-        <select id={idMes} className="input h-11" value={mes} onChange={(e) => handleChangeMes(e.target.value)}>
+        <label htmlFor={idMes} className="sr-only">
+          Mês
+        </label>
+        <select
+          id={idMes}
+          className="input h-11"
+          value={mes}
+          onChange={(e) => handleChangeMes(e.target.value)}
+        >
           <option value="">Mês</option>
-          {mesesFiltrados.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          {mesesFiltrados.map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
         </select>
 
-        <label htmlFor={idAno} className="sr-only">Ano</label>
-        <select id={idAno} className="input h-11" value={ano} onChange={(e) => handleChangeAno(e.target.value)}>
+        <label htmlFor={idAno} className="sr-only">
+          Ano
+        </label>
+        <select
+          id={idAno}
+          className="input h-11"
+          value={ano}
+          onChange={(e) => handleChangeAno(e.target.value)}
+        >
           <option value="">Ano</option>
-          {anos.map(y => <option key={y} value={y}>{y}</option>)}
+          {anos.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
         </select>
       </div>
       {(invalid || softWarn) && (
-        <p className={`mt-1 text-xs inline-flex items-center gap-1 ${invalid ? 'text-red-600' : 'text-amber-600'}`} role="alert">
-          <AlertTriangle size={14} /> {invalid ? 'Você precisa ter no mínimo 18 anos (e no máximo 100).' : softWarn}
+        <p
+          className={`mt-1 text-xs inline-flex items-center gap-1 ${
+            invalid ? 'text-red-600' : 'text-amber-600'
+          }`}
+          role="alert"
+        >
+          <AlertTriangle size={14} />{' '}
+          {invalid
+            ? 'Você precisa ter no mínimo 18 anos (e no máximo 100).'
+            : softWarn}
         </p>
       )}
     </div>
@@ -254,6 +349,29 @@ function DateSelectBR({
 }
 
 /* =============== Página =============== */
+
+function Rule({ ok, children }) {
+  return (
+    <li className="flex items-center gap-2 text-xs">
+      <span
+        aria-hidden="true"
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]"
+        style={{
+          background: ok
+            ? 'color-mix(in srgb, var(--primary) 18%, transparent)'
+            : 'color-mix(in srgb, var(--text) 15%, transparent)',
+          color: ok ? 'var(--primary)' : 'var(--text-muted)',
+        }}
+      >
+        {ok ? '✓' : '•'}
+      </span>
+      <span style={{ color: ok ? 'var(--text)' : 'var(--text-muted)' }}>
+        {children}
+      </span>
+    </li>
+  )
+}
+
 export default function RegisterPage() {
   useTenant()
 
@@ -298,76 +416,156 @@ export default function RegisterPage() {
     return a !== null && a >= 0 ? a : null
   }
 
-  const idade = useMemo(() => ageFromISO(form.dataNascimento), [form.dataNascimento])
+  const idade = useMemo(
+    () => ageFromISO(form.dataNascimento),
+    [form.dataNascimento]
+  )
   const idadeOk = idade !== null && idade >= 18 && idade <= 100
 
   // Validações reativas
-  const nomeOk = useMemo(() => form.nome.trim().length >= 3, [form.nome])
-  const emailOk = useMemo(() => isValidEmail(form.email), [form.email])
+  const nomeOk = useMemo(
+    () => form.nome.trim().length >= 3,
+    [form.nome]
+  )
+  const emailOk = useMemo(
+    () => isValidEmail(form.email),
+    [form.email]
+  )
   const cpfOk = useMemo(() => isValidCPF(form.cpf), [form.cpf])
-  const senhaChecks = useMemo(() => getPasswordChecks(form.senha), [form.senha])
-  const senhaOk = useMemo(() => isStrongPassword(form.senha), [form.senha])
-  const confirmOk = useMemo(() => form.confirmSenha.length > 0 && form.confirmSenha === form.senha, [form.confirmSenha, form.senha])
-  const celularOk = useMemo(() => phoneIsValid(form.celular), [form.celular])
-  const termosOk = form.aceiteTermos && form.aceitePrivacidade
+  const senhaChecks = useMemo(
+    () => getPasswordChecks(form.senha),
+    [form.senha]
+  )
+  const senhaOk = useMemo(
+    () => isStrongPassword(form.senha),
+    [form.senha]
+  )
+  const confirmOk = useMemo(
+    () =>
+      form.confirmSenha.length > 0 &&
+      form.confirmSenha === form.senha,
+    [form.confirmSenha, form.senha]
+  )
+  const celularOk = useMemo(
+    () => phoneIsValid(form.celular),
+    [form.celular]
+  )
 
   const formValido =
-    nomeOk && emailOk && cpfOk && senhaOk && confirmOk && celularOk && termosOk && idadeOk && !loading
+    nomeOk &&
+    emailOk &&
+    cpfOk &&
+    senhaOk &&
+    confirmOk &&
+    celularOk &&
+    idadeOk &&
+    !loading
 
-  useEffect(() => { setError(''); setOkMsg('') }, [form])
-  useEffect(() => { if (error) setTimeout(() => alertRef.current?.focus(), 0) }, [error])
+  useEffect(() => {
+    setError('')
+    setOkMsg('')
+  }, [form])
+  useEffect(() => {
+    if (error) setTimeout(() => alertRef.current?.focus(), 0)
+  }, [error])
 
   // Handlers especializados para aplicar máscara imediatamente
-  const onChangeMasked = (name, formatter, _ref) => (e) => {
-    const raw = e.target.value || ''
-    const nextVal = formatter(raw)
-    setForm((prev) => ({ ...prev, [name]: nextVal }))
-    if (submitted) setErrorList(buildErrorList({ ...form, [name]: nextVal }))
-  }
+  const onChangeMasked =
+    (name, formatter, _ref) =>
+    (e) => {
+      const raw = e.target.value || ''
+      const nextVal = formatter(raw)
+      setForm((prev) => ({ ...prev, [name]: nextVal }))
+      if (submitted)
+        setErrorList(
+          buildErrorList({ ...form, [name]: nextVal })
+        )
+    }
   const onPasteMasked = (name, formatter) => (e) => {
     e.preventDefault()
-    const pasted = (e.clipboardData || window.clipboardData).getData('text')
+    const pasted =
+      (e.clipboardData || window.clipboardData).getData('text') ||
+      ''
     const nextVal = formatter(pasted)
     setForm((prev) => ({ ...prev, [name]: nextVal }))
   }
 
   function onChange(e) {
     const { name, value, type, checked } = e.target
-    const next = { ...form, [name]: type === 'checkbox' ? checked : value }
+    const next = {
+      ...form,
+      [name]: type === 'checkbox' ? checked : value,
+    }
     setForm(next)
     if (submitted) setErrorList(buildErrorList(next))
   }
 
+  function ageHelper(iso) {
+    const a = idadeFrom(iso)
+    return a
+  }
+
   function buildErrorList(values) {
     const items = []
-    const age = idadeFrom(values.dataNascimento)
+    const age = ageHelper(values.dataNascimento)
 
-    if (!(values.nome || '').trim()) items.push({ field: 'nome', label: 'Nome completo é obrigatório.' })
-    if (!isValidEmail(values.email)) items.push({ field: 'email', label: 'Informe um e-mail válido.' })
-    if (!isValidCPF(values.cpf)) items.push({ field: 'cpf', label: 'Informe um CPF válido.' })
-    if (!phoneIsValid(values.celular)) items.push({ field: 'celular', label: 'Informe um celular válido com DDD.' })
+    if (!(values.nome || '').trim())
+      items.push({
+        field: 'nome',
+        label: 'Nome completo é obrigatório.',
+      })
+    if (!isValidEmail(values.email))
+      items.push({
+        field: 'email',
+        label: 'Informe um e-mail válido.',
+      })
+    if (!isValidCPF(values.cpf))
+      items.push({
+        field: 'cpf',
+        label: 'Informe um CPF válido.',
+      })
+    if (!phoneIsValid(values.celular))
+      items.push({
+        field: 'celular',
+        label: 'Informe um celular válido com DDD.',
+      })
     if (!values.dataNascimento || age === null) {
-      items.push({ field: 'dataNascimento', label: 'Informe sua data de nascimento.' })
+      items.push({
+        field: 'dataNascimento',
+        label: 'Informe sua data de nascimento.',
+      })
     } else if (age < 18 || age > 100) {
-      items.push({ field: 'dataNascimento', label: 'Você precisa ter entre 18 e 100 anos.' })
+      items.push({
+        field: 'dataNascimento',
+        label: 'Você precisa ter entre 18 e 100 anos.',
+      })
     }
     if (!isStrongPassword(values.senha)) {
       items.push({
         field: 'senha',
-        label: 'A senha deve ter ao menos 8 caracteres, com letra MAIÚSCULA, letra minúscula e dígito.',
+        label:
+          'A senha deve ter ao menos 8 caracteres, com letra MAIÚSCULA, letra minúscula e dígito.',
       })
     }
     if (!(values.confirmSenha && values.confirmSenha === values.senha)) {
-      items.push({ field: 'confirmSenha', label: 'As senhas não conferem.' })
+      items.push({
+        field: 'confirmSenha',
+        label: 'As senhas não conferem.',
+      })
     }
-    if (!(values.aceiteTermos && values.aceitePrivacidade)) {
-      items.push({ field: 'aceites', label: 'É necessário aceitar os Termos e a Política de Privacidade.' })
-    }
+    // sem obrigar o usuário a marcar checkboxes de aceite
     return items
   }
 
   function focusByField(field) {
-    const map = { nome: nomeRef, email: emailRef, cpf: cpfRef, celular: celRef, senha: senhaRef, confirmSenha: confirmRef }
+    const map = {
+      nome: nomeRef,
+      email: emailRef,
+      cpf: cpfRef,
+      celular: celRef,
+      senha: senhaRef,
+      confirmSenha: confirmRef,
+    }
     map[field]?.current?.focus()
   }
 
@@ -395,16 +593,20 @@ export default function RegisterPage() {
     const from =
       typeof rawFrom === 'string'
         ? rawFrom
-        : (rawFrom?.pathname
-            ? `${rawFrom.pathname}${rawFrom.search || ''}${rawFrom.hash || ''}`
-            : '/area')
+        : rawFrom?.pathname
+        ? `${rawFrom.pathname}${rawFrom.search || ''}${
+            rawFrom.hash || ''
+          }`
+        : '/area'
 
-    const identificador = form.email?.trim() || onlyDigits(form.cpf)
-    const payload = { ...form }
+    const identificador =
+      form.email?.trim() || onlyDigits(form.cpf)
+    const payload = { ...form, aceiteTermos: true, aceitePrivacidade: true }
 
     try {
       setLoading(true)
-      setError(''); setOkMsg('')
+      setError('')
+      setOkMsg('')
 
       // Cadastro do usuário
       await registerUser(payload)
@@ -414,11 +616,18 @@ export default function RegisterPage() {
 
       // Registro do dispositivo FCM (mesma lógica do LoginPage)
       try {
-        console.info('[Register] Iniciando registro do dispositivo FCM (WEB) após cadastro...')
+        console.info(
+          '[Register] Iniciando registro do dispositivo FCM (WEB) após cadastro...'
+        )
         await registrarDispositivoFcmWeb()
-        console.info('[Register] Registro do dispositivo FCM finalizado (WEB).')
+        console.info(
+          '[Register] Registro do dispositivo FCM finalizado (WEB).'
+        )
       } catch (err) {
-        console.error('[Register] Falha ao registrar dispositivo FCM (WEB):', err)
+        console.error(
+          '[Register] Falha ao registrar dispositivo FCM (WEB):',
+          err
+        )
         // não bloqueia o fluxo se der erro no FCM
       }
 
@@ -432,7 +641,10 @@ export default function RegisterPage() {
           nome: (form.nome || '').trim(),
         }
         sessionStorage.setItem('reg_prefill', JSON.stringify(prefill))
-        localStorage.setItem('register:last', JSON.stringify(prefill))
+        localStorage.setItem(
+          'register:last',
+          JSON.stringify(prefill)
+        )
       } catch {}
 
       // Redireciona para a área ou rota de origem
@@ -442,7 +654,9 @@ export default function RegisterPage() {
       const apiMsg =
         err?.response?.data?.message ||
         err?.response?.data?.error ||
-        (typeof err?.response?.data === 'string' ? err?.response?.data : null) ||
+        (typeof err?.response?.data === 'string'
+          ? err?.response?.data
+          : null) ||
         'Não foi possível concluir o cadastro.'
       setError(apiMsg)
       setOkMsg('')
@@ -452,370 +666,555 @@ export default function RegisterPage() {
     }
   }
 
-  function Rule({ ok, children }) {
-    return (
-      <li className="flex items-center gap-2">
-        <span
-          aria-hidden="true"
-          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]"
-          style={{
-            background: ok
-              ? 'color-mix(in srgb, var(--primary) 18%, transparent)'
-              : 'color-mix(in srgb, var(--text) 15%, transparent)',
-            color: ok ? 'var(--primary)' : 'var(--text-muted)'
-          }}
-        >
-          {ok ? '✓' : '•'}
-        </span>
-        <span style={{ color: ok ? 'var(--text)' : 'var(--text-muted)' }}>{children}</span>
-      </li>
-    )
-  }
-
   return (
     <section className="section">
-      <div className="container-max max-w-3xl">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold tracking-tight">Criar conta</h1>
-          <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
-            Cadastre-se para gerenciar seus planos, dependentes e benefícios.
-          </p>
-        </div>
-
-        {error && (
+      <div className="container-max max-w-4xl relative">
+        <div className="min-h-[60vh] py-8 flex flex-col justify-center">
+          {/* halo de fundo premium */}
           <div
-            ref={alertRef}
-            role="alert"
-            tabIndex={-1}
-            className="mb-4 rounded-lg px-4 py-3 text-sm"
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-[72px] mx-auto h-48 max-w-2xl rounded-[48px] opacity-80"
             style={{
-              border: '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
-              background: 'color-mix(in srgb, var(--primary) 12%, transparent)',
-              color: 'var(--text)',
+              background:
+                'radial-gradient(120% 100% at 50% 0%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)',
+              zIndex: -1,
             }}
-            aria-live="assertive"
-          >
-            {error}
-          </div>
-        )}
+          />
 
-        {okMsg && (
-          <div
-            className="mb-4 rounded-lg px-4 py-3 text-sm"
-            style={{
-              border: '1px solid color-mix(in srgb, var(--primary) 25%, transparent)',
-              background: 'color-mix(in srgb, var(--primary) 8%, transparent)',
-              color: 'var(--text)',
-            }}
-            role="status"
-          >
-            {okMsg}
-          </div>
-        )}
-
-        <form onSubmit={onSubmit} className="card p-6 md:p-8 shadow-lg space-y-6">
-          <fieldset disabled={loading} className="space-y-6">
-
-            {/* Nome */}
-            <div>
-              <label htmlFor="nome" className="label font-medium">
-                Nome completo <span aria-hidden="true" className="text-red-600">*</span>
-              </label>
-              <input
-                id="nome"
-                name="nome"
-                ref={nomeRef}
-                value={form.nome}
-                onChange={onChange}
-                className={`input ${submitted && !nomeOk ? 'ring-1 ring-red-500' : ''}`}
-                placeholder="Maria Oliveira"
-                autoComplete="name"
-                aria-required="true"
-                aria-invalid={submitted && !nomeOk}
-              />
-              {submitted && !nomeOk && (
-                <p className="text-xs mt-1 text-red-600">Informe ao menos 3 caracteres.</p>
-              )}
-            </div>
-
-            {/* Grid 2 col: CPF + e-mail */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="cpf" className="label font-medium">
-                  CPF <span aria-hidden="true" className="text-red-600">*</span>
-                </label>
-                <input
-                  id="cpf"
-                  name="cpf"
-                  ref={cpfRef}
-                  value={formatCPF(form.cpf)}
-                  onChange={onChangeMasked('cpf', formatCPF, cpfRef)}
-                  onPaste={onPasteMasked('cpf', formatCPF)}
-                  className={`input ${submitted && !cpfOk ? 'ring-1 ring-red-500' : ''}`}
-                  placeholder="000.000.000-00"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  aria-required="true"
-                  aria-invalid={submitted && !cpfOk}
-                />
-                {submitted && !cpfOk && (
-                  <p className="text-xs mt-1 text-red-600">CPF inválido. Verifique os números digitados.</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="email" className="label font-medium">
-                  E-mail <span aria-hidden="true" className="text-red-600">*</span>
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  name="email"
-                  ref={emailRef}
-                  value={form.email}
-                  onChange={onChange}
-                  className={`input ${submitted && !emailOk ? 'ring-1 ring-red-500' : ''}`}
-                  placeholder="maria@exemplo.com"
-                  autoComplete="email"
-                  inputMode="email"
-                  aria-required="true"
-                  aria-invalid={submitted && !emailOk}
-                />
-                {submitted && !emailOk && (
-                  <p className="text-xs mt-1 text-red-600">Informe um e-mail válido.</p>
-                )}
-              </div>
-            </div>
-
-            {/* Grid: data de nascimento + celular */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="label font-medium">
-                  Data de nascimento <span aria-hidden="true" className="text-red-600">*</span>
-                </label>
-                <DateSelectBR
-                  idPrefix="reg-nasc"
-                  valueISO={form.dataNascimento}
-                  onChangeISO={(iso) => setForm((p) => ({ ...p, dataNascimento: iso }))}
-                  minAge={18}
-                  maxAge={100}
-                  invalid={submitted && (!form.dataNascimento || !idadeOk)}
-                />
-                {submitted && (!form.dataNascimento || !idadeOk) && (
-                  <p className="text-xs mt-1 text-red-600">
-                    Precisa ter entre <b>18</b> e <b>100</b> anos.
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="celular" className="label font-medium">
-                  Celular <span aria-hidden="true" className="text-red-600">*</span>
-                </label>
-                <input
-                  id="celular"
-                  name="celular"
-                  ref={celRef}
-                  value={formatPhoneBR(form.celular)}
-                  onChange={onChangeMasked('celular', formatPhoneBR, celRef)}
-                  onPaste={onPasteMasked('celular', formatPhoneBR)}
-                  className={`input ${submitted && !celularOk ? 'ring-1 ring-red-500' : ''}`}
-                  placeholder="(00) 90000-0000"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  aria-required="true"
-                  aria-invalid={submitted && !celularOk}
-                />
-                {submitted && !celularOk && (
-                  <p className="text-xs mt-1 text-red-600">Informe um celular válido com DDD.</p>
-                )}
-              </div>
-            </div>
-
-            {/* Grid: senha + confirmar senha */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="senha" className="label font-medium">
-                  Senha <span aria-hidden="true" className="text-red-600">*</span>
-                </label>
-                <div className={`relative ${submitted && !senhaOk ? 'ring-1 ring-red-500 rounded-md' : ''}`}>
-                  <input
-                    id="senha"
-                    type={showPass ? 'text' : 'password'}
-                    name="senha"
-                    ref={senhaRef}
-                    value={form.senha}
-                    onChange={onChange}
-                    onFocus={() => setSenhaFocused(true)}
-                    onBlur={() => setSenhaFocused(false)}
-                    className="input pr-12"
-                    placeholder="Mín. 8, c/ maiúscula, minúscula e dígito"
-                    autoComplete="new-password"
-                    aria-required="true"
-                    aria-invalid={submitted && !senhaOk}
-                    aria-describedby={senhaFocused ? 'senha-policy' : undefined}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPass(v => !v)}
-                    className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none"
-                    aria-label={showPass ? 'Ocultar senha' : 'Mostrar senha'}
-                    aria-pressed={showPass}
-                    title={showPass ? 'Ocultar senha' : 'Mostrar senha'}
-                  >
-                    {showPass ? '🙈' : '👁️'}
-                  </button>
-                </div>
-
-                {/* Checklist em tempo real — visível APENAS com foco no campo senha */}
-                {senhaFocused && (
-                  <div
-                    id="senha-policy"
-                    className="rounded-md px-3 py-2 mt-2"
-                    style={{
-                      background: 'color-mix(in srgb, var(--surface) 80%, transparent)',
-                      border: '1px solid var(--c-border)'
-                    }}
-                    aria-live="polite"
-                  >
-                    <p className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-                      Sua senha deve conter:
-                    </p>
-                    <ul className="text-sm space-y-1">
-                      <Rule ok={senhaChecks.len}>Pelo menos 8 caracteres</Rule>
-                      <Rule ok={senhaChecks.upper}>Ao menos 1 letra maiúscula (A–Z)</Rule>
-                      <Rule ok={senhaChecks.lower}>Ao menos 1 letra minúscula (a–z)</Rule>
-                      <Rule ok={senhaChecks.digit}>Ao menos 1 dígito (0–9)</Rule>
-                    </ul>
-                  </div>
-                )}
-
-                {submitted && !senhaOk && (
-                  <p className="text-xs mt-2 text-red-600">
-                    A senha deve ter ao menos 8 caracteres, com letra MAIÚSCULA, letra minúscula e dígito.
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="confirmSenha" className="label font-medium">
-                  Confirmar senha <span aria-hidden="true" className="text-red-600">*</span>
-                </label>
-                <div className={`relative ${submitted && !confirmOk ? 'ring-1 ring-red-500 rounded-md' : ''}`}>
-                  <input
-                    id="confirmSenha"
-                    ref={confirmRef}
-                    type={showConfirm ? 'text' : 'password'}
-                    name="confirmSenha"
-                    value={form.confirmSenha}
-                    onChange={onChange}
-                    className="input pr-12"
-                    placeholder="Repita a senha"
-                    autoComplete="new-password"
-                    aria-required="true"
-                    aria-invalid={submitted && !confirmOk}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirm(v => !v)}
-                    className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none"
-                    aria-label={showConfirm ? 'Ocultar senha' : 'Mostrar senha'}
-                    aria-pressed={showConfirm}
-                    title={showConfirm ? 'Ocultar senha' : 'Mostrar senha'}
-                  >
-                    {showConfirm ? '🙈' : '👁️'}
-                  </button>
-                </div>
-                {submitted && !confirmOk && (
-                  <p className="text-xs mt-1 text-red-600">As senhas precisam ser idênticas.</p>
-                )}
-              </div>
-            </div>
-
-            {/* Aceites */}
-            <div className="space-y-2">
-              <label className="flex items-start gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  name="aceiteTermos"
-                  checked={form.aceiteTermos}
-                  onChange={onChange}
-                  className="mt-0.5"
-                  aria-required="true"
-                />
-                <span>
-                  Li e aceito os{' '}
-                  <a className="underline" href="/termos-uso" target="_blank" rel="noreferrer">Termos de Uso</a>.
-                </span>
-              </label>
-
-              <label className="flex items-start gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  name="aceitePrivacidade"
-                  checked={form.aceitePrivacidade}
-                  onChange={onChange}
-                  className="mt-0.5"
-                  aria-required="true"
-                />
-                <span>
-                  Concordo com a{' '}
-                  <a className="underline" href="/politica-privacidade" target="_blank" rel="noreferrer">
-                    Política de Privacidade
-                  </a>.
-                </span>
-              </label>
-            </div>
-
-            {/* ✅ Sumário de erros compacto — só após tentar enviar */}
-            {submitted && errorList.length > 0 && (
-              <div
-                className="rounded-lg px-4 py-3 text-sm mt-2"
-                style={{
-                  border: '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
-                  background: 'color-mix(in srgb, var(--primary) 12%, transparent)',
-                  color: 'var(--text)',
-                }}
-                role="alert"
-                aria-live="assertive"
-              >
-                <p className="font-medium mb-1">Corrija os itens abaixo:</p>
-                <ul className="list-disc ml-5 space-y-1">
-                  {errorList.map((it, idx) => (
-                    <li key={idx}>
-                      <button
-                        type="button"
-                        className="underline hover:opacity-80"
-                        onClick={() => focusByField(it.field)}
-                      >
-                        {it.label}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Ações */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-1">
+          {/* topo / header premium */}
+          <header className="mb-6">
+            {/* switch cadastro x login */}
+            <div
+              className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--surface-elevated)_92%,transparent)] p-1 border shadow-sm"
+              style={{
+                borderColor:
+                  'color-mix(in srgb, var(--primary) 24%, transparent)',
+              }}
+            >
               <button
-                type="submit"
-                className="btn-primary w-full sm:w-auto justify-center"
-                aria-disabled={loading}
+                type="button"
+                className="px-4 py-1.5 text-xs font-semibold rounded-full bg-[color-mix(in_srgb,var(--primary)_14%,transparent)] inline-flex items-center gap-1.5"
               >
-                {loading ? 'Enviando…' : 'Criar conta'}
+                <UserPlus size={14} />
+                <span>Criar conta</span>
               </button>
-
-              <Link
-                to="/login"
-                className="btn-outline w-full sm:w-auto justify-center"
-                aria-disabled={loading}
+              <button
+                type="button"
+                onClick={() => navigate('/login')}
+                className="px-4 py-1.5 text-xs font-medium rounded-full hover:bg-[color-mix(in_srgb,var(--surface)_96%,transparent)]"
               >
                 Já tenho conta
-              </Link>
+              </button>
             </div>
-          </fieldset>
-        </form>
+
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight">
+              Comece agora! Garanta o malhor para você e sua família
+            </h1>
+            <p
+              className="mt-1 text-sm leading-relaxed"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Cadastro rápido, em poucos minutos, para acompanhar planos,
+              dependentes e pagamentos em um ambiente seguro.
+            </p>
+          </header>
+
+          {/* feedbacks globais */}
+          {error && (
+            <div
+              ref={alertRef}
+              role="alert"
+              tabIndex={-1}
+              className="mb-4 rounded-2xl px-4 py-3 text-sm"
+              style={{
+                border:
+                  '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
+                background:
+                  'color-mix(in srgb, var(--primary) 14%, transparent)',
+                color: 'var(--text)',
+              }}
+              aria-live="assertive"
+            >
+              {error}
+            </div>
+          )}
+
+          {okMsg && (
+            <div
+              className="mb-4 rounded-2xl px-4 py-3 text-sm"
+              style={{
+                border:
+                  '1px solid color-mix(in srgb, var(--primary) 25%, transparent)',
+                background:
+                  'color-mix(in srgb, var(--primary) 8%, transparent)',
+                color: 'var(--text)',
+              }}
+              role="status"
+            >
+              {okMsg}
+            </div>
+          )}
+
+          {/* Card principal */}
+          <form
+            onSubmit={onSubmit}
+            className="card relative overflow-hidden border-0 shadow-xl p-6 md:p-8 space-y-6 rounded-3xl"
+            style={{
+              background:
+                'linear-gradient(145deg, color-mix(in srgb, var(--surface) 94%, transparent), color-mix(in srgb, var(--surface-elevated) 96%, transparent))',
+            }}
+          >
+            {/* gradiente suave no rodapé do card */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
+              style={{
+                background:
+                  'radial-gradient(120% 140% at 50% 120%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)',
+                opacity: 0.6,
+              }}
+            />
+
+            <fieldset
+              disabled={loading}
+              className="space-y-6 relative z-[1]"
+            >
+              {/* Nome */}
+              <div>
+                <label
+                  htmlFor="nome"
+                  className="label font-medium text-sm"
+                >
+                  Nome completo{' '}
+                  <span
+                    aria-hidden="true"
+                    className="text-red-600"
+                  >
+                    *
+                  </span>
+                </label>
+                <input
+                  id="nome"
+                  name="nome"
+                  ref={nomeRef}
+                  value={form.nome}
+                  onChange={onChange}
+                  className={`input h-11 text-sm ${
+                    submitted && !nomeOk ? 'ring-1 ring-red-500' : ''
+                  }`}
+                  placeholder="Maria Oliveira"
+                  autoComplete="name"
+                  aria-required="true"
+                  aria-invalid={submitted && !nomeOk}
+                />
+                {submitted && !nomeOk && (
+                  <p className="text-xs mt-1 text-red-600">
+                    Informe ao menos 3 caracteres.
+                  </p>
+                )}
+              </div>
+
+              {/* Grid 2 col: CPF + e-mail */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="cpf"
+                    className="label font-medium text-sm"
+                  >
+                    CPF{' '}
+                    <span
+                      aria-hidden="true"
+                      className="text-red-600"
+                    >
+                      *
+                    </span>
+                  </label>
+                  <input
+                    id="cpf"
+                    name="cpf"
+                    ref={cpfRef}
+                    value={formatCPF(form.cpf)}
+                    onChange={onChangeMasked('cpf', formatCPF, cpfRef)}
+                    onPaste={onPasteMasked('cpf', formatCPF)}
+                    className={`input h-11 text-sm ${
+                      submitted && !cpfOk ? 'ring-1 ring-red-500' : ''
+                    }`}
+                    placeholder="000.000.000-00"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    aria-required="true"
+                    aria-invalid={submitted && !cpfOk}
+                  />
+                  {submitted && !cpfOk && (
+                    <p className="text-xs mt-1 text-red-600">
+                      CPF inválido. Verifique os números digitados.
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="email"
+                    className="label font-medium text-sm"
+                  >
+                    E-mail{' '}
+                    <span
+                      aria-hidden="true"
+                      className="text-red-600"
+                    >
+                      *
+                    </span>
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    name="email"
+                    ref={emailRef}
+                    value={form.email}
+                    onChange={onChange}
+                    className={`input h-11 text-sm ${
+                      submitted && !emailOk
+                        ? 'ring-1 ring-red-500'
+                        : ''
+                    }`}
+                    placeholder="maria@exemplo.com"
+                    autoComplete="email"
+                    inputMode="email"
+                    aria-required="true"
+                    aria-invalid={submitted && !emailOk}
+                  />
+                  {submitted && !emailOk && (
+                    <p className="text-xs mt-1 text-red-600">
+                      Informe um e-mail válido.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Grid: data de nascimento + celular */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="label font-medium text-sm">
+                    Data de nascimento{' '}
+                    <span
+                      aria-hidden="true"
+                      className="text-red-600"
+                    >
+                      *
+                    </span>
+                  </label>
+                  <DateSelectBR
+                    idPrefix="reg-nasc"
+                    valueISO={form.dataNascimento}
+                    onChangeISO={(iso) =>
+                      setForm((p) => ({
+                        ...p,
+                        dataNascimento: iso,
+                      }))
+                    }
+                    minAge={18}
+                    maxAge={100}
+                    invalid={
+                      submitted &&
+                      (!form.dataNascimento || !idadeOk)
+                    }
+                  />
+                  {submitted &&
+                    (!form.dataNascimento || !idadeOk) && (
+                      <p className="text-xs mt-1 text-red-600">
+                        Precisa ter entre <b>18</b> e <b>100</b> anos.
+                      </p>
+                    )}
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="celular"
+                    className="label font-medium text-sm"
+                  >
+                    Celular{' '}
+                    <span
+                      aria-hidden="true"
+                      className="text-red-600"
+                    >
+                      *
+                    </span>
+                  </label>
+                  <input
+                    id="celular"
+                    name="celular"
+                    ref={celRef}
+                    value={formatPhoneBR(form.celular)}
+                    onChange={onChangeMasked(
+                      'celular',
+                      formatPhoneBR,
+                      celRef
+                    )}
+                    onPaste={onPasteMasked(
+                      'celular',
+                      formatPhoneBR
+                    )}
+                    className={`input h-11 text-sm ${
+                      submitted && !celularOk
+                        ? 'ring-1 ring-red-500'
+                        : ''
+                    }`}
+                    placeholder="(00) 90000-0000"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    aria-required="true"
+                    aria-invalid={submitted && !celularOk}
+                  />
+                  {submitted && !celularOk && (
+                    <p className="text-xs mt-1 text-red-600">
+                      Informe um celular válido com DDD.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Grid: senha + confirmar senha */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label
+                    htmlFor="senha"
+                    className="label font-medium text-sm"
+                  >
+                    Senha{' '}
+                    <span
+                      aria-hidden="true"
+                      className="text-red-600"
+                    >
+                      *
+                    </span>
+                  </label>
+                  <div
+                    className={`relative ${
+                      submitted && !senhaOk
+                        ? 'ring-1 ring-red-500 rounded-md'
+                        : ''
+                    }`}
+                  >
+                    <input
+                      id="senha"
+                      type={showPass ? 'text' : 'password'}
+                      name="senha"
+                      ref={senhaRef}
+                      value={form.senha}
+                      onChange={onChange}
+                      onFocus={() => setSenhaFocused(true)}
+                      onBlur={() => setSenhaFocused(false)}
+                      className="input pr-12 h-11 text-sm"
+                      placeholder="Mín. 8, com letras e números"
+                      autoComplete="new-password"
+                      aria-required="true"
+                      aria-invalid={submitted && !senhaOk}
+                      aria-describedby={
+                        senhaFocused ? 'senha-policy' : undefined
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass((v) => !v)}
+                      className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none text-sm"
+                      aria-label={
+                        showPass ? 'Ocultar senha' : 'Mostrar senha'
+                      }
+                      aria-pressed={showPass}
+                      title={
+                        showPass ? 'Ocultar senha' : 'Mostrar senha'
+                      }
+                    >
+                      {showPass ? '🙈' : '👁️'}
+                    </button>
+                  </div>
+
+                  {/* Checklist em tempo real */}
+                  {senhaFocused && (
+                    <div
+                      id="senha-policy"
+                      className="rounded-lg px-3 py-2 mt-2"
+                      style={{
+                        background:
+                          'color-mix(in srgb, var(--surface) 80%, transparent)',
+                        border: '1px solid var(--c-border)',
+                      }}
+                      aria-live="polite"
+                    >
+                      <p
+                        className="text-[11px] mb-1"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        Sua senha deve conter:
+                      </p>
+                      <ul className="space-y-1">
+                        <Rule ok={senhaChecks.len}>
+                          Pelo menos 8 caracteres
+                        </Rule>
+                        <Rule ok={senhaChecks.upper}>
+                          Ao menos 1 letra maiúscula (A–Z)
+                        </Rule>
+                        <Rule ok={senhaChecks.lower}>
+                          Ao menos 1 letra minúscula (a–z)
+                        </Rule>
+                        <Rule ok={senhaChecks.digit}>
+                          Ao menos 1 dígito (0–9)
+                        </Rule>
+                      </ul>
+                    </div>
+                  )}
+
+                  {submitted && !senhaOk && (
+                    <p className="text-xs mt-2 text-red-600">
+                      A senha deve ter ao menos 8 caracteres, com letra
+                      MAIÚSCULA, letra minúscula e dígito.
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="confirmSenha"
+                    className="label font-medium text-sm"
+                  >
+                    Confirmar senha{' '}
+                    <span
+                      aria-hidden="true"
+                      className="text-red-600"
+                    >
+                      *
+                    </span>
+                  </label>
+                  <div
+                    className={`relative ${
+                      submitted && !confirmOk
+                        ? 'ring-1 ring-red-500 rounded-md'
+                        : ''
+                    }`}
+                  >
+                    <input
+                      id="confirmSenha"
+                      ref={confirmRef}
+                      type={showConfirm ? 'text' : 'password'}
+                      name="confirmSenha"
+                      value={form.confirmSenha}
+                      onChange={onChange}
+                      className="input pr-12 h-11 text-sm"
+                      placeholder="Repita a senha"
+                      autoComplete="new-password"
+                      aria-required="true"
+                      aria-invalid={submitted && !confirmOk}
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConfirm((v) => !v)
+                      }
+                      className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none text-sm"
+                      aria-label={
+                        showConfirm
+                          ? 'Ocultar senha'
+                          : 'Mostrar senha'
+                      }
+                      aria-pressed={showConfirm}
+                      title={
+                        showConfirm
+                          ? 'Ocultar senha'
+                          : 'Mostrar senha'
+                      }
+                    >
+                      {showConfirm ? '🙈' : '👁️'}
+                    </button>
+                  </div>
+                  {submitted && !confirmOk && (
+                    <p className="text-xs mt-1 text-red-600">
+                      As senhas precisam ser idênticas.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Sumário de erros após submit */}
+              {submitted && errorList.length > 0 && (
+                <div
+                  className="rounded-lg px-4 py-3 text-sm mt-1"
+                  style={{
+                    border:
+                      '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
+                    background:
+                      'color-mix(in srgb, var(--primary) 12%, transparent)',
+                    color: 'var(--text)',
+                  }}
+                  role="alert"
+                  aria-live="assertive"
+                >
+                  <p className="font-medium mb-1">
+                    Revise estes pontos para continuar:
+                  </p>
+                  <ul className="list-disc ml-5 space-y-1">
+                    {errorList.map((it, idx) => (
+                      <li key={idx}>
+                        <button
+                          type="button"
+                          className="underline hover:opacity-80"
+                          onClick={() => focusByField(it.field)}
+                        >
+                          {it.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Ações */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <button
+                  type="submit"
+                  className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-11 text-[15px] font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
+                  aria-disabled={loading || !formValido}
+                  disabled={!formValido}
+                >
+                  {loading ? 'Criando conta…' : 'Criar conta agora'}
+                </button>
+
+                <Link
+                  to="/login"
+                  className="btn-outline w-full sm:w-auto justify-center rounded-2xl h-11 text-sm font-medium"
+                  aria-disabled={loading}
+                >
+                  Já tenho conta
+                </Link>
+              </div>
+
+              <p
+                className="mt-2 text-[11px] text-center leading-relaxed"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                Ao criar sua conta, você declara que leu e concorda com os{' '}
+                <a
+                  href="/termos-uso"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  Termos de Uso
+                </a>{' '}
+                e com a{' '}
+                <a
+                  href="/politica-privacidade"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  Política de Privacidade
+                </a>
+                . Seus dados são protegidos com criptografia e em conformidade
+                com a LGPD.
+              </p>
+            </fieldset>
+          </form>
+        </div>
       </div>
     </section>
   )

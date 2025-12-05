@@ -333,7 +333,7 @@ export default function Navbar() {
                   <img
                     src={avatarUrl}
                     alt={nomeExibicao || 'Perfil'}
-                    className="h-9 w-9 rounded-full object-cover"
+                    className="h-8 w-8 rounded-full object-cover"
                     style={{
                       border:
                         '1px solid color-mix(in srgb, var(--primary) 60%, transparent)',
@@ -343,7 +343,7 @@ export default function Navbar() {
                   />
                 ) : (
                   <span
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold"
                     style={{ background: 'var(--primary)', color: '#fff' }}
                   >
                     {avatarInitial}
@@ -359,20 +359,20 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => setMobileOpen((v) => !v)}
-                className="md:hidden inline-flex items-center justify-center rounded-full border h-9 w-9 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
+                className="md:hidden inline-flex items-center justify-center rounded-full border h-10 w-10 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
                 aria-label="Abrir menu"
               >
                 {avatarUrl && !avatarErro ? (
                   <img
                     src={avatarUrl}
                     alt={nomeExibicao || 'Perfil'}
-                    className="h-9 w-9 rounded-full object-cover"
+                    className="h-8 w-8 rounded-full object-cover"
                     onError={() => setAvatarErro(true)}
                     referrerPolicy="no-referrer"
                   />
                 ) : (
                   <span
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold"
                     style={{ background: 'var(--primary)', color: '#fff' }}
                   >
                     {avatarInitial}
@@ -418,7 +418,7 @@ export default function Navbar() {
 
                   <Link
                     to="/perfil"
-                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg:white/5"
+                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
                     onClick={() => setShowProfileMenu(false)}
                     role="menuitem"
                   >
