@@ -711,15 +711,14 @@ export default function RegisterPage() {
             </div>
 
             <h1 className="mt-4 text-3xl font-semibold tracking-tight">
-              Comece agora sua área do associado
+              Comece agora e garanta o melhor pra sua família
             </h1>
             <p
               className="mt-1 text-sm leading-relaxed"
               style={{ color: 'var(--text-muted)' }}
             >
               Cadastro rápido, em poucos minutos, para acompanhar planos,
-              dependentes e pagamentos em um ambiente seguro, no padrão
-              dos melhores apps de banco.
+              dependentes e pagamentos em um ambiente seguro.
             </p>
           </header>
 
