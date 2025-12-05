@@ -147,7 +147,7 @@ export default function StickyContactDock({
   };
 
   const desktopWrapperStyle = {
-    bottom: bottomDesktop,
+    bottom: compact ? bottomDesktop - 32 : bottomDesktop,
     transition: "bottom 200ms ease, transform 180ms ease, opacity 160ms ease",
     transform: keyboardOpen ? "translateY(20px)" : "translateY(0)",
     opacity: keyboardOpen ? 0 : 1,
@@ -164,12 +164,17 @@ export default function StickyContactDock({
 
   return (
     <>
-      {/* keyframes para o pulso do WhatsApp */}
+      {/* keyframes + regra global para esconder quando drawer mobile estiver aberto */}
       <style>{`
         @keyframes waGlow {
           0% { box-shadow: 0 0 0 0 rgba(37,211,102,0.35); }
           70% { box-shadow: 0 0 0 10px rgba(37,211,102,0); }
           100% { box-shadow: 0 0 0 0 rgba(37,211,102,0); }
+        }
+        html[data-mobile-drawer-open="true"] [data-sticky-dock] {
+          opacity: 0 !important;
+          pointer-events: none !important;
+          transform: translateY(110%) !important;
         }
       `}</style>
 
@@ -206,8 +211,6 @@ export default function StickyContactDock({
             {showLabels && <span>WhatsApp</span>}
           </a>
 
-          
-
           {/* Ligar: cor do tenant */}
           <a
             href={telHref}
@@ -232,6 +235,7 @@ export default function StickyContactDock({
         style={desktopWrapperStyle}
         role="region"
         aria-label="Contato rápido"
+        data-sticky-dock
       >
         <div className="flex flex-col items-stretch gap-3">
           {/* WhatsApp: verde oficial + pulso suave */}

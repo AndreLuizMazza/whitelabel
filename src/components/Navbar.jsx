@@ -57,6 +57,17 @@ function resolveTenantLogoUrl() {
   return cssVarUrlOrNull('--tenant-logo') || '/img/logo.png'
 }
 
+// Iniciais do tenant (ex.: "Funerária Patense" -> "FP")
+function getTenantInitials(empresa) {
+  const nome =
+    empresa?.nomeFantasia || empresa?.nome || empresa?.razaoSocial || 'T'
+  const parts = nome.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() || 'T'
+  const first = parts[0][0]
+  const last = parts[parts.length - 1][0]
+  return `${(first || 'T').toUpperCase()}${(last || '').toUpperCase()}`
+}
+
 export default function Navbar() {
   const { isAuthenticated, token, user, logout } = useAuth((s) => ({
     isAuthenticated: s.isAuthenticated,
@@ -83,6 +94,11 @@ export default function Navbar() {
     const base = user?.nome || user?.email || 'U'
     return base.trim().charAt(0).toUpperCase()
   }, [user])
+
+  const tenantInitials = useMemo(
+    () => getTenantInitials(empresa),
+    [empresa]
+  )
 
   const [avatarBlobUrl, setAvatarBlobUrl] = useState(null)
   const [avatarErro, setAvatarErro] = useState(false)
@@ -152,7 +168,7 @@ export default function Navbar() {
     }
   }, [mobileOpen])
 
-  // Fecha menu de perfil ao clicar fora
+  // Fecha menu de perfil ao clicar fora (desktop)
   useEffect(() => {
     if (!showProfileMenu) return
     const handler = (e) => {
@@ -166,6 +182,20 @@ export default function Navbar() {
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [showProfileMenu])
+
+  // Esconde o StickyContactDock quando o drawer mobile estiver aberto
+  useEffect(() => {
+    const root = document.documentElement
+    if (mobileOpen) {
+      root.setAttribute('data-mobile-drawer-open', 'true')
+    } else {
+      root.removeAttribute('data-mobile-drawer-open')
+    }
+    return () => {
+      root.removeAttribute('data-mobile-drawer-open')
+    }
+  }, [mobileOpen])
+
 
   const linkClass = ({ isActive }) =>
     'relative pl-4 pr-3 py-2 flex items-center gap-2 whitespace-nowrap rounded-md transition-colors duration-150 ' +
@@ -188,103 +218,108 @@ export default function Navbar() {
 
   return (
     <header className="w-full border-b bg-[var(--surface)] sticky top-0 z-40 shadow-sm">
-      <div className="container-max flex items-center justify-between py-3 gap-4">
+      <div className="container-max flex items-center justify-between flex-nowrap py-3 gap-3 sm:gap-4">
         {/* Logo */}
         <Link
           to="/"
           onClick={handleLogoClick}
-          className="flex items-center h-10 md:h-12 lg:h-14"
+          className="flex items-center h-10 md:h-12 lg:h-14 flex-shrink-0 max-w-[55%]"
           aria-label={nomeEmpresa}
         >
           <img
             src={logoUrl}
             alt={nomeEmpresa}
-            className="h-10 md:h-12 lg:h-14 w-auto max-w-[12rem] object-contain"
+            className="h-10 md:h-12 lg:h-14 w-auto max-w-full object-contain"
             loading="eager"
             decoding="async"
           />
         </Link>
 
         {/* Navegação desktop */}
-        <nav className="hidden md:flex items-center gap-2 text-sm">
-          <NavLink to="/" className={linkClass} end>
-            {({ isActive }) => (
-              <>
-                <ActiveBar isActive={isActive} />
-                <Home className="h-4 w-4" />
-                <span>Home</span>
-              </>
-            )}
-          </NavLink>
+        <div className="hidden md:flex flex-1 justify-center min-w-0">
+          <nav className="flex flex-wrap items-center justify-center gap-x-1 lg:gap-x-2 gap-y-1 text-[13px] lg:text-sm">
+            <NavLink to="/" className={linkClass} end>
+              {({ isActive }) => (
+                <>
+                  <ActiveBar isActive={isActive} />
+                  <Home className="h-4 w-4" />
+                  <span>Home</span>
+                </>
+              )}
+            </NavLink>
 
-          <NavLink to="/planos" className={linkClass}>
-            {({ isActive }) => (
-              <>
-                <ActiveBar isActive={isActive} />
-                <Layers className="h-4 w-4" />
-                <span>Planos</span>
-              </>
-            )}
-          </NavLink>
+            <NavLink to="/planos" className={linkClass}>
+              {({ isActive }) => (
+                <>
+                  <ActiveBar isActive={isActive} />
+                  <Layers className="h-4 w-4" />
+                  <span>Planos</span>
+                </>
+              )}
+            </NavLink>
 
-          <NavLink to="/beneficios" className={linkClass}>
-            {({ isActive }) => (
-              <>
-                <ActiveBar isActive={isActive} />
-                <Gift className="h-4 w-4" />
-                <span>Clube de Benefícios</span>
-              </>
-            )}
-          </NavLink>
+            <NavLink to="/beneficios" className={linkClass}>
+              {({ isActive }) => (
+                <>
+                  <ActiveBar isActive={isActive} />
+                  <Gift className="h-4 w-4" />
+                  <span>Clube de Benefícios</span>
+                </>
+              )}
+            </NavLink>
 
-          <NavLink to="/memorial" className={linkClass}>
-            {({ isActive }) => (
-              <>
-                <ActiveBar isActive={isActive} />
-                <HeartHandshake className="h-4 w-4" />
-                <span>Memorial</span>
-              </>
-            )}
-          </NavLink>
+            <NavLink to="/memorial" className={linkClass}>
+              {({ isActive }) => (
+                <>
+                  <ActiveBar isActive={isActive} />
+                  <HeartHandshake className="h-4 w-4" />
+                  <span>Memorial</span>
+                </>
+              )}
+            </NavLink>
 
-          <NavLink to="/filiais" className={linkClass}>
-            {({ isActive }) => (
-              <>
-                <ActiveBar isActive={isActive} />
-                <MapPin className="h-4 w-4" />
-                <span>Unidades</span>
-              </>
-            )}
-          </NavLink>
+            <NavLink to="/filiais" className={linkClass}>
+              {({ isActive }) => (
+                <>
+                  <ActiveBar isActive={isActive} />
+                  <MapPin className="h-4 w-4" />
+                  <span>Unidades</span>
+                </>
+              )}
+            </NavLink>
 
-          <NavLink to="/contratos" className={linkClass}>
-            {({ isActive }) => (
-              <>
-                <ActiveBar isActive={isActive} />
-                <FileText className="h-4 w-4" />
-                <span>2° Via</span>
-              </>
-            )}
-          </NavLink>
-        </nav>
+            <NavLink to="/contratos" className={linkClass}>
+              {({ isActive }) => (
+                <>
+                  <ActiveBar isActive={isActive} />
+                  <FileText className="h-4 w-4" />
+                  <span>2° Via</span>
+                </>
+              )}
+            </NavLink>
+          </nav>
+        </div>
 
         {/* Ações à direita */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {isLogged && (
             <div className="flex items-center gap-1">
               <HeaderNotificationsBell />
             </div>
           )}
 
-          <ThemeToggle />
+          {/* Theme toggle apenas na navbar em md+; no mobile vai para o drawer */}
+          <div className="hidden md:block">
+            <ThemeToggle />
+          </div>
 
-          {/* Avatar / Conta sempre visível (mobile + desktop) quando logado */}
           {isLogged ? (
             <div className="relative" ref={profileMenuRef}>
+              {/* Avatar DESKTOP: abre menu de perfil */}
               <button
                 type="button"
                 onClick={() => setShowProfileMenu((v) => !v)}
-                className="inline-flex items-center gap-2 pl-1 pr-2 py-1.5 rounded-full border text-xs sm:text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)] transition-colors"
+                className="hidden md:inline-flex items-center gap-2 pl-1 pr-2 py-1.5 rounded-full border text-xs sm:text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)] transition-colors"
                 style={{
                   borderColor: 'var(--c-border)',
                   background:
@@ -315,11 +350,37 @@ export default function Navbar() {
                   </span>
                 )}
 
-                <span className="hidden md:inline max-w-[140px] truncate">
+                <span className="hidden lg:inline max-w-[140px] truncate">
                   {nomeExibicao || 'Minha conta'}
                 </span>
               </button>
 
+              {/* Avatar MOBILE: vira botão do menu lateral */}
+              <button
+                type="button"
+                onClick={() => setMobileOpen((v) => !v)}
+                className="md:hidden inline-flex items-center justify-center rounded-full border h-9 w-9 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
+                aria-label="Abrir menu"
+              >
+                {avatarUrl && !avatarErro ? (
+                  <img
+                    src={avatarUrl}
+                    alt={nomeExibicao || 'Perfil'}
+                    className="h-9 w-9 rounded-full object-cover"
+                    onError={() => setAvatarErro(true)}
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <span
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold"
+                    style={{ background: 'var(--primary)', color: '#fff' }}
+                  >
+                    {avatarInitial}
+                  </span>
+                )}
+              </button>
+
+              {/* Menu de perfil (apenas desktop) */}
               {showProfileMenu && (
                 <div
                   className="absolute right-0 mt-2 w-60 rounded-xl overflow-hidden shadow-xl border z-[45]"
@@ -330,7 +391,6 @@ export default function Navbar() {
                   }}
                   role="menu"
                 >
-                  {/* Cabeçalho da conta */}
                   <div
                     className="px-3 py-2 border-b"
                     style={{ borderColor: 'var(--c-border)' }}
@@ -346,7 +406,6 @@ export default function Navbar() {
                     </p>
                   </div>
 
-                  {/* Itens do menu */}
                   <Link
                     to="/area"
                     className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
@@ -388,36 +447,37 @@ export default function Navbar() {
               )}
             </div>
           ) : (
-            // Quando não logado, exibe CTA de entrada
-            <Link
-              to="/login"
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs sm:text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
-              style={{
-                borderColor: 'var(--primary)',
-                background:
-                  'color-mix(in srgb, var(--primary) 10%, var(--surface) 90%)',
-                color: 'var(--primary)',
-              }}
-            >
-              <UserSquare2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Entrar</span>
-            </Link>
-          )}
+            <>
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs sm:text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
+                style={{
+                  borderColor: 'var(--primary)',
+                  background:
+                    'color-mix(in srgb, var(--primary) 10%, var(--surface) 90%)',
+                  color: 'var(--primary)',
+                }}
+              >
+                <UserSquare2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Entrar</span>
+              </Link>
 
-          {/* Trigger do menu mobile (somente até md) */}
-          <button
-            className="md:hidden inline-flex items-center justify-center rounded-lg border px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
-            aria-label="Abrir menu"
-            aria-controls="mobile-menu"
-            aria-expanded={mobileOpen}
-            onClick={() => setMobileOpen((v) => !v)}
-          >
-            {mobileOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Menu className="h-5 w-5" />
-            )}
-          </button>
+              {/* Menu para visitante em mobile */}
+              <button
+                className="md:hidden inline-flex items-center justify-center rounded-lg border px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
+                aria-label="Abrir menu"
+                aria-controls="mobile-menu"
+                aria-expanded={mobileOpen}
+                onClick={() => setMobileOpen((v) => !v)}
+              >
+                {mobileOpen ? (
+                  <X className="h-5 w-5" />
+                ) : (
+                  <Menu className="h-5 w-5" />
+                )}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -425,171 +485,182 @@ export default function Navbar() {
       {mobileOpen && (
         <div
           id="mobile-menu"
-          className="fixed inset-0 z-50 md:hidden"
+          className="fixed inset-0 z-[1200] md:hidden"
           aria-modal="true"
           role="dialog"
         >
-          {/* Overlay */}
+          {/* Overlay sobre tudo (inclui StickyContactDock) */}
           <button
             type="button"
-            className="absolute inset-0 bg-black/25 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
             aria-label="Fechar menu"
           />
 
-          {/* Drawer lateral */}
-          <div className="absolute inset-y-0 right-0 w-72 max-w-[80%] bg-[var(--surface)] border-l shadow-xl flex flex-col">
-            {/* Cabeçalho do drawer */}
+          {/* Drawer */}
+          <div
+            className="absolute inset-y-0 right-0 w-80 max-w-[85%] bg-[var(--surface)] flex flex-col shadow-2xl rounded-l-2xl overflow-hidden z-[1201]"
+            data-bottom-avoid="true"
+          >
+            {/* HEADER PREMIUM */}
             <div
-              className="flex items-center justify-between px-4 py-3 border-b"
+              className="flex items-center gap-4 px-5 py-5 border-b"
               style={{ borderColor: 'var(--c-border)' }}
             >
-              <div className="flex items-center gap-2 min-w-0">
-                {isLogged && (
-                  <div
-                    className="inline-flex items-center justify-center rounded-full border h-8 w-8 overflow-hidden shrink-0"
-                    style={{ borderColor: 'var(--c-border)' }}
+              {/* Avatar grande */}
+              <div
+                className="h-14 w-14 rounded-full overflow-hidden border"
+                style={{ borderColor: 'var(--c-border)' }}
+              >
+                {isLogged && avatarUrl && !avatarErro ? (
+                  <img
+                    src={avatarUrl}
+                    alt={nomeExibicao || 'Perfil'}
+                    className="h-full w-full object-cover"
+                    onError={() => setAvatarErro(true)}
+                  />
+                ) : (
+                  <span
+                    className="inline-flex h-full w-full items-center justify-center text-lg font-semibold"
+                    style={{ background: 'var(--primary)', color: '#fff' }}
                   >
-                    {avatarUrl && !avatarErro ? (
-                      <img
-                        src={avatarUrl}
-                        alt={nomeExibicao || 'Perfil'}
-                        className="h-8 w-8 rounded-full object-cover"
-                        onError={() => setAvatarErro(true)}
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <span
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold"
-                        style={{ background: 'var(--primary)', color: '#fff' }}
-                      >
-                        {avatarInitial}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex flex-col min-w-0">
-                  <span className="text-xs font-semibold tracking-wide">
-                    Menu
+                    {isLogged ? avatarInitial : tenantInitials}
                   </span>
-                  {isLogged && (
-                    <span
-                      className="text-[11px] truncate"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                      {nomeExibicao || 'Associado'}
-                    </span>
-                  )}
-                </div>
+                )}
               </div>
 
+              <div className="flex flex-col min-w-0 flex-1">
+                {/* Nome do tenant */}
+                <p
+                  className="text-sm font-semibold leading-tight truncate"
+                  style={{ color: 'var(--primary)' }}
+                >
+                  {empresa?.nomeFantasia || 'Minha Funerária'}
+                </p>
+
+                {/* Usuário ou call-to-action */}
+                <p
+                  className="text-xs truncate"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  {isLogged
+                    ? nomeExibicao || 'Associado'
+                    : 'Entre para acessar sua conta'}
+                </p>
+              </div>
+
+              {/* Botão fechar */}
               <button
-                type="button"
-                className="inline-flex items-center justify-center rounded-lg border px-2 py-1.5 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+                className="rounded-full p-1.5 hover:bg-black/5 dark:hover:bg-white/10"
                 onClick={() => setMobileOpen(false)}
                 aria-label="Fechar menu"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Links de navegação */}
-            <nav className="flex-1 overflow-y-auto py-2 text-sm space-y-1">
-              <NavLink to="/" className={linkClass} end>
-                {({ isActive }) => (
-                  <>
-                    <ActiveBar isActive={isActive} />
-                    <Home className="h-4 w-4" />
-                    <span>Home</span>
-                  </>
-                )}
-              </NavLink>
-
-              <NavLink to="/planos" className={linkClass}>
-                {({ isActive }) => (
-                  <>
-                    <ActiveBar isActive={isActive} />
-                    <Layers className="h-4 w-4" />
-                    <span>Planos</span>
-                  </>
-                )}
-              </NavLink>
-
-              <NavLink to="/memorial" className={linkClass}>
-                {({ isActive }) => (
-                  <>
-                    <ActiveBar isActive={isActive} />
-                    <HeartHandshake className="h-4 w-4" />
-                    <span>Memorial</span>
-                  </>
-                )}
-              </NavLink>
-
-              <NavLink to="/filiais" className={linkClass}>
-                {({ isActive }) => (
-                  <>
-                    <ActiveBar isActive={isActive} />
-                    <MapPin className="h-4 w-4" />
-                    <span>Unidades</span>
-                  </>
-                )}
-              </NavLink>
-
-              <NavLink to="/beneficios" className={linkClass}>
-                {({ isActive }) => (
-                  <>
-                    <ActiveBar isActive={isActive} />
-                    <Gift className="h-4 w-4" />
-                    <span>Clube de Benefícios</span>
-                  </>
-                )}
-              </NavLink>
-
-              <NavLink to="/contratos" className={linkClass}>
-                {({ isActive }) => (
-                  <>
-                    <ActiveBar isActive={isActive} />
-                    <FileText className="h-4 w-4" />
-                    <span>2° Via</span>
-                  </>
-                )}
-              </NavLink>
-            </nav>
-
-            {/* Ações de conta no mobile: Área, Perfil, Sair */}
+            {/* SEÇÃO: Conta (somente se logado) */}
             {isLogged && (
-              <div
-                className="border-t px-4 py-3 space-y-1"
-                style={{ borderColor: 'var(--c-border)' }}
-              >
+              <nav className="py-3 text-sm">
                 <Link
                   to="/area"
-                  className="flex items-center gap-2 text-sm py-1.5 hover:bg-black/5 rounded-lg px-2 dark:hover:bg-white/5"
                   onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 px-5 py-3 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg mx-3"
                 >
-                  <UserSquare2 size={14} />
-                  <span>Área do associado</span>
+                  <UserSquare2 className="h-5 w-5" />
+                  <span>Área do Associado</span>
                 </Link>
 
                 <Link
                   to="/perfil"
-                  className="flex items-center gap-2 text-sm py-1.5 hover:bg-black/5 rounded-lg px-2 dark:hover:bg-white/5"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 px-5 py-3 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg mx-3"
+                >
+                  <User className="h-5 w-5" />
+                  <span>Meu Perfil</span>
+                </Link>
+              </nav>
+            )}
+
+            {/* DIVISOR */}
+            <div
+              className="h-px mx-5 my-2"
+              style={{ background: 'var(--c-border)' }}
+            />
+
+            {/* SEÇÃO: Navegação principal */}
+            <nav className="flex-1 overflow-y-auto text-sm py-2">
+              {[
+                { to: '/', label: 'Home', icon: <Home className="h-5 w-5" /> },
+                {
+                  to: '/planos',
+                  label: 'Planos',
+                  icon: <Layers className="h-5 w-5" />,
+                },
+                {
+                  to: '/memorial',
+                  label: 'Memorial',
+                  icon: <HeartHandshake className="h-5 w-5" />,
+                },
+                {
+                  to: '/filiais',
+                  label: 'Unidades',
+                  icon: <MapPin className="h-5 w-5" />,
+                },
+                {
+                  to: '/beneficios',
+                  label: 'Clube de Benefícios',
+                  icon: <Gift className="h-5 w-5" />,
+                },
+                {
+                  to: '/contratos',
+                  label: '2° Via',
+                  icon: <FileText className="h-5 w-5" />,
+                },
+              ].map(({ to, label, icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-5 py-3 mx-3 rounded-lg ${
+                      isActive
+                        ? 'bg-[var(--nav-active-bg)] text-[var(--primary)] font-semibold'
+                        : 'hover:bg-black/5 dark:hover:bg-white/5'
+                    }`
+                  }
                   onClick={() => setMobileOpen(false)}
                 >
-                  <User size={14} />
-                  <span>Meu perfil</span>
-                </Link>
+                  {icon}
+                  <span>{label}</span>
+                </NavLink>
+              ))}
+            </nav>
 
+            {/* SEÇÃO: Aparência (ThemeToggle) */}
+            <div
+              className="border-t px-5 py-3 md:hidden"
+              style={{ borderColor: 'var(--c-border)' }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm">Aparência</span>
+                <ThemeToggle />
+              </div>
+            </div>
+
+            {/* BOTÃO SAIR – sempre visível acima do StickyContactDock */}
+            {isLogged && (
+              <div
+                className="border-t px-5 py-4"
+                style={{ borderColor: 'var(--c-border)' }}
+              >
                 <button
-                  type="button"
-                  className="w-full flex items-center gap-2 text-sm py-1.5 hover:bg-black/5 rounded-lg px-2 dark:hover:bg-white/5 text-[var(--danger, #b91c1c)]"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm rounded-lg font-medium hover:bg-black/5 dark:hover:bg-white/5 text-[var(--danger, #b91c1c)]"
                   onClick={() => {
                     setMobileOpen(false)
                     logout()
                   }}
                 >
-                  <LogOut size={14} />
+                  <LogOut className="h-5 w-5" />
                   <span>Sair</span>
                 </button>
               </div>
