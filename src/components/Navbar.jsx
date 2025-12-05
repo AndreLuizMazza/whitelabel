@@ -196,7 +196,6 @@ export default function Navbar() {
     }
   }, [mobileOpen])
 
-
   const linkClass = ({ isActive }) =>
     'relative pl-4 pr-3 py-2 flex items-center gap-2 whitespace-nowrap rounded-md transition-colors duration-150 ' +
     (isActive
@@ -304,6 +303,7 @@ export default function Navbar() {
         <div className="flex items-center gap-2 flex-shrink-0">
           {isLogged && (
             <div className="flex items-center gap-1">
+              {/* sineta já vem como botão; apenas alinhamento ao avatar */}
               <HeaderNotificationsBell />
             </div>
           )}
@@ -333,7 +333,7 @@ export default function Navbar() {
                   <img
                     src={avatarUrl}
                     alt={nomeExibicao || 'Perfil'}
-                    className="h-7 w-7 rounded-full object-cover"
+                    className="h-9 w-9 rounded-full object-cover"
                     style={{
                       border:
                         '1px solid color-mix(in srgb, var(--primary) 60%, transparent)',
@@ -343,7 +343,7 @@ export default function Navbar() {
                   />
                 ) : (
                   <span
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold"
                     style={{ background: 'var(--primary)', color: '#fff' }}
                   >
                     {avatarInitial}
@@ -418,7 +418,7 @@ export default function Navbar() {
 
                   <Link
                     to="/perfil"
-                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
+                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg:white/5"
                     onClick={() => setShowProfileMenu(false)}
                     role="menuitem"
                   >
@@ -448,6 +448,7 @@ export default function Navbar() {
             </div>
           ) : (
             <>
+              {/* CTA Entrar – com ícone mais amigável e rótulo sempre visível */}
               <Link
                 to="/login"
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs sm:text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
@@ -458,8 +459,8 @@ export default function Navbar() {
                   color: 'var(--primary)',
                 }}
               >
-                <UserSquare2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Entrar</span>
+                <User className="h-4 w-4" />
+                <span>Entrar</span>
               </Link>
 
               {/* Menu para visitante em mobile */}
@@ -558,6 +559,27 @@ export default function Navbar() {
                 <X className="h-5 w-5" />
               </button>
             </div>
+
+            {/* CTA Entrar para visitantes */}
+            {!isLogged && (
+              <div
+                className="px-5 py-4 border-b"
+                style={{ borderColor: 'var(--c-border)' }}
+              >
+                <Link
+                  to="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium"
+                  style={{
+                    background: 'var(--primary)',
+                    color: '#fff',
+                  }}
+                >
+                  <UserSquare2 className="h-5 w-5" />
+                  <span>Entrar na área do associado</span>
+                </Link>
+              </div>
+            )}
 
             {/* SEÇÃO: Conta (somente se logado) */}
             {isLogged && (
