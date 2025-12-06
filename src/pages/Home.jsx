@@ -161,7 +161,7 @@ function HeroCtaButton({ cta }) {
 
   const external = isExternalHref(cta.to)
 
-  const button = (
+  const buttonInner = (
     <CTAButton
       as="span"
       size="lg"
@@ -176,6 +176,7 @@ function HeroCtaButton({ cta }) {
     </CTAButton>
   )
 
+  // Externo: <a> com animação
   if (external) {
     return (
       <motion.a
@@ -203,39 +204,42 @@ function HeroCtaButton({ cta }) {
               'color-mix(in srgb, #020617 80%, black)',
           }}
         >
-          {button}
+          {buttonInner}
         </div>
       </motion.a>
     )
   }
 
+  // Interno: Link + motion, mantendo o gradient wrapper
   return (
-    <motion.span
-      whileHover={{ scale: 1.04, y: -1 }}
-      whileTap={{ scale: 0.98, y: 0 }}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: 'easeOut' }}
-      style={{
-        borderRadius: 999,
-        padding: '2px',
-        display: 'inline-block',
-        background:
-          'radial-gradient(circle at 0% 0%, rgba(255,255,255,0.6), transparent 55%), ' +
-          'linear-gradient(135deg, color-mix(in srgb,var(--primary) 78%,#ffffff), #020617)',
-      }}
-    >
-      <div
+    <Link to={cta.to} className="inline-block">
+      <motion.span
+        whileHover={{ scale: 1.04, y: -1 }}
+        whileTap={{ scale: 0.98, y: 0 }}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
         style={{
           borderRadius: 999,
+          padding: '2px',
+          display: 'inline-block',
           background:
-            'radial-gradient(circle at 0% 0%, rgba(255,255,255,0.16), transparent 60%), ' +
-            'color-mix(in srgb, #020617 80%, black)',
+            'radial-gradient(circle at 0% 0%, rgba(255,255,255,0.6), transparent 55%), ' +
+            'linear-gradient(135deg, color-mix(in srgb,var(--primary) 78%,#ffffff), #020617)',
         }}
       >
-        {button}
-      </div>
-    </motion.span>
+        <div
+          style={{
+            borderRadius: 999,
+            background:
+              'radial-gradient(circle at 0% 0%, rgba(255,255,255,0.16), transparent 60%), ' +
+              'color-mix(in srgb, #020617 80%, black)',
+          }}
+        >
+          {buttonInner}
+        </div>
+      </motion.span>
+    </Link>
   )
 }
 
