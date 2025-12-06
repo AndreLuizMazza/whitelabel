@@ -127,6 +127,22 @@ export default function PagamentoFacil({
 
   const hasAtrasoGlobal = totalEmAtraso > 0
 
+  const currentYear = new Date().getFullYear()
+
+  // histórico apenas do ano vigente (considera primeiro dataRecebimento, depois vencimento)
+  const historicoAno = useMemo(
+    () =>
+      Array.isArray(historico)
+        ? historico.filter((dup) => {
+            const baseDate =
+              dup?.dataRecebimento || dup?.dataVencimento || null
+            if (!baseDate) return false
+            return parseDate(baseDate).getFullYear() === currentYear
+          })
+        : [],
+    [historico, currentYear]
+  )
+
   /* ========================= header copy dinâmico ========================= */
   const headerTitle = (() => {
     if (!temFoco) {
@@ -517,16 +533,16 @@ export default function PagamentoFacil({
         </div>
       )}
 
-      {/* histórico (opcional) */}
-      {historico.length > 0 && (
+      {/* histórico (apenas ano vigente) */}
+      {historicoAno.length > 0 && (
         <details className="mt-6 group" id="historico-pagamentos">
           <summary
             className="cursor-pointer text-sm font-medium select-none flex items-center justify-between"
             style={{ color: 'var(--text)' }}
           >
-            <span>Histórico de pagamentos ({historico.length})</span>
+            <span>Histórico de pagamentos ({historicoAno.length})</span>
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Toque para ver detalhes
+             Toque para ver detalhes
             </span>
           </summary>
           <ul
@@ -536,7 +552,7 @@ export default function PagamentoFacil({
               background: 'color-mix(in srgb, var(--surface) 96%, var(--background) 4%)'
             }}
           >
-            {historico.map((dup, i) => {
+            {historicoAno.map((dup, i) => {
               const dupKey =
                 dup?.id ?? dup?.numero ?? dup?.numeroDuplicata ?? `hist-${i}`
               const status = String(dup?.status || '').toUpperCase()
