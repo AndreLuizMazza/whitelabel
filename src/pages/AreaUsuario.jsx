@@ -911,7 +911,7 @@ export default function AreaUsuario() {
           ) : (
             <div className="mt-8 card p-6 text-center">
               <h3 className="text-lg font-semibold">
-                Nenhum contrato encontrado
+                Nenhum Plano encontrado
               </h3>
 
               <p className="mt-2" style={{ color: 'var(--text)' }}>

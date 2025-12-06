@@ -96,7 +96,6 @@ function DateSelectBR({
   const [mes, setMes] = useState('')
   const [ano, setAno] = useState('')
   const [softWarn, setSoftWarn] = useState('')
-  const hydratedRef = useRef(false)
 
   useEffect(() => {
     const m =
@@ -107,7 +106,6 @@ function DateSelectBR({
     if (ano !== yy) setAno(yy)
     if (mes !== mm) setMes(mm)
     if (dia !== dd) setDia(dd)
-    hydratedRef.current = true
   }, [valueISO]) // eslint-disable-line
 
   const today = new Date()
@@ -378,7 +376,7 @@ export default function RegisterPage() {
   const [okMsg, setOkMsg] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [errorList, setErrorList] = useState([])
-  const [step, setStep] = useState(1) // 1: dados, 2: senha
+  const [step, setStep] = useState(1) // 1: dados principais, 2: contatos, 3: senha
 
   // Mostrar/ocultar senha
   const [showPass, setShowPass] = useState(false)
@@ -405,10 +403,6 @@ export default function RegisterPage() {
     if (m < 0 || (m === 0 && t.getDate() < d.getDate())) a--
     return a
   }
-  const idadeFrom = (iso) => {
-    const a = ageFromISO(iso)
-    return a !== null && a >= 0 ? a : null
-  }
 
   const idade = useMemo(
     () => ageFromISO(form.dataNascimento),
@@ -427,8 +421,7 @@ export default function RegisterPage() {
   const senhaOk = useMemo(() => isStrongPassword(form.senha), [form.senha])
   const confirmOk = useMemo(
     () =>
-      form.confirmSenha.length > 0 &&
-      form.confirmSenha === form.senha,
+      form.confirmSenha.length > 0 && form.confirmSenha === form.senha,
     [form.confirmSenha, form.senha]
   )
   const celularOk = useMemo(
@@ -447,41 +440,9 @@ export default function RegisterPage() {
     if (error) setTimeout(() => alertRef.current?.focus(), 0)
   }, [error])
 
-  // Handlers especializados para aplicar máscara imediatamente
-  const onChangeMasked =
-    (name, formatter, _ref) =>
-    (e) => {
-      const raw = e.target.value || ''
-      const nextVal = formatter(raw)
-      setForm((prev) => ({ ...prev, [name]: nextVal }))
-      if (submitted) setErrorList(buildErrorList({ ...form, [name]: nextVal }))
-    }
-  const onPasteMasked = (name, formatter) => (e) => {
-    e.preventDefault()
-    const pasted =
-      (e.clipboardData || window.clipboardData).getData('text') || ''
-    const nextVal = formatter(pasted)
-    setForm((prev) => ({ ...prev, [name]: nextVal }))
-  }
-
-  function onChange(e) {
-    const { name, value, type, checked } = e.target
-    const next = {
-      ...form,
-      [name]: type === 'checkbox' ? checked : value,
-    }
-    setForm(next)
-    if (submitted) setErrorList(buildErrorList(next))
-  }
-
-  function ageHelper(iso) {
-    const a = idadeFrom(iso)
-    return a
-  }
-
   function buildErrorList(values) {
     const items = []
-    const age = ageHelper(values.dataNascimento)
+    const age = ageFromISO(values.dataNascimento)
 
     if (!(values.nome || '').trim())
       items.push({
@@ -532,8 +493,14 @@ export default function RegisterPage() {
 
   function buildStep1Errors(values) {
     const all = buildErrorList(values)
-    const step1Fields = ['nome', 'email', 'cpf', 'celular', 'dataNascimento']
+    const step1Fields = ['nome', 'cpf', 'dataNascimento']
     return all.filter((it) => step1Fields.includes(it.field))
+  }
+
+  function buildStep2Errors(values) {
+    const all = buildErrorList(values)
+    const step2Fields = ['email', 'celular']
+    return all.filter((it) => step2Fields.includes(it.field))
   }
 
   function focusByField(field) {
@@ -548,11 +515,69 @@ export default function RegisterPage() {
     map[field]?.current?.focus()
   }
 
+  // Handlers especializados para aplicar máscara imediatamente
+  const onChangeMasked =
+    (name, formatter, _ref) =>
+    (e) => {
+      const raw = e.target.value || ''
+      const nextVal = formatter(raw)
+      const next = { ...form, [name]: nextVal }
+      setForm(next)
+
+      if (submitted) {
+        const list =
+          step === 1
+            ? buildStep1Errors(next)
+            : step === 2
+            ? buildStep2Errors(next)
+            : buildErrorList(next)
+        setErrorList(list)
+      }
+    }
+
+  const onPasteMasked = (name, formatter) => (e) => {
+    e.preventDefault()
+    const pasted =
+      (e.clipboardData || window.clipboardData).getData('text') || ''
+    const nextVal = formatter(pasted)
+    const next = { ...form, [name]: nextVal }
+    setForm(next)
+
+    if (submitted) {
+      const list =
+        step === 1
+          ? buildStep1Errors(next)
+          : step === 2
+          ? buildStep2Errors(next)
+          : buildErrorList(next)
+      setErrorList(list)
+    }
+  }
+
+  function onChange(e) {
+    const { name, value, type, checked } = e.target
+    const next = {
+      ...form,
+      [name]: type === 'checkbox' ? checked : value,
+    }
+    setForm(next)
+
+    if (submitted) {
+      const list =
+        step === 1
+          ? buildStep1Errors(next)
+          : step === 2
+          ? buildStep2Errors(next)
+          : buildErrorList(next)
+      setErrorList(list)
+    }
+  }
+
   async function onSubmit(e) {
     e.preventDefault()
     if (loading) return
 
-    // Passo 1: validar dados pessoais e avançar
+    // Passo 1: validar dados principais e avançar
     if (step === 1) {
       setSubmitted(true)
       const list = buildStep1Errors(form)
@@ -565,12 +590,28 @@ export default function RegisterPage() {
 
       setStep(2)
       setErrorList([])
-      // foca no campo senha ao entrar no passo 2
+      setTimeout(() => emailRef.current?.focus(), 0)
+      return
+    }
+
+    // Passo 2: validar contatos e avançar
+    if (step === 2) {
+      setSubmitted(true)
+      const list = buildStep2Errors(form)
+      setErrorList(list)
+
+      if (list.length > 0) {
+        focusByField(list[0].field)
+        return
+      }
+
+      setStep(3)
+      setErrorList([])
       setTimeout(() => senhaRef.current?.focus(), 0)
       return
     }
 
-    // Passo 2: envio definitivo
+    // Passo 3: envio definitivo
     setSubmitted(true)
     const list = buildErrorList(form)
     setErrorList(list)
@@ -661,13 +702,20 @@ export default function RegisterPage() {
   }, [form.nome])
 
   const stepTitle =
-    step === 1 ? 'Etapa 1 de 2 · Seus dados' : 'Etapa 2 de 2 · Sua senha'
+    step === 1
+      ? 'Etapa 1 de 3 · Seus dados principais'
+      : step === 2
+      ? 'Etapa 2 de 3 · Contatos'
+      : 'Etapa 3 de 3 · Sua senha'
+
   const stepDesc =
     step === 1
-      ? 'Preencha seus dados principais para criar o acesso.'
-      : 'Agora é só definir uma senha para entrar na sua área.'
+      ? 'Informe seus dados básicos para começarmos o cadastro.'
+      : step === 2
+      ? 'Agora, confirme seus dados de contato para enviarmos comunicações importantes.'
+      : 'Por fim, defina uma senha segura para acessar sua área.'
 
-  const progressPercent = step === 1 ? '50%' : '100%'
+  const progressPercent = step === 1 ? '33%' : step === 2 ? '66%' : '100%'
 
   return (
     <section className="section">
@@ -800,7 +848,11 @@ export default function RegisterPage() {
                       className="inline-block h-1.5 w-1.5 rounded-full"
                       style={{ background: 'var(--primary)' }}
                     />
-                    {step === 1 ? 'Começando' : 'Quase lá'}
+                    {step === 1
+                      ? 'Começando'
+                      : step === 2
+                      ? 'Continuando'
+                      : 'Quase lá'}
                   </span>
                 </div>
 
@@ -845,14 +897,13 @@ export default function RegisterPage() {
                   <ol className="list-decimal ml-4 space-y-1">
                     <li>Nome completo</li>
                     <li>CPF</li>
-                    <li>E-mail</li>
-                    <li>Data de nascimento e celular</li>
+                    <li>Data de nascimento</li>
                   </ol>
                 </div>
               )}
 
-              {/* Aviso de transição bem marcado na etapa 2 */}
-              {step === 2 && (
+              {/* Aviso de transição bem marcado na etapa 3 (senha) */}
+              {step === 3 && (
                 <div
                   className="rounded-2xl px-4 py-3 text-xs md:text-sm mb-1 flex items-start gap-2"
                   style={{
@@ -890,6 +941,7 @@ export default function RegisterPage() {
                     'color-mix(in srgb, var(--text) 16%, transparent)',
                 }}
               >
+                {/* PASSO 1: nome, CPF, data de nascimento */}
                 {step === 1 && (
                   <>
                     {/* Nome */}
@@ -924,7 +976,7 @@ export default function RegisterPage() {
                       )}
                     </div>
 
-                    {/* Grid 2 col: CPF + e-mail */}
+                    {/* Grid 2 col: CPF + data de nascimento */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label
@@ -960,42 +1012,6 @@ export default function RegisterPage() {
                       </div>
 
                       <div>
-                        <label
-                          htmlFor="email"
-                          className="label font-medium text-sm md:text-base"
-                        >
-                          E-mail{' '}
-                          <span aria-hidden="true" className="text-red-600">
-                            *
-                          </span>
-                        </label>
-                        <input
-                          id="email"
-                          type="email"
-                          name="email"
-                          ref={emailRef}
-                          value={form.email}
-                          onChange={onChange}
-                          className={`input h-12 text-base bg-white ${
-                            submitted && !emailOk ? 'ring-1 ring-red-500' : ''
-                          }`}
-                          placeholder="maria@exemplo.com"
-                          autoComplete="email"
-                          inputMode="email"
-                          aria-required="true"
-                          aria-invalid={submitted && !emailOk}
-                        />
-                        {submitted && !emailOk && (
-                          <p className="text-xs md:text-sm mt-1 text-red-600">
-                            Informe um e-mail válido.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Grid: data de nascimento + celular */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
                         <label className="label font-medium text-sm md:text-base">
                           Data de nascimento{' '}
                           <span
@@ -1027,6 +1043,80 @@ export default function RegisterPage() {
                               É preciso ter entre <b>18</b> e <b>100</b> anos.
                             </p>
                           )}
+                      </div>
+                    </div>
+
+                    {/* Sumário de erros passo 1 */}
+                    {submitted && step === 1 && errorList.length > 0 && (
+                      <div
+                        className="rounded-lg px-4 py-3 text-sm md:text-base mt-1"
+                        style={{
+                          border:
+                            '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
+                          background:
+                            'color-mix(in srgb, var(--primary) 12%, transparent)',
+                          color: 'var(--text)',
+                        }}
+                        role="alert"
+                        aria-live="assertive"
+                      >
+                        <p className="font-medium mb-1">
+                          Revise os campos destacados antes de continuar:
+                        </p>
+                        <ul className="list-disc ml-5 space-y-1">
+                          {errorList.map((it, idx) => (
+                            <li key={idx}>
+                              <button
+                                type="button"
+                                className="underline hover:opacity-80"
+                                onClick={() => focusByField(it.field)}
+                              >
+                                {it.label}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* PASSO 2: e-mail e celular */}
+                {step === 2 && (
+                  <>
+                    {/* Grid 2 col: e-mail + celular */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label
+                          htmlFor="email"
+                          className="label font-medium text-sm md:text-base"
+                        >
+                          E-mail{' '}
+                          <span aria-hidden="true" className="text-red-600">
+                            *
+                          </span>
+                        </label>
+                        <input
+                          id="email"
+                          type="email"
+                          name="email"
+                          ref={emailRef}
+                          value={form.email}
+                          onChange={onChange}
+                          className={`input h-12 text-base bg-white ${
+                            submitted && !emailOk ? 'ring-1 ring-red-500' : ''
+                          }`}
+                          placeholder="maria@exemplo.com"
+                          autoComplete="email"
+                          inputMode="email"
+                          aria-required="true"
+                          aria-invalid={submitted && !emailOk}
+                        />
+                        {submitted && !emailOk && (
+                          <p className="text-xs md:text-sm mt-1 text-red-600">
+                            Informe um e-mail válido.
+                          </p>
+                        )}
                       </div>
 
                       <div>
@@ -1067,8 +1157,8 @@ export default function RegisterPage() {
                       </div>
                     </div>
 
-                    {/* Sumário de erros passo 1 */}
-                    {submitted && step === 1 && errorList.length > 0 && (
+                    {/* Sumário de erros passo 2 */}
+                    {submitted && step === 2 && errorList.length > 0 && (
                       <div
                         className="rounded-lg px-4 py-3 text-sm md:text-base mt-1"
                         style={{
@@ -1102,7 +1192,8 @@ export default function RegisterPage() {
                   </>
                 )}
 
-                {step === 2 && (
+                {/* PASSO 3: senha */}
+                {step === 3 && (
                   <>
                     {/* resumo rápido dos dados preenchidos */}
                     <div
@@ -1133,7 +1224,7 @@ export default function RegisterPage() {
                     </div>
 
                     {/* Grid: senha + confirmar senha */}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label
                           htmlFor="senha"
@@ -1286,8 +1377,8 @@ export default function RegisterPage() {
                       </div>
                     </div>
 
-                    {/* Sumário de erros passo 2 */}
-                    {submitted && step === 2 && errorList.length > 0 && (
+                    {/* Sumário de erros passo 3 */}
+                    {submitted && step === 3 && errorList.length > 0 && (
                       <div
                         className="rounded-lg px-4 py-3 text-sm md:text-base mt-1"
                         style={{
@@ -1324,7 +1415,7 @@ export default function RegisterPage() {
 
               {/* Ações */}
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                {step === 1 ? (
+                {step === 1 && (
                   <>
                     <button
                       type="submit"
@@ -1341,7 +1432,33 @@ export default function RegisterPage() {
                       Já tenho conta
                     </Link>
                   </>
-                ) : (
+                )}
+
+                {step === 2 && (
+                  <>
+                    <button
+                      type="submit"
+                      className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-12 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
+                      disabled={loading}
+                    >
+                      Continuar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStep(1)
+                        setSubmitted(false)
+                        setErrorList([])
+                        setTimeout(() => nomeRef.current?.focus(), 0)
+                      }}
+                      className="btn-outline w-full sm:w-auto justify-center rounded-2xl h-12 text-sm md:text-base font-medium"
+                    >
+                      Voltar aos dados principais
+                    </button>
+                  </>
+                )}
+
+                {step === 3 && (
                   <>
                     <button
                       type="submit"
@@ -1353,12 +1470,14 @@ export default function RegisterPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        setStep(1)
-                        setTimeout(() => nomeRef.current?.focus(), 0)
+                        setStep(2)
+                        setSubmitted(false)
+                        setErrorList([])
+                        setTimeout(() => emailRef.current?.focus(), 0)
                       }}
                       className="btn-outline w-full sm:w-auto justify-center rounded-2xl h-12 text-sm md:text-base font-medium"
                     >
-                      Voltar aos dados
+                      Voltar aos contatos
                     </button>
                   </>
                 )}
