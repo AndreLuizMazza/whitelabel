@@ -19,7 +19,6 @@ import {
 
 import DateSelectBR from "@/components/DateSelectBR";
 
-// === utils centralizados ===
 import {
   onlyDigits,
   cpfIsValid,
@@ -48,9 +47,6 @@ import { efetivacaoProxMesPorDiaD, ageFromDate } from "@/lib/dates";
 import { useDebouncedCallback } from "@/lib/hooks";
 import { useViaCep } from "@/lib/useViaCep";
 
-/* =============================================================================
-   PEQUENOS COMPONENTES DE UI
-============================================================================= */
 const isEmpty = (v) => !String(v || "").trim();
 const requiredRing = (cond) => (cond ? "ring-1 ring-red-500" : "");
 const requiredStar = <span aria-hidden="true" className="text-red-600">*</span>;
@@ -58,31 +54,29 @@ const AREA_ASSOCIADO_PATH = (import.meta?.env?.VITE_ASSOC_AREA_PATH || "/area").
 
 function FieldRead({ label, value, mono = false }) {
   return (
-    <div className="rounded-lg border border-[var(--c-border)] bg-[var(--c-surface)] px-3 py-2">
-      <p className="text-[10px] uppercase tracking-wide text-[var(--c-muted)]">{label}</p>
-      <p className={`mt-0.5 font-medium ${mono ? "tabular-nums" : ""} break-words`}>{value || "—"}</p>
+    <div className="rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] px-3 py-2 shadow-sm">
+      <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--c-muted)]">{label}</p>
+      <p className={`mt-1 font-medium ${mono ? "tabular-nums" : ""} break-words text-[13px]`}>{value || "—"}</p>
     </div>
   );
 }
 
 function SectionTitle({ children, right = null }) {
   return (
-    <div className="flex items-center justify-between">
-      <h2 className="text-lg font-semibold">{children}</h2>
+    <div className="flex items-center justify-between gap-3">
+      <h2 className="text-base md:text-lg font-semibold tracking-tight">{children}</h2>
       {right}
     </div>
   );
 }
 
-/* =============================================================================
-   PÁGINA
-============================================================================= */
 function useQuery() {
   const { search } = useLocation();
   return useMemo(() => new URLSearchParams(search), [search]);
 }
 
 function decodePayloadParam(p) {
+  if (!p) return null;
   try {
     return JSON.parse(decodeURIComponent(atob(p)));
   } catch {
@@ -107,7 +101,6 @@ export default function Cadastro() {
   const [error, setError] = useState("");
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
-  // refs para foco em erros
   const alertRef = useRef(null);
   const sexoRef = useRef(null);
   const ecRef = useRef(null);
@@ -129,10 +122,10 @@ export default function Cadastro() {
     .slice(0, 2);
 
   const defaultTitular = {
-    id: null, // sempre id da Pessoa (nunca do usuário)
+    id: null,
     nome: "",
     cpf: "",
-    rg: "", // compatibilidade silenciosa (não exibido)
+    rg: "",
     estado_civil: "",
     sexo: "",
     data_nascimento: "",
@@ -150,15 +143,10 @@ export default function Cadastro() {
   };
 
   const [titular, setTitular] = useState(defaultTitular);
-
-  // Dependentes
   const [depsExistentes, setDepsExistentes] = useState([]);
   const [depsNovos, setDepsNovos] = useState([]);
-
-  // Dia D
   const [diaDSelecionado, setDiaDSelecionado] = useState(10);
 
-  // Checagem CPF/Pessoa/Contrato
   const [lookupState, setLookupState] = useState({
     running: false,
     pessoaEncontrada: null,
@@ -168,7 +156,6 @@ export default function Cadastro() {
     erro: "",
   });
 
-  // ======= helpers de chamada =======
   async function tryGet(apiCall) {
     try {
       const r = await apiCall();
@@ -246,21 +233,20 @@ export default function Cadastro() {
     if (status === "ATIVO" || status === "TRUE" || status === "1") return true;
     if (typeof c?.contratoAtivo === "boolean") return c.contratoAtivo;
     if (typeof c?.ativo === "boolean") return c.ativo;
-    return true; // fallback
+    return true;
   }
 
   async function runLookupByCpf(cpfMasked, { prefillFromPessoa = true } = {}) {
     const cpfFmt = formatCPF(cpfMasked || "");
     if (!cpfIsValid(cpfFmt)) {
-      setLookupState((s) => ({
-        ...s,
+      setLookupState({
         running: false,
         pessoaEncontrada: null,
         temContratoAtivo: false,
         contratosResumo: [],
         mensagem: "",
         erro: "",
-      }));
+      });
       return;
     }
     setLookupState({
@@ -325,7 +311,6 @@ export default function Cadastro() {
     }
   }
 
-  // Prefill pelo usuário logado
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -346,16 +331,13 @@ export default function Cadastro() {
         if (cpfIsValid(cpfFromMe)) {
           await runLookupByCpf(cpfFromMe, { prefillFromPessoa: true });
         }
-      } catch {
-        // ok se não estiver logado
-      }
+      } catch {}
     })();
     return () => {
       alive = false;
     };
   }, []);
 
-  /* -------------------- ViaCEP -------------------- */
   const [addressTouched, setAddressTouched] = useState({
     logradouro: false,
     bairro: false,
@@ -374,7 +356,9 @@ export default function Cadastro() {
         logradouro: addressTouched.logradouro ? t.endereco.logradouro : data.logradouro || t.endereco.logradouro,
         bairro: addressTouched.bairro ? t.endereco.bairro : data.bairro || t.endereco.bairro,
         cidade: addressTouched.cidade ? t.endereco.cidade : data.localidade || t.endereco.cidade,
-        uf: addressTouched.uf ? sanitizeUF(t.endereco.uf) : sanitizeUF(data.uf || t.endereco.uf || UF_PADRAO || ""),
+        uf: addressTouched.uf
+          ? sanitizeUF(t.endereco.uf)
+          : sanitizeUF(data.uf || t.endereco.uf || UF_PADRAO || ""),
       },
     }));
   };
@@ -383,7 +367,6 @@ export default function Cadastro() {
     fetchCEP(cepRaw, applyViaCepData);
   }, 500);
 
-  /* -------------------- Cálculos -------------------- */
   const baseMensal = Number(plano?.mensal || 0);
   const numDepsIncl = Number(plano?.numeroDependentes || 0);
   const valorIncAnual = Number(plano?.valorIncremental || 0);
@@ -395,7 +378,6 @@ export default function Cadastro() {
   const valorMensalidadePlano = Number(totalMensal);
   const dataEfetivacaoISO = efetivacaoProxMesPorDiaD(diaDSelecionado);
 
-  // limites etários
   const idadeMinDep = Number.isFinite(plano?.idadeMinimaDependente)
     ? Number(plano.idadeMinimaDependente)
     : undefined;
@@ -415,7 +397,6 @@ export default function Cadastro() {
   });
   const countDepsFora = depsIssuesNovos.filter((x) => x.fora).length;
 
-  /* -------------------- Mutators -------------------- */
   const updTit = (patch) => setTitular((t) => ({ ...t, ...patch }));
   const updTitEndereco = (patch) =>
     setTitular((t) => ({ ...t, endereco: { ...t.endereco, ...patch } }));
@@ -426,7 +407,6 @@ export default function Cadastro() {
     setDepsNovos((prev) => [...prev, { nome: "", cpf: "", sexo: "", parentesco: "", data_nascimento: "" }]);
   const delDepNovo = (i) => setDepsNovos((prev) => prev.filter((_, idx) => idx !== i));
 
-  /* -------------------- Validações -------------------- */
   const e = titular.endereco || {};
   const cepDigits = onlyDigits(e.cep || "");
   const ufClean = (e.uf || "").toUpperCase().slice(0, 2);
@@ -434,7 +414,6 @@ export default function Cadastro() {
   function buildErrorList() {
     const items = [];
 
-    // Titular
     if (!(titular.nome && titular.nome.trim().length >= 3))
       items.push({ field: "fixo", label: "Titular: nome ausente." });
     if (!cpfIsValid(titular.cpf)) items.push({ field: "fixo", label: "Titular: CPF inválido ou ausente." });
@@ -444,7 +423,6 @@ export default function Cadastro() {
     if (!titular.sexo) items.push({ field: "sexo", label: "Titular: selecione o sexo." });
     if (!titular.estado_civil) items.push({ field: "estado_civil", label: "Titular: selecione o estado civil." });
 
-    // Endereço
     if (!(cepDigits.length === 8)) items.push({ field: "cep", label: "Endereço: CEP deve ter 8 dígitos." });
     if (!e.logradouro?.trim()) items.push({ field: "logradouro", label: "Endereço: informe o logradouro." });
     if (!e.numero?.trim()) items.push({ field: "numero", label: "Endereço: informe o número." });
@@ -453,7 +431,6 @@ export default function Cadastro() {
     if (!(ufClean && ufClean.length === 2)) items.push({ field: "uf", label: "Endereço: informe a UF (2 letras)." });
     if (cepState.error) items.push({ field: "cep", label: `Endereço: ${cepState.error}` });
 
-    // Dependentes novos
     depsNovos.forEach((d, i) => {
       const issue = depsIssuesNovos[i];
       if (!((d.nome || "").trim().length >= 3))
@@ -523,7 +500,6 @@ export default function Cadastro() {
     }
   }, [submitAttempted, errorList]);
 
-  // Lookup por alteração manual do CPF
   const debouncedCpfLookup = useDebouncedCallback(async (cpfMasked) => {
     await runLookupByCpf(cpfMasked, { prefillFromPessoa: true });
   }, 600);
@@ -533,7 +509,6 @@ export default function Cadastro() {
     debouncedCpfLookup(titular.cpf);
   }, [titular?.cpf]);
 
-  /* -------------------- Submissão -------------------- */
   async function handleSalvarEnviar() {
     setSubmitAttempted(true);
     setError("");
@@ -600,7 +575,7 @@ export default function Cadastro() {
       const payloadContrato = {
         titularId: Number(titularId),
         planoId: Number(planoId),
-        vendedorId: 717, // ajuste se necessário
+        vendedorId: 717,
         dataContrato: todayISO,
         diaD: Number(diaDSelecionado),
         valorAdesao: valorAdesaoPlano,
@@ -634,7 +609,6 @@ export default function Cadastro() {
     return SEXO_OPTIONS.find(([val]) => val === v)?.[1] || "";
   }
 
-  // Mensagem para fallback WhatsApp
   function normalizeWaText(str) {
     let s = (str ?? "").toString();
     s = s.normalize("NFKC").replace(/\r\n?/g, "\n").replace(/\u00A0/g, " ");
@@ -677,16 +651,20 @@ export default function Cadastro() {
     L.push(`Estado civil: ${ESTADO_CIVIL_LABEL[titular.estado_civil] || titular.estado_civil || ""}`);
     L.push(`Nascimento: ${formatDateBR(titular.data_nascimento) || ""}`);
     const eAddr = titular.endereco || {};
-    L.push(`End.: ${eAddr.logradouro || ""}, ${eAddr.numero || ""} ${eAddr.complemento || ""} - ${eAddr.bairro || ""}`);
+    L.push(
+      `End.: ${eAddr.logradouro || ""}, ${eAddr.numero || ""} ${eAddr.complemento || ""} - ${
+        eAddr.bairro || ""
+      }`
+    );
     L.push(`${eAddr.cidade || ""}/${eAddr.uf || ""} - CEP ${eAddr.cep || ""}`);
 
     L.push("\n*Dependentes existentes*:");
     if (!depsExistentes.length) L.push("(Nenhum)");
     depsExistentes.forEach((d, i) =>
       L.push(
-        `${i + 1}. ${d.nome} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(d.sexo)} - CPF: ${
-          formatCPF(d.cpf || "") || "(não informado)"
-        } - nasc.: ${d.data_nascimento || ""}`
+        `${i + 1}. ${d.nome} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(
+          d.sexo
+        )} - CPF: ${formatCPF(d.cpf || "") || "(não informado)"} - nasc.: ${d.data_nascimento || ""}`
       )
     );
 
@@ -694,9 +672,9 @@ export default function Cadastro() {
     if (!depsNovos.length) L.push("(Nenhum)");
     depsNovos.forEach((d, i) =>
       L.push(
-        `${i + 1}. ${d.nome || "(sem nome)"} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(d.sexo)} - CPF: ${
-          formatCPF(d.cpf || "") || "(não informado)"
-        } - nasc.: ${d.data_nascimento || ""}`
+        `${i + 1}. ${d.nome || "(sem nome)"} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(
+          d.sexo
+        )} - CPF: ${formatCPF(d.cpf || "") || "(não informado)"} - nasc.: ${d.data_nascimento || ""}`
       )
     );
 
@@ -705,7 +683,6 @@ export default function Cadastro() {
     window.open(href, "_blank", "noopener,noreferrer");
   }
 
-  // CEP helpers
   const onCepChange = (v) => {
     setCepState((s) => ({ ...s, error: "", found: false }));
     updTitEndereco({ cep: v });
@@ -716,29 +693,33 @@ export default function Cadastro() {
   const errorCount = errorList.length;
   const bloquearCadastro = lookupState.temContratoAtivo === true;
 
-  /* =============================================================================
-     RENDER
-  ============================================================================= */
+  const glassCardStyle = {
+    background: "color-mix(in srgb, var(--c-surface) 78%, transparent)",
+    borderColor: "color-mix(in srgb, var(--c-border) 72%, transparent)",
+    boxShadow: "0 24px 80px rgba(15,23,42,0.45)",
+    backdropFilter: "blur(18px)",
+  };
+
   return (
     <section className="section">
-      <div className="container-max">
-        {/* Voltar */}
-        <div className="mb-4 flex items-center gap-2">
+      <div className="container-max max-w-4xl md:max-w-5xl">
+        <div className="mb-5 flex items-center gap-2">
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--c-border)] px-4 py-2 text-sm font-semibold hover:bg-[var(--c-surface)]"
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--c-border)] bg-[var(--c-surface)]/90 px-4 py-2 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-[var(--c-surface)] transition-all"
             aria-label="Voltar para a página anterior"
           >
             <ChevronLeft size={16} /> Voltar
           </button>
         </div>
 
-        {/* Banner de checagem CPF/Pessoa/Contrato */}
         {(lookupState.running || lookupState.mensagem || lookupState.erro) && (
           <div
-            className="mb-4 rounded-xl border p-4 bg-[var(--c-surface)]"
+            className="mb-5 rounded-3xl border px-4 py-4 backdrop-blur-xl"
             style={{
-              borderColor: "color-mix(in srgb, var(--primary) 25%, transparent)",
+              background: "color-mix(in srgb, var(--c-surface) 82%, transparent)",
+              borderColor: "color-mix(in srgb, var(--primary) 35%, transparent)",
+              boxShadow: "0 20px 70px rgba(15,23,42,0.4)",
             }}
             role="status"
             aria-live="polite"
@@ -750,7 +731,7 @@ export default function Cadastro() {
               >
                 {lookupState.running ? <Loader2 className="animate-spin" size={16} /> : <Info size={16} />}
               </div>
-              <div className="flex-1">
+              <div className="flex-1 space-y-1">
                 {lookupState.running && <p className="text-sm">Verificando CPF e contratos…</p>}
                 {!lookupState.running && lookupState.mensagem && (
                   <p className="text-sm font-medium">{lookupState.mensagem}</p>
@@ -773,16 +754,16 @@ export default function Cadastro() {
           </div>
         )}
 
-        {/* ALERTA GLOBAL DE ERRO */}
         {error && (
           <div
             ref={alertRef}
             role="alert"
             tabIndex={-1}
-            className="mb-4 rounded-lg px-4 py-3 text-sm"
+            className="mb-4 rounded-3xl px-4 py-3 text-sm backdrop-blur-xl"
             style={{
-              border: "1px solid color-mix(in srgb, var(--primary) 30%, transparent)",
-              background: "color-mix(in srgb, var(--primary) 12%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--primary) 38%, transparent)",
+              background: "color-mix(in srgb, var(--c-surface) 80%, transparent)",
+              boxShadow: "0 18px 60px rgba(15,23,42,0.45)",
               color: "var(--text)",
             }}
             aria-live="assertive"
@@ -791,30 +772,39 @@ export default function Cadastro() {
           </div>
         )}
 
-        {/* HEADER + SUBHEAD (Plano) */}
-        <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
-          <h1 className="text-2xl font-extrabold tracking-tight">Cadastro</h1>
-          <p className="mt-1 text-sm text-[var(--c-muted)]">
-            Plano <b>{plano?.nome || ""}</b> — Base mensal {money(baseMensal)}
-          </p>
+        <div
+          className="rounded-3xl p-6 md:p-7 space-y-6"
+          style={glassCardStyle}
+        >
+          <div className="flex flex-col gap-2">
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight">
+              Cadastro do plano
+            </h1>
+            <p className="text-sm md:text-[15px] text-[var(--c-muted)] flex flex-wrap gap-1">
+              Plano <b className="font-semibold">{plano?.nome || ""}</b>
+              <span className="opacity-60">•</span>
+              Base mensal
+              <span className="font-semibold">{money(baseMensal)}</span>
+            </p>
+          </div>
 
-          {/* DADOS DO TITULAR */}
-          <details className="mt-6 group open:pb-2" open>
+          <details className="group open:pb-2" open>
             <summary className="cursor-pointer list-none">
               <SectionTitle
                 right={
-                  <span className="text-xs text-[var(--c-muted)] group-open:hidden">
-                    Toque para ocultar detalhes
+                  <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)] group-open:opacity-60">
+                    Seus dados como usuário
                   </span>
                 }
               >
-                Seus dados (usuário/Pessoa)
+                Dados do titular
               </SectionTitle>
             </summary>
 
-            {/* 2 colunas já no mobile */}
             <div className="mt-3 grid gap-2 grid-cols-2 md:grid-cols-4">
-              <FieldRead label="Nome" value={titular.nome} />
+              <div className="col-span-2 md:col-span-2">
+                <FieldRead label="Nome" value={titular.nome} />
+              </div>
               <FieldRead label="CPF" value={formatCPF(titular.cpf || "")} mono />
               <FieldRead label="Nascimento" value={formatDateBR(titular.data_nascimento) || "—"} mono />
               <FieldRead label="Celular" value={formatPhoneBR(titular.celular || "") || "—"} mono />
@@ -824,20 +814,19 @@ export default function Cadastro() {
             </div>
           </details>
 
-          {/* COMPLEMENTO — Estado civil + sexo lado a lado no mobile */}
           {!bloquearCadastro && (
-            <div className="mt-6">
+            <div className="border-t border-[color-mix(in srgb,var(--c-border) 65%,transparent)] pt-5">
               <SectionTitle>Complemento do cadastro</SectionTitle>
 
               <div className="mt-3 grid gap-3 grid-cols-2 md:grid-cols-12">
                 <div className="md:col-span-6">
-                  <label className="label" htmlFor="titular-ec">
+                  <label className="label text-xs font-medium" htmlFor="titular-ec">
                     Estado civil {requiredStar}
                   </label>
                   <select
                     id="titular-ec"
                     ref={ecRef}
-                    className={`input h-11 w-full ${requiredRing(
+                    className={`input h-11 w-full text-sm ${requiredRing(
                       submitAttempted && isEmpty(titular.estado_civil)
                     )}`}
                     value={titular.estado_civil}
@@ -860,13 +849,13 @@ export default function Cadastro() {
                 </div>
 
                 <div className="md:col-span-6">
-                  <label className="label" htmlFor="titular-sexo">
+                  <label className="label text-xs font-medium" htmlFor="titular-sexo">
                     Sexo {requiredStar}
                   </label>
                   <select
                     id="titular-sexo"
                     ref={sexoRef}
-                    className={`input h-11 w-full ${requiredRing(submitAttempted && isEmpty(titular.sexo))}`}
+                    className={`input h-11 w-full text-sm ${requiredRing(submitAttempted && isEmpty(titular.sexo))}`}
                     value={titular.sexo}
                     onChange={(e) => updTit({ sexo: e.target.value })}
                     aria-required="true"
@@ -890,32 +879,33 @@ export default function Cadastro() {
           )}
         </div>
 
-        {/* BLOCO: ENDEREÇO (reorganizado) */}
         {!bloquearCadastro && (
-          <div className="mt-6 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
+          <div
+            className="mt-6 rounded-3xl p-6 md:p-7 space-y-4"
+            style={glassCardStyle}
+          >
             <SectionTitle>Endereço</SectionTitle>
 
-            <div className="mt-4 space-y-3">
-              {/* CEP */}
+            <div className="mt-3 space-y-3">
               <div>
-                <div className="flex items-center justify-between">
-                  <label className="label" htmlFor="end-cep">
+                <div className="flex items-center justify-between gap-3">
+                  <label className="label text-xs font-medium" htmlFor="end-cep">
                     CEP {requiredStar}
                   </label>
                   <button
                     type="button"
-                    className="text-xs underline text-[var(--c-muted)] hover:opacity-80 disabled:opacity-50"
+                    className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)] hover:opacity-80 disabled:opacity-40"
                     onClick={() => fetchCEP(titular.endereco.cep, applyViaCepData)}
                     disabled={cepState.loading || onlyDigits(titular.endereco.cep).length !== 8}
                     aria-label="Buscar endereço pelo CEP"
                   >
-                    {cepState.loading ? "Buscando..." : "Buscar CEP"}
+                    {cepState.loading ? "Buscando…" : "Buscar CEP"}
                   </button>
                 </div>
                 <input
                   id="end-cep"
                   ref={cepRef}
-                  className={`input h-11 ${
+                  className={`input h-11 text-sm ${
                     requiredRing(submitAttempted && onlyDigits(titular.endereco.cep || "").length !== 8) ||
                     (cepState.error ? " ring-1 ring-red-500" : "")
                   }`}
@@ -956,16 +946,17 @@ export default function Cadastro() {
                 )}
               </div>
 
-              {/* Logradouro + Número */}
               <div className="grid gap-3 grid-cols-[minmax(0,2.2fr),minmax(0,1fr)] md:grid-cols-[minmax(0,3fr),minmax(0,1fr)]">
                 <div>
-                  <label className="label" htmlFor="end-log">
+                  <label className="label text-xs font-medium" htmlFor="end-log">
                     Logradouro {requiredStar}
                   </label>
                   <input
                     id="end-log"
                     ref={logRef}
-                    className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.logradouro))}`}
+                    className={`input h-11 text-sm ${requiredRing(
+                      submitAttempted && isEmpty(titular.endereco.logradouro)
+                    )}`}
                     value={titular.endereco.logradouro}
                     onChange={(e) => {
                       setAddrTouched({ logradouro: true });
@@ -983,13 +974,15 @@ export default function Cadastro() {
                   )}
                 </div>
                 <div>
-                  <label className="label" htmlFor="end-num">
+                  <label className="label text-xs font-medium" htmlFor="end-num">
                     Número {requiredStar}
                   </label>
                   <input
                     id="end-num"
                     ref={numRef}
-                    className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.numero))}`}
+                    className={`input h-11 text-sm ${requiredRing(
+                      submitAttempted && isEmpty(titular.endereco.numero)
+                    )}`}
                     value={titular.endereco.numero}
                     onChange={(e) => updTitEndereco({ numero: e.target.value })}
                     autoComplete="address-line2"
@@ -1005,29 +998,29 @@ export default function Cadastro() {
                 </div>
               </div>
 
-              {/* Complemento */}
               <div>
-                <label className="label" htmlFor="end-comp">
+                <label className="label text-xs font-medium" htmlFor="end-comp">
                   Complemento
                 </label>
                 <input
                   id="end-comp"
-                  className="input h-11"
+                  className="input h-11 text-sm"
                   value={titular.endereco.complemento}
                   onChange={(e) => updTitEndereco({ complemento: e.target.value })}
                   disabled={cepState.loading}
                 />
               </div>
 
-              {/* Bairro */}
               <div>
-                <label className="label" htmlFor="end-bairro">
+                <label className="label text-xs font-medium" htmlFor="end-bairro">
                   Bairro {requiredStar}
                 </label>
                 <input
                   id="end-bairro"
                   ref={bairroRef}
-                  className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.bairro))}`}
+                  className={`input h-11 text-sm ${requiredRing(
+                    submitAttempted && isEmpty(titular.endereco.bairro)
+                  )}`}
                   value={titular.endereco.bairro}
                   onChange={(e) => {
                     setAddrTouched({ bairro: true });
@@ -1044,16 +1037,17 @@ export default function Cadastro() {
                 )}
               </div>
 
-              {/* Cidade + UF */}
               <div className="grid gap-3 grid-cols-[minmax(0,3fr),80px] md:grid-cols-[minmax(0,3fr),120px]">
                 <div>
-                  <label className="label" htmlFor="end-cidade">
+                  <label className="label text-xs font-medium" htmlFor="end-cidade">
                     Cidade {requiredStar}
                   </label>
                   <input
                     id="end-cidade"
                     ref={cidadeRef}
-                    className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.cidade))}`}
+                    className={`input h-11 text-sm ${requiredRing(
+                      submitAttempted && isEmpty(titular.endereco.cidade)
+                    )}`}
                     value={titular.endereco.cidade}
                     onChange={(e) => {
                       setAddrTouched({ cidade: true });
@@ -1073,13 +1067,15 @@ export default function Cadastro() {
                   )}
                 </div>
                 <div>
-                  <label className="label" htmlFor="end-uf">
+                  <label className="label text-xs font-medium" htmlFor="end-uf">
                     UF {requiredStar}
                   </label>
                   <input
                     id="end-uf"
                     ref={ufRef}
-                    className={`input h-11 ${requiredRing(submitAttempted && isEmpty(titular.endereco.uf))}`}
+                    className={`input h-11 text-sm ${requiredRing(
+                      submitAttempted && isEmpty(titular.endereco.uf)
+                    )}`}
                     value={titular.endereco.uf}
                     onChange={(e) => {
                       setAddrTouched({ uf: true });
@@ -1103,9 +1099,12 @@ export default function Cadastro() {
           </div>
         )}
 
-        {/* Dependentes existentes */}
         {!bloquearCadastro && depsExistentes.length > 0 && (
-          <details className="mt-6 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6" open>
+          <details
+            className="mt-6 rounded-3xl border px-6 py-5 md:px-7 md:py-6 backdrop-blur-xl"
+            style={glassCardStyle}
+            open
+          >
             <summary className="cursor-pointer list-none">
               <SectionTitle>Dependentes existentes (somente leitura)</SectionTitle>
             </summary>
@@ -1113,27 +1112,31 @@ export default function Cadastro() {
               {depsExistentes.map((d, i) => (
                 <div
                   key={d.id || i}
-                  className="rounded-xl border p-3 grid md:grid-cols-12 gap-3 bg-[var(--c-surface)]"
+                  className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/90 p-3 grid md:grid-cols-12 gap-3 shadow-sm"
                 >
                   <div className="md:col-span-4">
-                    <p className="text-xs text-[var(--c-muted)]">Nome</p>
-                    <p className="font-medium break-words">{d.nome}</p>
+                    <p className="text-[11px] text-[var(--c-muted)]">Nome</p>
+                    <p className="font-medium break-words text-[13px]">{d.nome}</p>
                   </div>
                   <div className="md:col-span-2">
-                    <p className="text-xs text-[var(--c-muted)]">CPF</p>
-                    <p className="font-medium">{formatCPF(d.cpf || "") || "—"}</p>
+                    <p className="text-[11px] text-[var(--c-muted)]">CPF</p>
+                    <p className="font-medium text-[13px]">{formatCPF(d.cpf || "") || "—"}</p>
                   </div>
                   <div className="md:col-span-2">
-                    <p className="text-xs text-[var(--c-muted)]">Parentesco</p>
-                    <p className="font-medium">{PARENTESCO_LABELS[d.parentesco] || d.parentesco || "—"}</p>
+                    <p className="text-[11px] text-[var(--c-muted)]">Parentesco</p>
+                    <p className="font-medium text-[13px]">
+                      {PARENTESCO_LABELS[d.parentesco] || d.parentesco || "—"}
+                    </p>
                   </div>
                   <div className="md:col-span-2">
-                    <p className="text-xs text-[var(--c-muted)]">Sexo</p>
-                    <p className="font-medium">{sexoLabelFromValue(d.sexo) || "—"}</p>
+                    <p className="text-[11px] text-[var(--c-muted)]">Sexo</p>
+                    <p className="font-medium text-[13px]">{sexoLabelFromValue(d.sexo) || "—"}</p>
                   </div>
                   <div className="md:col-span-2">
-                    <p className="text-xs text-[var(--c-muted)]">Nascimento</p>
-                    <p className="font-medium">{formatDateBR(d.data_nascimento) || "—"}</p>
+                    <p className="text-[11px] text-[var(--c-muted)]">Nascimento</p>
+                    <p className="font-medium text-[13px]">
+                      {formatDateBR(d.data_nascimento) || "—"}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -1141,9 +1144,11 @@ export default function Cadastro() {
           </details>
         )}
 
-        {/* Dependentes novos */}
         {!bloquearCadastro && (
-          <div className="mt-6 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
+          <div
+            className="mt-6 rounded-3xl p-6 md:p-7"
+            style={glassCardStyle}
+          >
             <SectionTitle
               right={
                 <CTAButton onClick={addDepNovo} className="h-10">
@@ -1152,17 +1157,20 @@ export default function Cadastro() {
                 </CTAButton>
               }
             >
-              Adicionar novos dependentes ({depsNovos.length})
+              Novos dependentes ({depsNovos.length})
             </SectionTitle>
 
             <div className="mt-4 grid gap-4">
               {depsNovos.map((d, i) => {
                 const issue = depsIssuesNovos[i];
                 return (
-                  <div key={i} className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4 shadow-sm">
+                  <div
+                    key={i}
+                    className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/95 p-4 shadow-md"
+                  >
                     <div className="flex items-center justify-between mb-3">
                       <span className="inline-flex items-center gap-2 text-sm font-semibold">
-                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[var(--c-border)] text-xs">
+                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[var(--c-border)] text-[11px]">
                           {i + 1}
                         </span>
                         Dependente novo
@@ -1177,15 +1185,14 @@ export default function Cadastro() {
                       </CTAButton>
                     </div>
 
-                    {/* Linha 1 */}
                     <div className="grid gap-3 md:grid-cols-12">
                       <div className="md:col-span-6">
-                        <label className="label" htmlFor={`depN-${i}-nome`}>
+                        <label className="label text-xs font-medium" htmlFor={`depN-${i}-nome`}>
                           Nome completo {requiredStar}
                         </label>
                         <input
                           id={`depN-${i}-nome`}
-                          className={`input h-11 w-full ${requiredRing(
+                          className={`input h-11 w-full text-sm ${requiredRing(
                             submitAttempted && !((d.nome || "").trim().length >= 3)
                           )}`}
                           placeholder="Nome do dependente"
@@ -1201,23 +1208,27 @@ export default function Cadastro() {
                         )}
                       </div>
                       <div className="md:col-span-3">
-                        <label className="label" htmlFor={`depN-${i}-parentesco`}>
+                        <label className="label text-xs font-medium" htmlFor={`depN-${i}-parentesco`}>
                           Parentesco {requiredStar}
                         </label>
                         <select
                           id={`depN-${i}-parentesco`}
-                          className={`input h-11 w-full ${requiredRing(submitAttempted && isEmpty(d.parentesco))}`}
+                          className={`input h-11 w-full text-sm ${requiredRing(
+                            submitAttempted && isEmpty(d.parentesco)
+                          )}`}
                           value={d.parentesco}
                           onChange={(e) => updDepNovo(i, { parentesco: e.target.value })}
                           aria-required="true"
                           aria-invalid={submitAttempted && isEmpty(d.parentesco) ? "true" : "false"}
                         >
                           <option value="">Selecione…</option>
-                          {(plano?.parentescos?.length ? plano.parentescos : PARENTESCOS_FALLBACK.map(([v]) => v)).map((v) => (
-                            <option key={v} value={v}>
-                              {PARENTESCO_LABELS[v] || v}
-                            </option>
-                          ))}
+                          {(plano?.parentescos?.length ? plano.parentescos : PARENTESCOS_FALLBACK.map(([v]) => v)).map(
+                            (v) => (
+                              <option key={v} value={v}>
+                                {PARENTESCO_LABELS[v] || v}
+                              </option>
+                            )
+                          )}
                         </select>
                         {submitAttempted && isEmpty(d.parentesco) && (
                           <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
@@ -1226,12 +1237,14 @@ export default function Cadastro() {
                         )}
                       </div>
                       <div className="md:col-span-3">
-                        <label className="label" htmlFor={`depN-${i}-sexo`}>
+                        <label className="label text-xs font-medium" htmlFor={`depN-${i}-sexo`}>
                           Sexo {requiredStar}
                         </label>
                         <select
                           id={`depN-${i}-sexo`}
-                          className={`input h-11 w-full ${requiredRing(submitAttempted && isEmpty(d.sexo))}`}
+                          className={`input h-11 w-full text-sm ${requiredRing(
+                            submitAttempted && isEmpty(d.sexo)
+                          )}`}
                           value={d.sexo || ""}
                           onChange={(e) => updDepNovo(i, { sexo: e.target.value })}
                           aria-required="true"
@@ -1252,15 +1265,16 @@ export default function Cadastro() {
                       </div>
                     </div>
 
-                    {/* Linha 2 */}
                     <div className="grid gap-3 md:grid-cols-12 mt-2">
                       <div className="md:col-span-6">
-                        <label className="label" htmlFor={`depN-${i}-cpf`}>
+                        <label className="label text-xs font-medium" htmlFor={`depN-${i}-cpf`}>
                           CPF (opcional)
                         </label>
                         <input
                           id={`depN-${i}-cpf`}
-                          className={`input h-11 w-full ${d.cpf && !cpfIsValid(d.cpf) ? "ring-1 ring-red-500" : ""}`}
+                          className={`input h-11 w-full text-sm ${
+                            d.cpf && !cpfIsValid(d.cpf) ? "ring-1 ring-red-500" : ""
+                          }`}
                           inputMode="numeric"
                           maxLength={14}
                           placeholder="000.000.000-00"
@@ -1275,7 +1289,7 @@ export default function Cadastro() {
                         )}
                       </div>
                       <div className="md:col-span-6">
-                        <label className="label">Data de nascimento {requiredStar}</label>
+                        <label className="label text-xs font-medium">Data de nascimento {requiredStar}</label>
                         <DateSelectBR
                           className="w-full"
                           idPrefix={`depN-${i}-nasc`}
@@ -1310,18 +1324,20 @@ export default function Cadastro() {
           </div>
         )}
 
-        {/* Cobrança (Dia D) */}
         {!bloquearCadastro && (
-          <div className="mt-6 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
+          <div
+            className="mt-6 rounded-3xl p-6 md:p-7"
+            style={glassCardStyle}
+          >
             <SectionTitle>Cobrança</SectionTitle>
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
+            <div className="mt-3 grid gap-3 md:grid-cols-3 items-stretch">
               <div className="md:col-span-1">
-                <label className="label" htmlFor="diaD">
+                <label className="label text-xs font-medium" htmlFor="diaD">
                   Dia D (vencimento)
                 </label>
                 <select
                   id="diaD"
-                  className="input h-11 w-full"
+                  className="input h-11 w-full text-sm"
                   value={diaDSelecionado}
                   onChange={(e) => setDiaDSelecionado(Number(e.target.value))}
                 >
@@ -1336,85 +1352,95 @@ export default function Cadastro() {
                 </p>
               </div>
               <div className="md:col-span-2 grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-[var(--c-border)] p-3">
-                  <p className="text-[var(--c-muted)] text-xs">Data de efetivação</p>
-                  <p className="font-medium">{formatDateBR(dataEfetivacaoISO)}</p>
+                <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/95 p-3 shadow-sm">
+                  <p className="text-[11px] text-[var(--c-muted)]">Data de efetivação</p>
+                  <p className="font-medium text-[14px] mt-1">{formatDateBR(dataEfetivacaoISO)}</p>
                 </div>
-                <div className="rounded-xl border border-[var(--c-border)] p-3">
-                  <p className="text-[var(--c-muted)] text-xs">Mensalidade</p>
-                  <p className="font-medium">{money(valorMensalidadePlano)}</p>
+                <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/95 p-3 shadow-sm">
+                  <p className="text-[11px] text-[var(--c-muted)]">Mensalidade</p>
+                  <p className="font-medium text-[14px] mt-1">{money(valorMensalidadePlano)}</p>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Resumo (sempre) */}
-        <div className="mt-6 p-6 bg-[var(--c-surface)] rounded-2xl border border-[var(--c-border)] shadow-lg">
-          <SectionTitle>Resumo</SectionTitle>
+        <div
+          className="mt-6 p-6 md:p-7 rounded-3xl border backdrop-blur-xl shadow-[0_26px_90px_rgba(15,23,42,0.5)]"
+          style={{
+            background: "color-mix(in srgb, var(--c-surface) 80%, transparent)",
+            borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
+          }}
+        >
+          <SectionTitle>Resumo financeiro</SectionTitle>
           <div className="mt-3 space-y-2 text-sm">
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-3">
               <span className="text-[var(--c-muted)]">Plano</span>
               <span className="font-medium text-right">{plano?.nome}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-3">
               <span className="text-[var(--c-muted)]">Base mensal</span>
               <span>{money(baseMensal)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-[var(--c-muted)]">Incluídos no plano</span>
+            <div className="flex justify-between gap-3">
+              <span className="text-[var(--c-muted)]">Dependentes incluídos no plano</span>
               <span>{numDepsIncl}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-3">
               <span className="text-[var(--c-muted)]">
-                Dependentes adicionais ({Math.max(0, (depsExistentes.length + depsNovos.length) - numDepsIncl)}) ×{" "}
+                Dependentes adicionais ({Math.max(0, depsExistentes.length + depsNovos.length - numDepsIncl)}) ×{" "}
                 {money(valorIncMensal)}
               </span>
               <span>
-                {money(Math.max(0, (depsExistentes.length + depsNovos.length) - numDepsIncl) * valorIncMensal)}
+                {money(Math.max(0, depsExistentes.length + depsNovos.length - numDepsIncl) * valorIncMensal)}
               </span>
             </div>
 
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-3">
               <span className="text-[var(--c-muted)]">Adesão (única)</span>
               <span>{money(valorAdesaoPlano)}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-3">
               <span className="text-[var(--c-muted)]">Dia D</span>
               <span>{diaDSelecionado}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-3">
               <span className="text-[var(--c-muted)]">Efetivação</span>
               <span className="font-medium">{formatDateBR(dataEfetivacaoISO)}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-3">
               <span className="text-[var(--c-muted)]">Mensalidade</span>
               <span>{money(valorMensalidadePlano)}</span>
             </div>
 
-            <hr className="my-2" />
-            <div className="flex justify-between font-semibold text-base">
-              <span>Total mensal</span>
-              <span className="text-[color:var(--primary)] font-extrabold">{money(totalMensal)}</span>
+            <hr className="my-2 border-[color-mix(in srgb,var(--c-border) 70%,transparent)]" />
+
+            <div className="flex justify-between items-baseline gap-3">
+              <span className="font-semibold text-[15px]">Total mensal</span>
+              <span className="text-[color:var(--primary)] font-extrabold text-lg md:text-xl">
+                {money(totalMensal)}
+              </span>
             </div>
             {cupom ? (
-              <div className="flex justify-between">
-                <span className="text-[var(--c-muted)]">Cupom</span>
+              <div className="flex justify-between gap-3">
+                <span className="text-[var(--c-muted)]">Cupom aplicado</span>
                 <span className="font-medium">{cupom}</span>
               </div>
             ) : null}
           </div>
         </div>
 
-        {/* Ações */}
         {!bloquearCadastro && (
-          <div className="mt-6 mb-4 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6">
+          <div
+            className="mt-6 mb-6 rounded-3xl p-6 md:p-7"
+            style={glassCardStyle}
+          >
             {submitAttempted && errorList.length > 0 && (
               <div
-                className="rounded-lg px-4 py-3 text-sm mb-4"
+                className="rounded-2xl px-4 py-3 text-sm mb-4 backdrop-blur-md"
                 style={{
-                  border: "1px solid color-mix(in srgb, var(--primary) 30%, transparent)",
-                  background: "color-mix(in srgb, var(--primary) 12%, transparent)",
+                  border: "1px solid color-mix(in srgb, var(--primary) 40%, transparent)",
+                  background: "color-mix(in srgb, var(--c-surface) 80%, transparent)",
                   color: "var(--text)",
                 }}
                 role="alert"
@@ -1422,7 +1448,7 @@ export default function Cadastro() {
                 ref={alertRef}
                 tabIndex={-1}
               >
-                <p className="font-medium mb-1">Corrija os itens abaixo ({errorCount}):</p>
+                <p className="font-semibold mb-1">Revise os campos antes de continuar ({errorCount}):</p>
                 <ul className="list-disc ml-5 space-y-1">
                   {errorList.map((it, idx) => (
                     <li key={idx}>
@@ -1444,7 +1470,7 @@ export default function Cadastro() {
                 type="button"
                 onClick={handleSalvarEnviar}
                 disabled={saving}
-                className="h-12 w-full"
+                className="h-12 w-full text-[15px] font-semibold"
                 aria-disabled={saving ? "true" : "false"}
                 title="Salvar e continuar"
               >
@@ -1454,14 +1480,14 @@ export default function Cadastro() {
               <CTAButton
                 variant="outline"
                 onClick={sendWhatsFallback}
-                className="h-12 w-full"
+                className="h-12 w-full text-[15px] font-semibold"
                 title="Enviar cadastro por WhatsApp"
               >
                 <MessageCircle size={16} className="mr-2" /> Enviar por WhatsApp
               </CTAButton>
             </div>
 
-            <p className="mt-3 text-xs text-[var(--c-muted)] inline-flex items-center gap-1">
+            <p className="mt-3 text-[11px] text-[var(--c-muted)] inline-flex items-center gap-1">
               <CheckCircle2 size={14} /> Seus dados não são gravados neste dispositivo.
             </p>
           </div>
