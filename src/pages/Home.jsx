@@ -13,7 +13,6 @@ import FaqSection from '@/components/faq/FaqSection.jsx'
 import CTAButton from '@/components/ui/CTAButton'
 import {
   Layers,
-  BadgePercent,
   Receipt,
   UserSquare2,
   Smartphone,
@@ -24,14 +23,7 @@ import {
   Gift,
   MessageCircle,
   HeartHandshake,
-  Phone,
 } from 'lucide-react'
-import { usePrimaryColor as usePrimaryColorLocal } from '@/lib/themeColor'
-
-// hook centralizado para pegar as cores primárias do tema
-function usePrimaryColor() {
-  return usePrimaryColorLocal()
-}
 
 /* ===================== peças utilitárias ===================== */
 
@@ -206,20 +198,176 @@ function FeatureCardMinimal({ icon, title, desc, to, cta, mounted, delay = 0 }) 
    ============================================================ */
 
 const FeatureCard = FeatureCardPremium
-// const FeatureCard = FeatureCardMinimal  // ← use esta linha para testar a opção B
+// const FeatureCard = FeatureCardMinimal
 
 function ValuePills() {
   return (
-    <div className="mt-5 flex flex-wrap justify-center gap-2">
-      <span className="inline-flex items-center gap-2 rounded-full bg-[var(--surface)] text-[var(--text)] px-3 py-1.5 text-xs font-medium ring-1 ring-[var(--c-border)]">
+    <div className="mt-4 flex flex-wrap gap-2">
+      <span className="inline-flex items-center gap-2 rounded-full bg-white/10 text-xs font-medium px-3 py-1.5 backdrop-blur-sm">
         <IdCard size={14} /> Carteirinha digital
       </span>
-      <span className="inline-flex items-center gap-2 rounded-full bg-[var(--surface)] text-[var(--text)] px-3 py-1.5 text-xs font-medium ring-1 ring-[var(--c-border)]">
-        <QrCode size={14} /> PIX & boletos
+      <span className="inline-flex items-center gap-2 rounded-full bg-white/10 text-xs font-medium px-3 py-1.5 backdrop-blur-sm">
+        <QrCode size={14} /> PIX &amp; boletos
       </span>
-      <span className="inline-flex items-center gap-2 rounded-full bg-[var(--surface)] text-[var(--text)] px-3 py-1.5 text-xs font-medium ring-1 ring-[var(--c-border)]">
+      <span className="inline-flex items-center gap-2 rounded-full bg-white/10 text-xs font-medium px-3 py-1.5 backdrop-blur-sm">
         <Gift size={14} /> Clube de benefícios
       </span>
+    </div>
+  )
+}
+
+/* =================== HERO SLIDER (CAPA EM SLIDES) =================== */
+
+function isExternalHref(href) {
+  return /^https?:\/\//i.test(href || '')
+}
+
+function HeroCtaButton({ cta }) {
+  if (!cta?.to || !cta?.label) return null
+
+  const external = isExternalHref(cta.to)
+  const Comp = external ? 'a' : Link
+  const navProps = external
+    ? { href: cta.to, target: '_blank', rel: 'noopener noreferrer' }
+    : { to: cta.to }
+
+  const variant = cta.variant || 'primary'
+  const variantProp = variant === 'primary' ? {} : { variant }
+
+  return (
+    <CTAButton
+      as={Comp}
+      {...navProps}
+      size="lg"
+      className="min-w-[180px] justify-center"
+      {...variantProp}
+    >
+      {cta.label}
+    </CTAButton>
+  )
+}
+
+function HeroSlider({ slides, mounted }) {
+  const [index, setIndex] = useState(0)
+
+  useEffect(() => {
+    if (!slides?.length) return
+    const id = setInterval(
+      () => setIndex((prev) => (prev + 1) % slides.length),
+      8000
+    )
+    return () => clearInterval(id)
+  }, [slides])
+
+  if (!slides || slides.length === 0) return null
+
+  const slide = slides[index] || slides[0]
+  const {
+    tag,
+    title,
+    subtitle,
+    image,
+    primary,
+    secondary,
+    showValuePills,
+  } = slide
+
+  const goTo = (i) => {
+    if (!slides.length) return
+    const size = slides.length
+    const next = ((i % size) + size) % size
+    setIndex(next)
+  }
+
+  const next = () => goTo(index + 1)
+  const prev = () => goTo(index - 1)
+
+  return (
+    <div
+      className={[
+        'relative overflow-hidden rounded-3xl border border-[var(--c-border)]',
+        'mb-10 md:mb-12',
+        'transition-all duration-700',
+        mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
+      ].join(' ')}
+      style={{
+        backgroundImage: `
+          linear-gradient(
+            120deg,
+            color-mix(in srgb, var(--primary) 55%, transparent),
+            color-mix(in srgb, #000000 40%, transparent)
+          ),
+          url(${image})
+        `,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      <div className="relative z-10 px-6 py-10 md:px-10 md:py-16 lg:px-16 lg:py-20 text-white">
+        <div className="max-w-3xl">
+          {tag && (
+            <p className="text-[11px] uppercase tracking-[0.24em] mb-2 opacity-85">
+              {tag}
+            </p>
+          )}
+
+          <h1 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight">
+            {title}
+          </h1>
+
+          {subtitle && (
+            <p className="mt-4 max-w-xl text-sm md:text-base lg:text-lg opacity-90">
+              {subtitle}
+            </p>
+          )}
+
+          {(primary || secondary) && (
+            <div className="mt-6 flex flex-wrap gap-3">
+              {primary && <HeroCtaButton cta={primary} />}
+              {secondary && <HeroCtaButton cta={secondary} />}
+            </div>
+          )}
+
+          {showValuePills && <ValuePills />}
+        </div>
+
+        {/* Controles do slider */}
+        <div className="mt-8 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            {slides.map((s, i) => (
+              <button
+                key={s.id || i}
+                type="button"
+                onClick={() => goTo(i)}
+                className={[
+                  'h-2.5 rounded-full transition-all duration-300',
+                  i === index ? 'w-6 bg-white' : 'w-2.5 bg-white/50 hover:bg-white/80',
+                ].join(' ')}
+                aria-label={`Slide ${i + 1}`}
+              />
+            ))}
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2">
+            <button
+              type="button"
+              onClick={prev}
+              className="h-8 w-8 rounded-full bg-black/25 hover:bg-black/40 flex items-center justify-center text-white text-xs backdrop-blur-sm"
+              aria-label="Slide anterior"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              onClick={next}
+              className="h-8 w-8 rounded-full bg-black/25 hover:bg-black/40 flex items-center justify-center text-white text-xs backdrop-blur-sm"
+              aria-label="Próximo slide"
+            >
+              ›
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -238,7 +386,6 @@ export default function Home() {
   const ANDROID_URL = import.meta.env.VITE_ANDROID_URL || '#'
   const IOS_URL = import.meta.env.VITE_IOS_URL || '#'
 
-  const { base, dark } = usePrimaryColor()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -246,7 +393,24 @@ export default function Home() {
     return () => clearTimeout(t)
   }, [])
 
-  // telefone base do tenant (somente dígitos, com DDI 55)
+  const heroTitleDefault =
+    empresa?.heroTitle ||
+    empresa?.tema?.heroTitle ||
+    'Proteção e tranquilidade para sua família'
+
+  const heroSubtitleDefault =
+    empresa?.heroSubtitle ||
+    empresa?.tema?.heroSubtitle ||
+    'Planos completos de assistência familiar, benefícios exclusivos e atendimento humanizado.'
+
+  const heroImageDefault = useMemo(() => {
+    return (
+      empresa?.heroImage ||
+      empresa?.tema?.heroImage ||
+      '/img/hero.png'
+    )
+  }, [empresa])
+
   const telefoneDigits = useMemo(() => {
     let tel = empresa?.contato?.telefone || ''
     let digits = String(tel).replace(/\D+/g, '')
@@ -261,54 +425,114 @@ export default function Home() {
     return `https://wa.me/${telefoneDigits}?text=${msg}`
   }, [telefoneDigits])
 
-  const whatsappAtendimentoHref = useMemo(() => {
-    if (!telefoneDigits) return ''
-    const msg = encodeURIComponent('Olá, preciso de atendimento sobre meu plano.')
-    return `https://wa.me/${telefoneDigits}?text=${msg}`
-  }, [telefoneDigits])
+  const defaultSlides = useMemo(
+    () => [
+      {
+        id: 'familia',
+        tag: 'Assistência familiar & benefícios',
+        title: heroTitleDefault,
+        subtitle: heroSubtitleDefault,
+        image: heroImageDefault,
+        primary: {
+          label: 'Ver planos agora',
+          to: '/planos',
+          variant: 'primary',
+        },
+        secondary: {
+          label: 'Área do associado',
+          to: isLogged ? '/area' : '/login',
+          variant: 'outline-light',
+        },
+        showValuePills: true,
+      },
+      {
+        id: 'memorial',
+        tag: 'Homenagens & lembranças',
+        title: 'Visite nosso Memorial Online',
+        subtitle:
+          'Acompanhe informações das cerimônias, acenda uma vela virtual e deixe sua mensagem de carinho.',
+        image: '/img/hero.png',
+        primary: {
+          label: 'Acessar Memorial',
+          to: '/memorial',
+          variant: 'primary',
+        },
+        secondary: null,
+        showValuePills: false,
+      },
+      {
+        id: 'parceiros',
+        tag: 'Benefícios exclusivos para sua empresa',
+        title: 'Seja nosso parceiro premium',
+        subtitle:
+          'Ofereça condições especiais para nossos associados e fortaleça sua marca com indicações qualificadas.',
+        image: '/img/hero.png',
+        primary: {
+          label: 'Quero ser parceiro(a)',
+          to: '/parceiros/inscrever',
+          variant: 'primary',
+        },
+        secondary: whatsappParceiroHref
+          ? {
+              label: 'Falar com o time',
+              to: whatsappParceiroHref,
+              variant: 'outline-light',
+            }
+          : null,
+        showValuePills: false,
+      },
+    ],
+    [heroTitleDefault, heroSubtitleDefault, heroImageDefault, isLogged, whatsappParceiroHref]
+  )
 
-  const telefoneE164 = telefoneDigits
-    ? telefoneDigits.startsWith('55')
-      ? `+${telefoneDigits}`
-      : telefoneDigits
-    : ''
+  const slides = useMemo(() => {
+    const tenantSlides =
+      empresa?.heroSlides || empresa?.tema?.heroSlides || null
+
+    if (Array.isArray(tenantSlides) && tenantSlides.length > 0) {
+      return tenantSlides.map((s, idx) => {
+        const image =
+          s.image ||
+          s.heroImage ||
+          heroImageDefault ||
+          '/img/hero.png'
+        return {
+          id: s.id || s.slug || `tenant-slide-${idx}`,
+          tag: s.tag || s.pill || s.badge || 'Assistência familiar',
+          title: s.title || heroTitleDefault,
+          subtitle: s.subtitle || heroSubtitleDefault,
+          image,
+          primary:
+            s.primary ||
+            (s.ctaPrimaryTo || s.ctaTo || s.to
+              ? {
+                  label: s.ctaPrimaryLabel || s.ctaLabel || 'Saiba mais',
+                  to: s.ctaPrimaryTo || s.ctaTo || s.to,
+                  variant: s.ctaPrimaryVariant || 'primary',
+                }
+              : null),
+          secondary:
+            s.secondary ||
+            (s.ctaSecondaryTo
+              ? {
+                  label: s.ctaSecondaryLabel || 'Saiba mais',
+                  to: s.ctaSecondaryTo,
+                  variant: s.ctaSecondaryVariant || 'outline-light',
+                }
+              : null),
+          showValuePills: s.showValuePills ?? idx === 0,
+        }
+      })
+    }
+
+    return defaultSlides
+  }, [empresa, heroTitleDefault, heroSubtitleDefault, heroImageDefault, defaultSlides])
 
   return (
     <section className="section">
-      <div className="container-max relative overflow-hidden">
-        {/* blobs decorativos (suaves, pegam a cor do tema) */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div
-            className="home-blob"
-            style={{
-              background: `radial-gradient(30% 35% at 12% 10%, ${base}22, transparent 60%)`,
-            }}
-          />
-          <div
-            className="home-blob delay-300"
-            style={{
-              background: `radial-gradient(30% 35% at 88% -5%, ${dark}22, transparent 60%)`,
-            }}
-          />
-        </div>
-
-        {/* HERO */}
-        <header
-          className={[
-            'relative text-center mb-6 md:mb-8 transition-all duration-700',
-            mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
-          ].join(' ')}
-        >
-          <h1 className="text-4xl md:text-5xl font-black tracking-tight">
-            Bem-vindo
-          </h1>
-          <p className="mt-2 text-[var(--text)]" aria-live="polite">
-            <span className="font-semibold">
-              {empresa?.nomeFantasia || '—'}
-            </span>
-          </p>
-          <ValuePills />
-        </header>
+      <div className="container-max relative">
+        {/* HERO SLIDER WHITELABEL */}
+        <HeroSlider slides={slides} mounted={mounted} />
 
         {/* QUADRO DE AÇÕES */}
         <div
@@ -328,7 +552,7 @@ export default function Home() {
             to={isLogged ? '/area' : '/login'}
             cta="Acessar área"
             mounted={mounted}
-            delay={270}
+            delay={200}
           />
 
           <FeatureCard
@@ -338,7 +562,7 @@ export default function Home() {
             to="/contratos"
             cta="Pesquisar"
             mounted={mounted}
-            delay={200}
+            delay={230}
           />
 
           <FeatureCard
@@ -348,7 +572,7 @@ export default function Home() {
             to="/planos"
             cta="Ver planos"
             mounted={mounted}
-            delay={60}
+            delay={260}
           />
 
           <FeatureCard
@@ -358,7 +582,7 @@ export default function Home() {
             to="/beneficios"
             cta="Ver parceiros"
             mounted={mounted}
-            delay={130}
+            delay={290}
           />
 
           <FeatureCard
@@ -368,8 +592,9 @@ export default function Home() {
             to="/memorial"
             cta="Ver Memorial"
             mounted={mounted}
-            delay={160}
+            delay={320}
           />
+
           <FeatureCard
             icon={<MessageCircle size={22} strokeWidth={2} />}
             title="Atendimento"
@@ -377,9 +602,8 @@ export default function Home() {
             to="/filiais"
             cta="Ver unidades"
             mounted={mounted}
-            delay={190}
+            delay={350}
           />
-
         </div>
 
         {/* APP SECTION */}
@@ -388,7 +612,7 @@ export default function Home() {
             'relative mt-10 md:mt-12 card p-0 overflow-hidden transition-all duration-700',
             mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
           ].join(' ')}
-          style={{ transitionDelay: '320ms' }}
+          style={{ transitionDelay: '380ms' }}
         >
           <div className="grid md:grid-cols-2">
             <div className="p-6 md:p-8 lg:p-10">
@@ -404,7 +628,7 @@ export default function Home() {
                 <AppStoreButton
                   href={ANDROID_URL}
                   icon={<Smartphone size={16} />}
-                  delay={380}
+                  delay={420}
                 >
                   Baixar para Android
                 </AppStoreButton>
