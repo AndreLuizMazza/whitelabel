@@ -372,7 +372,7 @@ export default function Navbar() {
                   </span>
                 )}
 
-                <span className="hidden lg:inline max-w-[140px] truncate">
+                <span className="hidden lg:inline max-w-[160px] truncate">
                   {nomeExibicao || 'Minha conta'}
                 </span>
               </button>
@@ -530,9 +530,12 @@ export default function Navbar() {
               className="flex items-center gap-4 px-5 py-5 border-b"
               style={{ borderColor: 'var(--c-border)' }}
             >
-              {/* Avatar maior */}
+              {/* Avatar maior no mobile (modo idoso valoriza melhor) */}
               <div
-                className="h-16 w-16 rounded-full overflow-hidden border"
+                className={
+                  (elderMode ? 'h-20 w-20' : 'h-16 w-16') +
+                  ' rounded-full overflow-hidden border'
+                }
                 style={{ borderColor: 'var(--c-border)' }}
               >
                 {isLogged && avatarUrl && !avatarErro ? (
@@ -544,7 +547,10 @@ export default function Navbar() {
                   />
                 ) : (
                   <span
-                    className="inline-flex h-full w-full items-center justify-center text-xl font-semibold"
+                    className={
+                      (elderMode ? 'text-2xl' : 'text-xl') +
+                      ' inline-flex h-full w-full items-center justify-center font-semibold'
+                    }
                     style={{ background: 'var(--primary)', color: '#fff' }}
                   >
                     {isLogged ? avatarInitial : tenantInitials}
@@ -555,11 +561,19 @@ export default function Navbar() {
               <div className="flex flex-col min-w-0 flex-1">
                 {isLogged ? (
                   <>
-                    <p className="text-base font-semibold leading-tight truncate">
+                    <p
+                      className={
+                        'font-semibold leading-tight truncate ' +
+                        (elderMode ? 'text-lg' : 'text-base')
+                      }
+                    >
                       {nomeExibicao || 'Associado'}
                     </p>
                     <p
-                      className="text-[11px] uppercase tracking-[0.18em] mt-1 truncate"
+                      className={
+                        'mt-1 truncate uppercase tracking-[0.18em] ' +
+                        (elderMode ? 'text-[12px]' : 'text-[11px]')
+                      }
                       style={{ color: 'var(--text-muted)' }}
                     >
                       {empresa?.nomeFantasia || 'Minha funerária'}
@@ -584,7 +598,7 @@ export default function Navbar() {
               </div>
 
               <button
-                className="rounded-full p-1.5 hover:bg-black/5 dark:hover:bg.white/10 dark:hover:bg-white/10"
+                className="rounded-full p-1.5 hover:bg-black/5 dark:hover:bg-white/10"
                 onClick={() => setMobileOpen(false)}
                 aria-label="Fechar menu"
               >
@@ -695,38 +709,69 @@ export default function Navbar() {
               ))}
             </nav>
 
-            {/* SEÇÃO: Aparência (Theme + Modo Idoso) */}
+            {/* SEÇÃO: Aparência (Tema + Modo Idoso) */}
             <div
               className="border-t px-5 py-3 md:hidden"
               style={{ borderColor: 'var(--c-border)' }}
             >
-              <div className="flex items-center justify-between gap-3 mb-3">
-                <span className="text-sm">Aparência</span>
-                <ThemeToggle />
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setElderMode((v) => !v)}
-                className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-xs sm:text-sm border hover:bg-black/5 dark:hover:bg-white/5"
-                style={{ borderColor: 'var(--c-border)' }}
+              <p
+                className="text-[11px] uppercase tracking-[0.16em] mb-2"
+                style={{ color: 'var(--text-muted)' }}
               >
-                <span>Modo idoso</span>
-                <span
-                  className="px-2 py-0.5 rounded-full text-[11px] font-medium"
-                  style={{
-                    background: elderMode
-                      ? 'color-mix(in srgb, var(--primary) 20%, var(--surface) 80%)'
-                      : 'transparent',
-                    color: elderMode ? 'var(--primary)' : 'var(--text-muted)',
-                    border: elderMode
-                      ? '1px solid color-mix(in srgb, var(--primary) 50%, transparent)'
-                      : '1px solid transparent',
-                  }}
+                Aparência
+              </p>
+
+              <div className="space-y-2">
+                {/* Tema */}
+                <div
+                  className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border"
+                  style={{ borderColor: 'var(--c-border)' }}
                 >
-                  {elderMode ? 'Ativado' : 'Desativado'}
-                </span>
-              </button>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-medium">Tema</span>
+                    <span
+                      className="text-[11px]"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Claro / Escuro automático
+                    </span>
+                  </div>
+                  <ThemeToggle />
+                </div>
+
+                {/* Modo idoso */}
+                <button
+                  type="button"
+                  onClick={() => setElderMode((v) => !v)}
+                  className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-xs sm:text-sm border hover:bg-black/5 dark:hover:bg-white/5"
+                  style={{ borderColor: 'var(--c-border)' }}
+                  aria-pressed={elderMode}
+                >
+                  <div className="flex flex-col text-left">
+                    <span className="font-medium">Modo idoso</span>
+                    <span
+                      className="text-[11px]"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Letras maiores e mais contraste
+                    </span>
+                  </div>
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[11px] font-medium"
+                    style={{
+                      background: elderMode
+                        ? 'color-mix(in srgb, var(--primary) 20%, var(--surface) 80%)'
+                        : 'transparent',
+                      color: elderMode ? 'var(--primary)' : 'var(--text-muted)',
+                      border: elderMode
+                        ? '1px solid color-mix(in srgb, var(--primary) 50%, transparent)'
+                        : '1px solid transparent',
+                    }}
+                  >
+                    {elderMode ? 'Ativado' : 'Desativado'}
+                  </span>
+                </button>
+              </div>
             </div>
 
             {/* BOTÃO SAIR */}
