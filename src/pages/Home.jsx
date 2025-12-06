@@ -22,6 +22,9 @@ import {
   IdCard,
   QrCode,
   Gift,
+  MessageCircle,
+  HeartHandshake,
+  Phone,
 } from 'lucide-react'
 import { usePrimaryColor as usePrimaryColorLocal } from '@/lib/themeColor'
 
@@ -62,9 +65,19 @@ function IconBadge({ children }) {
 function FeatureCardPremium({ icon, title, desc, to, cta, mounted, delay = 0 }) {
   if (!to) return null
 
+  const isExternal = /^https?:\/\//i.test(to)
+  const Wrapper = isExternal ? 'a' : Link
+  const wrapperProps = isExternal
+    ? {
+        href: to,
+        target: '_blank',
+        rel: 'noopener noreferrer',
+      }
+    : { to }
+
   return (
-    <Link
-      to={to}
+    <Wrapper
+      {...wrapperProps}
       className="
         group block h-full 
         focus:outline-none 
@@ -111,7 +124,7 @@ function FeatureCardPremium({ icon, title, desc, to, cta, mounted, delay = 0 }) 
           </CTAButton>
         </div>
       </article>
-    </Link>
+    </Wrapper>
   )
 }
 
@@ -122,9 +135,19 @@ function FeatureCardPremium({ icon, title, desc, to, cta, mounted, delay = 0 }) 
 function FeatureCardMinimal({ icon, title, desc, to, cta, mounted, delay = 0 }) {
   if (!to) return null
 
+  const isExternal = /^https?:\/\//i.test(to)
+  const Wrapper = isExternal ? 'a' : Link
+  const wrapperProps = isExternal
+    ? {
+        href: to,
+        target: '_blank',
+        rel: 'noopener noreferrer',
+      }
+    : { to }
+
   return (
-    <Link
-      to={to}
+    <Wrapper
+      {...wrapperProps}
       className="
         group block h-full
         focus:outline-none
@@ -174,7 +197,7 @@ function FeatureCardMinimal({ icon, title, desc, to, cta, mounted, delay = 0 }) 
           </span>
         </div>
       </article>
-    </Link>
+    </Wrapper>
   )
 }
 
@@ -223,15 +246,32 @@ export default function Home() {
     return () => clearTimeout(t)
   }, [])
 
-  // monta link do WhatsApp dinamicamente a partir do telefone do tenant
-  const whatsappHref = useMemo(() => {
+  // telefone base do tenant (somente dígitos, com DDI 55)
+  const telefoneDigits = useMemo(() => {
     let tel = empresa?.contato?.telefone || ''
     let digits = String(tel).replace(/\D+/g, '')
     if (!digits) return ''
     if (!digits.startsWith('55')) digits = '55' + digits
-    const msg = encodeURIComponent('Olá! Quero ser parceiro.')
-    return `https://wa.me/${digits}?text=${msg}`
+    return digits
   }, [empresa])
+
+  const whatsappParceiroHref = useMemo(() => {
+    if (!telefoneDigits) return ''
+    const msg = encodeURIComponent('Olá! Quero ser parceiro.')
+    return `https://wa.me/${telefoneDigits}?text=${msg}`
+  }, [telefoneDigits])
+
+  const whatsappAtendimentoHref = useMemo(() => {
+    if (!telefoneDigits) return ''
+    const msg = encodeURIComponent('Olá, preciso de atendimento sobre meu plano.')
+    return `https://wa.me/${telefoneDigits}?text=${msg}`
+  }, [telefoneDigits])
+
+  const telefoneE164 = telefoneDigits
+    ? telefoneDigits.startsWith('55')
+      ? `+${telefoneDigits}`
+      : telefoneDigits
+    : ''
 
   return (
     <section className="section">
@@ -277,7 +317,7 @@ export default function Home() {
             grid
             grid-cols-2      /* mobile */
             sm:grid-cols-2   /* tablet */
-            lg:grid-cols-4   /* desktop */
+            lg:grid-cols-3   /* desktop */
             gap-3 sm:gap-5 lg:gap-6
           "
         >
@@ -320,6 +360,26 @@ export default function Home() {
             mounted={mounted}
             delay={130}
           />
+
+          <FeatureCard
+            icon={<HeartHandshake size={22} strokeWidth={2} />}
+            title="Memorial Online"
+            desc="Homenagens interativas com fotos, mensagens e histórias."
+            to="/memorial"
+            cta="Ver Memorial"
+            mounted={mounted}
+            delay={160}
+          />
+          <FeatureCard
+            icon={<MessageCircle size={22} strokeWidth={2} />}
+            title="Atendimento"
+            desc="Encontre nossas unidades e canais de atendimento."
+            to="/filiais"
+            cta="Ver unidades"
+            mounted={mounted}
+            delay={190}
+          />
+
         </div>
 
         {/* APP SECTION */}
@@ -399,7 +459,7 @@ export default function Home() {
             onBecomePartner={() =>
               (window.location.href = '/parceiros/inscrever')
             }
-            whatsappHref={whatsappHref}
+            whatsappHref={whatsappParceiroHref}
           />
         </div>
 
