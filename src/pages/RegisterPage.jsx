@@ -4,7 +4,7 @@ import { useNavigate, Link, useLocation } from 'react-router-dom'
 import useTenant from '@/store/tenant'
 import useAuth from '@/store/auth'
 import { registerUser } from '@/lib/authApi'
-import { AlertTriangle, UserPlus } from 'lucide-react'
+import { AlertTriangle, UserPlus, Lock, CheckCircle2 } from 'lucide-react'
 import { registrarDispositivoFcmWeb } from '@/lib/fcm'
 
 const initial = {
@@ -200,10 +200,7 @@ function DateSelectBR({
     const iso = `${ano}-${mes}-${dia}`
     const ok = inRange(iso)
     if (!ok)
-      setSoftWarn(
-        'Data fora do intervalo permitido (entre 18 e 100 anos).'
-      )
-    // sempre notifica o pai (evita travar idadeOk)
+      setSoftWarn('Data fora do intervalo permitido (entre 18 e 100 anos).')
     onChangeISO?.(iso)
   }, [dia, mes, ano]) // eslint-disable-line
 
@@ -225,9 +222,7 @@ function DateSelectBR({
         const dClamped = clampDayIfNeeded(y, m, d)
         if (dClamped !== d) {
           setDia(String(dClamped).padStart(2, '0'))
-          setSoftWarn(
-            'Ajustamos o dia para o máximo permitido no período.'
-          )
+          setSoftWarn('Ajustamos o dia para o máximo permitido no período.')
         }
       }
     }
@@ -242,9 +237,7 @@ function DateSelectBR({
       const dClamped = clampDayIfNeeded(y, m, d)
       if (dClamped !== d) {
         setDia(String(dClamped).padStart(2, '0'))
-        setSoftWarn(
-          'Ajustamos o dia para o máximo permitido no mês/limite.'
-        )
+        setSoftWarn('Ajustamos o dia para o máximo permitido no mês/limite.')
       }
     }
   }
@@ -265,7 +258,7 @@ function DateSelectBR({
         </label>
         <select
           id={idDia}
-          className="input h-11"
+          className="input h-12 text-base bg-white"
           value={dia}
           onChange={(e) => setDia(e.target.value)}
         >
@@ -302,7 +295,7 @@ function DateSelectBR({
         </label>
         <select
           id={idMes}
-          className="input h-11"
+          className="input h-12 text-base bg-white"
           value={mes}
           onChange={(e) => handleChangeMes(e.target.value)}
         >
@@ -319,7 +312,7 @@ function DateSelectBR({
         </label>
         <select
           id={idAno}
-          className="input h-11"
+          className="input h-12 text-base bg-white"
           value={ano}
           onChange={(e) => handleChangeAno(e.target.value)}
         >
@@ -333,7 +326,7 @@ function DateSelectBR({
       </div>
       {(invalid || softWarn) && (
         <p
-          className={`mt-1 text-xs inline-flex items-center gap-1 ${
+          className={`mt-1 text-xs md:text-sm inline-flex items-center gap-1 ${
             invalid ? 'text-red-600' : 'text-amber-600'
           }`}
           role="alert"
@@ -352,7 +345,7 @@ function DateSelectBR({
 
 function Rule({ ok, children }) {
   return (
-    <li className="flex items-center gap-2 text-xs">
+    <li className="flex items-center gap-2 text-xs md:text-sm">
       <span
         aria-hidden="true"
         className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]"
@@ -385,6 +378,7 @@ export default function RegisterPage() {
   const [okMsg, setOkMsg] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [errorList, setErrorList] = useState([])
+  const [step, setStep] = useState(1) // 1: dados, 2: senha
 
   // Mostrar/ocultar senha
   const [showPass, setShowPass] = useState(false)
@@ -423,23 +417,14 @@ export default function RegisterPage() {
   const idadeOk = idade !== null && idade >= 18 && idade <= 100
 
   // Validações reativas
-  const nomeOk = useMemo(
-    () => form.nome.trim().length >= 3,
-    [form.nome]
-  )
-  const emailOk = useMemo(
-    () => isValidEmail(form.email),
-    [form.email]
-  )
+  const nomeOk = useMemo(() => form.nome.trim().length >= 3, [form.nome])
+  const emailOk = useMemo(() => isValidEmail(form.email), [form.email])
   const cpfOk = useMemo(() => isValidCPF(form.cpf), [form.cpf])
   const senhaChecks = useMemo(
     () => getPasswordChecks(form.senha),
     [form.senha]
   )
-  const senhaOk = useMemo(
-    () => isStrongPassword(form.senha),
-    [form.senha]
-  )
+  const senhaOk = useMemo(() => isStrongPassword(form.senha), [form.senha])
   const confirmOk = useMemo(
     () =>
       form.confirmSenha.length > 0 &&
@@ -451,15 +436,8 @@ export default function RegisterPage() {
     [form.celular]
   )
 
-  // botão habilita quando tudo visível está OK
   const formValido =
-    nomeOk &&
-    emailOk &&
-    cpfOk &&
-    celularOk &&
-    idadeOk &&
-    senhaOk &&
-    confirmOk
+    nomeOk && emailOk && cpfOk && celularOk && idadeOk && senhaOk && confirmOk
 
   useEffect(() => {
     setError('')
@@ -476,16 +454,12 @@ export default function RegisterPage() {
       const raw = e.target.value || ''
       const nextVal = formatter(raw)
       setForm((prev) => ({ ...prev, [name]: nextVal }))
-      if (submitted)
-        setErrorList(
-          buildErrorList({ ...form, [name]: nextVal })
-        )
+      if (submitted) setErrorList(buildErrorList({ ...form, [name]: nextVal }))
     }
   const onPasteMasked = (name, formatter) => (e) => {
     e.preventDefault()
     const pasted =
-      (e.clipboardData || window.clipboardData).getData('text') ||
-      ''
+      (e.clipboardData || window.clipboardData).getData('text') || ''
     const nextVal = formatter(pasted)
     setForm((prev) => ({ ...prev, [name]: nextVal }))
   }
@@ -544,17 +518,22 @@ export default function RegisterPage() {
       items.push({
         field: 'senha',
         label:
-          'A senha deve ter ao menos 8 caracteres, com letra MAIÚSCULA, letra minúscula e dígito.',
+          'A senha deve ter pelo menos 8 caracteres, com letra maiúscula, minúscula e número.',
       })
     }
     if (!(values.confirmSenha && values.confirmSenha === values.senha)) {
       items.push({
         field: 'confirmSenha',
-        label: 'As senhas não conferem.',
+        label: 'As senhas precisam ser iguais.',
       })
     }
-    // sem obrigar aceites explícitos aqui
     return items
+  }
+
+  function buildStep1Errors(values) {
+    const all = buildErrorList(values)
+    const step1Fields = ['nome', 'email', 'cpf', 'celular', 'dataNascimento']
+    return all.filter((it) => step1Fields.includes(it.field))
   }
 
   function focusByField(field) {
@@ -573,6 +552,25 @@ export default function RegisterPage() {
     e.preventDefault()
     if (loading) return
 
+    // Passo 1: validar dados pessoais e avançar
+    if (step === 1) {
+      setSubmitted(true)
+      const list = buildStep1Errors(form)
+      setErrorList(list)
+
+      if (list.length > 0) {
+        focusByField(list[0].field)
+        return
+      }
+
+      setStep(2)
+      setErrorList([])
+      // foca no campo senha ao entrar no passo 2
+      setTimeout(() => senhaRef.current?.focus(), 0)
+      return
+    }
+
+    // Passo 2: envio definitivo
     setSubmitted(true)
     const list = buildErrorList(form)
     setErrorList(list)
@@ -586,6 +584,7 @@ export default function RegisterPage() {
       setError('CPF inválido. Verifique os números digitados.')
       setTimeout(() => alertRef.current?.focus(), 0)
       focusByField('cpf')
+      setStep(1)
       return
     }
 
@@ -594,13 +593,10 @@ export default function RegisterPage() {
       typeof rawFrom === 'string'
         ? rawFrom
         : rawFrom?.pathname
-        ? `${rawFrom.pathname}${rawFrom.search || ''}${
-            rawFrom.hash || ''
-          }`
+        ? `${rawFrom.pathname}${rawFrom.search || ''}${rawFrom.hash || ''}`
         : '/area'
 
-    const identificador =
-      form.email?.trim() || onlyDigits(form.cpf)
+    const identificador = form.email?.trim() || onlyDigits(form.cpf)
     const payload = {
       ...form,
       aceiteTermos: true,
@@ -612,21 +608,15 @@ export default function RegisterPage() {
       setError('')
       setOkMsg('')
 
-      // Cadastro do usuário
       await registerUser(payload)
-
-      // Login automático
       await login(identificador, form.senha)
 
-      // Registro do dispositivo FCM (WEB)
       try {
         console.info(
           '[Register] Iniciando registro do dispositivo FCM (WEB) após cadastro...'
         )
         await registrarDispositivoFcmWeb()
-        console.info(
-          '[Register] Registro do dispositivo FCM finalizado (WEB).'
-        )
+        console.info('[Register] Registro do dispositivo FCM finalizado (WEB).')
       } catch (err) {
         console.error(
           '[Register] Falha ao registrar dispositivo FCM (WEB):',
@@ -634,7 +624,6 @@ export default function RegisterPage() {
         )
       }
 
-      // Prefill de dados para próximos fluxos
       try {
         const prefill = {
           cpf: onlyDigits(form.cpf),
@@ -644,13 +633,9 @@ export default function RegisterPage() {
           nome: (form.nome || '').trim(),
         }
         sessionStorage.setItem('reg_prefill', JSON.stringify(prefill))
-        localStorage.setItem(
-          'register:last',
-          JSON.stringify(prefill)
-        )
+        localStorage.setItem('register:last', JSON.stringify(prefill))
       } catch {}
 
-      // Redireciona para a área ou rota de origem
       navigate(from, { replace: true })
     } catch (err) {
       console.error(err)
@@ -669,34 +654,49 @@ export default function RegisterPage() {
     }
   }
 
+  const firstName = useMemo(() => {
+    const n = (form.nome || '').trim()
+    if (!n) return ''
+    return n.split(' ')[0]
+  }, [form.nome])
+
+  const stepTitle =
+    step === 1 ? 'Etapa 1 de 2 · Seus dados' : 'Etapa 2 de 2 · Sua senha'
+  const stepDesc =
+    step === 1
+      ? 'Preencha seus dados principais para criar o acesso.'
+      : 'Agora é só definir uma senha para entrar na sua área.'
+
+  const progressPercent = step === 1 ? '50%' : '100%'
+
   return (
     <section className="section">
       <div className="container-max max-w-4xl relative">
         <div className="min-h-[60vh] py-8 flex flex-col justify-center">
-          {/* halo de fundo premium */}
+          {/* halo de fundo premium, discreto */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 top-[72px] mx-auto h-48 max-w-2xl rounded-[48px] opacity-80"
+            className="pointer-events-none absolute inset-x-0 top-[72px] mx-auto h-40 max-w-2xl rounded-[48px] opacity-70"
             style={{
               background:
-                'radial-gradient(120% 100% at 50% 0%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)',
+                'radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)',
               zIndex: -1,
             }}
           />
 
-          {/* topo / header premium */}
+          {/* topo / header */}
           <header className="mb-6">
             {/* switch cadastro x login */}
             <div
-              className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--surface-elevated)_92%,transparent)] p-1 border shadow-sm"
+              className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--surface-elevated)_94%,transparent)] p-1 border shadow-sm"
               style={{
                 borderColor:
-                  'color-mix(in srgb, var(--primary) 24%, transparent)',
+                  'color-mix(in srgb, var(--primary) 28%, transparent)',
               }}
             >
               <button
                 type="button"
-                className="px-4 py-1.5 text-xs font-semibold rounded-full bg-[color-mix(in_srgb,var(--primary)_14%,transparent)] inline-flex items-center gap-1.5"
+                className="px-4 py-1.5 text-xs md:text-sm font-semibold rounded-full bg-[color-mix(in_srgb,var(--primary)_22%,transparent)] inline-flex items-center gap-1.5"
               >
                 <UserPlus size={14} />
                 <span>Criar conta</span>
@@ -704,21 +704,20 @@ export default function RegisterPage() {
               <button
                 type="button"
                 onClick={() => navigate('/login')}
-                className="px-4 py-1.5 text-xs font-medium rounded-full hover:bg-[color-mix(in_srgb,var(--surface)_96%,transparent)]"
+                className="px-4 py-1.5 text-xs md:text-sm font-medium rounded-full hover:bg-[color-mix(in_srgb,var(--surface)_92%,transparent)]"
               >
                 Já tenho conta
               </button>
             </div>
 
-            <h1 className="mt-4 text-3xl font-semibold tracking-tight">
-              Comece agora e garanta o melhor pra sua família
+            <h1 className="mt-4 text-2xl md:text-3xl font-semibold tracking-tight">
+              Cadastre-se em poucos passos
             </h1>
             <p
-              className="mt-1 text-sm leading-relaxed"
+              className="mt-1 text-sm md:text-base leading-relaxed"
               style={{ color: 'var(--text-muted)' }}
             >
-              Cadastro rápido, em poucos minutos, para acompanhar planos,
-              dependentes e pagamentos em um ambiente seguro.
+              Você só precisa informar seus dados, escolher uma senha e pronto.
             </p>
           </header>
 
@@ -728,7 +727,7 @@ export default function RegisterPage() {
               ref={alertRef}
               role="alert"
               tabIndex={-1}
-              className="mb-4 rounded-2xl px-4 py-3 text-sm"
+              className="mb-4 rounded-2xl px-4 py-3 text-sm md:text-base"
               style={{
                 border:
                   '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
@@ -744,7 +743,7 @@ export default function RegisterPage() {
 
           {okMsg && (
             <div
-              className="mb-4 rounded-2xl px-4 py-3 text-sm"
+              className="mb-4 rounded-2xl px-4 py-3 text-sm md:text-base"
               style={{
                 border:
                   '1px solid color-mix(in srgb, var(--primary) 25%, transparent)',
@@ -761,16 +760,17 @@ export default function RegisterPage() {
           {/* Card principal */}
           <form
             onSubmit={onSubmit}
-            className="card relative overflow-hidden border-0 shadow-xl p-6 md:p-8 space-y-6 rounded-3xl"
+            className="relative overflow-hidden p-6 md:p-8 space-y-6 rounded-3xl border shadow-xl"
             style={{
               background:
-                'linear-gradient(145deg, color-mix(in srgb, var(--surface) 94%, transparent), color-mix(in srgb, var(--surface-elevated) 96%, transparent))',
+                'color-mix(in srgb, var(--surface) 88%, var(--text) 6%)',
+              borderColor: 'color-mix(in srgb, var(--text) 18%, transparent)',
             }}
           >
             {/* gradiente suave no rodapé do card */}
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-20"
               style={{
                 background:
                   'radial-gradient(120% 140% at 50% 120%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)',
@@ -782,415 +782,599 @@ export default function RegisterPage() {
               disabled={loading}
               className="space-y-6 relative z-[1]"
             >
-              {/* Nome */}
-              <div>
-                <label
-                  htmlFor="nome"
-                  className="label font-medium text-sm"
-                >
-                  Nome completo{' '}
-                  <span
-                    aria-hidden="true"
-                    className="text-red-600"
-                  >
-                    *
-                  </span>
-                </label>
-                <input
-                  id="nome"
-                  name="nome"
-                  ref={nomeRef}
-                  value={form.nome}
-                  onChange={onChange}
-                  className={`input h-11 text-sm ${
-                    submitted && !nomeOk ? 'ring-1 ring-red-500' : ''
-                  }`}
-                  placeholder="Maria Oliveira"
-                  autoComplete="name"
-                  aria-required="true"
-                  aria-invalid={submitted && !nomeOk}
-                />
-                {submitted && !nomeOk && (
-                  <p className="text-xs mt-1 text-red-600">
-                    Informe ao menos 3 caracteres.
+              {/* indicador de passo + barra de progresso */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs md:text-sm font-semibold tracking-wide uppercase">
+                    {stepTitle}
                   </p>
-                )}
-              </div>
-
-              {/* Grid 2 col: CPF + e-mail */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label
-                    htmlFor="cpf"
-                    className="label font-medium text-sm"
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] md:text-xs"
+                    style={{
+                      background:
+                        'color-mix(in srgb, var(--surface-elevated) 90%, transparent)',
+                      color: 'var(--text-muted)',
+                    }}
                   >
-                    CPF{' '}
                     <span
-                      aria-hidden="true"
-                      className="text-red-600"
-                    >
-                      *
-                    </span>
-                  </label>
-                  <input
-                    id="cpf"
-                    name="cpf"
-                    ref={cpfRef}
-                    value={formatCPF(form.cpf)}
-                    onChange={onChangeMasked('cpf', formatCPF, cpfRef)}
-                    onPaste={onPasteMasked('cpf', formatCPF)}
-                    className={`input h-11 text-sm ${
-                      submitted && !cpfOk ? 'ring-1 ring-red-500' : ''
-                    }`}
-                    placeholder="000.000.000-00"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    aria-required="true"
-                    aria-invalid={submitted && !cpfOk}
-                  />
-                  {submitted && !cpfOk && (
-                    <p className="text-xs mt-1 text-red-600">
-                      CPF inválido. Verifique os números digitados.
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="email"
-                    className="label font-medium text-sm"
-                  >
-                    E-mail{' '}
-                    <span
-                      aria-hidden="true"
-                      className="text-red-600"
-                    >
-                      *
-                    </span>
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    name="email"
-                    ref={emailRef}
-                    value={form.email}
-                    onChange={onChange}
-                    className={`input h-11 text-sm ${
-                      submitted && !emailOk
-                        ? 'ring-1 ring-red-500'
-                        : ''
-                    }`}
-                    placeholder="maria@exemplo.com"
-                    autoComplete="email"
-                    inputMode="email"
-                    aria-required="true"
-                    aria-invalid={submitted && !emailOk}
-                  />
-                  {submitted && !emailOk && (
-                    <p className="text-xs mt-1 text-red-600">
-                      Informe um e-mail válido.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Grid: data de nascimento + celular */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="label font-medium text-sm">
-                    Data de nascimento{' '}
-                    <span
-                      aria-hidden="true"
-                      className="text-red-600"
-                    >
-                      *
-                    </span>
-                  </label>
-                  <DateSelectBR
-                    idPrefix="reg-nasc"
-                    valueISO={form.dataNascimento}
-                    onChangeISO={(iso) =>
-                      setForm((p) => ({
-                        ...p,
-                        dataNascimento: iso,
-                      }))
-                    }
-                    minAge={18}
-                    maxAge={100}
-                    invalid={
-                      submitted &&
-                      (!form.dataNascimento || !idadeOk)
-                    }
-                  />
-                  {submitted &&
-                    (!form.dataNascimento || !idadeOk) && (
-                      <p className="text-xs mt-1 text-red-600">
-                        Precisa ter entre <b>18</b> e <b>100</b> anos.
-                      </p>
-                    )}
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="celular"
-                    className="label font-medium text-sm"
-                  >
-                    Celular{' '}
-                    <span
-                      aria-hidden="true"
-                      className="text-red-600"
-                    >
-                      *
-                    </span>
-                  </label>
-                  <input
-                    id="celular"
-                    name="celular"
-                    ref={celRef}
-                    value={formatPhoneBR(form.celular)}
-                    onChange={onChangeMasked(
-                      'celular',
-                      formatPhoneBR,
-                      celRef
-                    )}
-                    onPaste={onPasteMasked(
-                      'celular',
-                      formatPhoneBR
-                    )}
-                    className={`input h-11 text-sm ${
-                      submitted && !celularOk
-                        ? 'ring-1 ring-red-500'
-                        : ''
-                    }`}
-                    placeholder="(00) 90000-0000"
-                    inputMode="tel"
-                    autoComplete="tel"
-                    aria-required="true"
-                    aria-invalid={submitted && !celularOk}
-                  />
-                  {submitted && !celularOk && (
-                    <p className="text-xs mt-1 text-red-600">
-                      Informe um celular válido com DDD.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Grid: senha + confirmar senha (lado a lado em todas as larguras) */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label
-                    htmlFor="senha"
-                    className="label font-medium text-sm"
-                  >
-                    Senha{' '}
-                    <span
-                      aria-hidden="true"
-                      className="text-red-600"
-                    >
-                      *
-                    </span>
-                  </label>
-                  <div
-                    className={`relative ${
-                      submitted && !senhaOk
-                        ? 'ring-1 ring-red-500 rounded-md'
-                        : ''
-                    }`}
-                  >
-                    <input
-                      id="senha"
-                      type={showPass ? 'text' : 'password'}
-                      name="senha"
-                      ref={senhaRef}
-                      value={form.senha}
-                      onChange={onChange}
-                      onFocus={() => setSenhaFocused(true)}
-                      onBlur={() => setSenhaFocused(false)}
-                      className="input pr-12 h-11 text-xs sm:text-sm"
-                      placeholder="Mín. 8, letras e números"
-                      autoComplete="new-password"
-                      aria-required="true"
-                      aria-invalid={submitted && !senhaOk}
-                      aria-describedby={
-                        senhaFocused ? 'senha-policy' : undefined
-                      }
+                      className="inline-block h-1.5 w-1.5 rounded-full"
+                      style={{ background: 'var(--primary)' }}
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPass((v) => !v)}
-                      className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none text-sm"
-                      aria-label={
-                        showPass ? 'Ocultar senha' : 'Mostrar senha'
-                      }
-                      aria-pressed={showPass}
-                      title={
-                        showPass ? 'Ocultar senha' : 'Mostrar senha'
-                      }
-                    >
-                      {showPass ? '🙈' : '👁️'}
-                    </button>
-                  </div>
-
-                  {/* Checklist em tempo real */}
-                  {senhaFocused && (
-                    <div
-                      id="senha-policy"
-                      className="rounded-lg px-3 py-2 mt-2"
-                      style={{
-                        background:
-                          'color-mix(in srgb, var(--surface) 80%, transparent)',
-                        border: '1px solid var(--c-border)',
-                      }}
-                      aria-live="polite"
-                    >
-                      <p
-                        className="text-[11px] mb-1"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        Sua senha deve conter:
-                      </p>
-                      <ul className="space-y-1">
-                        <Rule ok={senhaChecks.len}>
-                          Pelo menos 8 caracteres
-                        </Rule>
-                        <Rule ok={senhaChecks.upper}>
-                          Ao menos 1 letra maiúscula (A–Z)
-                        </Rule>
-                        <Rule ok={senhaChecks.lower}>
-                          Ao menos 1 letra minúscula (a–z)
-                        </Rule>
-                        <Rule ok={senhaChecks.digit}>
-                          Ao menos 1 dígito (0–9)
-                        </Rule>
-                      </ul>
-                    </div>
-                  )}
-
-                  {submitted && !senhaOk && (
-                    <p className="text-xs mt-2 text-red-600">
-                      A senha deve ter ao menos 8 caracteres, com letra
-                      MAIÚSCULA, letra minúscula e dígito.
-                    </p>
-                  )}
+                    {step === 1 ? 'Começando' : 'Quase lá'}
+                  </span>
                 </div>
 
-                <div>
-                  <label
-                    htmlFor="confirmSenha"
-                    className="label font-medium text-sm"
-                  >
-                    Confirmar senha{' '}
-                    <span
-                      aria-hidden="true"
-                      className="text-red-600"
-                    >
-                      *
-                    </span>
-                  </label>
-                  <div
-                    className={`relative ${
-                      submitted && !confirmOk
-                        ? 'ring-1 ring-red-500 rounded-md'
-                        : ''
-                    }`}
-                  >
-                    <input
-                      id="confirmSenha"
-                      ref={confirmRef}
-                      type={showConfirm ? 'text' : 'password'}
-                      name="confirmSenha"
-                      value={form.confirmSenha}
-                      onChange={onChange}
-                      className="input pr-12 h-11 text-xs sm:text-sm"
-                      placeholder="Repita a senha"
-                      autoComplete="new-password"
-                      aria-required="true"
-                      aria-invalid={submitted && !confirmOk}
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setShowConfirm((v) => !v)
-                      }
-                      className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none text-sm"
-                      aria-label={
-                        showConfirm
-                          ? 'Ocultar senha'
-                          : 'Mostrar senha'
-                      }
-                      aria-pressed={showConfirm}
-                      title={
-                        showConfirm
-                          ? 'Ocultar senha'
-                          : 'Mostrar senha'
-                      }
-                    >
-                      {showConfirm ? '🙈' : '👁️'}
-                    </button>
-                  </div>
-                  {submitted && !confirmOk && (
-                    <p className="text-xs mt-1 text-red-600">
-                      As senhas precisam ser idênticas.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Sumário de erros após submit */}
-              {submitted && errorList.length > 0 && (
                 <div
-                  className="rounded-lg px-4 py-3 text-sm mt-1"
+                  className="h-1.5 rounded-full overflow-hidden"
                   style={{
-                    border:
-                      '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
                     background:
-                      'color-mix(in srgb, var(--primary) 12%, transparent)',
-                    color: 'var(--text)',
+                      'color-mix(in srgb, var(--surface-elevated) 80%, var(--text) 6%)',
                   }}
-                  role="alert"
-                  aria-live="assertive"
+                >
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{
+                      width: progressPercent,
+                      background: 'var(--primary)',
+                    }}
+                  />
+                </div>
+
+                <p
+                  className="text-xs md:text-sm"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  {stepDesc}
+                </p>
+              </div>
+
+              {/* bloco de orientação rápido (apenas passo 1) */}
+              {step === 1 && (
+                <div
+                  className="rounded-2xl px-4 py-3 text-xs md:text-sm mb-1"
+                  style={{
+                    background:
+                      'color-mix(in srgb, var(--surface-elevated) 92%, transparent)',
+                    border:
+                      '1px dashed color-mix(in srgb, var(--text) 14%, transparent)',
+                  }}
                 >
                   <p className="font-medium mb-1">
-                    Revise estes pontos para continuar:
+                    Nesta etapa, vamos pedir apenas:
                   </p>
-                  <ul className="list-disc ml-5 space-y-1">
-                    {errorList.map((it, idx) => (
-                      <li key={idx}>
-                        <button
-                          type="button"
-                          className="underline hover:opacity-80"
-                          onClick={() => focusByField(it.field)}
-                        >
-                          {it.label}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  <ol className="list-decimal ml-4 space-y-1">
+                    <li>Nome completo</li>
+                    <li>CPF</li>
+                    <li>E-mail</li>
+                    <li>Data de nascimento e celular</li>
+                  </ol>
                 </div>
               )}
 
-              {/* Ações */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <button
-                  type="submit"
-                  className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-11 text-[15px] font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
-                  disabled={!formValido || loading}
+              {/* Aviso de transição bem marcado na etapa 2 */}
+              {step === 2 && (
+                <div
+                  className="rounded-2xl px-4 py-3 text-xs md:text-sm mb-1 flex items-start gap-2"
+                  style={{
+                    background:
+                      'color-mix(in srgb, var(--primary) 12%, transparent)',
+                    border:
+                      '1px solid color-mix(in srgb, var(--primary) 40%, transparent)',
+                  }}
                 >
-                  {loading ? 'Criando conta…' : 'Criar conta agora'}
-                </button>
+                  <div className="mt-0.5">
+                    <CheckCircle2
+                      size={18}
+                      style={{ color: 'var(--primary)' }}
+                    />
+                  </div>
+                  <div>
+                    <p className="font-medium mb-0.5">
+                      Dados anotados, agora é só criar a senha.
+                    </p>
+                    <p style={{ color: 'var(--text-muted)' }}>
+                      Capriche em uma senha que você lembre com facilidade e
+                      guarde em lugar seguro.
+                    </p>
+                  </div>
+                </div>
+              )}
 
-                <Link
-                  to="/login"
-                  className="btn-outline w-full sm:w-auto justify-center rounded-2xl h-11 text-sm font-medium"
-                  aria-disabled={loading}
-                >
-                  Já tenho conta
-                </Link>
+              {/* PAINEL COM FUNDO LEVE PARA OS CAMPOS */}
+              <div
+                className="rounded-2xl border px-4 py-4 md:px-5 md:py-5 space-y-6"
+                style={{
+                  background:
+                    'color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)',
+                  borderColor:
+                    'color-mix(in srgb, var(--text) 16%, transparent)',
+                }}
+              >
+                {step === 1 && (
+                  <>
+                    {/* Nome */}
+                    <div>
+                      <label
+                        htmlFor="nome"
+                        className="label font-medium text-sm md:text-base"
+                      >
+                        Nome completo{' '}
+                        <span aria-hidden="true" className="text-red-600">
+                          *
+                        </span>
+                      </label>
+                      <input
+                        id="nome"
+                        name="nome"
+                        ref={nomeRef}
+                        value={form.nome}
+                        onChange={onChange}
+                        className={`input h-12 text-base bg-white ${
+                          submitted && !nomeOk ? 'ring-1 ring-red-500' : ''
+                        }`}
+                        placeholder="Maria Oliveira"
+                        autoComplete="name"
+                        aria-required="true"
+                        aria-invalid={submitted && !nomeOk}
+                      />
+                      {submitted && !nomeOk && (
+                        <p className="text-xs md:text-sm mt-1 text-red-600">
+                          Informe ao menos 3 caracteres.
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Grid 2 col: CPF + e-mail */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label
+                          htmlFor="cpf"
+                          className="label font-medium text-sm md:text-base"
+                        >
+                          CPF{' '}
+                          <span aria-hidden="true" className="text-red-600">
+                            *
+                          </span>
+                        </label>
+                        <input
+                          id="cpf"
+                          name="cpf"
+                          ref={cpfRef}
+                          value={formatCPF(form.cpf)}
+                          onChange={onChangeMasked('cpf', formatCPF, cpfRef)}
+                          onPaste={onPasteMasked('cpf', formatCPF)}
+                          className={`input h-12 text-base bg-white ${
+                            submitted && !cpfOk ? 'ring-1 ring-red-500' : ''
+                          }`}
+                          placeholder="000.000.000-00"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          aria-required="true"
+                          aria-invalid={submitted && !cpfOk}
+                        />
+                        {submitted && !cpfOk && (
+                          <p className="text-xs md:text-sm mt-1 text-red-600">
+                            CPF inválido. Verifique os números digitados.
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="email"
+                          className="label font-medium text-sm md:text-base"
+                        >
+                          E-mail{' '}
+                          <span aria-hidden="true" className="text-red-600">
+                            *
+                          </span>
+                        </label>
+                        <input
+                          id="email"
+                          type="email"
+                          name="email"
+                          ref={emailRef}
+                          value={form.email}
+                          onChange={onChange}
+                          className={`input h-12 text-base bg-white ${
+                            submitted && !emailOk ? 'ring-1 ring-red-500' : ''
+                          }`}
+                          placeholder="maria@exemplo.com"
+                          autoComplete="email"
+                          inputMode="email"
+                          aria-required="true"
+                          aria-invalid={submitted && !emailOk}
+                        />
+                        {submitted && !emailOk && (
+                          <p className="text-xs md:text-sm mt-1 text-red-600">
+                            Informe um e-mail válido.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Grid: data de nascimento + celular */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label font-medium text-sm md:text-base">
+                          Data de nascimento{' '}
+                          <span
+                            aria-hidden="true"
+                            className="text-red-600"
+                          >
+                            *
+                          </span>
+                        </label>
+                        <DateSelectBR
+                          idPrefix="reg-nasc"
+                          valueISO={form.dataNascimento}
+                          onChangeISO={(iso) =>
+                            setForm((p) => ({
+                              ...p,
+                              dataNascimento: iso,
+                            }))
+                          }
+                          minAge={18}
+                          maxAge={100}
+                          invalid={
+                            submitted &&
+                            (!form.dataNascimento || !idadeOk)
+                          }
+                        />
+                        {submitted &&
+                          (!form.dataNascimento || !idadeOk) && (
+                            <p className="text-xs md:text-sm mt-1 text-red-600">
+                              É preciso ter entre <b>18</b> e <b>100</b> anos.
+                            </p>
+                          )}
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="celular"
+                          className="label font-medium text-sm md:text-base"
+                        >
+                          Celular{' '}
+                          <span aria-hidden="true" className="text-red-600">
+                            *
+                          </span>
+                        </label>
+                        <input
+                          id="celular"
+                          name="celular"
+                          ref={celRef}
+                          value={formatPhoneBR(form.celular)}
+                          onChange={onChangeMasked(
+                            'celular',
+                            formatPhoneBR,
+                            celRef
+                          )}
+                          onPaste={onPasteMasked('celular', formatPhoneBR)}
+                          className={`input h-12 text-base bg-white ${
+                            submitted && !celularOk ? 'ring-1 ring-red-500' : ''
+                          }`}
+                          placeholder="(00) 90000-0000"
+                          inputMode="tel"
+                          autoComplete="tel"
+                          aria-required="true"
+                          aria-invalid={submitted && !celularOk}
+                        />
+                        {submitted && !celularOk && (
+                          <p className="text-xs md:text-sm mt-1 text-red-600">
+                            Informe um celular válido com DDD.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Sumário de erros passo 1 */}
+                    {submitted && step === 1 && errorList.length > 0 && (
+                      <div
+                        className="rounded-lg px-4 py-3 text-sm md:text-base mt-1"
+                        style={{
+                          border:
+                            '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
+                          background:
+                            'color-mix(in srgb, var(--primary) 12%, transparent)',
+                          color: 'var(--text)',
+                        }}
+                        role="alert"
+                        aria-live="assertive"
+                      >
+                        <p className="font-medium mb-1">
+                          Revise os campos destacados antes de continuar:
+                        </p>
+                        <ul className="list-disc ml-5 space-y-1">
+                          {errorList.map((it, idx) => (
+                            <li key={idx}>
+                              <button
+                                type="button"
+                                className="underline hover:opacity-80"
+                                onClick={() => focusByField(it.field)}
+                              >
+                                {it.label}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {step === 2 && (
+                  <>
+                    {/* resumo rápido dos dados preenchidos */}
+                    <div
+                      className="rounded-2xl px-4 py-3 text-xs md:text-sm mb-2 flex items-start gap-2"
+                      style={{
+                        background:
+                          'color-mix(in srgb, var(--surface) 90%, transparent)',
+                        border:
+                          '1px dashed color-mix(in srgb, var(--text) 18%, transparent)',
+                      }}
+                    >
+                      <Lock
+                        size={18}
+                        className="mt-0.5"
+                        style={{ color: 'var(--text-muted)' }}
+                      />
+                      <div>
+                        <p className="font-medium mb-0.5">
+                          {firstName
+                            ? `${firstName}, seus dados estão certos.`
+                            : 'Seus dados estão certos.'}
+                        </p>
+                        <p style={{ color: 'var(--text-muted)' }}>
+                          Agora crie uma senha para acessar sua conta quando
+                          quiser.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Grid: senha + confirmar senha */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label
+                          htmlFor="senha"
+                          className="label font-medium text-sm md:text-base"
+                        >
+                          Senha{' '}
+                          <span
+                            aria-hidden="true"
+                            className="text-red-600"
+                          >
+                            *
+                          </span>
+                        </label>
+                        <div
+                          className={`relative ${
+                            submitted && !senhaOk
+                              ? 'ring-1 ring-red-500 rounded-md'
+                              : ''
+                          }`}
+                        >
+                          <input
+                            id="senha"
+                            type={showPass ? 'text' : 'password'}
+                            name="senha"
+                            ref={senhaRef}
+                            value={form.senha}
+                            onChange={onChange}
+                            onFocus={() => setSenhaFocused(true)}
+                            onBlur={() => setSenhaFocused(false)}
+                            className="input pr-12 h-12 text-xs sm:text-sm md:text-base bg-white"
+                            placeholder="Crie uma senha forte"
+                            autoComplete="new-password"
+                            aria-required="true"
+                            aria-invalid={submitted && !senhaOk}
+                            aria-describedby={
+                              senhaFocused ? 'senha-policy' : undefined
+                            }
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPass((v) => !v)}
+                            className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none text-sm"
+                            aria-label={
+                              showPass ? 'Ocultar senha' : 'Mostrar senha'
+                            }
+                            aria-pressed={showPass}
+                            title={
+                              showPass ? 'Ocultar senha' : 'Mostrar senha'
+                            }
+                          >
+                            {showPass ? '🙈' : '👁️'}
+                          </button>
+                        </div>
+
+                        {/* Checklist em tempo real */}
+                        {senhaFocused && (
+                          <div
+                            id="senha-policy"
+                            className="rounded-lg px-3 py-2 mt-2"
+                            style={{
+                              background:
+                                'color-mix(in srgb, var(--surface) 80%, transparent)',
+                              border: '1px solid var(--c-border)',
+                            }}
+                            aria-live="polite"
+                          >
+                            <p
+                              className="text-[11px] md:text-xs mb-1"
+                              style={{ color: 'var(--text-muted)' }}
+                            >
+                              A senha precisa ter:
+                            </p>
+                            <ul className="space-y-1">
+                              <Rule ok={senhaChecks.len}>
+                                Pelo menos 8 caracteres
+                              </Rule>
+                              <Rule ok={senhaChecks.upper}>
+                                Ao menos 1 letra maiúscula (A–Z)
+                              </Rule>
+                              <Rule ok={senhaChecks.lower}>
+                                Ao menos 1 letra minúscula (a–z)
+                              </Rule>
+                              <Rule ok={senhaChecks.digit}>
+                                Ao menos 1 número (0–9)
+                              </Rule>
+                            </ul>
+                          </div>
+                        )}
+
+                        {submitted && !senhaOk && (
+                          <p className="text-xs md:text-sm mt-2 text-red-600">
+                            Ajuste a senha conforme os requisitos acima.
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor="confirmSenha"
+                          className="label font-medium text-sm md:text-base"
+                        >
+                          Confirmar senha{' '}
+                          <span
+                            aria-hidden="true"
+                            className="text-red-600"
+                          >
+                            *
+                          </span>
+                        </label>
+                        <div
+                          className={`relative ${
+                            submitted && !confirmOk
+                              ? 'ring-1 ring-red-500 rounded-md'
+                              : ''
+                          }`}
+                        >
+                          <input
+                            id="confirmSenha"
+                            ref={confirmRef}
+                            type={showConfirm ? 'text' : 'password'}
+                            name="confirmSenha"
+                            value={form.confirmSenha}
+                            onChange={onChange}
+                            className="input pr-12 h-12 text-xs sm:text-sm md:text-base bg-white"
+                            placeholder="Repita a mesma senha"
+                            autoComplete="new-password"
+                            aria-required="true"
+                            aria-invalid={submitted && !confirmOk}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirm((v) => !v)}
+                            className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none text-sm"
+                            aria-label={
+                              showConfirm ? 'Ocultar senha' : 'Mostrar senha'
+                            }
+                            aria-pressed={showConfirm}
+                            title={
+                              showConfirm ? 'Ocultar senha' : 'Mostrar senha'
+                            }
+                          >
+                            {showConfirm ? '🙈' : '👁️'}
+                          </button>
+                        </div>
+                        {submitted && !confirmOk && (
+                          <p className="text-xs md:text-sm mt-1 text-red-600">
+                            As senhas precisam ser iguais.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Sumário de erros passo 2 */}
+                    {submitted && step === 2 && errorList.length > 0 && (
+                      <div
+                        className="rounded-lg px-4 py-3 text-sm md:text-base mt-1"
+                        style={{
+                          border:
+                            '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
+                          background:
+                            'color-mix(in srgb, var(--primary) 12%, transparent)',
+                          color: 'var(--text)',
+                        }}
+                        role="alert"
+                        aria-live="assertive"
+                      >
+                        <p className="font-medium mb-1">
+                          Revise os campos destacados para concluir o cadastro:
+                        </p>
+                        <ul className="list-disc ml-5 space-y-1">
+                          {errorList.map((it, idx) => (
+                            <li key={idx}>
+                              <button
+                                type="button"
+                                className="underline hover:opacity-80"
+                                onClick={() => focusByField(it.field)}
+                              >
+                                {it.label}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
+              {/* Ações */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                {step === 1 ? (
+                  <>
+                    <button
+                      type="submit"
+                      className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-12 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
+                      disabled={loading}
+                    >
+                      Continuar
+                    </button>
+                    <Link
+                      to="/login"
+                      className="btn-outline w-full sm:w-auto justify-center rounded-2xl h-12 text-sm md:text-base font-medium"
+                      aria-disabled={loading}
+                    >
+                      Já tenho conta
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="submit"
+                      className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-12 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
+                      disabled={loading}
+                    >
+                      {loading ? 'Criando conta…' : 'Criar conta agora'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStep(1)
+                        setTimeout(() => nomeRef.current?.focus(), 0)
+                      }}
+                      className="btn-outline w-full sm:w-auto justify-center rounded-2xl h-12 text-sm md:text-base font-medium"
+                    >
+                      Voltar aos dados
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {!formValido && !submitted && (
+                <p
+                  className="mt-1 text-[11px] md:text-xs text-center"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Preencha os campos com * para finalizar o cadastro.
+                </p>
+              )}
+
               <p
-                className="mt-2 text-[11px] text-center leading-relaxed"
+                className="mt-2 text-[11px] md:text-xs text-center leading-relaxed"
                 style={{ color: 'var(--text-muted)' }}
               >
                 Ao criar sua conta, você declara que leu e concorda com os{' '}
@@ -1211,8 +1395,8 @@ export default function RegisterPage() {
                 >
                   Política de Privacidade
                 </a>
-                . Seus dados são protegidos com criptografia e em
-                conformidade com a LGPD.
+                . Seus dados são protegidos com criptografia e em conformidade
+                com a LGPD.
               </p>
             </fieldset>
           </form>
