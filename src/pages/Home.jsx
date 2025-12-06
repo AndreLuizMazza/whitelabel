@@ -1,6 +1,7 @@
 // src/pages/Home.jsx
 import { useEffect, useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import useTenant from '@/store/tenant'
 import useAuth from '@/store/auth'
 
@@ -122,20 +123,27 @@ function FeatureCardPremium({ icon, title, desc, to, cta, mounted, delay = 0 }) 
 
 function ValuePills() {
   const pillBase =
-    'inline-flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-medium ' +
-    'backdrop-blur-md transition-colors tracking-wide ' +
-    'bg-white/6 dark:bg-black/20 border border-white/20 text-white/95 ' +
-    'hover:bg-white/12 hover:border-white/30'
+    'inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[11px] sm:text-xs font-medium ' +
+    'backdrop-blur-md transition-all tracking-wide border'
+
+  const pillStyle = {
+    background:
+      'color-mix(in srgb, var(--primary) 8%, var(--surface) 92%)',
+    color: 'var(--text)',
+    borderColor:
+      'color-mix(in srgb, var(--primary) 26%, var(--c-border) 74%)',
+    boxShadow: '0 10px 30px rgba(15,23,42,0.10)',
+  }
 
   return (
     <div className="flex flex-wrap gap-2">
-      <span className={pillBase}>
+      <span className={pillBase} style={pillStyle}>
         <IdCard size={13} /> Carteirinha digital
       </span>
-      <span className={pillBase}>
+      <span className={pillBase} style={pillStyle}>
         <QrCode size={13} /> PIX & boletos
       </span>
-      <span className={pillBase}>
+      <span className={pillBase} style={pillStyle}>
         <Gift size={13} /> Clube de benefícios
       </span>
     </div>
@@ -157,7 +165,11 @@ function HeroCtaButton({ cta }) {
     <CTAButton
       as="span"
       size="lg"
-      className="min-w-[180px] justify-center"
+      className="
+        min-w-[190px] justify-center rounded-full px-7
+        text-sm font-semibold tracking-[0.06em] uppercase
+        shadow-[0_18px_45px_rgba(15,23,42,0.55)]
+      "
       variant={cta.variant || 'primary'}
     >
       {cta.label}
@@ -166,13 +178,65 @@ function HeroCtaButton({ cta }) {
 
   if (external) {
     return (
-      <a href={cta.to} target="_blank" rel="noopener noreferrer">
-        {button}
-      </a>
+      <motion.a
+        href={cta.to}
+        target="_blank"
+        rel="noopener noreferrer"
+        whileHover={{ scale: 1.04, y: -1 }}
+        whileTap={{ scale: 0.98, y: 0 }}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+        style={{
+          borderRadius: 999,
+          padding: '2px',
+          background:
+            'radial-gradient(circle at 0% 0%, rgba(255,255,255,0.6), transparent 55%), ' +
+            'linear-gradient(135deg, color-mix(in srgb,var(--primary) 78%,#ffffff), #020617)',
+        }}
+      >
+        <div
+          style={{
+            borderRadius: 999,
+            background:
+              'radial-gradient(circle at 0% 0%, rgba(255,255,255,0.16), transparent 60%), ' +
+              'color-mix(in srgb, #020617 80%, black)',
+          }}
+        >
+          {button}
+        </div>
+      </motion.a>
     )
   }
 
-  return <Link to={cta.to}>{button}</Link>
+  return (
+    <motion.span
+      whileHover={{ scale: 1.04, y: -1 }}
+      whileTap={{ scale: 0.98, y: 0 }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: 'easeOut' }}
+      style={{
+        borderRadius: 999,
+        padding: '2px',
+        display: 'inline-block',
+        background:
+          'radial-gradient(circle at 0% 0%, rgba(255,255,255,0.6), transparent 55%), ' +
+          'linear-gradient(135deg, color-mix(in srgb,var(--primary) 78%,#ffffff), #020617)',
+      }}
+    >
+      <div
+        style={{
+          borderRadius: 999,
+          background:
+            'radial-gradient(circle at 0% 0%, rgba(255,255,255,0.16), transparent 60%), ' +
+            'color-mix(in srgb, #020617 80%, black)',
+        }}
+      >
+        {button}
+      </div>
+    </motion.span>
+  )
 }
 
 function HeroSlider({ slides, mounted }) {
@@ -190,7 +254,7 @@ function HeroSlider({ slides, mounted }) {
   if (!slides || slides.length === 0) return null
 
   const slide = slides[index] || slides[0]
-  const { tag, title, subtitle, image, primary, secondary } = slide
+  const { tag, title, subtitle, image, primary } = slide
 
   const goTo = (i) => {
     if (!slides.length) return
@@ -238,10 +302,10 @@ function HeroSlider({ slides, mounted }) {
             </p>
           )}
 
-          {(primary || secondary) && (
+          {/* Somente ação primária neste momento */}
+          {primary && (
             <div className="mt-6 flex flex-wrap gap-3">
-              {primary && <HeroCtaButton cta={primary} />}
-              {secondary && <HeroCtaButton cta={secondary} />}
+              <HeroCtaButton cta={primary} />
             </div>
           )}
         </div>
@@ -325,11 +389,6 @@ export default function Home() {
         subtitle: heroSubtitleDefault,
         image: heroImageDefault || HERO_FALLBACKS[0],
         primary: { label: 'Ver planos agora', to: '/planos', variant: 'primary' },
-        secondary: {
-          label: 'Área do associado',
-          to: isLogged ? '/area' : '/login',
-          variant: 'outline-light',
-        },
       },
       {
         id: 'memorial',
@@ -352,16 +411,9 @@ export default function Home() {
           to: '/parceiros/inscrever',
           variant: 'primary',
         },
-        secondary: whatsappParceiroHref
-          ? {
-              label: 'Falar com o time',
-              to: whatsappParceiroHref,
-              variant: 'outline-light',
-            }
-          : null,
       },
     ],
-    [heroTitleDefault, heroSubtitleDefault, heroImageDefault, isLogged, whatsappParceiroHref]
+    [heroTitleDefault, heroSubtitleDefault, heroImageDefault]
   )
 
   /* Prioriza slides do tenant */
@@ -377,7 +429,6 @@ export default function Home() {
         subtitle: s.subtitle || heroSubtitleDefault,
         image: s.image || s.heroImage || HERO_FALLBACKS[i % HERO_FALLBACKS.length],
         primary: s.primary || null,
-        secondary: s.secondary || null,
       }))
     }
 
