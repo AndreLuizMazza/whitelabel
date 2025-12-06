@@ -13,6 +13,7 @@ import {
   UserSquare2,
   User,
   LogOut,
+  MessageCircle,
 } from 'lucide-react'
 import useAuth from '@/store/auth'
 import useTenant from '@/store/tenant'
@@ -82,6 +83,14 @@ export default function Navbar() {
   const isLogged = isAuthenticated() || !!token || !!user
 
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [elderMode, setElderMode] = useState(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      return localStorage.getItem('elder_mode') === 'on'
+    } catch {
+      return false
+    }
+  })
   const location = useLocation()
 
   /* ===== Conta / Avatar ===== */
@@ -196,6 +205,19 @@ export default function Navbar() {
     }
   }, [mobileOpen])
 
+  // Modo idoso global (atributo no <html> + persistência)
+  useEffect(() => {
+    const root = document.documentElement
+    if (elderMode) {
+      root.setAttribute('data-elder-mode', 'on')
+    } else {
+      root.removeAttribute('data-elder-mode')
+    }
+    try {
+      localStorage.setItem('elder_mode', elderMode ? 'on' : 'off')
+    } catch {}
+  }, [elderMode])
+
   const linkClass = ({ isActive }) =>
     'relative pl-4 pr-3 py-2 flex items-center gap-2 whitespace-nowrap rounded-md transition-colors duration-150 ' +
     (isActive
@@ -304,7 +326,6 @@ export default function Navbar() {
         <div className="flex items-center gap-2 flex-shrink-0">
           {isLogged && (
             <div className="flex items-center gap-1">
-              {/* sineta já vem como botão; apenas alinhamento ao avatar */}
               <HeaderNotificationsBell />
             </div>
           )}
@@ -449,7 +470,7 @@ export default function Navbar() {
             </div>
           ) : (
             <>
-              {/* CTA Entrar – com ícone mais amigável e rótulo sempre visível */}
+              {/* CTA Entrar */}
               <Link
                 to="/login"
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs sm:text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
@@ -491,7 +512,7 @@ export default function Navbar() {
           aria-modal="true"
           role="dialog"
         >
-          {/* Overlay sobre tudo (inclui StickyContactDock) */}
+          {/* Overlay */}
           <button
             type="button"
             className="absolute inset-0 bg-black/30 backdrop-blur-sm"
@@ -509,9 +530,9 @@ export default function Navbar() {
               className="flex items-center gap-4 px-5 py-5 border-b"
               style={{ borderColor: 'var(--c-border)' }}
             >
-              {/* Avatar grande */}
+              {/* Avatar maior */}
               <div
-                className="h-14 w-14 rounded-full overflow-hidden border"
+                className="h-16 w-16 rounded-full overflow-hidden border"
                 style={{ borderColor: 'var(--c-border)' }}
               >
                 {isLogged && avatarUrl && !avatarErro ? (
@@ -523,7 +544,7 @@ export default function Navbar() {
                   />
                 ) : (
                   <span
-                    className="inline-flex h-full w-full items-center justify-center text-lg font-semibold"
+                    className="inline-flex h-full w-full items-center justify-center text-xl font-semibold"
                     style={{ background: 'var(--primary)', color: '#fff' }}
                   >
                     {isLogged ? avatarInitial : tenantInitials}
@@ -532,28 +553,38 @@ export default function Navbar() {
               </div>
 
               <div className="flex flex-col min-w-0 flex-1">
-                {/* Nome do tenant */}
-                <p
-                  className="text-sm font-semibold leading-tight truncate"
-                  style={{ color: 'var(--primary)' }}
-                >
-                  {empresa?.nomeFantasia || 'Minha Funerária'}
-                </p>
-
-                {/* Usuário ou call-to-action */}
-                <p
-                  className="text-xs truncate"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  {isLogged
-                    ? nomeExibicao || 'Associado'
-                    : 'Entre para acessar sua conta'}
-                </p>
+                {isLogged ? (
+                  <>
+                    <p className="text-base font-semibold leading-tight truncate">
+                      {nomeExibicao || 'Associado'}
+                    </p>
+                    <p
+                      className="text-[11px] uppercase tracking-[0.18em] mt-1 truncate"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      {empresa?.nomeFantasia || 'Minha funerária'}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p
+                      className="text-sm font-semibold leading-tight truncate"
+                      style={{ color: 'var(--primary)' }}
+                    >
+                      {empresa?.nomeFantasia || 'Minha Funerária'}
+                    </p>
+                    <p
+                      className="text-xs truncate"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Entre para acessar sua conta
+                    </p>
+                  </>
+                )}
               </div>
 
-              {/* Botão fechar */}
               <button
-                className="rounded-full p-1.5 hover:bg-black/5 dark:hover:bg-white/10"
+                className="rounded-full p-1.5 hover:bg-black/5 dark:hover:bg.white/10 dark:hover:bg-white/10"
                 onClick={() => setMobileOpen(false)}
                 aria-label="Fechar menu"
               >
@@ -611,7 +642,7 @@ export default function Navbar() {
               style={{ background: 'var(--c-border)' }}
             />
 
-            {/* SEÇÃO: Navegação principal */}
+            {/* SEÇÃO: Navegação principal (inclui Ajuda -> FAQ da Home) */}
             <nav className="flex-1 overflow-y-auto text-sm py-2">
               {[
                 { to: '/', label: 'Home', icon: <Home className="h-5 w-5" /> },
@@ -640,6 +671,11 @@ export default function Navbar() {
                   label: '2° Via',
                   icon: <FileText className="h-5 w-5" />,
                 },
+                {
+                  to: '/#faq',
+                  label: 'Ajuda',
+                  icon: <MessageCircle className="h-5 w-5" />,
+                },
               ].map(({ to, label, icon }) => (
                 <NavLink
                   key={to}
@@ -659,18 +695,41 @@ export default function Navbar() {
               ))}
             </nav>
 
-            {/* SEÇÃO: Aparência (ThemeToggle) */}
+            {/* SEÇÃO: Aparência (Theme + Modo Idoso) */}
             <div
               className="border-t px-5 py-3 md:hidden"
               style={{ borderColor: 'var(--c-border)' }}
             >
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-3 mb-3">
                 <span className="text-sm">Aparência</span>
                 <ThemeToggle />
               </div>
+
+              <button
+                type="button"
+                onClick={() => setElderMode((v) => !v)}
+                className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-xs sm:text-sm border hover:bg-black/5 dark:hover:bg-white/5"
+                style={{ borderColor: 'var(--c-border)' }}
+              >
+                <span>Modo idoso</span>
+                <span
+                  className="px-2 py-0.5 rounded-full text-[11px] font-medium"
+                  style={{
+                    background: elderMode
+                      ? 'color-mix(in srgb, var(--primary) 20%, var(--surface) 80%)'
+                      : 'transparent',
+                    color: elderMode ? 'var(--primary)' : 'var(--text-muted)',
+                    border: elderMode
+                      ? '1px solid color-mix(in srgb, var(--primary) 50%, transparent)'
+                      : '1px solid transparent',
+                  }}
+                >
+                  {elderMode ? 'Ativado' : 'Desativado'}
+                </span>
+              </button>
             </div>
 
-            {/* BOTÃO SAIR – sempre visível acima do StickyContactDock */}
+            {/* BOTÃO SAIR */}
             {isLogged && (
               <div
                 className="border-t px-5 py-4"

@@ -1,6 +1,6 @@
 // src/pages/Home.jsx
 import { useEffect, useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import useTenant from '@/store/tenant'
 import useAuth from '@/store/auth'
@@ -176,7 +176,6 @@ function HeroCtaButton({ cta }) {
     </CTAButton>
   )
 
-  // Externo: <a> com animação
   if (external) {
     return (
       <motion.a
@@ -210,7 +209,6 @@ function HeroCtaButton({ cta }) {
     )
   }
 
-  // Interno: Link + motion, mantendo o gradient wrapper
   return (
     <Link to={cta.to} className="inline-block">
       <motion.span
@@ -306,7 +304,6 @@ function HeroSlider({ slides, mounted }) {
             </p>
           )}
 
-          {/* Somente ação primária neste momento */}
           {primary && (
             <div className="mt-6 flex flex-wrap gap-3">
               <HeroCtaButton cta={primary} />
@@ -314,7 +311,6 @@ function HeroSlider({ slides, mounted }) {
           )}
         </div>
 
-        {/* Indicadores de slide */}
         <div className="mt-8 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             {slides.map((s, i) => (
@@ -323,7 +319,7 @@ function HeroSlider({ slides, mounted }) {
                 onClick={() => goTo(i)}
                 className={[
                   'h-2.5 rounded-full transition-all duration-300',
-                  i === index ? 'w-6 bg-white' : 'w-2.5 bg-white/50 hover:bg-white/80',
+                  i === index ? 'w-6 bg.white bg-white' : 'w-2.5 bg-white/50 hover:bg-white/80',
                 ].join(' ')}
                 aria-label={`Slide ${i + 1}`}
               />
@@ -345,6 +341,7 @@ export default function Home() {
     user: s.user,
   }))
   const isLogged = isAuthenticated() || !!token || !!user
+  const location = useLocation()
 
   const ANDROID_URL = import.meta.env.VITE_ANDROID_URL || '#'
   const IOS_URL = import.meta.env.VITE_IOS_URL || '#'
@@ -354,6 +351,16 @@ export default function Home() {
     const t = setTimeout(() => setMounted(true), 10)
     return () => clearTimeout(t)
   }, [])
+
+  // Rolagem suave quando vier de "/#faq" (item Ajuda do mobile)
+  useEffect(() => {
+    if (location.hash === '#faq') {
+      const el = document.getElementById('home-faq')
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+    }
+  }, [location])
 
   const heroTitleDefault =
     empresa?.heroTitle ||
@@ -383,7 +390,6 @@ export default function Home() {
     return `https://wa.me/${telefoneDigits}?text=${msg}`
   }, [telefoneDigits])
 
-  /* Slides padrão */
   const defaultSlides = useMemo(
     () => [
       {
@@ -420,7 +426,6 @@ export default function Home() {
     [heroTitleDefault, heroSubtitleDefault, heroImageDefault]
   )
 
-  /* Prioriza slides do tenant */
   const slides = useMemo(() => {
     const tenantSlides =
       empresa?.heroSlides || empresa?.tema?.heroSlides || null
@@ -600,8 +605,8 @@ export default function Home() {
           />
         </div>
 
-        {/* FAQ */}
-        <div className="faq-dark mt-12 md:mt-16">
+        {/* FAQ – alvo do item "Ajuda" (/#faq) */}
+        <div className="faq-dark mt-12 md:mt-16" id="home-faq">
           <FaqSection isLogged={isLogged} areaDest={isLogged ? '/area' : '/login'} />
         </div>
       </div>
