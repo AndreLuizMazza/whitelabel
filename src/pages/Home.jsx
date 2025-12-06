@@ -25,6 +25,10 @@ import {
   HeartHandshake,
 } from 'lucide-react'
 
+/* ===================== constantes de imagem ===================== */
+
+const HERO_FALLBACKS = ['/img/hero.png', '/img/hero1.png', '/img/hero2.png']
+
 /* ===================== peças utilitárias ===================== */
 
 function IconBadge({ children }) {
@@ -289,6 +293,8 @@ function HeroSlider({ slides, mounted }) {
       className={[
         'relative overflow-hidden rounded-3xl border border-[var(--c-border)]',
         'mb-10 md:mb-12',
+        // altura fixa responsiva p/ todos slides
+        'min-h-[260px] md:min-h-[360px] lg:min-h-[420px]',
         'transition-all duration-700',
         mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
       ].join(' ')}
@@ -303,6 +309,7 @@ function HeroSlider({ slides, mounted }) {
         `,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
       }}
     >
       <div className="relative z-10 px-6 py-10 md:px-10 md:py-16 lg:px-16 lg:py-20 text-white">
@@ -408,7 +415,7 @@ export default function Home() {
     'Planos completos de assistência familiar, benefícios exclusivos e atendimento humanizado.'
 
   const heroImageDefault = useMemo(() => {
-    return empresa?.heroImage || empresa?.tema?.heroImage || '/img/hero.png'
+    return empresa?.heroImage || empresa?.tema?.heroImage || HERO_FALLBACKS[0]
   }, [empresa])
 
   const telefoneDigits = useMemo(() => {
@@ -432,7 +439,7 @@ export default function Home() {
         tag: 'Assistência familiar & benefícios',
         title: heroTitleDefault,
         subtitle: heroSubtitleDefault,
-        image: heroImageDefault,
+        image: heroImageDefault || HERO_FALLBACKS[0],
         primary: {
           label: 'Ver planos agora',
           to: '/planos',
@@ -451,7 +458,7 @@ export default function Home() {
         title: 'Visite nosso Memorial Online',
         subtitle:
           'Acompanhe informações das cerimônias, acenda uma vela virtual e deixe sua mensagem de carinho.',
-        image: '/img/hero.png',
+        image: HERO_FALLBACKS[1],
         primary: {
           label: 'Acessar Memorial',
           to: '/memorial',
@@ -466,7 +473,7 @@ export default function Home() {
         title: 'Seja nosso parceiro premium',
         subtitle:
           'Ofereça condições especiais para nossos associados e fortaleça sua marca com indicações qualificadas.',
-        image: '/img/hero.png',
+        image: HERO_FALLBACKS[2],
         primary: {
           label: 'Quero ser parceiro(a)',
           to: '/parceiros/inscrever',
@@ -491,8 +498,14 @@ export default function Home() {
 
     if (Array.isArray(tenantSlides) && tenantSlides.length > 0) {
       return tenantSlides.map((s, idx) => {
-        const image =
-          s.image || s.heroImage || heroImageDefault || '/img/hero.png'
+        let image =
+          s.image || s.heroImage || heroImageDefault || HERO_FALLBACKS[0]
+
+        // fallback garantido por slide (hero, hero1, hero2, ...)
+        if (!image) {
+          image = HERO_FALLBACKS[idx % HERO_FALLBACKS.length]
+        }
+
         return {
           id: s.id || s.slug || `tenant-slide-${idx}`,
           tag: s.tag || s.pill || s.badge || 'Assistência familiar',

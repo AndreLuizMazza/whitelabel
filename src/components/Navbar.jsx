@@ -8,7 +8,7 @@ import {
   Layers,
   Gift,
   HeartHandshake,
-  MapPin,
+  Phone,
   FileText,
   UserSquare2,
   User,
@@ -277,12 +277,13 @@ export default function Navbar() {
               )}
             </NavLink>
 
+            {/* Contato (substitui Unidades no rótulo/ícone, rota mantida) */}
             <NavLink to="/filiais" className={linkClass}>
               {({ isActive }) => (
                 <>
                   <ActiveBar isActive={isActive} />
-                  <MapPin className="h-4 w-4" />
-                  <span>Unidades</span>
+                  <Phone className="h-4 w-4" />
+                  <span>Contatos</span>
                 </>
               )}
             </NavLink>
@@ -626,8 +627,8 @@ export default function Navbar() {
                 },
                 {
                   to: '/filiais',
-                  label: 'Unidades',
-                  icon: <MapPin className="h-5 w-5" />,
+                  label: 'Contatos',
+                  icon: <Phone className="h-5 w-5" />,
                 },
                 {
                   to: '/beneficios',
