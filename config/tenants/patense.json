@@ -7,17 +7,14 @@
     "--primary-light": "#2E7A68",
     "--secondary": "#F2A900",
     "--on-primary": "#ffffff",
-
     "--surface": "#ffffff",
     "--surface-alt": "#f6f7fb",
     "--text": "#0b1220",
     "--text-muted": "#5f6b7a",
     "--c-border": "rgba(0,0,0,0.08)",
-
     "--nav-hover-bg": "color-mix(in srgb, var(--primary) 12%, transparent)",
     "--nav-active-bg": "color-mix(in srgb, var(--primary) 22%, transparent)",
     "--nav-active-color": "#004C3F",
-
     "--highlight": "#F2A900",
     "--button-hover": "color-mix(in srgb, var(--primary) 18%, var(--secondary))"
   },
@@ -27,11 +24,9 @@
     "--text": "#e5e7eb",
     "--text-muted": "#94a3b8",
     "--c-border": "rgba(255,255,255,0.12)",
-
     "--nav-hover-bg": "color-mix(in srgb, var(--primary) 22%, transparent)",
     "--nav-active-bg": "color-mix(in srgb, var(--primary) 36%, transparent)",
     "--nav-active-color": "#ffffff",
-
     "--highlight": "#F2A900",
     "--button-hover": "color-mix(in srgb, var(--primary) 26%, var(--secondary))"
   },
@@ -83,12 +78,12 @@
       "image": "https://patense.awis.com.br/assets/hero-parceiros-patense.jpg",
       "primary": {
         "label": "Quero ser parceiro(a)",
-        "to": "/parceiros/inscrever",
+        "to": "/beneficios",
         "variant": "primary"
       },
       "secondary": {
         "label": "Falar com o time",
-        "to": "https://wa.me/5546XXXXXXXX?text=Ol%C3%A1!%20Quero%20ser%20parceiro%20da%20Funer%C3%A1ria%20Patense.",
+        "to": "https://wa.me/5546991120012?text=Ol%C3%A1!%20Quero%20ser%20parceiro%20da%20Funer%C3%A1ria%20Patense.",
         "variant": "outline-light"
       },
       "showValuePills": false

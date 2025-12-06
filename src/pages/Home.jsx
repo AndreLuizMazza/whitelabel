@@ -226,25 +226,27 @@ function HeroCtaButton({ cta }) {
   if (!cta?.to || !cta?.label) return null
 
   const external = isExternalHref(cta.to)
-  const Comp = external ? 'a' : Link
-  const navProps = external
-    ? { href: cta.to, target: '_blank', rel: 'noopener noreferrer' }
-    : { to: cta.to }
 
-  const variant = cta.variant || 'primary'
-  const variantProp = variant === 'primary' ? {} : { variant }
-
-  return (
+  const button = (
     <CTAButton
-      as={Comp}
-      {...navProps}
+      as="span"
       size="lg"
       className="min-w-[180px] justify-center"
-      {...variantProp}
+      variant={cta.variant || 'primary'}
     >
       {cta.label}
     </CTAButton>
   )
+
+  if (external) {
+    return (
+      <a href={cta.to} target="_blank" rel="noopener noreferrer">
+        {button}
+      </a>
+    )
+  }
+
+  return <Link to={cta.to}>{button}</Link>
 }
 
 function HeroSlider({ slides, mounted }) {
@@ -341,7 +343,9 @@ function HeroSlider({ slides, mounted }) {
                 onClick={() => goTo(i)}
                 className={[
                   'h-2.5 rounded-full transition-all duration-300',
-                  i === index ? 'w-6 bg-white' : 'w-2.5 bg-white/50 hover:bg-white/80',
+                  i === index
+                    ? 'w-6 bg-white'
+                    : 'w-2.5 bg-white/50 hover:bg-white/80',
                 ].join(' ')}
                 aria-label={`Slide ${i + 1}`}
               />
@@ -404,11 +408,7 @@ export default function Home() {
     'Planos completos de assistência familiar, benefícios exclusivos e atendimento humanizado.'
 
   const heroImageDefault = useMemo(() => {
-    return (
-      empresa?.heroImage ||
-      empresa?.tema?.heroImage ||
-      '/img/hero.png'
-    )
+    return empresa?.heroImage || empresa?.tema?.heroImage || '/img/hero.png'
   }, [empresa])
 
   const telefoneDigits = useMemo(() => {
@@ -492,10 +492,7 @@ export default function Home() {
     if (Array.isArray(tenantSlides) && tenantSlides.length > 0) {
       return tenantSlides.map((s, idx) => {
         const image =
-          s.image ||
-          s.heroImage ||
-          heroImageDefault ||
-          '/img/hero.png'
+          s.image || s.heroImage || heroImageDefault || '/img/hero.png'
         return {
           id: s.id || s.slug || `tenant-slide-${idx}`,
           tag: s.tag || s.pill || s.badge || 'Assistência familiar',
@@ -526,7 +523,13 @@ export default function Home() {
     }
 
     return defaultSlides
-  }, [empresa, heroTitleDefault, heroSubtitleDefault, heroImageDefault, defaultSlides])
+  }, [
+    empresa,
+    heroTitleDefault,
+    heroSubtitleDefault,
+    heroImageDefault,
+    defaultSlides,
+  ])
 
   return (
     <section className="section">
