@@ -140,3 +140,112 @@ a.btn-light:hover {
     page-break-inside: avoid;
   }
 }
+
+/* ============================================================
+   MODO IDOSO
+   Ativado quando <html data-elder-mode="on">
+   ============================================================ */
+
+html[data-elder-mode="on"] {
+  /* Leve aumento geral da escala de interface */
+  font-size: 112.5%; /* se base era 16px ~> 18px */
+}
+
+/* Corpo do app */
+html[data-elder-mode="on"] body {
+  line-height: 1.6;
+}
+
+/* Textos principais */
+html[data-elder-mode="on"] .section,
+html[data-elder-mode="on"] .container-max {
+  font-size: 1rem; /* acompanha o aumento do html */
+}
+
+/* Títulos levemente maiores */
+html[data-elder-mode="on"] h1,
+html[data-elder-mode="on"] .text-3xl,
+html[data-elder-mode="on"] .text-4xl,
+html[data-elder-mode="on"] .text-5xl {
+  font-size: 1.1em;
+}
+
+html[data-elder-mode="on"] h2,
+html[data-elder-mode="on"] .text-2xl {
+  font-size: 1.08em;
+}
+
+/* Textos pequenos (labels, chips, legendas) um pouco maiores */
+html[data-elder-mode="on"] .text-xs,
+html[data-elder-mode="on"] .text-[11px],
+html[data-elder-mode="on"] .text-[10px] {
+  font-size: 0.9rem; /* deixa legível sem parecer "zoomado" demais */
+}
+
+/* Botões principais e CTAs */
+html[data-elder-mode="on"] button,
+html[data-elder-mode="on"] .btn,
+html[data-elder-mode="on"] .cta,
+html[data-elder-mode="on"] .cta-button,
+html[data-elder-mode="on"] .card button,
+html[data-elder-mode="on"] a[role="button"],
+html[data-elder-mode="on"] .primary-button {
+  min-height: 3rem;
+  padding-inline: 1.25rem;
+  font-size: 0.95rem;
+}
+
+/* Botões tipo "pill" da navbar / chips */
+html[data-elder-mode="on"] .rounded-full {
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+
+/* Itens de navegação (desktop e mobile) – aumenta tap target */
+html[data-elder-mode="on"] nav a,
+html[data-elder-mode="on"] nav button,
+html[data-elder-mode="on"] [role="menuitem"] {
+  min-height: 2.75rem;
+}
+
+/* Drawer mobile: itens um pouco mais espaçosos */
+html[data-elder-mode="on"] #mobile-menu .px-5.py-3,
+html[data-elder-mode="on"] #mobile-menu .px-4.py-3 {
+  padding-top: 0.9rem;
+  padding-bottom: 0.9rem;
+}
+
+/* Cards e blocos de conteúdo – mais espaçamento interno */
+html[data-elder-mode="on"] .card,
+html[data-elder-mode="on"] .card-lg,
+html[data-elder-mode="on"] .card-md {
+  padding: 1.25rem;
+}
+
+/* FAQ / parágrafos longos: melhora legibilidade */
+html[data-elder-mode="on"] p,
+html[data-elder-mode="on"] li {
+  letter-spacing: 0.01em;
+}
+
+/* Aumenta contraste das legendas / textos muted */
+html[data-elder-mode="on"] {
+  --text-muted: color-mix(in srgb, var(--text) 75%, #000000 25%);
+}
+
+/* Inputs e selects um pouco maiores para facilitar o toque */
+html[data-elder-mode="on"] input,
+html[data-elder-mode="on"] select,
+html[data-elder-mode="on"] textarea {
+  min-height: 2.8rem;
+  font-size: 0.95rem;
+}
+
+/* Avatar no header/drawer já foi aumentado em JSX,
+   aqui apenas garantimos que não fique minúsculo em outros contextos */
+html[data-elder-mode="on"] img.rounded-full {
+  /* opcional: leve borda para destacar */
+  border-width: 1px;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
+}
