@@ -35,11 +35,7 @@ function IconBadge({ children }) {
   return (
     <span
       className="
-        inline-flex
-        h-10 w-10
-        items-center justify-center
-        rounded-full
-        shrink-0
+        inline-flex h-10 w-10 items-center justify-center rounded-full shrink-0
       "
       style={{
         background:
@@ -55,7 +51,7 @@ function IconBadge({ children }) {
 }
 
 /* ========================================================================
-   FEATURE CARD – OPÇÃO A (PREMIUM / ENTERPRISE)
+   FEATURE CARD – PREMIUM
    ======================================================================== */
 
 function FeatureCardPremium({ icon, title, desc, to, cta, mounted, delay = 0 }) {
@@ -64,11 +60,7 @@ function FeatureCardPremium({ icon, title, desc, to, cta, mounted, delay = 0 }) 
   const isExternal = /^https?:\/\//i.test(to)
   const Wrapper = isExternal ? 'a' : Link
   const wrapperProps = isExternal
-    ? {
-        href: to,
-        target: '_blank',
-        rel: 'noopener noreferrer',
-      }
+    ? { href: to, target: '_blank', rel: 'noopener noreferrer' }
     : { to }
 
   return (
@@ -124,103 +116,33 @@ function FeatureCardPremium({ icon, title, desc, to, cta, mounted, delay = 0 }) 
   )
 }
 
-/* ========================================================================
-   FEATURE CARD – OPÇÃO B (MINIMALISTA CLEAN)
-   ======================================================================== */
-
-function FeatureCardMinimal({ icon, title, desc, to, cta, mounted, delay = 0 }) {
-  if (!to) return null
-
-  const isExternal = /^https?:\/\//i.test(to)
-  const Wrapper = isExternal ? 'a' : Link
-  const wrapperProps = isExternal
-    ? {
-        href: to,
-        target: '_blank',
-        rel: 'noopener noreferrer',
-      }
-    : { to }
-
-  return (
-    <Wrapper
-      {...wrapperProps}
-      className="
-        group block h-full
-        focus:outline-none
-        focus-visible:ring-2
-        focus-visible:ring-offset-2
-        focus-visible:ring-[color-mix(in_srgb,var(--primary)_60%,black)]
-      "
-      aria-label={`${title}. ${cta}`}
-    >
-      <article
-        className={[
-          'h-full flex flex-col justify-between rounded-xl',
-          'p-3 sm:p-4 md:p-5',
-          'transition-all duration-500',
-          'hover:-translate-y-[1px] hover:bg-[var(--surface)]/70',
-          'hover:border hover:border-[var(--c-border)] shadow-sm hover:shadow-lg',
-          mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
-        ].join(' ')}
-        style={{ transitionDelay: `${delay}ms` }}
-      >
-        <div className="space-y-2 sm:space-y-3">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <IconBadge>{icon}</IconBadge>
-          </div>
-
-          <div>
-            <h3 className="text-sm sm:text-base md:text-lg font-semibold leading-tight">
-              {title}
-            </h3>
-            <p className="mt-1 text-xs sm:text-sm text-[var(--text)] leading-relaxed line-clamp-3">
-              {desc}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-3 sm:mt-4">
-          <span
-            className="
-            inline-flex items-center gap-1.5 
-            text-[var(--primary)] 
-            text-xs sm:text-sm font-medium
-            group-hover:translate-x-0.5 transition-transform
-          "
-          >
-            <span>{cta}</span>
-            <ArrowRight size={14} />
-          </span>
-        </div>
-      </article>
-    </Wrapper>
-  )
-}
-
-/* ============================================================
-   Escolha rápida: qual versão usar nos cards da Home?
-   ============================================================ */
-
-const FeatureCard = FeatureCardPremium
-// const FeatureCard = FeatureCardMinimal
+/* ===========================================================================
+   VALUE PILLS – VERSÃO PREMIUM (Apple / Nubank)
+   =========================================================================== */
 
 function ValuePills() {
+  const pillBase =
+    'inline-flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-medium ' +
+    'backdrop-blur-md transition-colors tracking-wide ' +
+    'bg-white/6 dark:bg-black/20 border border-white/20 text-white/95 ' +
+    'hover:bg-white/12 hover:border-white/30'
+
   return (
-    <div className="mt-4 flex flex-wrap gap-2">
-      <span className="inline-flex items-center gap-2 rounded-full bg-white/10 text-xs font-medium px-3 py-1.5 backdrop-blur-sm">
-        <IdCard size={14} /> Carteirinha digital
+    <div className="flex flex-wrap gap-2">
+      <span className={pillBase}>
+        <IdCard size={13} /> Carteirinha digital
       </span>
-      <span className="inline-flex items-center gap-2 rounded-full bg-white/10 text-xs font-medium px-3 py-1.5 backdrop-blur-sm">
-        <QrCode size={14} /> PIX &amp; boletos
+      <span className={pillBase}>
+        <QrCode size={13} /> PIX & boletos
       </span>
-      <span className="inline-flex items-center gap-2 rounded-full bg-white/10 text-xs font-medium px-3 py-1.5 backdrop-blur-sm">
-        <Gift size={14} /> Clube de benefícios
+      <span className={pillBase}>
+        <Gift size={13} /> Clube de benefícios
       </span>
     </div>
   )
 }
 
-/* =================== HERO SLIDER (CAPA EM SLIDES) =================== */
+/* =================== HERO SLIDER =================== */
 
 function isExternalHref(href) {
   return /^https?:\/\//i.test(href || '')
@@ -268,32 +190,19 @@ function HeroSlider({ slides, mounted }) {
   if (!slides || slides.length === 0) return null
 
   const slide = slides[index] || slides[0]
-  const {
-    tag,
-    title,
-    subtitle,
-    image,
-    primary,
-    secondary,
-    showValuePills,
-  } = slide
+  const { tag, title, subtitle, image, primary, secondary } = slide
 
   const goTo = (i) => {
     if (!slides.length) return
     const size = slides.length
-    const next = ((i % size) + size) % size
-    setIndex(next)
+    setIndex(((i % size) + size) % size)
   }
-
-  const next = () => goTo(index + 1)
-  const prev = () => goTo(index - 1)
 
   return (
     <div
       className={[
         'relative overflow-hidden rounded-3xl border border-[var(--c-border)]',
         'mb-10 md:mb-12',
-        // altura fixa responsiva p/ todos slides
         'min-h-[260px] md:min-h-[360px] lg:min-h-[420px]',
         'transition-all duration-700',
         mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
@@ -309,7 +218,6 @@ function HeroSlider({ slides, mounted }) {
         `,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
       }}
     >
       <div className="relative z-10 px-6 py-10 md:px-10 md:py-16 lg:px-16 lg:py-20 text-white">
@@ -336,46 +244,22 @@ function HeroSlider({ slides, mounted }) {
               {secondary && <HeroCtaButton cta={secondary} />}
             </div>
           )}
-
-          {showValuePills && <ValuePills />}
         </div>
 
-        {/* Controles do slider */}
+        {/* Indicadores de slide */}
         <div className="mt-8 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             {slides.map((s, i) => (
               <button
                 key={s.id || i}
-                type="button"
                 onClick={() => goTo(i)}
                 className={[
                   'h-2.5 rounded-full transition-all duration-300',
-                  i === index
-                    ? 'w-6 bg-white'
-                    : 'w-2.5 bg-white/50 hover:bg-white/80',
+                  i === index ? 'w-6 bg-white' : 'w-2.5 bg-white/50 hover:bg-white/80',
                 ].join(' ')}
                 aria-label={`Slide ${i + 1}`}
               />
             ))}
-          </div>
-
-          <div className="hidden sm:flex items-center gap-2">
-            <button
-              type="button"
-              onClick={prev}
-              className="h-8 w-8 rounded-full bg-black/25 hover:bg-black/40 flex items-center justify-center text-white text-xs backdrop-blur-sm"
-              aria-label="Slide anterior"
-            >
-              ‹
-            </button>
-            <button
-              type="button"
-              onClick={next}
-              className="h-8 w-8 rounded-full bg-black/25 hover:bg-black/40 flex items-center justify-center text-white text-xs backdrop-blur-sm"
-              aria-label="Próximo slide"
-            >
-              ›
-            </button>
           </div>
         </div>
       </div>
@@ -398,7 +282,6 @@ export default function Home() {
   const IOS_URL = import.meta.env.VITE_IOS_URL || '#'
 
   const [mounted, setMounted] = useState(false)
-
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 10)
     return () => clearTimeout(t)
@@ -419,8 +302,8 @@ export default function Home() {
   }, [empresa])
 
   const telefoneDigits = useMemo(() => {
-    let tel = empresa?.contato?.telefone || ''
-    let digits = String(tel).replace(/\D+/g, '')
+    let t = empresa?.contato?.telefone || ''
+    let digits = String(t).replace(/\D+/g, '')
     if (!digits) return ''
     if (!digits.startsWith('55')) digits = '55' + digits
     return digits
@@ -432,6 +315,7 @@ export default function Home() {
     return `https://wa.me/${telefoneDigits}?text=${msg}`
   }, [telefoneDigits])
 
+  /* Slides padrão */
   const defaultSlides = useMemo(
     () => [
       {
@@ -440,17 +324,12 @@ export default function Home() {
         title: heroTitleDefault,
         subtitle: heroSubtitleDefault,
         image: heroImageDefault || HERO_FALLBACKS[0],
-        primary: {
-          label: 'Ver planos agora',
-          to: '/planos',
-          variant: 'primary',
-        },
+        primary: { label: 'Ver planos agora', to: '/planos', variant: 'primary' },
         secondary: {
           label: 'Área do associado',
           to: isLogged ? '/area' : '/login',
           variant: 'outline-light',
         },
-        showValuePills: true,
       },
       {
         id: 'memorial',
@@ -459,20 +338,14 @@ export default function Home() {
         subtitle:
           'Acompanhe informações das cerimônias, acenda uma vela virtual e deixe sua mensagem de carinho.',
         image: HERO_FALLBACKS[1],
-        primary: {
-          label: 'Acessar Memorial',
-          to: '/memorial',
-          variant: 'primary',
-        },
-        secondary: null,
-        showValuePills: false,
+        primary: { label: 'Acessar Memorial', to: '/memorial', variant: 'primary' },
       },
       {
         id: 'parceiros',
-        tag: 'Benefícios exclusivos para sua empresa',
+        tag: 'Benefícios exclusivos',
         title: 'Seja nosso parceiro premium',
         subtitle:
-          'Ofereça condições especiais para nossos associados e fortaleça sua marca com indicações qualificadas.',
+          'Ofereça condições especiais para nossos associados e fortaleça sua marca.',
         image: HERO_FALLBACKS[2],
         primary: {
           label: 'Quero ser parceiro(a)',
@@ -486,53 +359,26 @@ export default function Home() {
               variant: 'outline-light',
             }
           : null,
-        showValuePills: false,
       },
     ],
     [heroTitleDefault, heroSubtitleDefault, heroImageDefault, isLogged, whatsappParceiroHref]
   )
 
+  /* Prioriza slides do tenant */
   const slides = useMemo(() => {
     const tenantSlides =
       empresa?.heroSlides || empresa?.tema?.heroSlides || null
 
     if (Array.isArray(tenantSlides) && tenantSlides.length > 0) {
-      return tenantSlides.map((s, idx) => {
-        let image =
-          s.image || s.heroImage || heroImageDefault || HERO_FALLBACKS[0]
-
-        // fallback garantido por slide (hero, hero1, hero2, ...)
-        if (!image) {
-          image = HERO_FALLBACKS[idx % HERO_FALLBACKS.length]
-        }
-
-        return {
-          id: s.id || s.slug || `tenant-slide-${idx}`,
-          tag: s.tag || s.pill || s.badge || 'Assistência familiar',
-          title: s.title || heroTitleDefault,
-          subtitle: s.subtitle || heroSubtitleDefault,
-          image,
-          primary:
-            s.primary ||
-            (s.ctaPrimaryTo || s.ctaTo || s.to
-              ? {
-                  label: s.ctaPrimaryLabel || s.ctaLabel || 'Saiba mais',
-                  to: s.ctaPrimaryTo || s.ctaTo || s.to,
-                  variant: s.ctaPrimaryVariant || 'primary',
-                }
-              : null),
-          secondary:
-            s.secondary ||
-            (s.ctaSecondaryTo
-              ? {
-                  label: s.ctaSecondaryLabel || 'Saiba mais',
-                  to: s.ctaSecondaryTo,
-                  variant: s.ctaSecondaryVariant || 'outline-light',
-                }
-              : null),
-          showValuePills: s.showValuePills ?? idx === 0,
-        }
-      })
+      return tenantSlides.map((s, i) => ({
+        id: s.id || i,
+        tag: s.tag || s.pill || s.badge || 'Assistência familiar',
+        title: s.title || heroTitleDefault,
+        subtitle: s.subtitle || heroSubtitleDefault,
+        image: s.image || s.heroImage || HERO_FALLBACKS[i % HERO_FALLBACKS.length],
+        primary: s.primary || null,
+        secondary: s.secondary || null,
+      }))
     }
 
     return defaultSlides
@@ -547,21 +393,27 @@ export default function Home() {
   return (
     <section className="section">
       <div className="container-max relative">
-        {/* HERO SLIDER WHITELABEL */}
         <HeroSlider slides={slides} mounted={mounted} />
 
-        {/* QUADRO DE AÇÕES */}
+        {/* PÍLULAS PREMIUM FORA DO SLIDER */}
+        <div
+          className={[
+            'mt-6 mb-10 md:mb-12 transition-all duration-700',
+            mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
+          ].join(' ')}
+          style={{ transitionDelay: '150ms' }}
+        >
+          <ValuePills />
+        </div>
+
+        {/* GRID DE FEATURES */}
         <div
           className="
-            relative
-            grid
-            grid-cols-2      /* mobile */
-            sm:grid-cols-2   /* tablet */
-            lg:grid-cols-3   /* desktop */
+            relative grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3
             gap-3 sm:gap-5 lg:gap-6
           "
         >
-          <FeatureCard
+          <FeatureCardPremium
             icon={<UserSquare2 size={22} strokeWidth={2} />}
             title="Área do Associado"
             desc="Acesse contratos, dependentes e pagamentos."
@@ -571,47 +423,47 @@ export default function Home() {
             delay={200}
           />
 
-          <FeatureCard
+          <FeatureCardPremium
             icon={<Receipt size={22} strokeWidth={2} />}
             title="Segunda via de Boleto"
-            desc="Consulte segunda via de Boletos sem senha."
+            desc="Consulte boletos sem senha."
             to="/contratos"
             cta="Pesquisar"
             mounted={mounted}
             delay={230}
           />
 
-          <FeatureCard
+          <FeatureCardPremium
             icon={<Layers size={22} strokeWidth={2} />}
             title="Nossos Planos"
-            desc="Conheça nossos Planos. Proteção completa para toda família."
+            desc="Proteção completa para toda a família."
             to="/planos"
             cta="Ver planos"
             mounted={mounted}
             delay={260}
           />
 
-          <FeatureCard
+          <FeatureCardPremium
             icon={<Gift size={22} strokeWidth={2} />}
             title="Clube de Benefícios"
-            desc="Parceiros com descontos e vantagens para associados."
+            desc="Parceiros com descontos e vantagens."
             to="/beneficios"
             cta="Ver parceiros"
             mounted={mounted}
             delay={290}
           />
 
-          <FeatureCard
+          <FeatureCardPremium
             icon={<HeartHandshake size={22} strokeWidth={2} />}
             title="Memorial Online"
-            desc="Homenagens interativas com fotos, mensagens e histórias."
+            desc="Homenagens interativas e informações das cerimônias."
             to="/memorial"
             cta="Ver Memorial"
             mounted={mounted}
             delay={320}
           />
 
-          <FeatureCard
+          <FeatureCardPremium
             icon={<MessageCircle size={22} strokeWidth={2} />}
             title="Atendimento"
             desc="Encontre nossas unidades e canais de atendimento."
@@ -636,10 +488,10 @@ export default function Home() {
                 Baixe nosso aplicativo
               </h2>
               <p className="mt-2 text-[var(--text)]">
-                Tenha carteirinha digital, boletos, PIX e benefícios sempre à
-                mão. Acompanhe seus contratos e receba notificações de
-                vencimentos no celular.
+                Tenha carteirinha digital, boletos, PIX e benefícios sempre à mão.
+                Receba notificações e acompanhe seus contratos.
               </p>
+
               <div className="mt-5 flex flex-wrap gap-3">
                 <AppStoreButton
                   href={ANDROID_URL}
@@ -648,6 +500,7 @@ export default function Home() {
                 >
                   Baixar para Android
                 </AppStoreButton>
+
                 <AppStoreButton
                   href={IOS_URL}
                   icon={<Apple size={16} />}
@@ -656,15 +509,8 @@ export default function Home() {
                   Baixar para iOS
                 </AppStoreButton>
               </div>
-              {!import.meta.env.VITE_ANDROID_URL &&
-                !import.meta.env.VITE_IOS_URL && (
-                  <p className="mt-3 text-xs text-[var(--text)]">
-                    * Links das lojas ainda não configurados. Defina{' '}
-                    <code>VITE_ANDROID_URL</code> e <code>VITE_IOS_URL</code> no
-                    seu <code>.env</code>.
-                  </p>
-                )}
             </div>
+
             <div className="bg-[var(--surface)] flex items-center justify-center p-8 lg:p-10">
               <div className="rounded-2xl border bg-[var(--surface)]/70 p-10 text-center shadow-sm">
                 <div className="text-sm font-semibold text-[var(--text)]">
@@ -688,34 +534,27 @@ export default function Home() {
 
         {/* CTA MEMORIAL */}
         <div className="mt-12 md:mt-16">
-          <MemorialCTA
-            onVisitMemorial={() => (window.location.href = '/memorial')}
-          />
+          <MemorialCTA onVisitMemorial={() => (window.location.href = '/memorial')} />
         </div>
 
         {/* CTA PARCEIROS */}
         <div className="mt-12 md:mt-16">
           <ParceirosCTA
-            onBecomePartner={() =>
-              (window.location.href = '/parceiros/inscrever')
-            }
+            onBecomePartner={() => (window.location.href = '/parceiros/inscrever')}
             whatsappHref={whatsappParceiroHref}
           />
         </div>
 
         {/* FAQ */}
         <div className="faq-dark mt-12 md:mt-16">
-          <FaqSection
-            isLogged={isLogged}
-            areaDest={isLogged ? '/area' : '/login'}
-          />
+          <FaqSection isLogged={isLogged} areaDest={isLogged ? '/area' : '/login'} />
         </div>
       </div>
     </section>
   )
 }
 
-/* ================== Botão padronizado das lojas ================== */
+/* ================== Botão das lojas ================== */
 
 function AppStoreButton({ href, icon, children, delay = 0 }) {
   const [mounted, setMounted] = useState(false)
