@@ -14,8 +14,7 @@ const initial = {
   confirmSenha: '',
   cpf: '',
   celular: '',
-  dataNascimento: '', // ISO yyyy-mm-dd
-  // mantidos por compatibilidade, mas sempre true
+  dataNascimento: '',
   aceiteTermos: true,
   aceitePrivacidade: true,
 }
@@ -24,12 +23,6 @@ const onlyDigits = (s = '') => s.replace(/\D/g, '')
 const isValidEmail = (e = '') =>
   /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim())
 
-/** ===== Política de senha exigida =====
- * - Pelo menos 8 caracteres
- * - Ao menos 1 letra maiúscula (A-Z)
- * - Ao menos 1 letra minúscula (a-z)
- * - Ao menos 1 dígito (0-9)
- */
 function getPasswordChecks(s = '') {
   return {
     len: s.length >= 8,
@@ -43,7 +36,6 @@ function isStrongPassword(s = '') {
   return c.len && c.upper && c.lower && c.digit
 }
 
-/** ================== Validação de CPF (com DV) ================== */
 function isValidCPF(cpf = '') {
   const d = onlyDigits(cpf)
   if (d.length !== 11) return false
@@ -60,7 +52,6 @@ function isValidCPF(cpf = '') {
   return dv2 === Number(d[10])
 }
 
-/* =================== Máscaras =================== */
 function formatCPF(v = '') {
   const d = onlyDigits(v).slice(0, 11)
   if (d.length <= 3) return d
@@ -82,7 +73,6 @@ const phoneIsValid = (v = '') => {
   return d.length === 10 || d.length === 11
 }
 
-/* =============== DateSelectBR (18–100 anos) =============== */
 function DateSelectBR({
   valueISO,
   onChangeISO,
@@ -339,8 +329,6 @@ function DateSelectBR({
   )
 }
 
-/* =============== Página =============== */
-
 function Rule({ ok, children }) {
   return (
     <li className="flex items-center gap-2 text-xs md:text-sm">
@@ -376,14 +364,11 @@ export default function RegisterPage() {
   const [okMsg, setOkMsg] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [errorList, setErrorList] = useState([])
-  const [step, setStep] = useState(1) // 1: dados principais, 2: contatos, 3: senha
+  const [step, setStep] = useState(1)
 
-  // Mostrar/ocultar senha
   const [showPass, setShowPass] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
-  const [senhaFocused, setSenhaFocused] = useState(false)
 
-  // Refs para foco em erro
   const alertRef = useRef(null)
   const nomeRef = useRef(null)
   const emailRef = useRef(null)
@@ -392,7 +377,6 @@ export default function RegisterPage() {
   const cpfRef = useRef(null)
   const celRef = useRef(null)
 
-  // helpers de idade
   const ageFromISO = (iso) => {
     if (!iso) return null
     const d = new Date(iso)
@@ -410,7 +394,6 @@ export default function RegisterPage() {
   )
   const idadeOk = idade !== null && idade >= 18 && idade <= 100
 
-  // Validações reativas
   const nomeOk = useMemo(() => form.nome.trim().length >= 3, [form.nome])
   const emailOk = useMemo(() => isValidEmail(form.email), [form.email])
   const cpfOk = useMemo(() => isValidCPF(form.cpf), [form.cpf])
@@ -420,8 +403,7 @@ export default function RegisterPage() {
   )
   const senhaOk = useMemo(() => isStrongPassword(form.senha), [form.senha])
   const confirmOk = useMemo(
-    () =>
-      form.confirmSenha.length > 0 && form.confirmSenha === form.senha,
+    () => form.confirmSenha.length > 0 && form.confirmSenha === form.senha,
     [form.confirmSenha, form.senha]
   )
   const celularOk = useMemo(
@@ -432,10 +414,15 @@ export default function RegisterPage() {
   const formValido =
     nomeOk && emailOk && cpfOk && celularOk && idadeOk && senhaOk && confirmOk
 
+  const step1Valid = nomeOk && cpfOk && idadeOk
+  const step2Valid = emailOk && celularOk
+  const step3Valid = senhaOk && confirmOk
+
   useEffect(() => {
     setError('')
     setOkMsg('')
   }, [form])
+
   useEffect(() => {
     if (error) setTimeout(() => alertRef.current?.focus(), 0)
   }, [error])
@@ -515,7 +502,6 @@ export default function RegisterPage() {
     map[field]?.current?.focus()
   }
 
-  // Handlers especializados para aplicar máscara imediatamente
   const onChangeMasked =
     (name, formatter, _ref) =>
     (e) => {
@@ -577,7 +563,6 @@ export default function RegisterPage() {
     e.preventDefault()
     if (loading) return
 
-    // Passo 1: validar dados principais e avançar
     if (step === 1) {
       setSubmitted(true)
       const list = buildStep1Errors(form)
@@ -594,7 +579,6 @@ export default function RegisterPage() {
       return
     }
 
-    // Passo 2: validar contatos e avançar
     if (step === 2) {
       setSubmitted(true)
       const list = buildStep2Errors(form)
@@ -611,7 +595,6 @@ export default function RegisterPage() {
       return
     }
 
-    // Passo 3: envio definitivo
     setSubmitted(true)
     const list = buildErrorList(form)
     setErrorList(list)
@@ -721,7 +704,6 @@ export default function RegisterPage() {
     <section className="section">
       <div className="container-max max-w-4xl relative">
         <div className="min-h-[60vh] py-8 flex flex-col justify-center">
-          {/* halo de fundo premium, discreto */}
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-x-0 top-[72px] mx-auto h-40 max-w-2xl rounded-[48px] opacity-70"
@@ -732,9 +714,7 @@ export default function RegisterPage() {
             }}
           />
 
-          {/* topo / header */}
           <header className="mb-6">
-            {/* switch cadastro x login */}
             <div
               className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--surface-elevated)_94%,transparent)] p-1 border shadow-sm"
               style={{
@@ -769,7 +749,6 @@ export default function RegisterPage() {
             </p>
           </header>
 
-          {/* feedbacks globais */}
           {error && (
             <div
               ref={alertRef}
@@ -805,7 +784,6 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* Card principal */}
           <form
             onSubmit={onSubmit}
             className="relative overflow-hidden p-6 md:p-8 space-y-6 rounded-3xl border shadow-xl"
@@ -815,7 +793,6 @@ export default function RegisterPage() {
               borderColor: 'color-mix(in srgb, var(--text) 18%, transparent)',
             }}
           >
-            {/* gradiente suave no rodapé do card */}
             <div
               aria-hidden="true"
               className="pointer-events-none absolute inset-x-0 bottom-0 h-20"
@@ -830,7 +807,6 @@ export default function RegisterPage() {
               disabled={loading}
               className="space-y-6 relative z-[1]"
             >
-              {/* indicador de passo + barra de progresso */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs md:text-sm font-semibold tracking-wide uppercase">
@@ -880,7 +856,6 @@ export default function RegisterPage() {
                 </p>
               </div>
 
-              {/* bloco de orientação rápido (apenas passo 1) */}
               {step === 1 && (
                 <div
                   className="rounded-2xl px-4 py-3 text-xs md:text-sm mb-1"
@@ -902,7 +877,6 @@ export default function RegisterPage() {
                 </div>
               )}
 
-              {/* Aviso de transição bem marcado na etapa 3 (senha) */}
               {step === 3 && (
                 <div
                   className="rounded-2xl px-4 py-3 text-xs md:text-sm mb-1 flex items-start gap-2"
@@ -921,17 +895,18 @@ export default function RegisterPage() {
                   </div>
                   <div>
                     <p className="font-medium mb-0.5">
-                      Dados anotados, agora é só criar a senha.
+                      {firstName
+                        ? `${firstName}, seus dados estão certos.`
+                        : 'Seus dados estão certos.'}
                     </p>
                     <p style={{ color: 'var(--text-muted)' }}>
-                      Capriche em uma senha que você lembre com facilidade e
-                      guarde em lugar seguro.
+                      Agora crie uma senha para acessar sua conta quando
+                      quiser.
                     </p>
                   </div>
                 </div>
               )}
 
-              {/* PAINEL COM FUNDO LEVE PARA OS CAMPOS */}
               <div
                 className="rounded-2xl border px-4 py-4 md:px-5 md:py-5 space-y-6"
                 style={{
@@ -941,10 +916,8 @@ export default function RegisterPage() {
                     'color-mix(in srgb, var(--text) 16%, transparent)',
                 }}
               >
-                {/* PASSO 1: nome, CPF, data de nascimento */}
                 {step === 1 && (
                   <>
-                    {/* Nome */}
                     <div>
                       <label
                         htmlFor="nome"
@@ -976,7 +949,6 @@ export default function RegisterPage() {
                       )}
                     </div>
 
-                    {/* Grid 2 col: CPF + data de nascimento */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label
@@ -1046,7 +1018,6 @@ export default function RegisterPage() {
                       </div>
                     </div>
 
-                    {/* Sumário de erros passo 1 */}
                     {submitted && step === 1 && errorList.length > 0 && (
                       <div
                         className="rounded-lg px-4 py-3 text-sm md:text-base mt-1"
@@ -1081,10 +1052,8 @@ export default function RegisterPage() {
                   </>
                 )}
 
-                {/* PASSO 2: e-mail e celular */}
                 {step === 2 && (
                   <>
-                    {/* Grid 2 col: e-mail + celular */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label
@@ -1143,6 +1112,7 @@ export default function RegisterPage() {
                           className={`input h-12 text-base bg-white ${
                             submitted && !celularOk ? 'ring-1 ring-red-500' : ''
                           }`}
+
                           placeholder="(00) 90000-0000"
                           inputMode="tel"
                           autoComplete="tel"
@@ -1157,7 +1127,6 @@ export default function RegisterPage() {
                       </div>
                     </div>
 
-                    {/* Sumário de erros passo 2 */}
                     {submitted && step === 2 && errorList.length > 0 && (
                       <div
                         className="rounded-lg px-4 py-3 text-sm md:text-base mt-1"
@@ -1192,10 +1161,8 @@ export default function RegisterPage() {
                   </>
                 )}
 
-                {/* PASSO 3: senha */}
                 {step === 3 && (
                   <>
-                    {/* resumo rápido dos dados preenchidos */}
                     <div
                       className="rounded-2xl px-4 py-3 text-xs md:text-sm mb-2 flex items-start gap-2"
                       style={{
@@ -1212,18 +1179,15 @@ export default function RegisterPage() {
                       />
                       <div>
                         <p className="font-medium mb-0.5">
-                          {firstName
-                            ? `${firstName}, seus dados estão certos.`
-                            : 'Seus dados estão certos.'}
+                          Capriche em uma senha segura.
                         </p>
                         <p style={{ color: 'var(--text-muted)' }}>
-                          Agora crie uma senha para acessar sua conta quando
-                          quiser.
+                          Use uma combinação de letras maiúsculas, minúsculas e
+                          números que só você saiba.
                         </p>
                       </div>
                     </div>
 
-                    {/* Grid: senha + confirmar senha */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label
@@ -1252,16 +1216,12 @@ export default function RegisterPage() {
                             ref={senhaRef}
                             value={form.senha}
                             onChange={onChange}
-                            onFocus={() => setSenhaFocused(true)}
-                            onBlur={() => setSenhaFocused(false)}
                             className="input pr-12 h-12 text-xs sm:text-sm md:text-base bg-white"
                             placeholder="Crie uma senha forte"
                             autoComplete="new-password"
                             aria-required="true"
                             aria-invalid={submitted && !senhaOk}
-                            aria-describedby={
-                              senhaFocused ? 'senha-policy' : undefined
-                            }
+                            aria-describedby="senha-policy"
                           />
                           <button
                             type="button"
@@ -1279,40 +1239,37 @@ export default function RegisterPage() {
                           </button>
                         </div>
 
-                        {/* Checklist em tempo real */}
-                        {senhaFocused && (
-                          <div
-                            id="senha-policy"
-                            className="rounded-lg px-3 py-2 mt-2"
-                            style={{
-                              background:
-                                'color-mix(in srgb, var(--surface) 80%, transparent)',
-                              border: '1px solid var(--c-border)',
-                            }}
-                            aria-live="polite"
+                        <div
+                          id="senha-policy"
+                          className="rounded-lg px-3 py-2 mt-2"
+                          style={{
+                            background:
+                              'color-mix(in srgb, var(--surface) 80%, transparent)',
+                            border: '1px solid var(--c-border)',
+                          }}
+                          aria-live="polite"
+                        >
+                          <p
+                            className="text-[11px] md:text-xs mb-1"
+                            style={{ color: 'var(--text-muted)' }}
                           >
-                            <p
-                              className="text-[11px] md:text-xs mb-1"
-                              style={{ color: 'var(--text-muted)' }}
-                            >
-                              A senha precisa ter:
-                            </p>
-                            <ul className="space-y-1">
-                              <Rule ok={senhaChecks.len}>
-                                Pelo menos 8 caracteres
-                              </Rule>
-                              <Rule ok={senhaChecks.upper}>
-                                Ao menos 1 letra maiúscula (A–Z)
-                              </Rule>
-                              <Rule ok={senhaChecks.lower}>
-                                Ao menos 1 letra minúscula (a–z)
-                              </Rule>
-                              <Rule ok={senhaChecks.digit}>
-                                Ao menos 1 número (0–9)
-                              </Rule>
-                            </ul>
-                          </div>
-                        )}
+                            A senha precisa ter:
+                          </p>
+                          <ul className="space-y-1">
+                            <Rule ok={senhaChecks.len}>
+                              Pelo menos 8 caracteres
+                            </Rule>
+                            <Rule ok={senhaChecks.upper}>
+                              Ao menos 1 letra maiúscula (A–Z)
+                            </Rule>
+                            <Rule ok={senhaChecks.lower}>
+                              Ao menos 1 letra minúscula (a–z)
+                            </Rule>
+                            <Rule ok={senhaChecks.digit}>
+                              Ao menos 1 número (0–9)
+                            </Rule>
+                          </ul>
+                        </div>
 
                         {submitted && !senhaOk && (
                           <p className="text-xs md:text-sm mt-2 text-red-600">
@@ -1377,7 +1334,6 @@ export default function RegisterPage() {
                       </div>
                     </div>
 
-                    {/* Sumário de erros passo 3 */}
                     {submitted && step === 3 && errorList.length > 0 && (
                       <div
                         className="rounded-lg px-4 py-3 text-sm md:text-base mt-1"
@@ -1413,14 +1369,13 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              {/* Ações */}
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 {step === 1 && (
                   <>
                     <button
                       type="submit"
                       className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-12 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
-                      disabled={loading}
+                      disabled={loading || !step1Valid}
                     >
                       Continuar
                     </button>
@@ -1439,7 +1394,7 @@ export default function RegisterPage() {
                     <button
                       type="submit"
                       className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-12 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
-                      disabled={loading}
+                      disabled={loading || !step2Valid}
                     >
                       Continuar
                     </button>
@@ -1463,7 +1418,7 @@ export default function RegisterPage() {
                     <button
                       type="submit"
                       className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-12 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
-                      disabled={loading}
+                      disabled={loading || !step3Valid}
                     >
                       {loading ? 'Criando conta…' : 'Criar conta agora'}
                     </button>
