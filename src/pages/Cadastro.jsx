@@ -103,6 +103,7 @@ export default function Cadastro() {
   const [error, setError] = useState("");
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [stepAttempted, setStepAttempted] = useState({ 1: false, 2: false, 3: false });
 
   const alertRef = useRef(null);
   const sexoRef = useRef(null);
@@ -241,7 +242,10 @@ export default function Cadastro() {
     return true;
   }
 
-  async function runLookupByCpf(cpfMasked, { prefillFromPessoa = true } = {}) {
+  async function runLookupByCpf(
+    cpfMasked,
+    { prefillFromPessoa = true, suppressNoCadastroMessage = false } = {}
+  ) {
     const cpfFmt = formatCPF(cpfMasked || "");
     if (!cpfIsValid(cpfFmt)) {
       setLookupState({
@@ -292,16 +296,18 @@ export default function Cadastro() {
       const contratos = await buscarContratosDaPessoaPorCPF(cpfFmt);
       const ativos = contratos.filter(contratoAtivoPredicate);
 
+      const temPessoa = Boolean(pessoaRaw);
+
       setLookupState({
         running: false,
-        pessoaEncontrada: pessoaRaw ? normalizePessoaToTitular(pessoaRaw) : null,
+        pessoaEncontrada: temPessoa ? normalizePessoaToTitular(pessoaRaw) : null,
         temContratoAtivo: ativos.length > 0,
         contratosResumo: contratos,
-        mensagem: pessoaRaw
+        mensagem: temPessoa
           ? ativos.length > 0
             ? "Encontramos um contrato ativo vinculado ao seu CPF."
             : "Dados carregados a partir do CPF informado."
-          : "Não localizamos cadastro anterior para este CPF. Você pode prosseguir normalmente.",
+          : "",
         erro: "",
       });
     } catch (e) {
@@ -337,7 +343,10 @@ export default function Cadastro() {
         }));
 
         if (cpfIsValid(cpfFromMe)) {
-          await runLookupByCpf(cpfFromMe, { prefillFromPessoa: true });
+          await runLookupByCpf(cpfFromMe, {
+            prefillFromPessoa: true,
+            suppressNoCadastroMessage: true,
+          });
         }
       } catch {}
     })();
@@ -361,9 +370,13 @@ export default function Cadastro() {
       ...t,
       endereco: {
         ...t.endereco,
-        logradouro: addressTouched.logradouro ? t.endereco.logradouro : data.logradouro || t.endereco.logradouro,
+        logradouro: addressTouched.logradouro
+          ? t.endereco.logradouro
+          : data.logradouro || t.endereco.logradouro,
         bairro: addressTouched.bairro ? t.endereco.bairro : data.bairro || t.endereco.bairro,
-        cidade: addressTouched.cidade ? t.endereco.cidade : data.localidade || t.endereco.cidade,
+        cidade: addressTouched.cidade
+          ? t.endereco.cidade
+          : data.localidade || t.endereco.cidade,
         uf: addressTouched.uf
           ? sanitizeUF(t.endereco.uf)
           : sanitizeUF(data.uf || t.endereco.uf || UF_PADRAO || ""),
@@ -412,7 +425,10 @@ export default function Cadastro() {
   const updDepNovo = (i, patch) =>
     setDepsNovos((prev) => prev.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
   const addDepNovo = () =>
-    setDepsNovos((prev) => [...prev, { nome: "", cpf: "", sexo: "", parentesco: "", data_nascimento: "" }]);
+    setDepsNovos((prev) => [
+      ...prev,
+      { nome: "", cpf: "", sexo: "", parentesco: "", data_nascimento: "" },
+    ]);
   const delDepNovo = (i) => setDepsNovos((prev) => prev.filter((_, idx) => idx !== i));
 
   const e = titular.endereco || {};
@@ -424,7 +440,8 @@ export default function Cadastro() {
 
     if (!(titular.nome && titular.nome.trim().length >= 3))
       items.push({ field: "fixo", label: "Titular: nome ausente." });
-    if (!cpfIsValid(titular.cpf)) items.push({ field: "fixo", label: "Titular: CPF inválido ou ausente." });
+    if (!cpfIsValid(titular.cpf))
+      items.push({ field: "fixo", label: "Titular: CPF inválido ou ausente." });
     if (!titular.data_nascimento)
       items.push({ field: "fixo", label: "Titular: data de nascimento ausente." });
     if (!phoneIsValid(titular.celular))
@@ -434,12 +451,16 @@ export default function Cadastro() {
     if (!titular.estado_civil)
       items.push({ field: "estado_civil", label: "Titular: selecione o estado civil." });
 
-    if (!(cepDigits.length === 8)) items.push({ field: "cep", label: "Endereço: CEP deve ter 8 dígitos." });
+    if (!(cepDigits.length === 8))
+      items.push({ field: "cep", label: "Endereço: CEP deve ter 8 dígitos." });
     if (!e.logradouro?.trim())
       items.push({ field: "logradouro", label: "Endereço: informe o logradouro." });
-    if (!e.numero?.trim()) items.push({ field: "numero", label: "Endereço: informe o número." });
-    if (!e.bairro?.trim()) items.push({ field: "bairro", label: "Endereço: informe o bairro." });
-    if (!e.cidade?.trim()) items.push({ field: "cidade", label: "Endereço: informe a cidade." });
+    if (!e.numero?.trim())
+      items.push({ field: "numero", label: "Endereço: informe o número." });
+    if (!e.bairro?.trim())
+      items.push({ field: "bairro", label: "Endereço: informe o bairro." });
+    if (!e.cidade?.trim())
+      items.push({ field: "cidade", label: "Endereço: informe a cidade." });
     if (!(ufClean && ufClean.length === 2))
       items.push({ field: "uf", label: "Endereço: informe a UF (2 letras)." });
     if (cepState.error) items.push({ field: "cep", label: `Endereço: ${cepState.error}` });
@@ -501,6 +522,54 @@ export default function Cadastro() {
       const el = document.getElementById(field);
       if (el) el.focus();
     }
+  }
+
+  function validateStep1() {
+    const okEstadoCivil = !isEmpty(titular.estado_civil);
+    const okSexo = !isEmpty(titular.sexo);
+    if (!okEstadoCivil) {
+      focusByField("estado_civil");
+      return false;
+    }
+    if (!okSexo) {
+      focusByField("sexo");
+      return false;
+    }
+    return true;
+  }
+
+  function validateStep2() {
+    const addr = titular.endereco || {};
+    const errors = [];
+    if (!(cepDigits.length === 8) || cepState.error) errors.push("cep");
+    if (!addr.logradouro?.trim()) errors.push("logradouro");
+    if (!addr.numero?.trim()) errors.push("numero");
+    if (!addr.bairro?.trim()) errors.push("bairro");
+    if (!addr.cidade?.trim()) errors.push("cidade");
+    if (!(ufClean && ufClean.length === 2)) errors.push("uf");
+    if (errors.length > 0) {
+      focusByField(errors[0]);
+      return false;
+    }
+    return true;
+  }
+
+  function validateStep3() {
+    if (!depsNovos.length) return true;
+    const localErrors = [];
+    depsNovos.forEach((d, i) => {
+      const issue = depsIssuesNovos[i];
+      if (!((d.nome || "").trim().length >= 3)) localErrors.push(`depN-${i}-nome`);
+      if (!d.parentesco) localErrors.push(`depN-${i}-parentesco`);
+      if (!d.sexo) localErrors.push(`depN-${i}-sexo`);
+      if (!d.data_nascimento || issue?.fora) localErrors.push(`depN-${i}-nasc`);
+      if (d.cpf && issue?.cpfInvalido) localErrors.push(`depN-${i}-cpf`);
+    });
+    if (localErrors.length > 0) {
+      focusByField(localErrors[0]);
+      return false;
+    }
+    return true;
   }
 
   const [errorList, setErrorList] = useState([]);
@@ -625,7 +694,10 @@ export default function Cadastro() {
 
   function normalizeWaText(str) {
     let s = (str ?? "").toString();
-    s = s.normalize("NFKC").replace(/\r\n?/g, "\n").replace(/\u00A0/g, " ");
+    s = s
+      .normalize("NFKC")
+      .replace(/\r\n?/g, "\n")
+      .replace(/\u00A0/g, " ");
     const rawLines = s.split("\n").map((l) => l.replace(/\s+/g, " ").trim());
     const lines = [];
     for (const l of rawLines) {
@@ -690,11 +762,11 @@ export default function Cadastro() {
     if (!depsNovos.length) L.push("(Nenhum)");
     depsNovos.forEach((d, i) =>
       L.push(
-        `${i + 1}. ${d.nome || "(sem nome)"} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(
-          d.sexo
-        )} - CPF: ${formatCPF(d.cpf || "") || "(não informado)"} - nasc.: ${
-          d.data_nascimento || ""
-        }`
+        `${i + 1}. ${d.nome || "(sem nome)"} - ${labelParentesco(
+          d.parentesco
+        )} - ${sexoLabelFromValue(d.sexo)} - CPF: ${
+          formatCPF(d.cpf || "") || "(não informado)"
+        } - nasc.: ${d.data_nascimento || ""}`
       )
     );
 
@@ -726,6 +798,9 @@ export default function Cadastro() {
     { id: 3, label: "Dependentes" },
     { id: 4, label: "Finalização" },
   ];
+
+  const totalSteps = steps.length || 1;
+  const progressPercent = Math.round((currentStep / totalSteps) * 100);
 
   const canGoBack = currentStep > 1;
   const goNext = () => setCurrentStep((s) => Math.min(4, s + 1));
@@ -846,7 +921,7 @@ export default function Cadastro() {
                       <span className="flex flex-col">
                         <span className="font-medium">{step.label}</span>
                         <span className="text-[10px] uppercase tracking-[0.16em] opacity-70">
-                          Etapa {step.id} de 4
+                          Etapa {step.id} de {totalSteps}
                         </span>
                       </span>
                     </button>
@@ -854,6 +929,24 @@ export default function Cadastro() {
                 );
               })}
             </ol>
+
+            <div className="mt-3 md:hidden">
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-[11px] font-medium text-[var(--c-muted)]">
+                  Etapa {currentStep} de {totalSteps}
+                </span>
+                <span className="text-[11px] text-[var(--c-muted)]">
+                  {progressPercent}
+                  %
+                </span>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-[var(--c-border)]/40 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-[var(--primary)] transition-all"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            </div>
           </div>
         )}
 
@@ -912,12 +1005,16 @@ export default function Cadastro() {
                     id="titular-ec"
                     ref={ecRef}
                     className={`input h-11 w-full text-sm ${requiredRing(
-                      submitAttempted && isEmpty(titular.estado_civil)
+                      (stepAttempted[1] || submitAttempted) && isEmpty(titular.estado_civil)
                     )}`}
                     value={titular.estado_civil}
                     onChange={(e) => updTit({ estado_civil: e.target.value })}
                     aria-required="true"
-                    aria-invalid={submitAttempted && isEmpty(titular.estado_civil) ? "true" : "false"}
+                    aria-invalid={
+                      (stepAttempted[1] || submitAttempted) && isEmpty(titular.estado_civil)
+                        ? "true"
+                        : "false"
+                    }
                   >
                     <option value="">Selecione…</option>
                     {ESTADO_CIVIL_OPTIONS.map(([v, l]) => (
@@ -926,7 +1023,7 @@ export default function Cadastro() {
                       </option>
                     ))}
                   </select>
-                  {submitAttempted && isEmpty(titular.estado_civil) && (
+                  {(stepAttempted[1] || submitAttempted) && isEmpty(titular.estado_civil) && (
                     <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
                       Selecione o estado civil.
                     </p>
@@ -941,12 +1038,16 @@ export default function Cadastro() {
                     id="titular-sexo"
                     ref={sexoRef}
                     className={`input h-11 w-full text-sm ${requiredRing(
-                      submitAttempted && isEmpty(titular.sexo)
+                      (stepAttempted[1] || submitAttempted) && isEmpty(titular.sexo)
                     )}`}
                     value={titular.sexo}
                     onChange={(e) => updTit({ sexo: e.target.value })}
                     aria-required="true"
-                    aria-invalid={submitAttempted && isEmpty(titular.sexo) ? "true" : "false"}
+                    aria-invalid={
+                      (stepAttempted[1] || submitAttempted) && isEmpty(titular.sexo)
+                        ? "true"
+                        : "false"
+                    }
                   >
                     <option value="">Selecione…</option>
                     {SEXO_OPTIONS.map(([v, l]) => (
@@ -955,7 +1056,7 @@ export default function Cadastro() {
                       </option>
                     ))}
                   </select>
-                  {submitAttempted && isEmpty(titular.sexo) && (
+                  {(stepAttempted[1] || submitAttempted) && isEmpty(titular.sexo) && (
                     <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
                       Selecione o sexo.
                     </p>
@@ -964,7 +1065,16 @@ export default function Cadastro() {
               </div>
 
               <div className="mt-5 flex justify-end">
-                <CTAButton type="button" className="h-11 px-6" onClick={goNext}>
+                <CTAButton
+                  type="button"
+                  className="h-11 px-6"
+                  onClick={() => {
+                    setStepAttempted((prev) => ({ ...prev, 1: true }));
+                    if (validateStep1()) {
+                      setCurrentStep(2);
+                    }
+                  }}
+                >
                   Continuar
                 </CTAButton>
               </div>
@@ -997,7 +1107,8 @@ export default function Cadastro() {
                   ref={cepRef}
                   className={`input h-11 text-sm ${
                     requiredRing(
-                      submitAttempted && onlyDigits(titular.endereco.cep || "").length !== 8
+                      (stepAttempted[2] || submitAttempted) &&
+                        onlyDigits(titular.endereco.cep || "").length !== 8
                     ) || (cepState.error ? " ring-1 ring-red-500" : "")
                   }`}
                   inputMode="numeric"
@@ -1012,7 +1123,7 @@ export default function Cadastro() {
                   autoComplete="postal-code"
                   aria-required="true"
                   aria-invalid={
-                    (submitAttempted &&
+                    ((stepAttempted[2] || submitAttempted) &&
                       onlyDigits(titular.endereco.cep || "").length !== 8) ||
                     !!cepState.error
                       ? "true"
@@ -1020,7 +1131,7 @@ export default function Cadastro() {
                   }
                   aria-describedby={cepState.error ? "cep-error" : undefined}
                 />
-                {submitAttempted &&
+                {(stepAttempted[2] || submitAttempted) &&
                   onlyDigits(titular.endereco.cep || "").length !== 8 &&
                   !cepState.error && (
                     <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
@@ -1053,7 +1164,8 @@ export default function Cadastro() {
                     id="end-log"
                     ref={logRef}
                     className={`input h-11 text-sm ${requiredRing(
-                      submitAttempted && isEmpty(titular.endereco.logradouro)
+                      (stepAttempted[2] || submitAttempted) &&
+                        isEmpty(titular.endereco.logradouro)
                     )}`}
                     value={titular.endereco.logradouro}
                     onChange={(e) => {
@@ -1062,14 +1174,20 @@ export default function Cadastro() {
                     }}
                     autoComplete="address-line1"
                     aria-required="true"
-                    aria-invalid={submitAttempted && isEmpty(titular.endereco.logradouro) ? "true" : "false"}
+                    aria-invalid={
+                      (stepAttempted[2] || submitAttempted) &&
+                      isEmpty(titular.endereco.logradouro)
+                        ? "true"
+                        : "false"
+                    }
                     disabled={cepState.loading}
                   />
-                  {submitAttempted && isEmpty(titular.endereco.logradouro) && (
-                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                      Informe o logradouro.
-                    </p>
-                  )}
+                  {(stepAttempted[2] || submitAttempted) &&
+                    isEmpty(titular.endereco.logradouro) && (
+                      <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                        Informe o logradouro.
+                      </p>
+                    )}
                 </div>
                 <div>
                   <label className="label text-xs font-medium" htmlFor="end-num">
@@ -1079,20 +1197,25 @@ export default function Cadastro() {
                     id="end-num"
                     ref={numRef}
                     className={`input h-11 text-sm ${requiredRing(
-                      submitAttempted && isEmpty(titular.endereco.numero)
+                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.numero)
                     )}`}
                     value={titular.endereco.numero}
                     onChange={(e) => updTitEndereco({ numero: e.target.value })}
                     autoComplete="address-line2"
                     aria-required="true"
-                    aria-invalid={submitAttempted && isEmpty(titular.endereco.numero) ? "true" : "false"}
+                    aria-invalid={
+                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.numero)
+                        ? "true"
+                        : "false"
+                    }
                     disabled={cepState.loading}
                   />
-                  {submitAttempted && isEmpty(titular.endereco.numero) && (
-                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                      Informe o número.
-                    </p>
-                  )}
+                  {(stepAttempted[2] || submitAttempted) &&
+                    isEmpty(titular.endereco.numero) && (
+                      <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                        Informe o número.
+                      </p>
+                    )}
                 </div>
               </div>
 
@@ -1117,7 +1240,7 @@ export default function Cadastro() {
                   id="end-bairro"
                   ref={bairroRef}
                   className={`input h-11 text-sm ${requiredRing(
-                    submitAttempted && isEmpty(titular.endereco.bairro)
+                    (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.bairro)
                   )}`}
                   value={titular.endereco.bairro}
                   onChange={(e) => {
@@ -1125,10 +1248,14 @@ export default function Cadastro() {
                     updTitEndereco({ bairro: e.target.value });
                   }}
                   aria-required="true"
-                  aria-invalid={submitAttempted && isEmpty(titular.endereco.bairro) ? "true" : "false"}
+                  aria-invalid={
+                    (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.bairro)
+                      ? "true"
+                      : "false"
+                  }
                   disabled={cepState.loading}
                 />
-                {submitAttempted && isEmpty(titular.endereco.bairro) && (
+                {(stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.bairro) && (
                   <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
                     Informe o bairro.
                   </p>
@@ -1144,7 +1271,7 @@ export default function Cadastro() {
                     id="end-cidade"
                     ref={cidadeRef}
                     className={`input h-11 text-sm ${requiredRing(
-                      submitAttempted && isEmpty(titular.endereco.cidade)
+                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.cidade)
                     )}`}
                     value={titular.endereco.cidade}
                     onChange={(e) => {
@@ -1155,10 +1282,14 @@ export default function Cadastro() {
                     }}
                     autoComplete="address-level2"
                     aria-required="true"
-                    aria-invalid={submitAttempted && isEmpty(titular.endereco.cidade) ? "true" : "false"}
+                    aria-invalid={
+                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.cidade)
+                        ? "true"
+                        : "false"
+                    }
                     disabled={cepState.loading}
                   />
-                  {submitAttempted && isEmpty(titular.endereco.cidade) && (
+                  {(stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.cidade) && (
                     <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
                       Informe a cidade.
                     </p>
@@ -1172,7 +1303,7 @@ export default function Cadastro() {
                     id="end-uf"
                     ref={ufRef}
                     className={`input h-11 text-sm ${requiredRing(
-                      submitAttempted && isEmpty(titular.endereco.uf)
+                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.uf)
                     )}`}
                     value={titular.endereco.uf}
                     onChange={(e) => {
@@ -1183,10 +1314,14 @@ export default function Cadastro() {
                     maxLength={2}
                     autoComplete="address-level1"
                     aria-required="true"
-                    aria-invalid={submitAttempted && isEmpty(titular.endereco.uf) ? "true" : "false"}
+                    aria-invalid={
+                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.uf)
+                        ? "true"
+                        : "false"
+                    }
                     disabled={cepState.loading}
                   />
-                  {submitAttempted && isEmpty(titular.endereco.uf) && (
+                  {(stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.uf) && (
                     <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
                       Informe a UF.
                     </p>
@@ -1199,7 +1334,16 @@ export default function Cadastro() {
               <CTAButton type="button" variant="outline" className="h-11 px-5" onClick={goPrev}>
                 Voltar
               </CTAButton>
-              <CTAButton type="button" className="h-11 px-6" onClick={goNext}>
+              <CTAButton
+                type="button"
+                className="h-11 px-6"
+                onClick={() => {
+                  setStepAttempted((prev) => ({ ...prev, 2: true }));
+                  if (validateStep2()) {
+                    setCurrentStep(3);
+                  }
+                }}
+              >
                 Continuar
               </CTAButton>
             </div>
@@ -1300,23 +1444,26 @@ export default function Cadastro() {
                           <input
                             id={`depN-${i}-nome`}
                             className={`input h-11 w-full text-sm ${requiredRing(
-                              submitAttempted && !((d.nome || "").trim().length >= 3)
+                              (stepAttempted[3] || submitAttempted) &&
+                                !((d.nome || "").trim().length >= 3)
                             )}`}
                             placeholder="Nome do dependente"
                             value={d.nome}
                             onChange={(e) => updDepNovo(i, { nome: e.target.value })}
                             aria-required="true"
                             aria-invalid={
-                              submitAttempted && !((d.nome || "").trim().length >= 3)
+                              (stepAttempted[3] || submitAttempted) &&
+                              !((d.nome || "").trim().length >= 3)
                                 ? "true"
                                 : "false"
                             }
                           />
-                          {submitAttempted && !((d.nome || "").trim().length >= 3) && (
-                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                              Informe o nome (mín. 3 caracteres).
-                            </p>
-                          )}
+                          {(stepAttempted[3] || submitAttempted) &&
+                            !((d.nome || "").trim().length >= 3) && (
+                              <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                                Informe o nome (mín. 3 caracteres).
+                              </p>
+                            )}
                         </div>
                         <div className="md:col-span-3">
                           <label
@@ -1328,12 +1475,16 @@ export default function Cadastro() {
                           <select
                             id={`depN-${i}-parentesco`}
                             className={`input h-11 w-full text-sm ${requiredRing(
-                              submitAttempted && isEmpty(d.parentesco)
+                              (stepAttempted[3] || submitAttempted) && isEmpty(d.parentesco)
                             )}`}
                             value={d.parentesco}
                             onChange={(e) => updDepNovo(i, { parentesco: e.target.value })}
                             aria-required="true"
-                            aria-invalid={submitAttempted && isEmpty(d.parentesco) ? "true" : "false"}
+                            aria-invalid={
+                              (stepAttempted[3] || submitAttempted) && isEmpty(d.parentesco)
+                                ? "true"
+                                : "false"
+                            }
                           >
                             <option value="">Selecione…</option>
                             {(plano?.parentescos?.length
@@ -1345,7 +1496,7 @@ export default function Cadastro() {
                               </option>
                             ))}
                           </select>
-                          {submitAttempted && isEmpty(d.parentesco) && (
+                          {(stepAttempted[3] || submitAttempted) && isEmpty(d.parentesco) && (
                             <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
                               Selecione o parentesco.
                             </p>
@@ -1358,12 +1509,16 @@ export default function Cadastro() {
                           <select
                             id={`depN-${i}-sexo`}
                             className={`input h-11 w-full text-sm ${requiredRing(
-                              submitAttempted && isEmpty(d.sexo)
+                              (stepAttempted[3] || submitAttempted) && isEmpty(d.sexo)
                             )}`}
                             value={d.sexo || ""}
                             onChange={(e) => updDepNovo(i, { sexo: e.target.value })}
                             aria-required="true"
-                            aria-invalid={submitAttempted && isEmpty(d.sexo) ? "true" : "false"}
+                            aria-invalid={
+                              (stepAttempted[3] || submitAttempted) && isEmpty(d.sexo)
+                                ? "true"
+                                : "false"
+                            }
                           >
                             <option value="">Selecione…</option>
                             {SEXO_OPTIONS.map(([v, l]) => (
@@ -1372,7 +1527,7 @@ export default function Cadastro() {
                               </option>
                             ))}
                           </select>
-                          {submitAttempted && isEmpty(d.sexo) && (
+                          {(stepAttempted[3] || submitAttempted) && isEmpty(d.sexo) && (
                             <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
                               Selecione o sexo.
                             </p>
@@ -1412,7 +1567,10 @@ export default function Cadastro() {
                             idPrefix={`depN-${i}-nasc`}
                             valueISO={d.data_nascimento}
                             onChangeISO={(iso) => updDepNovo(i, { data_nascimento: iso })}
-                            invalid={Boolean(submitAttempted && (!d.data_nascimento || issue?.fora))}
+                            invalid={Boolean(
+                              (stepAttempted[3] || submitAttempted) &&
+                                (!d.data_nascimento || issue?.fora)
+                            )}
                             minAge={
                               Number.isFinite(idadeMinDep) ? Number(idadeMinDep) : undefined
                             }
@@ -1420,16 +1578,18 @@ export default function Cadastro() {
                               Number.isFinite(idadeMaxDep) ? Number(idadeMaxDep) : undefined
                             }
                           />
-                          {submitAttempted && !d.data_nascimento && (
+                          {(stepAttempted[3] || submitAttempted) && !d.data_nascimento && (
                             <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
                               Informe a data de nascimento.
                             </p>
                           )}
-                          {submitAttempted && d.data_nascimento && issue?.fora && (
-                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                              Data fora do limite etário do plano.
-                            </p>
-                          )}
+                          {(stepAttempted[3] || submitAttempted) &&
+                            d.data_nascimento &&
+                            issue?.fora && (
+                              <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                                Data fora do limite etário do plano.
+                              </p>
+                            )}
                         </div>
                       </div>
                     </div>
@@ -1443,8 +1603,8 @@ export default function Cadastro() {
                   role="alert"
                   aria-live="polite"
                 >
-                  <AlertTriangle size={14} /> {countDepsFora} dependente(s) fora do limite etário
-                  do plano.
+                  <AlertTriangle size={14} /> {countDepsFora} dependente(s) fora do limite etário do
+                  plano.
                 </p>
               )}
 
@@ -1452,7 +1612,16 @@ export default function Cadastro() {
                 <CTAButton type="button" variant="outline" className="h-11 px-5" onClick={goPrev}>
                   Voltar
                 </CTAButton>
-                <CTAButton type="button" className="h-11 px-6" onClick={goNext}>
+                <CTAButton
+                  type="button"
+                  className="h-11 px-6"
+                  onClick={() => {
+                    setStepAttempted((prev) => ({ ...prev, 3: true }));
+                    if (validateStep3()) {
+                      setCurrentStep(4);
+                    }
+                  }}
+                >
                   Continuar
                 </CTAButton>
               </div>
@@ -1607,14 +1776,16 @@ export default function Cadastro() {
               )}
 
               <div className="mb-4 flex justify-start">
-                <button
-                  type="button"
-                  onClick={goPrev}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-[var(--c-muted)] hover:text-[var(--text)]"
-                >
-                  <ChevronLeft size={14} />
-                  Voltar para dependentes
-                </button>
+                {canGoBack && (
+                  <button
+                    type="button"
+                    onClick={goPrev}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-[var(--c-muted)] hover:text-[var(--text)]"
+                  >
+                    <ChevronLeft size={14} />
+                    Voltar para dependentes
+                  </button>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
