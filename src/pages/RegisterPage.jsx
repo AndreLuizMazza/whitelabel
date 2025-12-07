@@ -414,6 +414,7 @@ export default function RegisterPage() {
   const formValido =
     nomeOk && emailOk && cpfOk && celularOk && idadeOk && senhaOk && confirmOk
 
+  // usados apenas como referência interna; botões já não dependem deles
   const step1Valid = nomeOk && cpfOk && idadeOk
   const step2Valid = emailOk && celularOk
   const step3Valid = senhaOk && confirmOk
@@ -502,6 +503,17 @@ export default function RegisterPage() {
     map[field]?.current?.focus()
   }
 
+  const recomputeErrorsIfSubmitted = (next) => {
+    if (!submitted) return
+    const list =
+      step === 1
+        ? buildStep1Errors(next)
+        : step === 2
+        ? buildStep2Errors(next)
+        : buildErrorList(next)
+    setErrorList(list)
+  }
+
   const onChangeMasked =
     (name, formatter, _ref) =>
     (e) => {
@@ -509,16 +521,7 @@ export default function RegisterPage() {
       const nextVal = formatter(raw)
       const next = { ...form, [name]: nextVal }
       setForm(next)
-
-      if (submitted) {
-        const list =
-          step === 1
-            ? buildStep1Errors(next)
-            : step === 2
-            ? buildStep2Errors(next)
-            : buildErrorList(next)
-        setErrorList(list)
-      }
+      recomputeErrorsIfSubmitted(next)
     }
 
   const onPasteMasked = (name, formatter) => (e) => {
@@ -528,16 +531,7 @@ export default function RegisterPage() {
     const nextVal = formatter(pasted)
     const next = { ...form, [name]: nextVal }
     setForm(next)
-
-    if (submitted) {
-      const list =
-        step === 1
-          ? buildStep1Errors(next)
-          : step === 2
-          ? buildStep2Errors(next)
-          : buildErrorList(next)
-      setErrorList(list)
-    }
+    recomputeErrorsIfSubmitted(next)
   }
 
   function onChange(e) {
@@ -547,16 +541,7 @@ export default function RegisterPage() {
       [name]: type === 'checkbox' ? checked : value,
     }
     setForm(next)
-
-    if (submitted) {
-      const list =
-        step === 1
-          ? buildStep1Errors(next)
-          : step === 2
-          ? buildStep2Errors(next)
-          : buildErrorList(next)
-      setErrorList(list)
-    }
+    recomputeErrorsIfSubmitted(next)
   }
 
   async function onSubmit(e) {
@@ -568,12 +553,14 @@ export default function RegisterPage() {
       const list = buildStep1Errors(form)
       setErrorList(list)
 
-      if (list.length > 0) {
-        focusByField(list[0].field)
+      if (list.length > 0 || !step1Valid) {
+        if (list.length > 0) focusByField(list[0].field)
         return
       }
 
+      // Etapa 1 OK → avança para a 2 sem validações exibidas
       setStep(2)
+      setSubmitted(false)
       setErrorList([])
       setTimeout(() => emailRef.current?.focus(), 0)
       return
@@ -584,23 +571,26 @@ export default function RegisterPage() {
       const list = buildStep2Errors(form)
       setErrorList(list)
 
-      if (list.length > 0) {
-        focusByField(list[0].field)
+      if (list.length > 0 || !step2Valid) {
+        if (list.length > 0) focusByField(list[0].field)
         return
       }
 
+      // Etapa 2 OK → avança para a 3 sem validações exibidas
       setStep(3)
+      setSubmitted(false)
       setErrorList([])
       setTimeout(() => senhaRef.current?.focus(), 0)
       return
     }
 
+    // step 3
     setSubmitted(true)
     const list = buildErrorList(form)
     setErrorList(list)
 
-    if (list.length > 0) {
-      focusByField(list[0].field)
+    if (list.length > 0 || !step3Valid) {
+      if (list.length > 0) focusByField(list[0].field)
       return
     }
 
@@ -609,6 +599,7 @@ export default function RegisterPage() {
       setTimeout(() => alertRef.current?.focus(), 0)
       focusByField('cpf')
       setStep(1)
+      setSubmitted(false)
       return
     }
 
@@ -986,10 +977,7 @@ export default function RegisterPage() {
                       <div>
                         <label className="label font-medium text-sm md:text-base">
                           Data de nascimento{' '}
-                          <span
-                            aria-hidden="true"
-                            className="text-red-600"
-                          >
+                          <span aria-hidden="true" className="text-red-600">
                             *
                           </span>
                         </label>
@@ -1112,7 +1100,6 @@ export default function RegisterPage() {
                           className={`input h-12 text-base bg-white ${
                             submitted && !celularOk ? 'ring-1 ring-red-500' : ''
                           }`}
-
                           placeholder="(00) 90000-0000"
                           inputMode="tel"
                           autoComplete="tel"
@@ -1195,10 +1182,7 @@ export default function RegisterPage() {
                           className="label font-medium text-sm md:text-base"
                         >
                           Senha{' '}
-                          <span
-                            aria-hidden="true"
-                            className="text-red-600"
-                          >
+                          <span aria-hidden="true" className="text-red-600">
                             *
                           </span>
                         </label>
@@ -1284,10 +1268,7 @@ export default function RegisterPage() {
                           className="label font-medium text-sm md:text-base"
                         >
                           Confirmar senha{' '}
-                          <span
-                            aria-hidden="true"
-                            className="text-red-600"
-                          >
+                          <span aria-hidden="true" className="text-red-600">
                             *
                           </span>
                         </label>
@@ -1375,7 +1356,7 @@ export default function RegisterPage() {
                     <button
                       type="submit"
                       className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-12 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
-                      disabled={loading || !step1Valid}
+                      disabled={loading}
                     >
                       Continuar
                     </button>
@@ -1394,7 +1375,7 @@ export default function RegisterPage() {
                     <button
                       type="submit"
                       className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-12 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
-                      disabled={loading || !step2Valid}
+                      disabled={loading}
                     >
                       Continuar
                     </button>
@@ -1418,7 +1399,7 @@ export default function RegisterPage() {
                     <button
                       type="submit"
                       className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-12 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
-                      disabled={loading || !step3Valid}
+                      disabled={loading}
                     >
                       {loading ? 'Criando conta…' : 'Criar conta agora'}
                     </button>
