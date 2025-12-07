@@ -1,5 +1,5 @@
 // src/layouts/GlobalShell.jsx
-import { NavLink, useLocation } from "react-router-dom"
+import { NavLink, useLocation, Link } from "react-router-dom"
 import {
   Home,
   Layers,
@@ -147,6 +147,14 @@ export default function GlobalShell({ children }) {
     return location.pathname === "/" && location.hash === "#faq"
   }
 
+  // mesmo comportamento da logo do Navbar
+  function handleBrandClick(e) {
+    if (location.pathname === "/") {
+      e.preventDefault()
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    }
+  }
+
   return (
     <div className="flex min-h-screen bg-[var(--surface)] relative">
       {/* ===========================
@@ -161,14 +169,17 @@ export default function GlobalShell({ children }) {
           sticky top-0 h-screen
         "
       >
-        {/* Cabeçalho do tenant – cartão premium */}
+        {/* Cabeçalho do tenant – cartão premium clicável (Home) */}
         <div className="px-4 pt-4 pb-3 border-b border-[var(--c-border)]">
-          <div
-            className="rounded-2xl px-4 py-3"
+          <Link
+            to="/"
+            onClick={handleBrandClick}
+            className="block rounded-2xl px-4 py-3 transition hover:shadow-sm"
             style={{
               background:
                 "color-mix(in srgb, var(--primary) 6%, var(--surface) 94%)",
             }}
+            aria-label="Ir para a página inicial"
           >
             <p
               className="text-[11px] uppercase tracking-[0.2em] mb-1"
@@ -179,7 +190,7 @@ export default function GlobalShell({ children }) {
             <p className="text-sm font-semibold leading-snug break-words">
               {brandName}
             </p>
-          </div>
+          </Link>
         </div>
 
         {/* Menu principal + privado */}

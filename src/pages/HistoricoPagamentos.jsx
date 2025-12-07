@@ -1,11 +1,18 @@
 // src/pages/HistoricoPagamentos.jsx
+import { useEffect, useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
+
+import useAuth from '@/store/auth'
+import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
+import { showToast } from '@/lib/toast'
+
 import BackButton from '@/components/BackButton'
 
 const fmtBRL = (v) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-    Number(v || 0)
-  )
+  new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(Number(v || 0))
 
 const fmtDate = (s) => {
   if (!s) return '—'
@@ -31,10 +38,66 @@ const getYear = (s) => {
   return Number(Y) || null
 }
 
+function Skeleton({ className = '' }) {
+  return (
+    <div
+      className={`animate-pulse rounded-xl ${className}`}
+      style={{
+        background:
+          'linear-gradient(90deg, rgba(0,0,0,0.06), rgba(0,0,0,0.10), rgba(0,0,0,0.06))',
+        backgroundSize: '200% 100%',
+      }}
+    />
+  )
+}
+
 export default function HistoricoPagamentos() {
   const location = useLocation()
-  const { historico = [], numeroContrato, nomePlano, unidadeNome } =
-    location.state || {}
+  const state = location.state || {}
+
+  const stateHistorico = state.historico || null
+  const stateNumeroContrato = state.numeroContrato || null
+  const stateNomePlano = state.nomePlano || null
+  const stateUnidadeNome = state.unidadeNome || null
+
+  const user = useAuth((s) => s.user)
+
+  const cpf =
+    user?.cpf ||
+    user?.documento ||
+    (() => {
+      try {
+        return JSON.parse(localStorage.getItem('auth_user') || '{}').cpf
+      } catch {
+        return ''
+      }
+    })() ||
+    ''
+
+  const {
+    contrato,
+    historico: hookHistorico,
+    loading,
+    erro,
+  } = useContratoDoUsuario({ cpf })
+
+  useEffect(() => {
+    if (erro) {
+      showToast(
+        'Não foi possível carregar o histórico de pagamentos. Tente novamente em instantes.'
+      )
+    }
+  }, [erro])
+
+  const historico = useMemo(() => {
+    if (Array.isArray(stateHistorico) && stateHistorico.length > 0) {
+      return stateHistorico
+    }
+    if (Array.isArray(hookHistorico)) {
+      return hookHistorico
+    }
+    return []
+  }, [stateHistorico, hookHistorico])
 
   const currentYear = new Date().getFullYear()
 
@@ -45,13 +108,32 @@ export default function HistoricoPagamentos() {
       })
     : []
 
-  // Apenas pagamentos do ano vigente (considera data de recebimento; se não houver, usa vencimento)
   const pagosAno = pagos.filter((p) => {
     const yReceb = getYear(p?.dataRecebimento)
     const yVenc = getYear(p?.dataVencimento)
     const y = yReceb || yVenc
     return y === currentYear
   })
+
+  const numeroContrato =
+    stateNumeroContrato ||
+    contrato?.numeroContrato ||
+    contrato?.id ||
+    null
+
+  const nomePlano =
+    stateNomePlano ||
+    contrato?.nomePlano ||
+    contrato?.plano?.nome ||
+    null
+
+  const unidadeNome =
+    stateUnidadeNome ||
+    contrato?.unidade?.nomeFantasia ||
+    contrato?.empresa?.razaoSocial ||
+    null
+
+  const isLoading = loading && historico.length === 0
 
   return (
     <section className="section">
@@ -74,10 +156,11 @@ export default function HistoricoPagamentos() {
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
             {nomePlano && (
               <>
-                Plano <strong>{nomePlano}</strong>{' • '}
+                Plano <strong>{nomePlano}</strong>
+                {' • '}
               </>
             )}
-            {numeroContrato && <>Contrato #{numeroContrato}{' • '}</>}
+            {numeroContrato && <>Contrato #{numeroContrato} • </>}
             {unidadeNome && <>Administrado por {unidadeNome}</>}
           </p>
           <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
@@ -85,14 +168,25 @@ export default function HistoricoPagamentos() {
           </p>
         </header>
 
-        {pagosAno.length === 0 ? (
+        {isLoading && (
+          <div className="card p-5">
+            <Skeleton className="h-5 w-48 mb-3" />
+            <Skeleton className="h-8 mb-2" />
+            <Skeleton className="h-8 mb-2" />
+            <Skeleton className="h-8 mb-2" />
+          </div>
+        )}
+
+        {!isLoading && pagosAno.length === 0 && (
           <div className="card p-6">
             <p className="text-sm" style={{ color: 'var(--text)' }}>
               Ainda não encontramos pagamentos confirmados para este contrato em{' '}
               {currentYear}.
             </p>
           </div>
-        ) : (
+        )}
+
+        {!isLoading && pagosAno.length > 0 && (
           <div className="card p-0 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
@@ -133,9 +227,7 @@ export default function HistoricoPagamentos() {
                       </td>
                       <td className="px-4 py-2 text-right">
                         {fmtBRL(
-                          p?.valorParcelaRecebida ??
-                            p?.valorParcela ??
-                            0
+                          p?.valorParcelaRecebida ?? p?.valorParcela ?? 0
                         )}
                       </td>
                     </tr>
