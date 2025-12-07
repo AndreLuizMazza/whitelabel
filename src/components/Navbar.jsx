@@ -1,73 +1,19 @@
 // src/components/Navbar.jsx
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { useEffect, useState, useMemo, useRef } from 'react'
-import {
-  Menu,
-  X,
-  Home,
-  Layers,
-  Gift,
-  HeartHandshake,
-  Phone,
-  FileText,
-  UserSquare2,
-  User,
-  LogOut,
-  HelpCircle,
-} from 'lucide-react'
+import { Menu, X, UserSquare2, User, LogOut } from 'lucide-react'
+
 import useAuth from '@/store/auth'
 import useTenant from '@/store/tenant'
 import ThemeToggle from './ThemeToggle.jsx'
 import HeaderNotificationsBell from '@/components/HeaderNotificationsBell.jsx'
 import { getAvatarBlobUrl } from '@/lib/profile'
 
-// Resolve logo do tenant
-function cssVarUrlOrNull(name = '--tenant-logo') {
-  try {
-    const v = getComputedStyle(document.documentElement)
-      .getPropertyValue(name)
-      ?.trim()
-    const m = v.match(/^url\((['"]?)(.*?)\1\)$/i)
-    return m?.[2] || null
-  } catch {
-    return null
-  }
-}
-
-function resolveTenantLogoUrl() {
-  try {
-    const st = useTenant.getState?.()
-    const fromStore =
-      st?.empresa?.logo || st?.empresa?.logoUrl || st?.empresa?.logo_path
-    if (fromStore) return fromStore
-  } catch {}
-
-  try {
-    const inline = window.__TENANT__
-    if (inline?.logo) return inline.logo
-  } catch {}
-
-  try {
-    const raw = localStorage.getItem('tenant_empresa')
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (parsed?.logo) return parsed.logo
-    }
-  } catch {}
-
-  return cssVarUrlOrNull('--tenant-logo') || '/img/logo.png'
-}
-
-// Iniciais do tenant (ex.: "Funerária Patense" -> "FP")
-function getTenantInitials(empresa) {
-  const nome =
-    empresa?.nomeFantasia || empresa?.nome || empresa?.razaoSocial || 'T'
-  const parts = nome.trim().split(/\s+/)
-  if (parts.length === 1) return parts[0][0]?.toUpperCase() || 'T'
-  const first = parts[0][0]
-  const last = parts[parts.length - 1][0]
-  return `${(first || 'T').toUpperCase()}${(last || '').toUpperCase()}`
-}
+import {
+  MAIN_MENU_LINKS,
+  PRIVATE_MENU_LINKS,
+} from '@/layouts/GlobalShell.jsx'
+import { getTenantInitials, resolveTenantLogoUrl } from '@/lib/tenantBranding'
 
 export default function Navbar() {
   const { isAuthenticated, token, user, logout } = useAuth((s) => ({
@@ -78,7 +24,7 @@ export default function Navbar() {
   }))
   const empresa = useTenant((s) => s.empresa)
 
-  const nomeEmpresa = empresa?.nomeFantasia || 'Logo'
+  const nomeEmpresa = empresa?.nomeFantasia || empresa?.nome || 'Logo'
   const logoUrl = resolveTenantLogoUrl()
   const isLogged = isAuthenticated() || !!token || !!user
 
@@ -118,7 +64,7 @@ export default function Navbar() {
   const fotoDeclarada = user?.fotoUrl || user?.photoURL || ''
   const avatarUrl = avatarErro ? '' : (avatarBlobUrl || fotoDeclarada || '')
 
-  // Carrega avatar do BFF
+  // Carrega avatar
   useEffect(() => {
     let active = true
 
@@ -161,13 +107,13 @@ export default function Navbar() {
     }
   }, [isLogged, user?.id, user?.email])
 
-  // Fecha menus ao trocar de rota
+  // Fecha menus ao trocar rota
   useEffect(() => {
     setMobileOpen(false)
     setShowProfileMenu(false)
   }, [location.pathname])
 
-  // Bloqueia o scroll do body quando o drawer está aberto
+  // Bloqueia scroll com drawer aberto
   useEffect(() => {
     if (!mobileOpen) return
     const original = document.body.style.overflow
@@ -177,7 +123,7 @@ export default function Navbar() {
     }
   }, [mobileOpen])
 
-  // Fecha menu de perfil ao clicar fora (desktop)
+  // Fecha menu de perfil ao clicar fora
   useEffect(() => {
     if (!showProfileMenu) return
     const handler = (e) => {
@@ -192,7 +138,7 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handler)
   }, [showProfileMenu])
 
-  // Esconde o StickyContactDock quando o drawer mobile estiver aberto
+  // Flag para dock de contato
   useEffect(() => {
     const root = document.documentElement
     if (mobileOpen) {
@@ -205,7 +151,7 @@ export default function Navbar() {
     }
   }, [mobileOpen])
 
-  // Modo idoso global (atributo no <html> + persistência)
+  // Modo idoso
   useEffect(() => {
     const root = document.documentElement
     if (elderMode) {
@@ -229,12 +175,26 @@ export default function Navbar() {
       <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded bg-[var(--primary)]" />
     ) : null
 
-  // Clique na logo: se já estiver na Home, rola para o topo
   function handleLogoClick(e) {
     if (location.pathname === '/') {
       e.preventDefault()
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
+  }
+
+  // Links exibidos no DESKTOP: apenas Planos, Benefícios, Memorial
+  const DESKTOP_MENU = MAIN_MENU_LINKS.filter((item) =>
+    ['planos', 'beneficios', 'memorial'].includes(item.key)
+  )
+
+  // Menu completo usado no MOBILE (global)
+  const fullMobileMenu = isLogged
+    ? [...MAIN_MENU_LINKS, { divider: true }, ...PRIVATE_MENU_LINKS]
+    : MAIN_MENU_LINKS
+
+  const isHashActive = (item) => {
+    if (!item.to.startsWith('/#')) return false
+    return location.pathname === '/' && location.hash === item.to.replace('/', '')
   }
 
   return (
@@ -256,80 +216,28 @@ export default function Navbar() {
           />
         </Link>
 
-        {/* Navegação desktop */}
+        {/* Navegação desktop – enxuta (3 itens) */}
         <div className="hidden md:flex flex-1 justify-center min-w-0">
           <nav className="flex flex-wrap items-center justify-center gap-x-1 lg:gap-x-2 gap-y-1 text-[13px] lg:text-sm">
-            <NavLink to="/" className={linkClass} end>
-              {({ isActive }) => (
-                <>
-                  <ActiveBar isActive={isActive} />
-                  <Home className="h-4 w-4" />
-                  <span>Home</span>
-                </>
-              )}
-            </NavLink>
-
-            <NavLink to="/planos" className={linkClass}>
-              {({ isActive }) => (
-                <>
-                  <ActiveBar isActive={isActive} />
-                  <Layers className="h-4 w-4" />
-                  <span>Planos</span>
-                </>
-              )}
-            </NavLink>
-
-            <NavLink to="/beneficios" className={linkClass}>
-              {({ isActive }) => (
-                <>
-                  <ActiveBar isActive={isActive} />
-                  <Gift className="h-4 w-4" />
-                  <span>Clube de Benefícios</span>
-                </>
-              )}
-            </NavLink>
-
-            <NavLink to="/memorial" className={linkClass}>
-              {({ isActive }) => (
-                <>
-                  <ActiveBar isActive={isActive} />
-                  <HeartHandshake className="h-4 w-4" />
-                  <span>Memorial</span>
-                </>
-              )}
-            </NavLink>
-
-            {/* Contato (substitui Unidades no rótulo/ícone, rota mantida) */}
-            <NavLink to="/filiais" className={linkClass}>
-              {({ isActive }) => (
-                <>
-                  <ActiveBar isActive={isActive} />
-                  <Phone className="h-4 w-4" />
-                  <span>Contatos</span>
-                </>
-              )}
-            </NavLink>
-
-            <NavLink to="/contratos" className={linkClass}>
-              {({ isActive }) => (
-                <>
-                  <ActiveBar isActive={isActive} />
-                  <FileText className="h-4 w-4" />
-                  <span>2° Via</span>
-                </>
-              )}
-            </NavLink>
-
-            {/* Ajuda também no desktop */}
-            <NavLink to="/#faq" className={linkClass}>
-              {({ isActive }) => (
-                <>
-                  <ActiveBar isActive={isActive} />
-                  <HelpCircle className="h-4 w-4" />
-                  <span>Ajuda</span>
-                </>
-              )}
-            </NavLink>
+            {DESKTOP_MENU.map((item) => {
+              const Icon = item.icon
+              return (
+                <NavLink
+                  key={item.key}
+                  to={item.to}
+                  className={linkClass}
+                  end={item.exact}
+                >
+                  {({ isActive }) => (
+                    <>
+                      <ActiveBar isActive={isActive} />
+                      <Icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </>
+                  )}
+                </NavLink>
+              )
+            })}
           </nav>
         </div>
 
@@ -341,14 +249,13 @@ export default function Navbar() {
             </div>
           )}
 
-          {/* Theme toggle apenas na navbar em md+; no mobile vai para o drawer */}
           <div className="hidden md:block">
             <ThemeToggle />
           </div>
 
           {isLogged ? (
             <div className="relative" ref={profileMenuRef}>
-              {/* Avatar DESKTOP: abre menu de perfil */}
+              {/* Avatar desktop */}
               <button
                 type="button"
                 onClick={() => setShowProfileMenu((v) => !v)}
@@ -388,7 +295,7 @@ export default function Navbar() {
                 </span>
               </button>
 
-              {/* Avatar MOBILE: vira botão do menu lateral */}
+              {/* Avatar mobile -> abre drawer */}
               <button
                 type="button"
                 onClick={() => setMobileOpen((v) => !v)}
@@ -413,7 +320,7 @@ export default function Navbar() {
                 )}
               </button>
 
-              {/* Menu de perfil (apenas desktop) */}
+              {/* Menu de perfil desktop */}
               {showProfileMenu && (
                 <div
                   className="absolute right-0 mt-2 w-60 rounded-xl overflow-hidden shadow-xl border z-[45]"
@@ -441,7 +348,7 @@ export default function Navbar() {
 
                   <Link
                     to="/area"
-                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
+                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg:white/5 dark:hover:bg-white/5"
                     onClick={() => setShowProfileMenu(false)}
                     role="menuitem"
                   >
@@ -481,7 +388,6 @@ export default function Navbar() {
             </div>
           ) : (
             <>
-              {/* CTA Entrar */}
               <Link
                 to="/login"
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs sm:text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
@@ -496,7 +402,6 @@ export default function Navbar() {
                 <span>Entrar</span>
               </Link>
 
-              {/* Menu para visitante em mobile */}
               <button
                 className="md:hidden inline-flex items-center justify-center rounded-lg border px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
                 aria-label="Abrir menu"
@@ -515,7 +420,7 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Menu mobile como drawer lateral (direita -> esquerda) */}
+      {/* Drawer mobile – usa o mesmo menu global do GlobalShell */}
       {mobileOpen && (
         <div
           id="mobile-menu"
@@ -541,7 +446,6 @@ export default function Navbar() {
               className="flex items-center gap-4 px-5 py-5 border-b"
               style={{ borderColor: 'var(--c-border)' }}
             >
-              {/* Avatar maior no mobile (modo idoso valoriza melhor) */}
               <div
                 className={
                   (elderMode ? 'h-20 w-20' : 'h-16 w-16') +
@@ -638,89 +542,50 @@ export default function Navbar() {
               </div>
             )}
 
-            {/* SEÇÃO: Conta (somente se logado) */}
-            {isLogged && (
-              <nav className="py-3 text-sm">
-                <Link
-                  to="/area"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-5 py-3 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg mx-3"
-                >
-                  <UserSquare2 className="h-5 w-5" />
-                  <span>Área do Associado</span>
-                </Link>
-
-                <Link
-                  to="/perfil"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-5 py-3 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg mx-3"
-                >
-                  <User className="h-5 w-5" />
-                  <span>Meu Perfil</span>
-                </Link>
-              </nav>
-            )}
-
-            {/* DIVISOR */}
-            <div
-              className="h-px mx-5 my-2"
-              style={{ background: 'var(--c-border)' }}
-            />
-
-            {/* SEÇÃO: Navegação principal (inclui Ajuda -> FAQ da Home) */}
+            {/* MENU GLOBAL (público + privado) */}
             <nav className="flex-1 overflow-y-auto text-sm py-2">
-              {[
-                { to: '/', label: 'Home', icon: <Home className="h-5 w-5" /> },
-                {
-                  to: '/planos',
-                  label: 'Planos',
-                  icon: <Layers className="h-5 w-5" />,
-                },
-                {
-                  to: '/memorial',
-                  label: 'Memorial',
-                  icon: <HeartHandshake className="h-5 w-5" />,
-                },
-                {
-                  to: '/filiais',
-                  label: 'Contatos',
-                  icon: <Phone className="h-5 w-5" />,
-                },
-                {
-                  to: '/beneficios',
-                  label: 'Clube de Benefícios',
-                  icon: <Gift className="h-5 w-5" />,
-                },
-                {
-                  to: '/contratos',
-                  label: '2° Via',
-                  icon: <FileText className="h-5 w-5" />,
-                },
-                {
-                  to: '/#faq',
-                  label: 'Ajuda',
-                  icon: <HelpCircle className="h-5 w-5" />,
-                },
-              ].map(({ to, label, icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-5 py-3 mx-3 rounded-lg ${
-                      isActive
+              {fullMobileMenu.map((item, i) =>
+                item.divider ? (
+                  <div
+                    key={'div-' + i}
+                    className="my-3 mx-5 border-t border-dashed border-[var(--c-border)]"
+                  />
+                ) : item.to.startsWith('/#') ? (
+                  <a
+                    key={item.key}
+                    href={item.to}
+                    onClick={() => setMobileOpen(false)}
+                    className={`flex items-center gap-3 px-5 py-3 mx-3 rounded-lg ${
+                      isHashActive(item)
                         ? 'bg-[var(--nav-active-bg)] text-[var(--primary)] font-semibold'
                         : 'hover:bg-black/5 dark:hover:bg-white/5'
-                    }`
-                  }
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {icon}
-                  <span>{label}</span>
-                </NavLink>
-              ))}
+                    }`}
+                  >
+                    <item.icon className="h-5 w-5 text-[var(--primary)]" />
+                    <span>{item.label}</span>
+                  </a>
+                ) : (
+                  <NavLink
+                    key={item.key}
+                    to={item.to}
+                    end={item.exact}
+                    onClick={() => setMobileOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-5 py-3 mx-3 rounded-lg ${
+                        isActive
+                          ? 'bg-[var(--nav-active-bg)] text-[var(--primary)] font-semibold'
+                          : 'hover:bg-black/5 dark:hover:bg-white/5'
+                      }`
+                    }
+                  >
+                    <item.icon className="h-5 w-5 text-[var(--primary)]" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                )
+              )}
             </nav>
 
-            {/* SEÇÃO: Aparência (Tema + Modo Idoso) */}
+            {/* Aparência (Tema + Modo idoso) */}
             <div
               className="border-t px-5 py-3 md:hidden"
               style={{ borderColor: 'var(--c-border)' }}

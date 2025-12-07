@@ -54,6 +54,9 @@ import HistoricoPagamentos from '@/pages/HistoricoPagamentos.jsx'
 // 🧩 Tenant (para título dinâmico)
 import useTenant from '@/store/tenant'
 
+// 🧩 Layout global com sidebar
+import GlobalShell from '@/layouts/GlobalShell.jsx'
+
 /**
  * Resolve o “subtítulo” da página com base na rota.
  * Ideia: algo curto, elegante e útil na aba do navegador.
@@ -121,141 +124,142 @@ export default function App() {
       {/* escuta webhooks globalmente e atualiza store + unread */}
       <NotificationsBootstrapper />
 
-      <Navbar />
+      <GlobalShell>
+        <Navbar />
 
-      <main className="flex-1">
-        <ErrorBoundary>
-          <ScrollToTop />
-          <Routes>
-            {/* Páginas públicas */}
-            <Route path="/" element={<Home />} />
-            <Route path="/planos" element={<PlanosGrid />} />
-            <Route path="/planos/:id" element={<PlanoDetalhe />} />
-            <Route path="/beneficios" element={<ClubeBeneficios />} />
-            <Route path="/beneficios/:id" element={<ParceiroDetalhe />} />
-            <Route path="/contratos" element={<ContratoPage />} />
-            <Route path="/contratos/:id/pagamentos" element={<Pagamentos />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/criar-conta" element={<RegisterPage />} />
-            <Route path="/recuperar-senha" element={<RecuperarSenha />} />
-            <Route path="/redefinir-senha" element={<VerificarCodigo />} />
-            <Route path="/trocar-senha" element={<TrocarSenha />} />
-            <Route path="/politica-cookies" element={<PoliticaCookies />} />
-            <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
-            <Route path="/termos-uso" element={<TermosUso />} />
-            <Route path="/filiais" element={<Filiais />} />
-            <Route path="/verificar/:cpf" element={<VerificarCarteirinha />} />
+        <main className="flex-1">
+          <ErrorBoundary>
+            <ScrollToTop />
+            <Routes>
+              {/* Páginas públicas */}
+              <Route path="/" element={<Home />} />
+              <Route path="/planos" element={<PlanosGrid />} />
+              <Route path="/planos/:id" element={<PlanoDetalhe />} />
+              <Route path="/beneficios" element={<ClubeBeneficios />} />
+              <Route path="/beneficios/:id" element={<ParceiroDetalhe />} />
+              <Route path="/contratos" element={<ContratoPage />} />
+              <Route path="/contratos/:id/pagamentos" element={<Pagamentos />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/criar-conta" element={<RegisterPage />} />
+              <Route path="/recuperar-senha" element={<RecuperarSenha />} />
+              <Route path="/redefinir-senha" element={<VerificarCodigo />} />
+              <Route path="/trocar-senha" element={<TrocarSenha />} />
+              <Route path="/politica-cookies" element={<PoliticaCookies />} />
+              <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
+              <Route path="/termos-uso" element={<TermosUso />} />
+              <Route path="/filiais" element={<Filiais />} />
+              <Route path="/verificar/:cpf" element={<VerificarCarteirinha />} />
 
-            {/* Memorial */}
-            <Route path="/memorial" element={<MemorialList />} />
-            <Route path="/memorial/:slug" element={<MemorialDetail />} />
+              {/* Memorial */}
+              <Route path="/memorial" element={<MemorialList />} />
+              <Route path="/memorial/:slug" element={<MemorialDetail />} />
 
-            {/* Impressão da carteirinha */}
-            <Route path="/carteirinha/print" element={<CarteirinhaPrint />} />
+              {/* Impressão da carteirinha */}
+              <Route path="/carteirinha/print" element={<CarteirinhaPrint />} />
 
-            {/* 🔒 Serviços digitais */}
-            <Route
-              path="/servicos-digitais"
-              element={
-                <PrivateRoute redirectTo="/login">
-                  <ServicosDigitais />
-                </PrivateRoute>
-              }
-            />
+              {/* 🔒 Serviços digitais */}
+              <Route
+                path="/servicos-digitais"
+                element={
+                  <PrivateRoute redirectTo="/login">
+                    <ServicosDigitais />
+                  </PrivateRoute>
+                }
+              />
 
-            {/* 🔒 Fluxo de contratação: prioriza registro */}
-            <Route
-              path="/cadastro"
-              element={
-                <PrivateRoute redirectTo="/criar-conta">
-                  <Cadastro />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/confirmacao"
-              element={
-                <PrivateRoute redirectTo="/criar-conta">
-                  <Confirmacao />
-                </PrivateRoute>
-              }
-            />
+              {/* 🔒 Fluxo de contratação: prioriza registro */}
+              <Route
+                path="/cadastro"
+                element={
+                  <PrivateRoute redirectTo="/criar-conta">
+                    <Cadastro />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/confirmacao"
+                element={
+                  <PrivateRoute redirectTo="/criar-conta">
+                    <Confirmacao />
+                  </PrivateRoute>
+                }
+              />
 
-            {/* 🔒 Área do associado */}
-            <Route
-              path="/area"
-              element={
-                <PrivateRoute redirectTo="/login">
-                  <AreaUsuario />
-                </PrivateRoute>
-              }
-            />
+              {/* 🔒 Área do associado */}
+              <Route
+                path="/area"
+                element={
+                  <PrivateRoute redirectTo="/login">
+                    <AreaUsuario />
+                  </PrivateRoute>
+                }
+              />
 
-            {/* 🔒 Carteirinha (nova página dedicada) */}
-            <Route
-              path="/carteirinha"
-              element={
-                <PrivateRoute redirectTo="/login">
-                  <CarteirinhaPage />
-                </PrivateRoute>
-              }
-            />
+              {/* 🔒 Carteirinha (nova página dedicada) */}
+              <Route
+                path="/carteirinha"
+                element={
+                  <PrivateRoute redirectTo="/login">
+                    <CarteirinhaPage />
+                  </PrivateRoute>
+                }
+              />
 
-            {/* 🔒 Perfil (senha + avatar) */}
-            <Route
-              path="/perfil"
-              element={
-                <PrivateRoute redirectTo="/login">
-                  <Perfil />
-                </PrivateRoute>
-              }
-            />
+              {/* 🔒 Perfil (senha + avatar) */}
+              <Route
+                path="/perfil"
+                element={
+                  <PrivateRoute redirectTo="/login">
+                    <Perfil />
+                  </PrivateRoute>
+                }
+              />
 
-            {/* 🔒 Dependentes – área do associado */}
-            <Route
-              path="/area/dependentes"
-              element={
-                <PrivateRoute redirectTo="/login">
-                  <DependentesPage />
-                </PrivateRoute>
-              }
-            />
+              {/* 🔒 Dependentes – área do associado */}
+              <Route
+                path="/area/dependentes"
+                element={
+                  <PrivateRoute redirectTo="/login">
+                    <DependentesPage />
+                  </PrivateRoute>
+                }
+              />
 
-            {/* 🔒 Histórico de pagamentos – área do associado */}
-            <Route
-              path="/area/pagamentos"
-              element={
-                <PrivateRoute redirectTo="/login">
-                  <HistoricoPagamentos />
-                </PrivateRoute>
-              }
-            />
+              {/* 🔒 Histórico de pagamentos – área do associado */}
+              <Route
+                path="/area/pagamentos"
+                element={
+                  <PrivateRoute redirectTo="/login">
+                    <HistoricoPagamentos />
+                  </PrivateRoute>
+                }
+              />
 
-            {/* Redirecionamento padrão */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </ErrorBoundary>
-      </main>
+              {/* Redirecionamento padrão */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </ErrorBoundary>
+        </main>
 
-      {/* Banner de cookies sempre ativo */}
-      <CookieBanner />
+        <CookieBanner />
 
-      <Footer />
+        <Footer />
 
-      <StickyContactDock
-        position="bottom-left"
-        extraAction={{
-          label: 'Planos',
-          href: '/planos',
-          ariaLabel: 'Abrir simulador de planos',
-          badge: 'Novo',
-        }}
-        avoidSelector='[data-cookie-banner], [data-bottom-avoid]'
-        reserveSpace
-        compactNearFooter
-        hideOnKeyboard
-        autoHideOnScroll
-      />
+        <StickyContactDock
+          position="bottom-left"
+          extraAction={{
+            label: 'Planos',
+            href: '/planos',
+            ariaLabel: 'Abrir simulador de planos',
+            badge: 'Novo',
+          }}
+          avoidSelector='[data-cookie-banner], [data-bottom-avoid]'
+          reserveSpace
+          compactNearFooter
+          hideOnKeyboard
+          autoHideOnScroll
+        />
+      </GlobalShell>
     </div>
   )
 }
