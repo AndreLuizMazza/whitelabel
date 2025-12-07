@@ -1,7 +1,7 @@
 // src/pages/Home.jsx
 import { useEffect, useState, useMemo } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import useTenant from '@/store/tenant'
 import useAuth from '@/store/auth'
 
@@ -273,59 +273,87 @@ function HeroSlider({ slides, mounted }) {
         'transition-all duration-700',
         mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
       ].join(' ')}
-      style={{
-        backgroundImage: `
-          linear-gradient(
-            120deg,
-            color-mix(in srgb, var(--primary) 55%, transparent),
-            color-mix(in srgb, #000000 40%, transparent)
-          ),
-          url(${image})
-        `,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}
     >
+      {/* BG com parallax leve */}
+      <div className="absolute inset-0 overflow-hidden">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={slide.id || index}
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `
+                linear-gradient(
+                  120deg,
+                  color-mix(in srgb, var(--primary) 55%, transparent),
+                  color-mix(in srgb, #000000 40%, transparent)
+                ),
+                url(${image})
+              `,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+            initial={{ opacity: 0, scale: 1.05 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.02 }}
+            transition={{ duration: 0.85, ease: 'easeOut' }}
+          />
+        </AnimatePresence>
+        <div className="absolute inset-0 bg-gradient-to-tr from-black/55 via-black/35 to-black/20" />
+      </div>
+
       <div className="relative z-10 px-6 py-10 md:px-10 md:py-16 lg:px-16 lg:py-20 text-white">
-        <div className="max-w-3xl">
-          {tag && (
-            <p className="text-[11px] uppercase tracking-[0.24em] mb-2 opacity-85">
-              {tag}
-            </p>
-          )}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={(slide.id || index) + '-content'}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.55, ease: 'easeOut' }}
+            className="flex flex-col h-full"
+          >
+            <div className="max-w-3xl">
+              {tag && (
+                <p className="text-[11px] uppercase tracking-[0.24em] mb-2 opacity-85">
+                  {tag}
+                </p>
+              )}
 
-          <h1 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight">
-            {title}
-          </h1>
+              <h1 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight">
+                {title}
+              </h1>
 
-          {subtitle && (
-            <p className="mt-4 max-w-xl text-sm md:text-base lg:text-lg opacity-90">
-              {subtitle}
-            </p>
-          )}
+              {subtitle && (
+                <p className="mt-4 max-w-xl text-sm md:text-base lg:text-lg opacity-90">
+                  {subtitle}
+                </p>
+              )}
 
-          {primary && (
-            <div className="mt-6 flex flex-wrap gap-3">
-              <HeroCtaButton cta={primary} />
+              {primary && (
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <HeroCtaButton cta={primary} />
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        <div className="mt-8 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            {slides.map((s, i) => (
-              <button
-                key={s.id || i}
-                onClick={() => goTo(i)}
-                className={[
-                  'h-2.5 rounded-full transition-all duration-300',
-                  i === index ? 'w-6 bg.white bg-white' : 'w-2.5 bg-white/50 hover:bg-white/80',
-                ].join(' ')}
-                aria-label={`Slide ${i + 1}`}
-              />
-            ))}
-          </div>
-        </div>
+            <div className="mt-8 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                {slides.map((s, i) => (
+                  <button
+                    key={s.id || i}
+                    onClick={() => goTo(i)}
+                    className={[
+                      'h-2.5 rounded-full transition-all duration-300',
+                      i === index
+                        ? 'w-6 bg-white'
+                        : 'w-2.5 bg-white/50 hover:bg-white/80',
+                    ].join(' ')}
+                    aria-label={`Slide ${i + 1}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   )

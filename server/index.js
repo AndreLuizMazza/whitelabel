@@ -894,11 +894,27 @@ app.post('/api/v1/app/password/change', async (req, res) => {
 });
 
 /* ===== Execução local vs Vercel ===== */
+import getPort from 'get-port';
+
+/* ===== Execução local vs Vercel ===== */
 if (!isVercel) {
-  app.listen(PORT, () => {
-    console.log(`API proxy on http://localhost:${PORT}`);
-  });
+  const preferred = Number(process.env.PORT || 8787);
+
+  (async () => {
+    const PORT = await getPort({ port: preferred });
+
+    if (PORT !== preferred) {
+      console.warn(
+        `[BFF] ⚠ Porta ${preferred} já está em uso. Subindo automaticamente em ${PORT}...`
+      );
+    }
+
+    app.listen(PORT, () => {
+      console.log(`[BFF] API proxy rodando em http://localhost:${PORT}`);
+    });
+  })();
 }
+
 
 // 404 logger para rotas /api que não bateram em nenhuma handler
 app.use('/api', (req, res) => {
