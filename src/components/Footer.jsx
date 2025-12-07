@@ -3,7 +3,7 @@ import { Link } from "react-router-dom"
 import useTenant from "@/store/tenant"
 
 export default function Footer() {
-  const empresa = useTenant(s => s.empresa)
+  const empresa = useTenant((s) => s.empresa)
   const ano = new Date().getFullYear()
 
   const nome = empresa?.nomeFantasia || "Empresa"
@@ -12,108 +12,127 @@ export default function Footer() {
   const telefone = empresa?.contato?.telefone
 
   const end = empresa?.endereco
-  const enderecoFormatado = end
-    ? `${end.logradouro}, ${end.numero} - ${end.bairro}, ${end.cidade}/${end.uf}`
+  const enderecoLinha1 = end
+    ? `${end.logradouro}, ${end.numero}`
+    : ""
+  const enderecoLinha2 = end
+    ? `${end.bairro} • ${end.cidade} - ${end.uf}`
     : ""
 
+  const hasEndereco = Boolean(enderecoLinha1 || enderecoLinha2)
+
   return (
-    <footer className="w-full bg-[var(--surface)] border-t">
-      <div className="container-max py-12 grid gap-12 md:grid-cols-3">
-
-        {/* Coluna 1: Logo + Institucional */}
-        <div className="flex flex-col gap-4">
-          {logo ? (
-            <img
-              src={logo}
-              alt={nome}
-              className="h-10 w-auto object-contain"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <h2 className="text-lg font-semibold text-[var(--text)]">
-              {nome}
-            </h2>
-          )}
-
-          <p className="text-sm text-[var(--text-muted)] leading-relaxed">
-            {empresa?.razaoSocial || nome}
-            <br />
-            CNPJ: {empresa?.cnpj}
-            <br />
-            {enderecoFormatado}
-          </p>
-        </div>
-
-        {/* Coluna 2: Contatos */}
-        <div className="flex flex-col gap-4">
-          <h3 className="text-sm font-semibold text-[var(--text)] tracking-wide">
-            CONTATO
-          </h3>
-
-          <ul className="text-sm text-[var(--text-muted)] flex flex-col gap-2">
-            {telefone && (
-              <li>
-                <a
-                  href={`tel:${telefone}`}
-                  className="hover:text-[var(--primary)] transition-colors"
-                >
-                  {telefone}
-                </a>
-              </li>
+    <footer className="w-full border-t bg-[var(--surface)]">
+      {/* Faixa superior com logo e navegação institucional */}
+      <div className="container-max py-10 border-b border-[color-mix(in_srgb,var(--c-border)_80%,transparent)]">
+        <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
+          <div className="flex items-center gap-3">
+            {logo ? (
+              <img
+                src={logo}
+                alt={nome}
+                className="h-8 w-auto object-contain"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <span className="text-sm font-medium tracking-wide text-[var(--text)]">
+                {nome}
+              </span>
             )}
-            {email && (
-              <li>
-                <a
-                  href={`mailto:${email}`}
-                  className="hover:text-[var(--primary)] transition-colors"
-                >
-                  {email}
-                </a>
-              </li>
-            )}
-          </ul>
+          </div>
 
-          <div className="mt-4 flex gap-4">
+          <nav className="flex flex-col gap-2 text-xs text-[var(--text-muted)] md:flex-row md:items-center md:gap-6">
             <Link
               to="/politica-privacidade"
-              className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
+              className="hover:text-[var(--text)] transition-colors"
             >
               Política de Privacidade
             </Link>
             <Link
               to="/termos-uso"
-              className="text-xs text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
+              className="hover:text-[var(--text)] transition-colors"
             >
               Termos de Uso
             </Link>
-          </div>
-        </div>
-
-        {/* Coluna 3: Mapa e Informações Adicionais */}
-        <div className="flex flex-col gap-4">
-          <h3 className="text-sm font-semibold text-[var(--text)] tracking-wide">
-            LOCALIZAÇÃO
-          </h3>
-
-          {end ? (
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${end.latitude},${end.longitude}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors"
+            <Link
+              to="/politica-cookies"
+              className="hover:text-[var(--text)] transition-colors"
             >
-              Ver no mapa →
-            </a>
-          ) : (
-            <p className="text-sm text-[var(--text-muted)]">Endereço não informado</p>
-          )}
+              Cookies
+            </Link>
+          </nav>
         </div>
       </div>
 
-      <div className="border-t py-6">
-        <div className="container-max text-center text-xs text-[var(--text-muted)]">
-          © {ano} {nome}. Todos os direitos reservados.
+      {/* Faixa intermediária com informações da empresa */}
+      <div className="container-max py-8 border-b border-[color-mix(in_srgb,var(--c-border)_60%,transparent)]">
+        <div className="grid gap-6 text-xs text-[var(--text-muted)] md:grid-cols-3">
+          <div className="space-y-1">
+            <div className="font-medium text-[var(--text)]">
+              {empresa?.razaoSocial || nome}
+            </div>
+            {empresa?.cnpj && (
+              <div className="text-[11px] uppercase tracking-wide">
+                CNPJ {empresa.cnpj}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <div className="text-[11px] uppercase tracking-wide text-[var(--text-muted-soft)]">
+              CONTATO
+            </div>
+            {telefone && (
+              <a
+                href={`tel:${telefone}`}
+                className="block hover:text-[var(--text)] transition-colors"
+              >
+                {telefone}
+              </a>
+            )}
+            {email && (
+              <a
+                href={`mailto:${email}`}
+                className="block hover:text-[var(--text)] transition-colors"
+              >
+                {email}
+              </a>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <div className="text-[11px] uppercase tracking-wide text-[var(--text-muted-soft)]">
+              ENDEREÇO
+            </div>
+            {hasEndereco ? (
+              <>
+                {enderecoLinha1 && <div>{enderecoLinha1}</div>}
+                {enderecoLinha2 && <div>{enderecoLinha2}</div>}
+              </>
+            ) : (
+              <div>Endereço não informado</div>
+            )}
+          </div>
         </div>
+      </div>
+
+      {/* Faixa inferior com copyright e localização/mapa */}
+      <div className="container-max py-6 text-[11px] text-[var(--text-muted)] flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="space-x-1">
+          <span>© {ano} {nome}.</span>
+          <span>Todos os direitos reservados.</span>
+        </div>
+
+        {end?.latitude && end?.longitude && (
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${end.latitude},${end.longitude}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-[var(--text)] transition-colors"
+          >
+            Ver localização no mapa
+          </a>
+        )}
       </div>
     </footer>
   )
