@@ -56,7 +56,9 @@ function FieldRead({ label, value, mono = false }) {
   return (
     <div className="rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] px-3 py-2 shadow-sm">
       <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--c-muted)]">{label}</p>
-      <p className={`mt-1 font-medium ${mono ? "tabular-nums" : ""} break-words text-[13px]`}>{value || "—"}</p>
+      <p className={`mt-1 font-medium ${mono ? "tabular-nums" : ""} break-words text-[13px]`}>
+        {value || "—"}
+      </p>
     </div>
   );
 }
@@ -100,6 +102,7 @@ export default function Cadastro() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
 
   const alertRef = useRef(null);
   const sexoRef = useRef(null);
@@ -216,7 +219,9 @@ export default function Cadastro() {
 
   async function buscarDependentesPorPessoaId(pessoaId) {
     if (!pessoaId) return [];
-    const data = await tryGet(() => api.get(`/api/v1/dependentes/pessoa/${encodeURIComponent(pessoaId)}`));
+    const data = await tryGet(() =>
+      api.get(`/api/v1/dependentes/pessoa/${encodeURIComponent(pessoaId)}`)
+    );
     if (!Array.isArray(data)) return [];
     return data;
   }
@@ -315,7 +320,10 @@ export default function Cadastro() {
     let alive = true;
     (async () => {
       try {
-        const me = await api.get("/api/v1/app/me").then((r) => r?.data).catch(() => null);
+        const me = await api
+          .get("/api/v1/app/me")
+          .then((r) => r?.data)
+          .catch(() => null);
         if (!alive || !me) return;
 
         const cpfFromMe = me?.cpf || "";
@@ -417,18 +425,23 @@ export default function Cadastro() {
     if (!(titular.nome && titular.nome.trim().length >= 3))
       items.push({ field: "fixo", label: "Titular: nome ausente." });
     if (!cpfIsValid(titular.cpf)) items.push({ field: "fixo", label: "Titular: CPF inválido ou ausente." });
-    if (!titular.data_nascimento) items.push({ field: "fixo", label: "Titular: data de nascimento ausente." });
-    if (!phoneIsValid(titular.celular)) items.push({ field: "fixo", label: "Titular: celular ausente ou inválido." });
+    if (!titular.data_nascimento)
+      items.push({ field: "fixo", label: "Titular: data de nascimento ausente." });
+    if (!phoneIsValid(titular.celular))
+      items.push({ field: "fixo", label: "Titular: celular ausente ou inválido." });
 
     if (!titular.sexo) items.push({ field: "sexo", label: "Titular: selecione o sexo." });
-    if (!titular.estado_civil) items.push({ field: "estado_civil", label: "Titular: selecione o estado civil." });
+    if (!titular.estado_civil)
+      items.push({ field: "estado_civil", label: "Titular: selecione o estado civil." });
 
     if (!(cepDigits.length === 8)) items.push({ field: "cep", label: "Endereço: CEP deve ter 8 dígitos." });
-    if (!e.logradouro?.trim()) items.push({ field: "logradouro", label: "Endereço: informe o logradouro." });
+    if (!e.logradouro?.trim())
+      items.push({ field: "logradouro", label: "Endereço: informe o logradouro." });
     if (!e.numero?.trim()) items.push({ field: "numero", label: "Endereço: informe o número." });
     if (!e.bairro?.trim()) items.push({ field: "bairro", label: "Endereço: informe o bairro." });
     if (!e.cidade?.trim()) items.push({ field: "cidade", label: "Endereço: informe a cidade." });
-    if (!(ufClean && ufClean.length === 2)) items.push({ field: "uf", label: "Endereço: informe a UF (2 letras)." });
+    if (!(ufClean && ufClean.length === 2))
+      items.push({ field: "uf", label: "Endereço: informe a UF (2 letras)." });
     if (cepState.error) items.push({ field: "cep", label: `Endereço: ${cepState.error}` });
 
     depsNovos.forEach((d, i) => {
@@ -585,7 +598,8 @@ export default function Cadastro() {
       };
 
       const contratoRes = await api.post("/api/v1/contratos", payloadContrato);
-      const contratoId = contratoRes?.data?.id || contratoRes?.data?.contratoId || contratoRes?.data?.uuid;
+      const contratoId =
+        contratoRes?.data?.id || contratoRes?.data?.contratoId || contratoRes?.data?.uuid;
 
       navigate(`/confirmacao?contrato=${contratoId || ""}&titular=${titularId}`);
     } catch (e) {
@@ -648,7 +662,9 @@ export default function Cadastro() {
     L.push(`Sexo: ${sexoLabelFromValue(titular.sexo)}`);
     L.push(`Celular: ${formatPhoneBR(titular.celular || "")}`);
     L.push(`E-mail: ${titular.email || "(não informado)"}`);
-    L.push(`Estado civil: ${ESTADO_CIVIL_LABEL[titular.estado_civil] || titular.estado_civil || ""}`);
+    L.push(
+      `Estado civil: ${ESTADO_CIVIL_LABEL[titular.estado_civil] || titular.estado_civil || ""}`
+    );
     L.push(`Nascimento: ${formatDateBR(titular.data_nascimento) || ""}`);
     const eAddr = titular.endereco || {};
     L.push(
@@ -664,7 +680,9 @@ export default function Cadastro() {
       L.push(
         `${i + 1}. ${d.nome} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(
           d.sexo
-        )} - CPF: ${formatCPF(d.cpf || "") || "(não informado)"} - nasc.: ${d.data_nascimento || ""}`
+        )} - CPF: ${formatCPF(d.cpf || "") || "(não informado)"} - nasc.: ${
+          d.data_nascimento || ""
+        }`
       )
     );
 
@@ -674,7 +692,9 @@ export default function Cadastro() {
       L.push(
         `${i + 1}. ${d.nome || "(sem nome)"} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(
           d.sexo
-        )} - CPF: ${formatCPF(d.cpf || "") || "(não informado)"} - nasc.: ${d.data_nascimento || ""}`
+        )} - CPF: ${formatCPF(d.cpf || "") || "(não informado)"} - nasc.: ${
+          d.data_nascimento || ""
+        }`
       )
     );
 
@@ -700,10 +720,21 @@ export default function Cadastro() {
     backdropFilter: "blur(18px)",
   };
 
+  const steps = [
+    { id: 1, label: "Dados complementares" },
+    { id: 2, label: "Endereço" },
+    { id: 3, label: "Dependentes" },
+    { id: 4, label: "Finalização" },
+  ];
+
+  const canGoBack = currentStep > 1;
+  const goNext = () => setCurrentStep((s) => Math.min(4, s + 1));
+  const goPrev = () => setCurrentStep((s) => Math.max(1, s - 1));
+
   return (
     <section className="section">
       <div className="container-max max-w-4xl md:max-w-5xl">
-        <div className="mb-5 flex items-center gap-2">
+        <div className="mb-4 flex items-center gap-2">
           <button
             onClick={() => navigate(-1)}
             className="inline-flex items-center gap-2 rounded-full border border-[var(--c-border)] bg-[var(--c-surface)]/90 px-4 py-2 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-[var(--c-surface)] transition-all"
@@ -737,7 +768,9 @@ export default function Cadastro() {
                   <p className="text-sm font-medium">{lookupState.mensagem}</p>
                 )}
                 {!lookupState.running && lookupState.erro && (
-                  <p className="text-sm text-red-700">Falha na verificação automática: {lookupState.erro}</p>
+                  <p className="text-sm text-red-700">
+                    Falha na verificação automática: {lookupState.erro}
+                  </p>
                 )}
                 {!lookupState.running && lookupState.temContratoAtivo && (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -772,16 +805,68 @@ export default function Cadastro() {
           </div>
         )}
 
-        <div
-          className="rounded-3xl p-6 md:p-7 space-y-6"
-          style={glassCardStyle}
-        >
+        {!bloquearCadastro && (
+          <div className="mb-5">
+            <ol
+              className="flex flex-wrap gap-2 rounded-3xl border px-2 py-2 shadow-[0_22px_80px_rgba(15,23,42,0.55)] backdrop-blur-xl"
+              style={{
+                background: "color-mix(in srgb, var(--c-surface) 78%, transparent)",
+                borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
+              }}
+            >
+              {steps.map((step) => {
+                const active = currentStep === step.id;
+                const completed = currentStep > step.id;
+                return (
+                  <li key={step.id} className="flex-1 min-w-[150px]">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (completed || active) setCurrentStep(step.id);
+                      }}
+                      className={`flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-xs md:text-sm transition-all ${
+                        active
+                          ? "bg-[var(--primary)] text-white shadow-md"
+                          : completed
+                          ? "bg-[var(--c-surface)]/96 text-[var(--c-muted)] border border-[var(--c-border)]"
+                          : "bg-transparent text-[var(--c-muted)]/85 border border-transparent"
+                      }`}
+                    >
+                      <span
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ${
+                          active
+                            ? "bg-white/20"
+                            : completed
+                            ? "bg-[var(--primary)]/10 text-[var(--primary)]"
+                            : "bg-[var(--c-surface)]/90 border border-[var(--c-border)] text-[var(--c-muted)]"
+                        }`}
+                      >
+                        {completed ? <CheckCircle2 size={14} /> : step.id}
+                      </span>
+                      <span className="flex flex-col">
+                        <span className="font-medium">{step.label}</span>
+                        <span className="text-[10px] uppercase tracking-[0.16em] opacity-70">
+                          Etapa {step.id} de 4
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        )}
+
+        <div className="rounded-3xl p-6 md:p-7 space-y-6" style={glassCardStyle}>
           <div className="flex flex-col gap-2">
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight">
               Cadastro do plano
             </h1>
             <p className="text-sm md:text-[15px] text-[var(--c-muted)] flex flex-wrap gap-1">
-              Plano <b className="font-semibold">{plano?.nome || ""}</b>
+              Plano{" "}
+              <b className="font-semibold">
+                {plano?.nome || ""}
+              </b>
               <span className="opacity-60">•</span>
               Base mensal
               <span className="font-semibold">{money(baseMensal)}</span>
@@ -814,9 +899,9 @@ export default function Cadastro() {
             </div>
           </details>
 
-          {!bloquearCadastro && (
+          {!bloquearCadastro && currentStep === 1 && (
             <div className="border-t border-[color-mix(in srgb,var(--c-border) 65%,transparent)] pt-5">
-              <SectionTitle>Complemento do cadastro</SectionTitle>
+              <SectionTitle>Dados complementares</SectionTitle>
 
               <div className="mt-3 grid gap-3 grid-cols-2 md:grid-cols-12">
                 <div className="md:col-span-6">
@@ -855,7 +940,9 @@ export default function Cadastro() {
                   <select
                     id="titular-sexo"
                     ref={sexoRef}
-                    className={`input h-11 w-full text-sm ${requiredRing(submitAttempted && isEmpty(titular.sexo))}`}
+                    className={`input h-11 w-full text-sm ${requiredRing(
+                      submitAttempted && isEmpty(titular.sexo)
+                    )}`}
                     value={titular.sexo}
                     onChange={(e) => updTit({ sexo: e.target.value })}
                     aria-required="true"
@@ -875,15 +962,18 @@ export default function Cadastro() {
                   )}
                 </div>
               </div>
+
+              <div className="mt-5 flex justify-end">
+                <CTAButton type="button" className="h-11 px-6" onClick={goNext}>
+                  Continuar
+                </CTAButton>
+              </div>
             </div>
           )}
         </div>
 
-        {!bloquearCadastro && (
-          <div
-            className="mt-6 rounded-3xl p-6 md:p-7 space-y-4"
-            style={glassCardStyle}
-          >
+        {!bloquearCadastro && currentStep === 2 && (
+          <div className="mt-6 rounded-3xl p-6 md:p-7 space-y-4" style={glassCardStyle}>
             <SectionTitle>Endereço</SectionTitle>
 
             <div className="mt-3 space-y-3">
@@ -906,8 +996,9 @@ export default function Cadastro() {
                   id="end-cep"
                   ref={cepRef}
                   className={`input h-11 text-sm ${
-                    requiredRing(submitAttempted && onlyDigits(titular.endereco.cep || "").length !== 8) ||
-                    (cepState.error ? " ring-1 ring-red-500" : "")
+                    requiredRing(
+                      submitAttempted && onlyDigits(titular.endereco.cep || "").length !== 8
+                    ) || (cepState.error ? " ring-1 ring-red-500" : "")
                   }`}
                   inputMode="numeric"
                   maxLength={9}
@@ -921,7 +1012,9 @@ export default function Cadastro() {
                   autoComplete="postal-code"
                   aria-required="true"
                   aria-invalid={
-                    (submitAttempted && onlyDigits(titular.endereco.cep || "").length !== 8) || !!cepState.error
+                    (submitAttempted &&
+                      onlyDigits(titular.endereco.cep || "").length !== 8) ||
+                    !!cepState.error
                       ? "true"
                       : "false"
                   }
@@ -935,7 +1028,12 @@ export default function Cadastro() {
                     </p>
                   )}
                 {cepState.error && (
-                  <p id="cep-error" className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                  <p
+                    id="cep-error"
+                    className="text-xs text-red-600 mt-1"
+                    role="alert"
+                    aria-live="polite"
+                  >
                     {cepState.error}
                   </p>
                 )}
@@ -1096,401 +1194,456 @@ export default function Cadastro() {
                 </div>
               </div>
             </div>
+
+            <div className="mt-5 flex justify-between gap-3">
+              <CTAButton type="button" variant="outline" className="h-11 px-5" onClick={goPrev}>
+                Voltar
+              </CTAButton>
+              <CTAButton type="button" className="h-11 px-6" onClick={goNext}>
+                Continuar
+              </CTAButton>
+            </div>
           </div>
         )}
 
-        {!bloquearCadastro && depsExistentes.length > 0 && (
-          <details
-            className="mt-6 rounded-3xl border px-6 py-5 md:px-7 md:py-6 backdrop-blur-xl"
-            style={glassCardStyle}
-            open
-          >
-            <summary className="cursor-pointer list-none">
-              <SectionTitle>Dependentes existentes (somente leitura)</SectionTitle>
-            </summary>
-            <div className="mt-4 grid gap-3">
-              {depsExistentes.map((d, i) => (
-                <div
-                  key={d.id || i}
-                  className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/90 p-3 grid md:grid-cols-12 gap-3 shadow-sm"
-                >
-                  <div className="md:col-span-4">
-                    <p className="text-[11px] text-[var(--c-muted)]">Nome</p>
-                    <p className="font-medium break-words text-[13px]">{d.nome}</p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <p className="text-[11px] text-[var(--c-muted)]">CPF</p>
-                    <p className="font-medium text-[13px]">{formatCPF(d.cpf || "") || "—"}</p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <p className="text-[11px] text-[var(--c-muted)]">Parentesco</p>
-                    <p className="font-medium text-[13px]">
-                      {PARENTESCO_LABELS[d.parentesco] || d.parentesco || "—"}
-                    </p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <p className="text-[11px] text-[var(--c-muted)]">Sexo</p>
-                    <p className="font-medium text-[13px]">{sexoLabelFromValue(d.sexo) || "—"}</p>
-                  </div>
-                  <div className="md:col-span-2">
-                    <p className="text-[11px] text-[var(--c-muted)]">Nascimento</p>
-                    <p className="font-medium text-[13px]">
-                      {formatDateBR(d.data_nascimento) || "—"}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </details>
-        )}
-
-        {!bloquearCadastro && (
-          <div
-            className="mt-6 rounded-3xl p-6 md:p-7"
-            style={glassCardStyle}
-          >
-            <SectionTitle
-              right={
-                <CTAButton onClick={addDepNovo} className="h-10">
-                  <Plus size={16} className="mr-2" />
-                  Adicionar dependente
-                </CTAButton>
-              }
-            >
-              Novos dependentes ({depsNovos.length})
-            </SectionTitle>
-
-            <div className="mt-4 grid gap-4">
-              {depsNovos.map((d, i) => {
-                const issue = depsIssuesNovos[i];
-                return (
-                  <div
-                    key={i}
-                    className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/95 p-4 shadow-md"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="inline-flex items-center gap-2 text-sm font-semibold">
-                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[var(--c-border)] text-[11px]">
-                          {i + 1}
-                        </span>
-                        Dependente novo
-                      </span>
-                      <CTAButton
-                        variant="ghost"
-                        onClick={() => delDepNovo(i)}
-                        className="h-9 px-3"
-                        aria-label={`Remover dependente novo ${i + 1}`}
-                      >
-                        <Trash2 size={16} className="mr-2" /> Remover
-                      </CTAButton>
-                    </div>
-
-                    <div className="grid gap-3 md:grid-cols-12">
-                      <div className="md:col-span-6">
-                        <label className="label text-xs font-medium" htmlFor={`depN-${i}-nome`}>
-                          Nome completo {requiredStar}
-                        </label>
-                        <input
-                          id={`depN-${i}-nome`}
-                          className={`input h-11 w-full text-sm ${requiredRing(
-                            submitAttempted && !((d.nome || "").trim().length >= 3)
-                          )}`}
-                          placeholder="Nome do dependente"
-                          value={d.nome}
-                          onChange={(e) => updDepNovo(i, { nome: e.target.value })}
-                          aria-required="true"
-                          aria-invalid={submitAttempted && !((d.nome || "").trim().length >= 3) ? "true" : "false"}
-                        />
-                        {submitAttempted && !((d.nome || "").trim().length >= 3) && (
-                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                            Informe o nome (mín. 3 caracteres).
-                          </p>
-                        )}
+        {!bloquearCadastro && currentStep === 3 && (
+          <>
+            {depsExistentes.length > 0 && (
+              <details
+                className="mt-6 rounded-3xl border px-6 py-5 md:px-7 md:py-6 backdrop-blur-xl"
+                style={glassCardStyle}
+                open
+              >
+                <summary className="cursor-pointer list-none">
+                  <SectionTitle>Dependentes existentes (somente leitura)</SectionTitle>
+                </summary>
+                <div className="mt-4 grid gap-3">
+                  {depsExistentes.map((d, i) => (
+                    <div
+                      key={d.id || i}
+                      className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/90 p-3 grid md:grid-cols-12 gap-3 shadow-sm"
+                    >
+                      <div className="md:col-span-4">
+                        <p className="text-[11px] text-[var(--c-muted)]">Nome</p>
+                        <p className="font-medium break-words text-[13px]">{d.nome}</p>
                       </div>
-                      <div className="md:col-span-3">
-                        <label className="label text-xs font-medium" htmlFor={`depN-${i}-parentesco`}>
-                          Parentesco {requiredStar}
-                        </label>
-                        <select
-                          id={`depN-${i}-parentesco`}
-                          className={`input h-11 w-full text-sm ${requiredRing(
-                            submitAttempted && isEmpty(d.parentesco)
-                          )}`}
-                          value={d.parentesco}
-                          onChange={(e) => updDepNovo(i, { parentesco: e.target.value })}
-                          aria-required="true"
-                          aria-invalid={submitAttempted && isEmpty(d.parentesco) ? "true" : "false"}
+                      <div className="md:col-span-2">
+                        <p className="text-[11px] text-[var(--c-muted)]">CPF</p>
+                        <p className="font-medium text-[13px]">{formatCPF(d.cpf || "") || "—"}</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <p className="text-[11px] text-[var(--c-muted)]">Parentesco</p>
+                        <p className="font-medium text-[13px]">
+                          {PARENTESCO_LABELS[d.parentesco] || d.parentesco || "—"}
+                        </p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <p className="text-[11px] text-[var(--c-muted)]">Sexo</p>
+                        <p className="font-medium text-[13px]">
+                          {sexoLabelFromValue(d.sexo) || "—"}
+                        </p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <p className="text-[11px] text-[var(--c-muted)]">Nascimento</p>
+                        <p className="font-medium text-[13px]">
+                          {formatDateBR(d.data_nascimento) || "—"}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+
+            <div className="mt-6 rounded-3xl p-6 md:p-7" style={glassCardStyle}>
+              <SectionTitle
+                right={
+                  <CTAButton onClick={addDepNovo} className="h-10">
+                    <Plus size={16} className="mr-2" />
+                    Adicionar dependente
+                  </CTAButton>
+                }
+              >
+                Novos dependentes ({depsNovos.length})
+              </SectionTitle>
+
+              <div className="mt-4 grid gap-4">
+                {depsNovos.map((d, i) => {
+                  const issue = depsIssuesNovos[i];
+                  return (
+                    <div
+                      key={i}
+                      className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/95 p-4 shadow-md"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="inline-flex items-center gap-2 text-sm font-semibold">
+                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[var(--c-border)] text-[11px]">
+                            {i + 1}
+                          </span>
+                          Dependente novo
+                        </span>
+                        <CTAButton
+                          variant="ghost"
+                          onClick={() => delDepNovo(i)}
+                          className="h-9 px-3"
+                          aria-label={`Remover dependente novo ${i + 1}`}
                         >
-                          <option value="">Selecione…</option>
-                          {(plano?.parentescos?.length ? plano.parentescos : PARENTESCOS_FALLBACK.map(([v]) => v)).map(
-                            (v) => (
+                          <Trash2 size={16} className="mr-2" /> Remover
+                        </CTAButton>
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-12">
+                        <div className="md:col-span-6">
+                          <label className="label text-xs font-medium" htmlFor={`depN-${i}-nome`}>
+                            Nome completo {requiredStar}
+                          </label>
+                          <input
+                            id={`depN-${i}-nome`}
+                            className={`input h-11 w-full text-sm ${requiredRing(
+                              submitAttempted && !((d.nome || "").trim().length >= 3)
+                            )}`}
+                            placeholder="Nome do dependente"
+                            value={d.nome}
+                            onChange={(e) => updDepNovo(i, { nome: e.target.value })}
+                            aria-required="true"
+                            aria-invalid={
+                              submitAttempted && !((d.nome || "").trim().length >= 3)
+                                ? "true"
+                                : "false"
+                            }
+                          />
+                          {submitAttempted && !((d.nome || "").trim().length >= 3) && (
+                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                              Informe o nome (mín. 3 caracteres).
+                            </p>
+                          )}
+                        </div>
+                        <div className="md:col-span-3">
+                          <label
+                            className="label text-xs font-medium"
+                            htmlFor={`depN-${i}-parentesco`}
+                          >
+                            Parentesco {requiredStar}
+                          </label>
+                          <select
+                            id={`depN-${i}-parentesco`}
+                            className={`input h-11 w-full text-sm ${requiredRing(
+                              submitAttempted && isEmpty(d.parentesco)
+                            )}`}
+                            value={d.parentesco}
+                            onChange={(e) => updDepNovo(i, { parentesco: e.target.value })}
+                            aria-required="true"
+                            aria-invalid={submitAttempted && isEmpty(d.parentesco) ? "true" : "false"}
+                          >
+                            <option value="">Selecione…</option>
+                            {(plano?.parentescos?.length
+                              ? plano.parentescos
+                              : PARENTESCOS_FALLBACK.map(([v]) => v)
+                            ).map((v) => (
                               <option key={v} value={v}>
                                 {PARENTESCO_LABELS[v] || v}
                               </option>
-                            )
+                            ))}
+                          </select>
+                          {submitAttempted && isEmpty(d.parentesco) && (
+                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                              Selecione o parentesco.
+                            </p>
                           )}
-                        </select>
-                        {submitAttempted && isEmpty(d.parentesco) && (
-                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                            Selecione o parentesco.
-                          </p>
-                        )}
+                        </div>
+                        <div className="md:col-span-3">
+                          <label className="label text-xs font-medium" htmlFor={`depN-${i}-sexo`}>
+                            Sexo {requiredStar}
+                          </label>
+                          <select
+                            id={`depN-${i}-sexo`}
+                            className={`input h-11 w-full text-sm ${requiredRing(
+                              submitAttempted && isEmpty(d.sexo)
+                            )}`}
+                            value={d.sexo || ""}
+                            onChange={(e) => updDepNovo(i, { sexo: e.target.value })}
+                            aria-required="true"
+                            aria-invalid={submitAttempted && isEmpty(d.sexo) ? "true" : "false"}
+                          >
+                            <option value="">Selecione…</option>
+                            {SEXO_OPTIONS.map(([v, l]) => (
+                              <option key={v} value={v}>
+                                {l}
+                              </option>
+                            ))}
+                          </select>
+                          {submitAttempted && isEmpty(d.sexo) && (
+                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                              Selecione o sexo.
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <div className="md:col-span-3">
-                        <label className="label text-xs font-medium" htmlFor={`depN-${i}-sexo`}>
-                          Sexo {requiredStar}
-                        </label>
-                        <select
-                          id={`depN-${i}-sexo`}
-                          className={`input h-11 w-full text-sm ${requiredRing(
-                            submitAttempted && isEmpty(d.sexo)
-                          )}`}
-                          value={d.sexo || ""}
-                          onChange={(e) => updDepNovo(i, { sexo: e.target.value })}
-                          aria-required="true"
-                          aria-invalid={submitAttempted && isEmpty(d.sexo) ? "true" : "false"}
-                        >
-                          <option value="">Selecione…</option>
-                          {SEXO_OPTIONS.map(([v, l]) => (
-                            <option key={v} value={v}>
-                              {l}
-                            </option>
-                          ))}
-                        </select>
-                        {submitAttempted && isEmpty(d.sexo) && (
-                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                            Selecione o sexo.
-                          </p>
-                        )}
+
+                      <div className="grid gap-3 md:grid-cols-12 mt-2">
+                        <div className="md:col-span-6">
+                          <label className="label text-xs font-medium" htmlFor={`depN-${i}-cpf`}>
+                            CPF (opcional)
+                          </label>
+                          <input
+                            id={`depN-${i}-cpf`}
+                            className={`input h-11 w-full text-sm ${
+                              d.cpf && !cpfIsValid(d.cpf) ? "ring-1 ring-red-500" : ""
+                            }`}
+                            inputMode="numeric"
+                            maxLength={14}
+                            placeholder="000.000.000-00"
+                            value={formatCPF(d.cpf || "")}
+                            onChange={(e) => updDepNovo(i, { cpf: maskCPF(e.target.value) })}
+                            aria-invalid={d.cpf && !cpfIsValid(d.cpf) ? "true" : "false"}
+                          />
+                          {d.cpf && !cpfIsValid(d.cpf) && (
+                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                              CPF inválido.
+                            </p>
+                          )}
+                        </div>
+                        <div className="md:col-span-6">
+                          <label className="label text-xs font-medium">
+                            Data de nascimento {requiredStar}
+                          </label>
+                          <DateSelectBR
+                            className="w-full"
+                            idPrefix={`depN-${i}-nasc`}
+                            valueISO={d.data_nascimento}
+                            onChangeISO={(iso) => updDepNovo(i, { data_nascimento: iso })}
+                            invalid={Boolean(submitAttempted && (!d.data_nascimento || issue?.fora))}
+                            minAge={
+                              Number.isFinite(idadeMinDep) ? Number(idadeMinDep) : undefined
+                            }
+                            maxAge={
+                              Number.isFinite(idadeMaxDep) ? Number(idadeMaxDep) : undefined
+                            }
+                          />
+                          {submitAttempted && !d.data_nascimento && (
+                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                              Informe a data de nascimento.
+                            </p>
+                          )}
+                          {submitAttempted && d.data_nascimento && issue?.fora && (
+                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+                              Data fora do limite etário do plano.
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
+                  );
+                })}
+              </div>
 
-                    <div className="grid gap-3 md:grid-cols-12 mt-2">
-                      <div className="md:col-span-6">
-                        <label className="label text-xs font-medium" htmlFor={`depN-${i}-cpf`}>
-                          CPF (opcional)
-                        </label>
-                        <input
-                          id={`depN-${i}-cpf`}
-                          className={`input h-11 w-full text-sm ${
-                            d.cpf && !cpfIsValid(d.cpf) ? "ring-1 ring-red-500" : ""
-                          }`}
-                          inputMode="numeric"
-                          maxLength={14}
-                          placeholder="000.000.000-00"
-                          value={formatCPF(d.cpf || "")}
-                          onChange={(e) => updDepNovo(i, { cpf: maskCPF(e.target.value) })}
-                          aria-invalid={d.cpf && !cpfIsValid(d.cpf) ? "true" : "false"}
-                        />
-                        {d.cpf && !cpfIsValid(d.cpf) && (
-                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                            CPF inválido.
-                          </p>
-                        )}
-                      </div>
-                      <div className="md:col-span-6">
-                        <label className="label text-xs font-medium">Data de nascimento {requiredStar}</label>
-                        <DateSelectBR
-                          className="w-full"
-                          idPrefix={`depN-${i}-nasc`}
-                          valueISO={d.data_nascimento}
-                          onChangeISO={(iso) => updDepNovo(i, { data_nascimento: iso })}
-                          invalid={Boolean(submitAttempted && (!d.data_nascimento || issue?.fora))}
-                          minAge={Number.isFinite(idadeMinDep) ? Number(idadeMinDep) : undefined}
-                          maxAge={Number.isFinite(idadeMaxDep) ? Number(idadeMaxDep) : undefined}
-                        />
-                        {submitAttempted && !d.data_nascimento && (
-                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                            Informe a data de nascimento.
-                          </p>
-                        )}
-                        {submitAttempted && d.data_nascimento && issue?.fora && (
-                          <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                            Data fora do limite etário do plano.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {countDepsFora > 0 && (
-              <p className="mt-2 text-xs inline-flex items-center gap-1 text-red-600" role="alert" aria-live="polite">
-                <AlertTriangle size={14} /> {countDepsFora} dependente(s) fora do limite etário do plano.
-              </p>
-            )}
-          </div>
-        )}
-
-        {!bloquearCadastro && (
-          <div
-            className="mt-6 rounded-3xl p-6 md:p-7"
-            style={glassCardStyle}
-          >
-            <SectionTitle>Cobrança</SectionTitle>
-            <div className="mt-3 grid gap-3 md:grid-cols-3 items-stretch">
-              <div className="md:col-span-1">
-                <label className="label text-xs font-medium" htmlFor="diaD">
-                  Dia D (vencimento)
-                </label>
-                <select
-                  id="diaD"
-                  className="input h-11 w-full text-sm"
-                  value={diaDSelecionado}
-                  onChange={(e) => setDiaDSelecionado(Number(e.target.value))}
+              {countDepsFora > 0 && (
+                <p
+                  className="mt-2 text-xs inline-flex items-center gap-1 text-red-600"
+                  role="alert"
+                  aria-live="polite"
                 >
-                  {DIA_D_OPTIONS.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-[var(--c-muted)] mt-1">
-                  A primeira cobrança ocorre na <b>data de efetivação</b> abaixo (próximo mês).
+                  <AlertTriangle size={14} /> {countDepsFora} dependente(s) fora do limite etário
+                  do plano.
                 </p>
-              </div>
-              <div className="md:col-span-2 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/95 p-3 shadow-sm">
-                  <p className="text-[11px] text-[var(--c-muted)]">Data de efetivação</p>
-                  <p className="font-medium text-[14px] mt-1">{formatDateBR(dataEfetivacaoISO)}</p>
-                </div>
-                <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/95 p-3 shadow-sm">
-                  <p className="text-[11px] text-[var(--c-muted)]">Mensalidade</p>
-                  <p className="font-medium text-[14px] mt-1">{money(valorMensalidadePlano)}</p>
-                </div>
+              )}
+
+              <div className="mt-6 flex justify-between gap-3">
+                <CTAButton type="button" variant="outline" className="h-11 px-5" onClick={goPrev}>
+                  Voltar
+                </CTAButton>
+                <CTAButton type="button" className="h-11 px-6" onClick={goNext}>
+                  Continuar
+                </CTAButton>
               </div>
             </div>
-          </div>
+          </>
         )}
 
-        <div
-          className="mt-6 p-6 md:p-7 rounded-3xl border backdrop-blur-xl shadow-[0_26px_90px_rgba(15,23,42,0.5)]"
-          style={{
-            background: "color-mix(in srgb, var(--c-surface) 80%, transparent)",
-            borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
-          }}
-        >
-          <SectionTitle>Resumo financeiro</SectionTitle>
-          <div className="mt-3 space-y-2 text-sm">
-            <div className="flex justify-between gap-3">
-              <span className="text-[var(--c-muted)]">Plano</span>
-              <span className="font-medium text-right">{plano?.nome}</span>
-            </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-[var(--c-muted)]">Base mensal</span>
-              <span>{money(baseMensal)}</span>
-            </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-[var(--c-muted)]">Dependentes incluídos no plano</span>
-              <span>{numDepsIncl}</span>
-            </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-[var(--c-muted)]">
-                Dependentes adicionais ({Math.max(0, depsExistentes.length + depsNovos.length - numDepsIncl)}) ×{" "}
-                {money(valorIncMensal)}
-              </span>
-              <span>
-                {money(Math.max(0, depsExistentes.length + depsNovos.length - numDepsIncl) * valorIncMensal)}
-              </span>
-            </div>
-
-            <div className="flex justify-between gap-3">
-              <span className="text-[var(--c-muted)]">Adesão (única)</span>
-              <span>{money(valorAdesaoPlano)}</span>
-            </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-[var(--c-muted)]">Dia D</span>
-              <span>{diaDSelecionado}</span>
-            </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-[var(--c-muted)]">Efetivação</span>
-              <span className="font-medium">{formatDateBR(dataEfetivacaoISO)}</span>
-            </div>
-            <div className="flex justify-between gap-3">
-              <span className="text-[var(--c-muted)]">Mensalidade</span>
-              <span>{money(valorMensalidadePlano)}</span>
-            </div>
-
-            <hr className="my-2 border-[color-mix(in srgb,var(--c-border) 70%,transparent)]" />
-
-            <div className="flex justify-between items-baseline gap-3">
-              <span className="font-semibold text-[15px]">Total mensal</span>
-              <span className="text-[color:var(--primary)] font-extrabold text-lg md:text-xl">
-                {money(totalMensal)}
-              </span>
-            </div>
-            {cupom ? (
-              <div className="flex justify-between gap-3">
-                <span className="text-[var(--c-muted)]">Cupom aplicado</span>
-                <span className="font-medium">{cupom}</span>
+        {!bloquearCadastro && currentStep === 4 && (
+          <>
+            <div className="mt-6 rounded-3xl p-6 md:p-7" style={glassCardStyle}>
+              <SectionTitle>Cobrança</SectionTitle>
+              <div className="mt-3 grid gap-3 md:grid-cols-3 items-stretch">
+                <div className="md:col-span-1">
+                  <label className="label text-xs font-medium" htmlFor="diaD">
+                    Dia D (vencimento)
+                  </label>
+                  <select
+                    id="diaD"
+                    className="input h-11 w-full text-sm"
+                    value={diaDSelecionado}
+                    onChange={(e) => setDiaDSelecionado(Number(e.target.value))}
+                  >
+                    {DIA_D_OPTIONS.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-[var(--c-muted)] mt-1">
+                    A primeira cobrança ocorre na <b>data de efetivação</b> abaixo (próximo mês).
+                  </p>
+                </div>
+                <div className="md:col-span-2 grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/95 p-3 shadow-sm">
+                    <p className="text-[11px] text-[var(--c-muted)]">Data de efetivação</p>
+                    <p className="font-medium text-[14px] mt-1">{formatDateBR(dataEfetivacaoISO)}</p>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/95 p-3 shadow-sm">
+                    <p className="text-[11px] text-[var(--c-muted)]">Mensalidade</p>
+                    <p className="font-medium text-[14px] mt-1">
+                      {money(valorMensalidadePlano)}
+                    </p>
+                  </div>
+                </div>
               </div>
-            ) : null}
-          </div>
-        </div>
-
-        {!bloquearCadastro && (
-          <div
-            className="mt-6 mb-6 rounded-3xl p-6 md:p-7"
-            style={glassCardStyle}
-          >
-            {submitAttempted && errorList.length > 0 && (
-              <div
-                className="rounded-2xl px-4 py-3 text-sm mb-4 backdrop-blur-md"
-                style={{
-                  border: "1px solid color-mix(in srgb, var(--primary) 40%, transparent)",
-                  background: "color-mix(in srgb, var(--c-surface) 80%, transparent)",
-                  color: "var(--text)",
-                }}
-                role="alert"
-                aria-live="assertive"
-                ref={alertRef}
-                tabIndex={-1}
-              >
-                <p className="font-semibold mb-1">Revise os campos antes de continuar ({errorCount}):</p>
-                <ul className="list-disc ml-5 space-y-1">
-                  {errorList.map((it, idx) => (
-                    <li key={idx}>
-                      <button
-                        type="button"
-                        className="underline hover:opacity-80"
-                        onClick={() => focusByField(it.field)}
-                      >
-                        {it.label}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <CTAButton
-                type="button"
-                onClick={handleSalvarEnviar}
-                disabled={saving}
-                className="h-12 w-full text-[15px] font-semibold"
-                aria-disabled={saving ? "true" : "false"}
-                title="Salvar e continuar"
-              >
-                {saving ? "Enviando…" : "Salvar e continuar"}
-              </CTAButton>
-
-              <CTAButton
-                variant="outline"
-                onClick={sendWhatsFallback}
-                className="h-12 w-full text-[15px] font-semibold"
-                title="Enviar cadastro por WhatsApp"
-              >
-                <MessageCircle size={16} className="mr-2" /> Enviar por WhatsApp
-              </CTAButton>
             </div>
 
-            <p className="mt-3 text-[11px] text-[var(--c-muted)] inline-flex items-center gap-1">
-              <CheckCircle2 size={14} /> Seus dados não são gravados neste dispositivo.
-            </p>
-          </div>
+            <div
+              className="mt-6 p-6 md:p-7 rounded-3xl border backdrop-blur-xl shadow-[0_26px_90px_rgba(15,23,42,0.5)]"
+              style={{
+                background: "color-mix(in srgb, var(--c-surface) 80%, transparent)",
+                borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
+              }}
+            >
+              <SectionTitle>Resumo financeiro</SectionTitle>
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="flex justify-between gap-3">
+                  <span className="text-[var(--c-muted)]">Plano</span>
+                  <span className="font-medium text-right">{plano?.nome}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-[var(--c-muted)]">Base mensal</span>
+                  <span>{money(baseMensal)}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-[var(--c-muted)]">
+                    Dependentes incluídos no plano
+                  </span>
+                  <span>{numDepsIncl}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-[var(--c-muted)]">
+                    Dependentes adicionais (
+                    {Math.max(0, depsExistentes.length + depsNovos.length - numDepsIncl)}) ×{" "}
+                    {money(valorIncMensal)}
+                  </span>
+                  <span>
+                    {money(
+                      Math.max(
+                        0,
+                        depsExistentes.length + depsNovos.length - numDepsIncl
+                      ) * valorIncMensal
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex justify-between gap-3">
+                  <span className="text-[var(--c-muted)]">Adesão (única)</span>
+                  <span>{money(valorAdesaoPlano)}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-[var(--c-muted)]">Dia D</span>
+                  <span>{diaDSelecionado}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-[var(--c-muted)]">Efetivação</span>
+                  <span className="font-medium">{formatDateBR(dataEfetivacaoISO)}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-[var(--c-muted)]">Mensalidade</span>
+                  <span>{money(valorMensalidadePlano)}</span>
+                </div>
+
+                <hr className="my-2 border-[color-mix(in srgb,var(--c-border) 70%,transparent)]" />
+
+                <div className="flex justify-between items-baseline gap-3">
+                  <span className="font-semibold text-[15px]">Total mensal</span>
+                  <span className="text-[color:var(--primary)] font-extrabold text-lg md:text-xl">
+                    {money(totalMensal)}
+                  </span>
+                </div>
+                {cupom ? (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-[var(--c-muted)]">Cupom aplicado</span>
+                    <span className="font-medium">{cupom}</span>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-6 mb-6 rounded-3xl p-6 md:p-7" style={glassCardStyle}>
+              {submitAttempted && errorList.length > 0 && (
+                <div
+                  className="rounded-2xl px-4 py-3 text-sm mb-4 backdrop-blur-md"
+                  style={{
+                    border: "1px solid color-mix(in srgb, var(--primary) 40%, transparent)",
+                    background: "color-mix(in srgb, var(--c-surface) 80%, transparent)",
+                    color: "var(--text)",
+                  }}
+                  role="alert"
+                  aria-live="assertive"
+                  ref={alertRef}
+                  tabIndex={-1}
+                >
+                  <p className="font-semibold mb-1">
+                    Revise os campos antes de continuar ({errorCount}):
+                  </p>
+                  <ul className="list-disc ml-5 space-y-1">
+                    {errorList.map((it, idx) => (
+                      <li key={idx}>
+                        <button
+                          type="button"
+                          className="underline hover:opacity-80"
+                          onClick={() => focusByField(it.field)}
+                        >
+                          {it.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="mb-4 flex justify-start">
+                <button
+                  type="button"
+                  onClick={goPrev}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-[var(--c-muted)] hover:text-[var(--text)]"
+                >
+                  <ChevronLeft size={14} />
+                  Voltar para dependentes
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <CTAButton
+                  type="button"
+                  onClick={handleSalvarEnviar}
+                  disabled={saving}
+                  className="h-12 w-full text-[15px] font-semibold"
+                  aria-disabled={saving ? "true" : "false"}
+                  title="Concluir contratação"
+                >
+                  {saving ? "Enviando…" : "Concluir contratação"}
+                </CTAButton>
+
+                <CTAButton
+                  variant="outline"
+                  onClick={sendWhatsFallback}
+                  className="h-12 w-full text-[15px] font-semibold"
+                  title="Enviar cadastro por WhatsApp"
+                >
+                  <MessageCircle size={16} className="mr-2" /> Enviar por WhatsApp
+                </CTAButton>
+              </div>
+
+              <p className="mt-3 text-[11px] text-[var(--c-muted)] inline-flex items-center gap-1">
+                <CheckCircle2 size={14} /> Seus dados não são gravados neste dispositivo.
+              </p>
+            </div>
+          </>
         )}
       </div>
     </section>
