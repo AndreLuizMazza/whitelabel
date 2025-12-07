@@ -292,22 +292,25 @@ function HeroSlider({ slides, mounted }) {
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             }}
-            initial={{ opacity: 0, scale: 1.05 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.02 }}
+            initial={{ opacity: 0, scale: 1.05, x: 26 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            exit={{ opacity: 0, scale: 1.02, x: -18 }}
             transition={{ duration: 0.85, ease: 'easeOut' }}
           />
         </AnimatePresence>
+
+        {/* overlay para leitura */}
         <div className="absolute inset-0 bg-gradient-to-tr from-black/55 via-black/35 to-black/20" />
       </div>
 
+      {/* conteúdo animado entre slides */}
       <div className="relative z-10 px-6 py-10 md:px-10 md:py-16 lg:px-16 lg:py-20 text-white">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={(slide.id || index) + '-content'}
-            initial={{ opacity: 0, x: 24 }}
+            initial={{ opacity: 0, x: 18 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -24 }}
+            exit={{ opacity: 0, x: -12 }}
             transition={{ duration: 0.55, ease: 'easeOut' }}
             className="flex flex-col h-full"
           >
