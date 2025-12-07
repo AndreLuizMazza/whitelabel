@@ -13,7 +13,7 @@ import {
   UserSquare2,
   User,
   LogOut,
-  MessageCircle,
+  HelpCircle,
 } from 'lucide-react'
 import useAuth from '@/store/auth'
 import useTenant from '@/store/tenant'
@@ -319,6 +319,17 @@ export default function Navbar() {
                 </>
               )}
             </NavLink>
+
+            {/* Ajuda também no desktop */}
+            <NavLink to="/#faq" className={linkClass}>
+              {({ isActive }) => (
+                <>
+                  <ActiveBar isActive={isActive} />
+                  <HelpCircle className="h-4 w-4" />
+                  <span>Ajuda</span>
+                </>
+              )}
+            </NavLink>
           </nav>
         </div>
 
@@ -440,7 +451,7 @@ export default function Navbar() {
 
                   <Link
                     to="/perfil"
-                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
+                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg:white/5 dark:hover:bg-white/5"
                     onClick={() => setShowProfileMenu(false)}
                     role="menuitem"
                   >
@@ -688,7 +699,7 @@ export default function Navbar() {
                 {
                   to: '/#faq',
                   label: 'Ajuda',
-                  icon: <MessageCircle className="h-5 w-5" />,
+                  icon: <HelpCircle className="h-5 w-5" />,
                 },
               ].map(({ to, label, icon }) => (
                 <NavLink
