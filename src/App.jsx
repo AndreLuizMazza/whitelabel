@@ -1,4 +1,6 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+// src/App.jsx
+import { useEffect } from 'react'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 
 import './styles/theme.css'
 import './styles/print.css' // impressão (CR-80 / A4)
@@ -49,7 +51,69 @@ import Perfil from '@/pages/Perfil.jsx'
 import DependentesPage from '@/pages/DependentesPage.jsx'
 import HistoricoPagamentos from '@/pages/HistoricoPagamentos.jsx'
 
+// 🧩 Tenant (para título dinâmico)
+import useTenant from '@/store/tenant'
+
+/**
+ * Resolve o “subtítulo” da página com base na rota.
+ * Ideia: algo curto, elegante e útil na aba do navegador.
+ */
+function resolvePageTitle(pathname = '/') {
+  if (pathname === '/') return 'Início'
+  if (pathname === '/planos') return 'Planos'
+  if (pathname.startsWith('/planos/')) return 'Detalhes do plano'
+  if (pathname === '/beneficios') return 'Clube de Benefícios'
+  if (pathname.startsWith('/beneficios/')) return 'Benefício'
+  if (pathname === '/contratos') return 'Contratos'
+  if (pathname.endsWith('/pagamentos')) return 'Pagamentos do contrato'
+  if (pathname === '/login') return 'Entrar'
+  if (pathname === '/criar-conta') return 'Criar conta'
+  if (pathname === '/recuperar-senha') return 'Recuperar senha'
+  if (pathname === '/redefinir-senha') return 'Verificar código'
+  if (pathname === '/trocar-senha') return 'Trocar senha'
+  if (pathname === '/politica-cookies') return 'Política de Cookies'
+  if (pathname === '/politica-privacidade') return 'Política de Privacidade'
+  if (pathname === '/termos-uso') return 'Termos de Uso'
+  if (pathname === '/filiais') return 'Unidades'
+  if (pathname.startsWith('/verificar/')) return 'Verificar carteirinha'
+
+  if (pathname === '/memorial') return 'Memorial'
+  if (pathname.startsWith('/memorial/')) return 'Homenagem'
+
+  if (pathname === '/carteirinha/print') return 'Impressão da carteirinha'
+  if (pathname === '/servicos-digitais') return 'Serviços digitais'
+  if (pathname === '/carteirinha') return 'Carteirinha digital'
+
+  if (pathname === '/area') return 'Área do associado'
+  if (pathname === '/perfil') return 'Perfil'
+  if (pathname === '/area/dependentes') return 'Dependentes'
+  if (pathname === '/area/pagamentos') return 'Histórico de pagamentos'
+
+  return ''
+}
+
+/**
+ * Hook para atualizar o título da aba com base no tenant + rota.
+ * Ex.: "Planos • Funerária Patense"
+ */
+function useDynamicTitle() {
+  const location = useLocation()
+  const tenant = useTenant((s) => s.empresa)
+
+  useEffect(() => {
+    const base =
+      tenant?.nomeFantasia ||
+      tenant?.nome ||
+      'Progem Starter' // fallback geral
+
+    const section = resolvePageTitle(location.pathname)
+    document.title = section ? `${section} • ${base}` : base
+  }, [location.pathname, tenant])
+}
+
 export default function App() {
+  useDynamicTitle()
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* carrega token + /unidades/me e aplica tema */}
