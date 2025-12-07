@@ -8,7 +8,7 @@ import CTAButton from '@/components/ui/CTAButton'
 import useAuth from '@/store/auth'
 
 /* =========== util/infra =========== */
-const track = (..._args) => {} // plugar no seu analytics
+const track = (..._args) => {}
 
 const toNum = (v) => {
   const n = Number(v)
@@ -72,7 +72,6 @@ export default function PlanoDetalhe() {
   const { id } = useParams()
   const navigate = useNavigate()
 
-  // compat com store antiga (isAuthenticated() ou token)
   const isAuthenticated = useAuth((s) =>
     typeof s.isAuthenticated === 'function' ? s.isAuthenticated() : !!s.token
   )
@@ -81,7 +80,6 @@ export default function PlanoDetalhe() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // ===== Carregamento do Plano =====
   async function fetchPlano(planId) {
     setLoading(true)
     setError('')
@@ -111,21 +109,21 @@ export default function PlanoDetalhe() {
       setLoading(false)
     }
   }
+
   useEffect(() => {
     if (id) fetchPlano(id)
   }, [id])
 
-  // Scroll top e título
   useEffect(() => {
     try {
       window.scrollTo(0, 0)
     } catch {}
   }, [])
+
   useEffect(() => {
     if (plano?.nome) document.title = `${plano.nome} — Planos`
   }, [plano?.nome])
 
-  // ===== Derivações =====
   const baseMensal = useMemo(() => getMensal(plano), [plano])
   const valorAdesao = toNum(pick(plano || {}, 'valorAdesao', 'valor_adesao') || 0)
   const numDepsIncl = toNum(pick(plano || {}, 'numeroDependentes', 'numero_dependentes') || 0)
@@ -147,7 +145,6 @@ export default function PlanoDetalhe() {
   const idadeMinDepN = toNum(idadeMinDep)
   const idadeMaxDepN = toNum(idadeMaxDep)
 
-  // ===== CTA =====
   const handleContinuar = () => {
     const planSnapshot = {
       id: String(id),
@@ -166,9 +163,9 @@ export default function PlanoDetalhe() {
       plano: String(id),
       qtdDependentes: 0,
       dependentes: [],
-      cupom: '', // cupom será tratado apenas no checkout
+      cupom: '',
       planSnapshot,
-      sig: null, // futuro: HMAC/server-side
+      sig: null,
     }
 
     const params = new URLSearchParams({
@@ -185,7 +182,6 @@ export default function PlanoDetalhe() {
     }
   }
 
-  // ===== Estados =====
   if (loading) {
     return (
       <section className="section">
@@ -200,6 +196,7 @@ export default function PlanoDetalhe() {
       </section>
     )
   }
+
   if (error) {
     return (
       <section className="section">
@@ -212,9 +209,9 @@ export default function PlanoDetalhe() {
       </section>
     )
   }
+
   if (!plano) return null
 
-  // ===== UI =====
   return (
     <section className="section">
       <div className="container-max">
@@ -230,12 +227,12 @@ export default function PlanoDetalhe() {
           </button>
         </div>
 
-        {/* Header */}
+        {/* Header do plano */}
         <div
           className="rounded-2xl border bg-[var(--c-surface)] p-6"
           style={{ borderColor: 'var(--c-border)' }}
         >
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight">{plano.nome}</h1>
               <p className="mt-1 text-sm text-[var(--c-muted)]">
@@ -244,7 +241,7 @@ export default function PlanoDetalhe() {
             </div>
 
             <div
-              className="inline-flex items-center gap-3 rounded-full px-5 h-12 border"
+              className="inline-flex h-12 items-center gap-3 rounded-full border px-5 self-start md:self-auto"
               style={{
                 borderColor: 'var(--c-border)',
                 background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
@@ -258,17 +255,17 @@ export default function PlanoDetalhe() {
             </div>
           </div>
 
-          {/* Chips essenciais */}
+          {/* Chips essenciais do plano */}
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <div
-              className="h-11 inline-flex items-center justify-between rounded-full border px-4"
+              className="inline-flex h-11 items-center justify-between rounded-full border px-4"
               style={{ borderColor: 'var(--c-border)' }}
             >
               <span className="text-sm">Dependentes incluídos</span>
               <strong>{isNum(numDepsIncl) ? numDepsIncl : '—'}</strong>
             </div>
             <div
-              className="h-11 inline-flex items-center justify-between rounded-full border px-4"
+              className="inline-flex h-11 items-center justify-between rounded-full border px-4"
               style={{ borderColor: 'var(--c-border)' }}
             >
               <span className="text-sm">+ por dependente</span>
@@ -276,7 +273,7 @@ export default function PlanoDetalhe() {
             </div>
             {(isNum(idadeMinTitN) || isNum(idadeMaxTitN)) && (
               <div
-                className="h-11 inline-flex items-center justify-between rounded-full border px-4"
+                className="inline-flex h-11 items-center justify-between rounded-full border px-4"
                 style={{ borderColor: 'var(--c-border)' }}
               >
                 <span className="text-sm">Idade titular</span>
@@ -288,7 +285,7 @@ export default function PlanoDetalhe() {
             )}
             {(isNum(idadeMinDepN) || isNum(idadeMaxDepN)) && (
               <div
-                className="h-11 inline-flex items-center justify-between rounded-full border px-4"
+                className="inline-flex h-11 items-center justify-between rounded-full border px-4"
                 style={{ borderColor: 'var(--c-border)' }}
               >
                 <span className="text-sm">Idade dependentes</span>
@@ -301,28 +298,20 @@ export default function PlanoDetalhe() {
           </div>
 
           <InlineNote icon={<ShieldCheck size={16} />}>
-            Informe seus dados, adicione dependentes e finalize a contratação com
-            segurança.
+            Informe seus dados, adicione dependentes e finalize a contratação com segurança.
           </InlineNote>
-
-          {/* Valor percebido */}
-          <Perks className="mt-6" />
         </div>
 
-        {/* Principal: Resumo/CTA (sem campo de cupom) */}
-        <div className="mt-8 grid gap-6 md:grid-cols-[1.2fr,1fr]">
-          {/* Espaço à esquerda (mantido vazio por enquanto, para não alongar página) */}
-          <div className="hidden md:block" aria-hidden />
-
-          {/* Resumo + CTA */}
+        {/* Conteúdo principal: Associe-se + benefícios */}
+        <div className="mt-8 grid gap-6 items-start md:grid-cols-[minmax(0,1.3fr),minmax(0,1fr)]">
+          {/* Associe-se – vem primeiro no mobile */}
           <aside
-            className="p-6 md:sticky md:top-24 bg-[var(--c-surface)] rounded-2xl border shadow-lg"
+            className="order-1 md:order-2 rounded-2xl border bg-[var(--c-surface)] p-6 shadow-lg md:sticky md:top-24"
             style={{ borderColor: 'var(--c-border)' }}
           >
             <h3 className="mb-4 text-lg font-semibold">Associe-se</h3>
 
-            {/* Mensalidade base + Adesão lado a lado */}
-            <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="mb-3 grid grid-cols-2 gap-3">
               <div
                 className="rounded-2xl border p-3"
                 style={{ borderColor: 'var(--c-border)' }}
@@ -343,35 +332,35 @@ export default function PlanoDetalhe() {
               </div>
             </div>
 
-            <p className="text-xs text-[var(--c-muted)] mb-1">
+            <p className="mb-1 text-xs text-[var(--c-muted)]">
               Dependentes e valores adicionais são definidos no cadastro.
             </p>
-            <p className="text-xs text-[var(--c-muted)] mb-4">
+            <p className="mb-4 text-xs text-[var(--c-muted)]">
               Você poderá aplicar seu cupom na etapa de pagamento.
             </p>
 
-            <div>
-              <CTAButton
-                className="w-full h-11"
-                onClick={handleContinuar}
-                title="Prosseguir para cadastro"
-              >
-                Continuar cadastro
-              </CTAButton>
-            </div>
+            <CTAButton
+              className="h-11 w-full"
+              onClick={handleContinuar}
+              title="Prosseguir para cadastro"
+            >
+              Continuar cadastro
+            </CTAButton>
 
-            {/* Selo de confiança */}
             <div className="mt-3 flex items-center gap-2 text-xs text-[var(--c-muted)]">
               <BadgeCheck size={14} /> Pagamento seguro • Dados protegidos
             </div>
           </aside>
+
+          {/* Benefícios e detalhes – vem depois no mobile, primeiro no desktop */}
+          <div className="order-2 space-y-6 md:order-1">
+            <Perks />
+          </div>
         </div>
       </div>
 
+      <div className="h-16 md:hidden" aria-hidden />
 
-<div className="h-16 md:hidden" aria-hidden />
-
-      {/* JSON-LD básico para SEO */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
