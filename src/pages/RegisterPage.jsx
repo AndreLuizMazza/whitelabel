@@ -847,26 +847,7 @@ export default function RegisterPage() {
                 </p>
               </div>
 
-              {step === 1 && (
-                <div
-                  className="rounded-2xl px-4 py-3 text-xs md:text-sm mb-1"
-                  style={{
-                    background:
-                      'color-mix(in srgb, var(--surface-elevated) 92%, transparent)',
-                    border:
-                      '1px dashed color-mix(in srgb, var(--text) 14%, transparent)',
-                  }}
-                >
-                  <p className="font-medium mb-1">
-                    Nesta etapa, vamos pedir apenas:
-                  </p>
-                  <ol className="list-decimal ml-4 space-y-1">
-                    <li>Nome completo</li>
-                    <li>CPF</li>
-                    <li>Data de nascimento</li>
-                  </ol>
-                </div>
-              )}
+              
 
               {step === 3 && (
                 <div
