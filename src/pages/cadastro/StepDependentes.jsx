@@ -8,7 +8,7 @@ import {
   PARENTESCO_LABELS,
   SEXO_OPTIONS,
 } from "@/lib/constants";
-import { cpfIsValid, formatCPF, formatDateBR } from "@/lib/br";
+import { cpfIsValid, formatCPF } from "@/lib/br";
 import { ageFromDate } from "@/lib/dates";
 
 const requiredStar = <span aria-hidden="true" className="text-red-600">*</span>;
@@ -320,17 +320,8 @@ export default function StepDependentes({
               Nenhum dependente adicional cadastrado.
             </p>
             <p className="text-xs">
-              Se preferir, você pode seguir sem dependentes agora e adicioná-los
-              depois pela Área do Associado.
+              Se preferir, você pode seguir sem dependentes.
             </p>
-            <CTAButton
-              type="button"
-              onClick={openCreate}
-              className="mt-1 h-9 px-4 text-xs"
-            >
-              <Plus size={14} className="mr-1" />
-              Adicionar primeiro dependente
-            </CTAButton>
           </div>
         )}
 
@@ -548,11 +539,11 @@ export default function StepDependentes({
         )}
 
         {/* Rodapé da etapa */}
-        <div className="mt-6 flex flex-col md:flex-row md:justify-between gap-3">
+        <div className="mt-6 flex items-center justify-between gap-3">
           <CTAButton
             type="button"
             variant="outline"
-            className="h-11 px-5 w-full md:w-auto"
+            className="h-11 px-5"
             onClick={() => {
               if (mode) {
                 // se estiver no formulário, primeiro sai do formulário
@@ -567,7 +558,7 @@ export default function StepDependentes({
           </CTAButton>
           <CTAButton
             type="button"
-            className="h-11 px-6 w-full md:w-auto"
+            className="h-11 px-6"
             onClick={handleContinue}
           >
             Continuar

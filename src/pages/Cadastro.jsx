@@ -1,20 +1,12 @@
-// src/pages/Cadastro.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "@/lib/api.js";
 import CTAButton from "@/components/ui/CTAButton";
 import { money } from "@/lib/planUtils.js";
 import useTenant from "@/store/tenant";
-import { resolveTenantPhone, resolveGlobalFallback, buildWaHref } from "@/lib/whats";
 import { celcashCriarClienteContrato, celcashGerarCarneManual } from "@/lib/celcashApi";
 
-import {
-  CheckCircle2,
-  ChevronLeft,
-  Info,
-  Loader2,
-  MessageCircle,
-} from "lucide-react";
+import { CheckCircle2, ChevronLeft, Info, Loader2 } from "lucide-react";
 
 import DateSelectBR from "@/components/DateSelectBR";
 
@@ -35,10 +27,8 @@ import {
 import {
   PARENTESCOS_FALLBACK,
   PARENTESCO_LABELS,
-  ESTADO_CIVIL_OPTIONS,
   ESTADO_CIVIL_LABEL,
   SEXO_OPTIONS,
-  DIA_D_OPTIONS,
 } from "@/lib/constants";
 
 import { efetivacaoProxMesPorDiaD, ageFromDate } from "@/lib/dates";
@@ -46,22 +36,23 @@ import { useDebouncedCallback } from "@/lib/hooks";
 import { useViaCep } from "@/lib/useViaCep";
 
 // Etapas (componentes)
-import StepDadosComplementares from "./cadastro/StepDadosComplementares";
+import StepTitularIntro from "./cadastro/StepTitularIntro";
 import StepEndereco from "./cadastro/StepEndereco";
 import StepDependentes from "./cadastro/StepDependentes";
 import StepCarne from "./cadastro/StepCarne";
-import StepConfirmacao from "./cadastro/StepConfirmacao";
 
 const isEmpty = (v) => !String(v || "").trim();
-const requiredRing = (cond) => (cond ? "ring-1 ring-red-500" : "");
-const requiredStar = <span aria-hidden="true" className="text-red-600">*</span>;
 const AREA_ASSOCIADO_PATH = (import.meta?.env?.VITE_ASSOC_AREA_PATH || "/area").toString();
 
 function FieldRead({ label, value, mono = false }) {
   return (
-    <div className="rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] px-3 py-2 shadow-sm">
+    <div className="rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] px-3 py-1.5 shadow-sm">
       <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--c-muted)]">{label}</p>
-      <p className={`mt-1 font-medium ${mono ? "tabular-nums" : ""} break-words text-[13px]`}>
+      <p
+        className={`mt-0.5 font-medium ${
+          mono ? "tabular-nums" : ""
+        } break-words text-[13px]`}
+      >
         {value || "—"}
       </p>
     </div>
@@ -71,7 +62,7 @@ function FieldRead({ label, value, mono = false }) {
 function SectionTitle({ children, right = null }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <h2 className="text-base md:text-lg font-semibold tracking-tight">{children}</h2>
+      <h2 className="text-sm md:text-base font-semibold tracking-tight">{children}</h2>
       {right}
     </div>
   );
@@ -112,8 +103,7 @@ export default function Cadastro() {
   // 1 - Titular + dados complementares
   // 2 - Endereço
   // 3 - Dependentes
-  // 4 - Cobrança
-  // 5 - Confirmação
+  // 4 - Cobrança (final)
   const [currentStep, setCurrentStep] = useState(1);
 
   const [stepAttempted, setStepAttempted] = useState({
@@ -123,6 +113,8 @@ export default function Cadastro() {
   });
 
   const alertRef = useRef(null);
+  const mainCardRef = useRef(null); // âncora para scroll entre etapas
+
   const sexoRef = useRef(null);
   const ecRef = useRef(null);
   const cepRef = useRef(null);
@@ -212,7 +204,15 @@ export default function Cadastro() {
             cidade: p?.endereco?.cidade || p?.cidade || "",
             uf: (p?.endereco?.uf || p?.uf || "").toUpperCase().slice(0, 2),
           }
-        : { cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "" };
+        : {
+            cep: "",
+            logradouro: "",
+            numero: "",
+            complemento: "",
+            bairro: "",
+            cidade: "",
+            uf: "",
+          };
 
     const contatos = p?.contatos || {};
     const celular = contatos?.celular || p?.celular || "";
@@ -322,8 +322,8 @@ export default function Cadastro() {
         contratosResumo: contratos,
         mensagem: temPessoa
           ? ativos.length > 0
-            ? "Encontramos um contrato ativo vinculado ao seu CPF."
-            : "Dados carregados a partir do CPF informado."
+            ? "Encontramos um contrato ativo neste CPF."
+            : ""
           : suppressNoCadastroMessage
           ? ""
           : "",
@@ -393,9 +393,7 @@ export default function Cadastro() {
           ? t.endereco.logradouro
           : data.logradouro || t.endereco.logradouro,
         bairro: addressTouched.bairro ? t.endereco.bairro : data.bairro || t.endereco.bairro,
-        cidade: addressTouched.cidade
-          ? t.endereco.cidade
-          : data.localidade || t.endereco.cidade,
+        cidade: addressTouched.cidade ? t.endereco.cidade : data.localidade || t.endereco.cidade,
         uf: addressTouched.uf
           ? sanitizeUF(t.endereco.uf)
           : sanitizeUF(data.uf || t.endereco.uf || UF_PADRAO || ""),
@@ -443,18 +441,18 @@ export default function Cadastro() {
 
   const updDepNovo = (i, patch) =>
     setDepsNovos((prev) => prev.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
-const addDepNovo = (initial = {}) =>
-  setDepsNovos((prev) => [
-    ...prev,
-    {
-      nome: "",
-      cpf: "",
-      sexo: "",
-      parentesco: "",
-      data_nascimento: "",
-      ...initial,
-    },
-  ]);
+  const addDepNovo = (initial = {}) =>
+    setDepsNovos((prev) => [
+      ...prev,
+      {
+        nome: "",
+        cpf: "",
+        sexo: "",
+        parentesco: "",
+        data_nascimento: "",
+        ...initial,
+      },
+    ]);
   const delDepNovo = (i) => setDepsNovos((prev) => prev.filter((_, idx) => idx !== i));
 
   const e = titular.endereco || {};
@@ -714,27 +712,41 @@ const addDepNovo = (initial = {}) =>
         await celcashCriarClienteContrato(contratoId, {});
       } catch (err) {
         console.error("[Cadastro] Falha ao criar cliente/contrato na CelCash", err);
+        // não interrompe o fluxo – mas você pode decidir travar se quiser
       }
 
-      // 5) Integração CelCash (carnê manual)
+      // 5) Integração CelCash (carnê manual) usando a prévia de cobranças
       try {
-        const carnePayload = {
-          mainPaymentMethodId: "boleto",
-          cobrancas: [
-            {
-              numeroParcela: 1,
-              valor: Number(valorMensalidadePlano || 0),
-              dataVencimento: dataEfetivacaoISO, // yyyy-mm-dd
-            },
-          ],
-        };
+        // Se NÃO quiser mandar a taxa de adesão para a CelCash, filtramos aqui
+        const cobrancasForCelCash = (cobrancasPreview || [])
+          .filter((c) => c.id !== "adesao")
+          .map((c, index) => ({
+            numeroParcela: index + 1,
+            valor: Number(c.valor || 0),
+            dataVencimento: c.dataVencimentoISO, // yyyy-mm-dd
+          }));
 
-        await celcashGerarCarneManual(contratoId, carnePayload);
+        if (cobrancasForCelCash.length > 0) {
+          const carnePayload = {
+            mainPaymentMethodId: "boleto",
+            cobrancas: cobrancasForCelCash,
+          };
+
+          await celcashGerarCarneManual(contratoId, carnePayload);
+        } else {
+          console.warn(
+            "[Cadastro] Nenhuma cobrança calculada para envio à CelCash. Verifique cobrancasPreview."
+          );
+        }
       } catch (err) {
         console.error("[Cadastro] Falha ao gerar carnê manual na CelCash", err);
+        setError(
+          "Seu contrato foi criado, mas não conseguimos gerar o carnê automático agora. " +
+            "A empresa será avisada para concluir essa etapa manualmente."
+        );
       }
 
-      // 6) Navega para a tela de confirmação
+      // 6) Navega para a tela de confirmação / resumo de contrato
       navigate(`/confirmacao?contrato=${contratoId || ""}&titular=${titularId}`);
     } catch (e) {
       const msg =
@@ -746,7 +758,7 @@ const addDepNovo = (initial = {}) =>
       setError(
         msg
           ? `Não conseguimos concluir o envio: ${msg}`
-          : "Não conseguimos concluir o envio pelo site. Você pode enviar por WhatsApp."
+          : "Não conseguimos concluir o envio pelo site. Por favor, entre em contato com a empresa."
       );
     } finally {
       setSaving(false);
@@ -755,89 +767,6 @@ const addDepNovo = (initial = {}) =>
 
   function sexoLabelFromValue(v) {
     return SEXO_OPTIONS.find(([val]) => val === v)?.[1] || "";
-  }
-
-  function normalizeWaText(str) {
-    let s = (str ?? "").toString();
-    s = s
-      .normalize("NFKC")
-      .replace(/\r\n?/g, "\n")
-      .replace(/\u00A0/g, " ");
-    const rawLines = s.split("\n").map((l) => l.replace(/\s+/g, " ").trim());
-    const lines = [];
-    for (const l of rawLines) {
-      if (l === "" && lines[lines.length - 1] === "") continue;
-      lines.push(l);
-    }
-    return lines.join("\n").trim();
-  }
-
-  function sendWhatsFallback() {
-    let number =
-      resolveTenantPhone(empresa) ||
-      resolveGlobalFallback() ||
-      import.meta?.env?.VITE_WHATSAPP ||
-      window.__WHATSAPP__ ||
-      "";
-
-    number = onlyDigits(number);
-    if (number && !number.startsWith("55")) number = `55${number}`;
-
-    const L = [];
-    L.push("*Solicitação de Contratação*\n");
-    L.push(`Plano: ${plano?.nome || planoId}`);
-    L.push(`Valor base: ${money(baseMensal)} | Total mensal: ${money(totalMensal)}`);
-    L.push(`Adesão (única): ${money(valorAdesaoPlano)}`);
-    L.push(`Mensalidade: ${money(valorMensalidadePlano)}`);
-    L.push(`Dia D: ${diaDSelecionado}`);
-    L.push(`Efetivação: ${formatDateBR(dataEfetivacaoISO)}`);
-    if (cupom) L.push(`Cupom de desconto: ${cupom}`);
-
-    L.push("\n*Titular*:");
-    L.push(`Nome: ${titular.nome || ""}`);
-    L.push(`CPF: ${formatCPF(titular.cpf || "")}`);
-    L.push(`Sexo: ${sexoLabelFromValue(titular.sexo)}`);
-    L.push(`Celular: ${formatPhoneBR(titular.celular || "")}`);
-    L.push(`E-mail: ${titular.email || "(não informado)"}`);
-    L.push(
-      `Estado civil: ${ESTADO_CIVIL_LABEL[titular.estado_civil] || titular.estado_civil || ""}`
-    );
-    L.push(`Nascimento: ${formatDateBR(titular.data_nascimento) || ""}`);
-    const eAddr = titular.endereco || {};
-    L.push(
-      `End.: ${eAddr.logradouro || ""}, ${eAddr.numero || ""} ${eAddr.complemento || ""} - ${
-        eAddr.bairro || ""
-      }`
-    );
-    L.push(`${eAddr.cidade || ""}/${eAddr.uf || ""} - CEP ${eAddr.cep || ""}`);
-
-    L.push("\n*Dependentes existentes*:");
-    if (!depsExistentes.length) L.push("(Nenhum)");
-    depsExistentes.forEach((d, i) =>
-      L.push(
-        `${i + 1}. ${d.nome} - ${PARENTESCO_LABELS[d.parentesco] || d.parentesco || "—"} - ${
-          sexoLabelFromValue(d.sexo) || "—"
-        } - CPF: ${formatCPF(d.cpf || "") || "(não informado)"} - nasc.: ${
-          d.data_nascimento || ""
-        }`
-      )
-    );
-
-    L.push("\n*Dependentes novos*:");
-    if (!depsNovos.length) L.push("(Nenhum)");
-    depsNovos.forEach((d, i) =>
-      L.push(
-        `${i + 1}. ${d.nome || "(sem nome)"} - ${
-          PARENTESCO_LABELS[d.parentesco] || d.parentesco || "—"
-        } - ${sexoLabelFromValue(d.sexo) || "—"} - CPF: ${
-          formatCPF(d.cpf || "") || "(não informado)"
-        } - nasc.: ${d.data_nascimento || ""}`
-      )
-    );
-
-    const message = normalizeWaText(L.join("\n"));
-    const href = buildWaHref({ number, message });
-    window.open(href, "_blank", "noopener,noreferrer");
   }
 
   const onCepChange = (v) => {
@@ -861,7 +790,6 @@ const addDepNovo = (initial = {}) =>
     { id: 2, label: "Endereço" },
     { id: 3, label: "Dependentes" },
     { id: 4, label: "Cobranças" },
-    { id: 5, label: "Confirmação" },
   ];
 
   const totalSteps = steps.length || 1;
@@ -869,8 +797,15 @@ const addDepNovo = (initial = {}) =>
 
   const todayISO = new Date().toISOString().slice(0, 10);
 
+  // Prévia das cobranças:
+  // - Se tiver adesão: 1 cobrança de adesão (hoje) + 12 mensalidades
+  // - Se não tiver adesão: 12 mensalidades
   const cobrancasPreview = useMemo(() => {
     const list = [];
+
+    if (!dataEfetivacaoISO) return list;
+
+    // 1) Taxa de adesão (opcional)
     if (valorAdesaoPlano > 0) {
       list.push({
         id: "adesao",
@@ -879,14 +814,44 @@ const addDepNovo = (initial = {}) =>
         dataVencimentoISO: todayISO,
       });
     }
-    list.push({
-      id: "mensal-1",
-      tipo: "1ª mensalidade",
-      valor: valorMensalidadePlano,
-      dataVencimentoISO: dataEfetivacaoISO,
-    });
+
+    // 2) 12 mensalidades a partir da data de efetivação
+    const [y, m, d] = dataEfetivacaoISO.split("-").map(Number);
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) {
+      return list;
+    }
+
+    const baseDate = new Date(Date.UTC(y, m - 1, d));
+
+    for (let i = 0; i < 12; i++) {
+      const dt = new Date(baseDate);
+      dt.setUTCMonth(baseDate.getUTCMonth() + i);
+
+      list.push({
+        id: `mensal-${i + 1}`,
+        tipo: `${i + 1}ª mensalidade`,
+        valor: valorMensalidadePlano,
+        dataVencimentoISO: dt.toISOString().slice(0, 10),
+      });
+    }
+
     return list;
   }, [valorAdesaoPlano, valorMensalidadePlano, dataEfetivacaoISO, todayISO]);
+
+  // controla scroll suave ao trocar de etapa
+  const goToStep = (step) => {
+    setCurrentStep(step);
+    setTimeout(() => {
+      if (!mainCardRef.current) return;
+      const rect = mainCardRef.current.getBoundingClientRect();
+      const offset = 88; // compensar navbar fixa
+      const top = window.scrollY + rect.top - offset;
+      window.scrollTo({
+        top: top < 0 ? 0 : top,
+        behavior: "smooth",
+      });
+    }, 0);
+  };
 
   // === Render principal ===
 
@@ -902,6 +867,15 @@ const addDepNovo = (initial = {}) =>
             <ChevronLeft size={16} /> Voltar
           </button>
         </div>
+
+        <header className="mb-4">
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+            Cadastre-se em poucos passos
+          </h1>
+          <p className="mt-1 text-sm md:text-base leading-relaxed text-[var(--c-muted)]">
+            Você só precisa informar seus dados, adicionar os dependentes e definir a cobrança.
+          </p>
+        </header>
 
         {(lookupState.running || lookupState.mensagem || lookupState.erro) && (
           <div
@@ -919,7 +893,11 @@ const addDepNovo = (initial = {}) =>
                 className="rounded-full p-2 text-white"
                 style={{ background: "color-mix(in srgb, var(--primary) 90%, black)" }}
               >
-                {lookupState.running ? <Loader2 className="animate-spin" size={16} /> : <Info size={16} />}
+                {lookupState.running ? (
+                  <Loader2 className="animate-spin" size={16} />
+                ) : (
+                  <Info size={16} />
+                )}
               </div>
               <div className="flex-1 space-y-1">
                 {lookupState.running && <p className="text-sm">Verificando CPF e contratos…</p>}
@@ -964,8 +942,84 @@ const addDepNovo = (initial = {}) =>
           </div>
         )}
 
+        {/* Cabeçalho + resumo compacto do titular */}
+        <div
+          ref={mainCardRef}
+          className="rounded-3xl p-5 md:p-6 space-y-4"
+          style={glassCardStyle}
+        >
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base md:text-lg font-semibold tracking-tight">
+                Dados para contratação
+              </h2>
+              {plano?.nome ? (
+                <span className="inline-flex items-center rounded-full border border-[var(--c-border)] px-3 py-1 text-[11px] md:text-xs text-[var(--c-muted)] bg-[var(--c-surface)]/80">
+                  Plano&nbsp;
+                  <span className="font-semibold text-[var(--text)]">{plano.nome}</span>
+                </span>
+              ) : null}
+            </div>
+            <p className="text-xs md:text-sm text-[var(--c-muted)]">
+              Confira o titular e avance pelas etapas até definir o dia de cobrança.
+            </p>
+          </div>
+
+          {/* resumo mais enxuto do titular */}
+          <details className="group open:pb-2">
+            <summary className="cursor-pointer list-none">
+              <SectionTitle
+                right={
+                  <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)] group-open:opacity-60">
+                    Ver detalhes
+                  </span>
+                }
+              >
+                Titular (resumo rápido)
+              </SectionTitle>
+
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs md:text-sm">
+                <span className="inline-flex items-center rounded-full bg-[var(--c-surface)]/90 border border-[var(--c-border)] px-3 py-1 max-w-full">
+                  <span className="font-medium truncate">
+                    {titular.nome || "Nome não informado"}
+                  </span>
+                </span>
+                <span className="inline-flex items-center rounded-full bg-[var(--c-surface)]/90 border border-[var(--c-border)] px-3 py-1">
+                  {formatCPF(titular.cpf || "") || "CPF não informado"}
+                </span>
+                {titular.celular && (
+                  <span className="inline-flex items-center rounded-full bg-[var(--c-surface)]/90 border border-[var(--c-border)] px-3 py-1">
+                    {formatPhoneBR(titular.celular)}
+                  </span>
+                )}
+              </div>
+            </summary>
+
+            <div className="mt-3 grid gap-2 grid-cols-2 md:grid-cols-4">
+              <div className="col-span-2 md:col-span-2">
+                <FieldRead label="Nome" value={titular.nome} />
+              </div>
+              <FieldRead label="CPF" value={formatCPF(titular.cpf || "")} mono />
+              <FieldRead
+                label="Nascimento"
+                value={formatDateBR(titular.data_nascimento) || "—"}
+                mono
+              />
+              <FieldRead
+                label="Celular"
+                value={formatPhoneBR(titular.celular || "") || "—"}
+                mono
+              />
+              <div className="col-span-2 md:col-span-4">
+                <FieldRead label="E-mail" value={titular.email} />
+              </div>
+            </div>
+          </details>
+        </div>
+
+        {/* Stepper DAS 4 ETAPAS */}
         {!bloquearCadastro && (
-          <div className="mb-5">
+          <div className="mt-4 mb-5">
             <ol
               className="flex flex-wrap gap-2 rounded-3xl border px-2 py-2 shadow-[0_22px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl"
               style={{
@@ -981,7 +1035,7 @@ const addDepNovo = (initial = {}) =>
                     <button
                       type="button"
                       onClick={() => {
-                        if (step.id <= currentStep) setCurrentStep(step.id);
+                        if (step.id <= currentStep) goToStep(step.id);
                       }}
                       className={`flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-xs md:text-sm transition-all ${
                         active
@@ -1034,59 +1088,11 @@ const addDepNovo = (initial = {}) =>
           </div>
         )}
 
-        {/* Cabeçalho + dados do titular (resumo sereno, estilo registro/login) */}
-        <div className="rounded-3xl p-6 md:p-7 space-y-6" style={glassCardStyle}>
-          <div className="flex flex-col gap-2">
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight">
-              Cadastro do plano
-            </h1>
-            <p className="text-sm md:text-[15px] text-[var(--c-muted)] flex flex-wrap gap-1">
-              Plano{" "}
-              <b className="font-semibold">
-                {plano?.nome || ""}
-              </b>
-              <span className="opacity-60">•</span>
-              Base mensal
-              <span className="font-semibold">{money(baseMensal)}</span>
-            </p>
-            <p className="text-xs md:text-sm text-[var(--c-muted)]/90">
-              Revise seus dados abaixo e avance com calma pelas etapas. Você poderá conferir o
-              resumo financeiro antes de concluir.
-            </p>
-          </div>
-
-          <details className="group open:pb-2" open>
-            <summary className="cursor-pointer list-none">
-              <SectionTitle
-                right={
-                  <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)] group-open:opacity-60">
-                    Seus dados como usuário
-                  </span>
-                }
-              >
-                Dados do titular (resumo)
-              </SectionTitle>
-            </summary>
-
-            <div className="mt-3 grid gap-2 grid-cols-2 md:grid-cols-4">
-              <div className="col-span-2 md:col-span-2">
-                <FieldRead label="Nome" value={titular.nome} />
-              </div>
-              <FieldRead label="CPF" value={formatCPF(titular.cpf || "")} mono />
-              <FieldRead label="Nascimento" value={formatDateBR(titular.data_nascimento) || "—"} mono />
-              <FieldRead label="Celular" value={formatPhoneBR(titular.celular || "") || "—"} mono />
-              <div className="col-span-2 md:col-span-4">
-                <FieldRead label="E-mail" value={titular.email} />
-              </div>
-            </div>
-          </details>
-        </div>
-
         {/* Etapas */}
         {!bloquearCadastro && (
           <>
             {currentStep === 1 && (
-              <StepDadosComplementares
+              <StepTitularIntro
                 glassCardStyle={glassCardStyle}
                 titular={titular}
                 updTit={updTit}
@@ -1094,8 +1100,7 @@ const addDepNovo = (initial = {}) =>
                 submitAttempted={submitAttempted}
                 setStepAttempted={setStepAttempted}
                 validateDadosComplementares={validateDadosComplementares}
-                onBack={null}
-                onNext={() => setCurrentStep(2)}
+                setCurrentStep={goToStep}
                 ecRef={ecRef}
                 sexoRef={sexoRef}
               />
@@ -1115,7 +1120,7 @@ const addDepNovo = (initial = {}) =>
                 submitAttempted={submitAttempted}
                 setStepAttempted={setStepAttempted}
                 validateEndereco={validateEndereco}
-                setCurrentStep={setCurrentStep}
+                setCurrentStep={goToStep}
                 cepRef={cepRef}
                 logRef={logRef}
                 numRef={numRef}
@@ -1143,7 +1148,7 @@ const addDepNovo = (initial = {}) =>
                 submitAttempted={submitAttempted}
                 setStepAttempted={setStepAttempted}
                 validateDependentes={validateDependentes}
-                setCurrentStep={setCurrentStep}
+                setCurrentStep={goToStep}
               />
             )}
 
@@ -1155,35 +1160,9 @@ const addDepNovo = (initial = {}) =>
                 dataEfetivacaoISO={dataEfetivacaoISO}
                 valorMensalidadePlano={valorMensalidadePlano}
                 cobrancasPreview={cobrancasPreview}
-                onBack={() => setCurrentStep(3)}
-                onNext={() => setCurrentStep(5)}
-              />
-            )}
-
-            {currentStep === 5 && (
-              <StepConfirmacao
-                glassCardStyle={glassCardStyle}
-                submitAttempted={submitAttempted}
-                errorList={errorList}
-                errorCount={errorCount}
-                alertRef={alertRef}
-                focusByField={focusByField}
-                plano={plano}
-                baseMensal={baseMensal}
-                numDepsIncl={numDepsIncl}
-                depsExistentes={depsExistentes}
-                depsNovos={depsNovos}
-                valorIncMensal={valorIncMensal}
-                valorAdesaoPlano={valorAdesaoPlano}
-                diaDSelecionado={diaDSelecionado}
-                dataEfetivacaoISO={dataEfetivacaoISO}
-                valorMensalidadePlano={valorMensalidadePlano}
-                totalMensal={totalMensal}
-                cupom={cupom}
-                handleSalvarEnviar={handleSalvarEnviar}
+                onBack={() => goToStep(3)}
+                onFinalizar={handleSalvarEnviar}
                 saving={saving}
-                sendWhatsFallback={sendWhatsFallback}
-                onBack={() => setCurrentStep(4)}
               />
             )}
           </>
