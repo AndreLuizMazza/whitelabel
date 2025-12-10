@@ -6,6 +6,8 @@ import CTAButton from "@/components/ui/CTAButton";
 import { money } from "@/lib/planUtils.js";
 import useTenant from "@/store/tenant";
 import { resolveTenantPhone, resolveGlobalFallback, buildWaHref } from "@/lib/whats";
+import { celcashCriarClienteContrato, celcashGerarCarneManual } from "@/lib/celcashApi";
+
 import {
   CheckCircle2,
   ChevronLeft,
@@ -591,7 +593,7 @@ export default function Cadastro() {
     debouncedCpfLookup(titular.cpf);
   }, [titular?.cpf]);
 
-  async function handleSalvarEnviar() {
+    async function handleSalvarEnviar() {
     setSubmitAttempted(true);
     setError("");
     const list = buildErrorList();
@@ -630,12 +632,14 @@ export default function Cadastro() {
         lookupState?.pessoaEncontrada?.pessoaId ||
         null;
 
+      // 1) Garante pessoa/titular
       if (!titularId) {
         const pessoaRes = await api.post("/api/v1/pessoas", payloadPessoa);
         titularId = pessoaRes?.data?.id || pessoaRes?.data?.pessoaId || pessoaRes?.data?.uuid;
         if (!titularId) throw new Error("Não foi possível obter o ID do titular (etapa pessoa).");
       }
 
+      // 2) Cria dependentes novos (se houver)
       if (depsNovos.length > 0) {
         const depsToCreate = depsNovos.map((d) => ({
           cpf: d.cpf ? onlyDigits(d.cpf) : null,
@@ -650,9 +654,12 @@ export default function Cadastro() {
           apelido: null,
           estadoCivil: null,
         }));
-        for (const depPayload of depsToCreate) await api.post("/api/v1/dependentes", depPayload);
+        for (const depPayload of depsToCreate) {
+          await api.post("/api/v1/dependentes", depPayload);
+        }
       }
 
+      // 3) Cria contrato no Progem
       const todayISO = new Date().toISOString().slice(0, 10);
       const payloadContrato = {
         titularId: Number(titularId),
@@ -670,6 +677,40 @@ export default function Cadastro() {
       const contratoId =
         contratoRes?.data?.id || contratoRes?.data?.contratoId || contratoRes?.data?.uuid;
 
+      if (!contratoId) {
+        throw new Error("Não foi possível obter o ID do contrato recém-criado.");
+      }
+
+      // 4) Integração CelCash (cliente + contrato)
+      try {
+        await celcashCriarClienteContrato(contratoId, {});
+      } catch (err) {
+        console.error("[Cadastro] Falha ao criar cliente/contrato na CelCash", err);
+        // aqui você pode, se quiser, setar um aviso para o usuário
+        // mas não vamos interromper o fluxo principal
+      }
+
+      // 5) Integração CelCash (carnê manual)
+      try {
+        // Exemplo simples: 1 parcela com o valor da mensalidade, no dia de efetivação
+        const carnePayload = {
+          mainPaymentMethodId: "boleto",
+          cobrancas: [
+            {
+              numeroParcela: 1,
+              valor: Number(valorMensalidadePlano || 0),
+              dataVencimento: dataEfetivacaoISO, // yyyy-mm-dd
+            },
+          ],
+        };
+
+        await celcashGerarCarneManual(contratoId, carnePayload);
+      } catch (err) {
+        console.error("[Cadastro] Falha ao gerar carnê manual na CelCash", err);
+        // idem: não vamos travar a navegação; a equipe pode tratar depois
+      }
+
+      // 6) Navega para a tela de confirmação
       navigate(`/confirmacao?contrato=${contratoId || ""}&titular=${titularId}`);
     } catch (e) {
       const msg =
@@ -687,6 +728,7 @@ export default function Cadastro() {
       setSaving(false);
     }
   }
+
 
   function sexoLabelFromValue(v) {
     return SEXO_OPTIONS.find(([val]) => val === v)?.[1] || "";

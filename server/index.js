@@ -814,6 +814,91 @@ app.post('/api/v1/contratos', async (req, res) => {
   }
 });
 
+
+
+/* ===== CelCash: criar/atualizar cliente + contrato ===== */
+/** POST /api/celcash/clientes/contratos/:contratoId
+ *  Encaminha para: POST {BASE}/api/celcash/clientes/contratos/:contratoId
+ *  Auth: client credentials (Bearer)
+ */
+app.post('/api/celcash/clientes/contratos/:contratoId', async (req, res) => {
+  try {
+    const { contratoId } = req.params;
+    const clientToken = await getClientToken();
+
+    const url = `${BASE}/api/celcash/clientes/contratos/${encodeURIComponent(
+      contratoId
+    )}`;
+
+    console.log(
+      '[BFF] POST /api/celcash/clientes/contratos/:contratoId ->',
+      url
+    );
+
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: injectHeadersFromReq(req, {
+        Authorization: `Bearer ${clientToken}`,
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify(req.body || {}),
+    });
+
+    const data = await readAsJsonOrText(r);
+    if (!r.ok) return res.status(r.status).send(data);
+    return res.status(r.status).send(data);
+  } catch (e) {
+    console.error('[BFF] CelCash clientes/contratos error', e);
+    return res
+      .status(500)
+      .json({ error: 'Falha ao integrar com CelCash (clientes/contratos)', message: String(e) });
+  }
+});
+
+/* ===== CelCash: geração de carnê manual ===== */
+/** POST /api/v1/celcash/contratos/:contratoId/carne/manual
+ *  Encaminha para: POST {BASE}/api/v1/celcash/contratos/:contratoId/carne/manual
+ *  Auth: client credentials (Bearer)
+ */
+app.post(
+  '/api/v1/celcash/contratos/:contratoId/carne/manual',
+  async (req, res) => {
+    try {
+      const { contratoId } = req.params;
+      const clientToken = await getClientToken();
+
+      const url = `${BASE}/api/v1/celcash/contratos/${encodeURIComponent(
+        contratoId
+      )}/carne/manual`;
+
+      console.log(
+        '[BFF] POST /api/v1/celcash/contratos/:contratoId/carne/manual ->',
+        url
+      );
+
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: injectHeadersFromReq(req, {
+          Authorization: `Bearer ${clientToken}`,
+          'Content-Type': 'application/json',
+        }),
+        body: JSON.stringify(req.body || {}),
+      });
+
+      const data = await readAsJsonOrText(r);
+      if (!r.ok) return res.status(r.status).send(data);
+      return res.status(r.status).send(data);
+    } catch (e) {
+      console.error('[BFF] CelCash carne/manual error', e);
+      return res.status(500).json({
+        error: 'Falha ao integrar com CelCash (carnê manual)',
+        message: String(e),
+      });
+    }
+  }
+);
+
+
 /* ===================================================================== */
 /* ==================  Recuperação / Troca de Senha  ==================== */
 /* ===================================================================== */
