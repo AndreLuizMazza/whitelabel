@@ -1,14 +1,12 @@
+// src/pages/Cadastro.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "@/lib/api.js";
 import CTAButton from "@/components/ui/CTAButton";
-import { money } from "@/lib/planUtils.js";
 import useTenant from "@/store/tenant";
 import { celcashCriarClienteContrato, celcashGerarCarneManual } from "@/lib/celcashApi";
 
 import { CheckCircle2, ChevronLeft, Info, Loader2 } from "lucide-react";
-
-import DateSelectBR from "@/components/DateSelectBR";
 
 import {
   onlyDigits,
@@ -25,8 +23,6 @@ import {
 } from "@/lib/br";
 
 import {
-  PARENTESCOS_FALLBACK,
-  PARENTESCO_LABELS,
   ESTADO_CIVIL_LABEL,
   SEXO_OPTIONS,
 } from "@/lib/constants";
@@ -717,14 +713,12 @@ export default function Cadastro() {
 
       // 5) Integração CelCash (carnê manual) usando a prévia de cobranças
       try {
-        // Se NÃO quiser mandar a taxa de adesão para a CelCash, filtramos aqui
-        const cobrancasForCelCash = (cobrancasPreview || [])
-          .filter((c) => c.id !== "adesao")
-          .map((c, index) => ({
-            numeroParcela: index + 1,
-            valor: Number(c.valor || 0),
-            dataVencimento: c.dataVencimentoISO, // yyyy-mm-dd
-          }));
+        // Agora enviamos TODAS as cobranças da prévia, incluindo a adesão
+        const cobrancasForCelCash = (cobrancasPreview || []).map((c, index) => ({
+          numeroParcela: index + 1,
+          valor: Number(c.valor || 0),
+          dataVencimento: c.dataVencimentoISO, // yyyy-mm-dd
+        }));
 
         if (cobrancasForCelCash.length > 0) {
           const carnePayload = {
@@ -805,7 +799,7 @@ export default function Cadastro() {
 
     if (!dataEfetivacaoISO) return list;
 
-    // 1) Taxa de adesão (opcional)
+    // 1) Taxa de adesão (opcional) – será enviada como "parcela 1" na CelCash
     if (valorAdesaoPlano > 0) {
       list.push({
         id: "adesao",
@@ -1069,7 +1063,7 @@ export default function Cadastro() {
             </ol>
 
             <div className="mt-3 md:hidden">
-              <div className="mb-1 flex items-center justify-between">
+              <div className="mb-1 flex items-center justify_between">
                 <span className="text-[11px] font-medium text-[var(--c-muted)]">
                   Etapa {currentStep} de {totalSteps}
                 </span>
