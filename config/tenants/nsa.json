@@ -31,5 +31,65 @@
     "--button-hover": "color-mix(in srgb, var(--primary) 25%, var(--secondary))"
   },
   "logo": "https://app.progem.com.br/progem/api/downloads/empresa/42/arquivo?nome=013c5366-168f-425b-8d87-9e4142212c53_logosemfundo2.png",
+
+  
+  "heroTitle": "Proteção e tranquilidade para sua família",
+  "heroSubtitle": "Planos de assistência familiar, com benefícios exclusivos e atendimento humanizado.",
+  "heroImage": "https://patense.awis.com.br/assets/hero-familia-patense.jpg",
+
+  
+  "heroSlides": [
+    {
+      "id": "familia",
+      "tag": "Assistência familiar & benefícios",
+      "title": "Proteção e tranquilidade para sua família",
+      "subtitle": "Planos completos para garantir segurança financeira e acolhimento em todos os momentos.",
+      "image": "https://patense.awis.com.br/assets/hero-familia-patense.jpg",
+      "primary": {
+        "label": "Ver planos agora",
+        "to": "/planos",
+        "variant": "primary"
+      },
+      "secondary": {
+        "label": "Área do associado",
+        "to": "/login",
+        "variant": "outline-light"
+      },
+      "showValuePills": true
+    },
+    {
+      "id": "memorial",
+      "tag": "Homenagens & lembranças",
+      "title": "Memorial Online da Funerária Patense",
+      "subtitle": "Registre homenagens, mensagens de carinho e acompanhe informações das cerimônias em um só lugar.",
+      "image": "https://patense.awis.com.br/assets/hero-memorial-patense.jpg",
+      "primary": {
+        "label": "Acessar Memorial",
+        "to": "/memorial",
+        "variant": "primary"
+      },
+      "secondary": null,
+      "showValuePills": false
+    },
+    {
+      "id": "parceiros",
+      "tag": "Benefícios exclusivos para sua empresa",
+      "title": "Seja um parceiro da Funerária Patense",
+      "subtitle": "Ofereça vantagens para associados e fortaleça sua marca com indicações qualificadas.",
+      "image": "https://patense.awis.com.br/assets/hero-parceiros-patense.jpg",
+      "primary": {
+        "label": "Quero ser parceiro(a)",
+        "to": "/parceiros/inscrever",
+        "variant": "primary"
+      },
+      "secondary": {
+        "label": "Falar com o time",
+        "to": "https://wa.me/5546XXXXXXXX?text=Ol%C3%A1!%20Quero%20ser%20parceiro%20da%20Funer%C3%A1ria%20Patense.",
+        "variant": "outline-light"
+      },
+      "showValuePills": false
+    }
+  ],
+  
   "domain": "nsa.progem.com.br"
 }

@@ -1,0 +1,59 @@
+sudo wo site create new.grupopatense.com.br --html  --le --dns=dns_cf
+
+#### build  da aplicação
+# Ir para o diretório do projeto
+cd /var/www/new.grupopatense.com.br/htdocs
+
+# Instalar dependências (se necessário)
+npm install
+
+# Fazer o build
+npm run build
+
+# Verificar se deu certo
+ls -la dist/
+
+# Verificar se a pasta dist existe
+ls -la /var/www/new.grupopatense.com.br/htdocs/
+
+# Se não existir pasta dist, fazer o build
+cd /var/www/new.grupopatense.com.br/htdocs
+npm run build
+
+# Verificar se a pasta dist foi criada
+ls -la dist/
+
+
+#### Editar a configuração do Nginx:
+# Editar a configuração principal do site
+vim /etc/nginx/sites-enabled/new.grupopatense.com.br
+
+# Altere esta linha:
+root /var/www/new.grupopatense.com.br/htdocs;
+# Para:
+root /var/www/new.grupopatense.com.br/htdocs/dist;
+
+
+# Testar a configuração do Nginx
+nginx -t
+
+# Se o teste passou, recarregar o Nginx
+systemctl reload nginx
+
+# Verificar se o arquivo index.html existe na pasta dist
+cat /var/www/new.grupopatense.com.br/htdocs/dist/index.html
+
+# Verificar permissões
+chown -R www-data:www-data /var/www/new.grupopatense.com.br/htdocs/dist
+chmod -R 644 /var/www/new.grupopatense.com.br/htdocs/dist
+find /var/www/new.grupopatense.com.br/htdocs/dist -type d -exec chmod 755 {} \;
+
+
+
+###### Verificar logs em tempo real:
+# Em um terminal, monitore os logs
+tail -f /var/log/nginx/new.grupopatense.com.br.error.log
+
+# Em outro terminal, teste o site
+curl -I https://new.grupopatense.com.br
+

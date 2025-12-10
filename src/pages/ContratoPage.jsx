@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import api from '@/lib/api.js'
 import { Link } from 'react-router-dom'
+import { User, Lock } from 'lucide-react'
 
 function somenteNumeros(v = '') {
   return String(v).replace(/\D/g, '')
@@ -75,10 +76,23 @@ export default function ContratoPage() {
   return (
     <section className="section">
       <div className="container-max max-w-xl">
-        <h2 className="text-2xl font-bold mb-4">Contrato por CPF</h2>
+                <h2 className="text-2xl font-bold mb-1">2ª via de Boleto</h2>
+        <p
+          className="mb-4 text-sm"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          Consulte rapidamente segundas vias de boletos informando apenas o CPF do titular.
+        </p>
 
-        <form onSubmit={buscar} className="card p-5 flex flex-col gap-3" role="search" aria-label="Buscar contratos por CPF">
-          <label htmlFor="cpf" className="sr-only">CPF</label>
+        <form
+          onSubmit={buscar}
+          className="card p-5 flex flex-col gap-3"
+          role="search"
+          aria-label="Buscar contratos por CPF"
+        >
+          <label htmlFor="cpf" className="sr-only">
+            CPF
+          </label>
           <input
             id="cpf"
             className="input"
@@ -133,7 +147,10 @@ export default function ContratoPage() {
               const titular = c.nome ?? c.titularNome ?? '—'
               const plano = c.planoNome ?? c.plano?.nome ?? '—'
               const ativo = c.contratoAtivo ?? c.ativo ?? c.status === 'ATIVO'
-              const emAtraso = c.atrasado || c.emAtraso || (Number(c.parcelasEmAtraso || c.qtdParcelasAtraso || 0) > 0)
+              const emAtraso =
+                c.atrasado ||
+                c.emAtraso ||
+                (Number(c.parcelasEmAtraso || c.qtdParcelasAtraso || 0) > 0)
 
               return (
                 <div key={id} className="card p-5">
@@ -158,7 +175,10 @@ export default function ContratoPage() {
                     )}
                   </div>
 
-                  <div className="grid md:grid-cols-3 gap-4 mt-3 text-sm" style={{ color: 'var(--text)' }}>
+                  <div
+                    className="grid md:grid-cols-3 gap-4 mt-3 text-sm"
+                    style={{ color: 'var(--text)' }}
+                  >
                     <div>
                       Ativo: <strong>{boolPt(ativo)}</strong>
                     </div>
@@ -185,6 +205,62 @@ export default function ContratoPage() {
             })}
           </div>
         )}
+
+        {/* Separador + Área do Associado */}
+        <div className="mt-10">
+          <div className="flex items-center gap-3 mb-5">
+            <div
+              className="flex-1 h-px"
+              style={{ background: 'var(--c-border)' }}
+            />
+            <span
+              className="text-xs font-medium tracking-wide uppercase"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              ou acesse com login
+            </span>
+            <div
+              className="flex-1 h-px"
+              style={{ background: 'var(--c-border)' }}
+            />
+          </div>
+
+          <div
+            className="card p-5 flex flex-col gap-3"
+            style={{ background: 'var(--surface)', color: 'var(--text)' }}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full"
+                style={{
+                  background: 'color-mix(in srgb, var(--primary) 12%, transparent)',
+                  color: 'var(--primary)'
+                }}
+              >
+                <User size={20} />
+              </div>
+              <div>
+                <h3 className="font-semibold">Área do associado</h3>
+                <p
+                  className="text-sm mt-0.5"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Acesse seus contratos, dependentes, boletos, histórico e carteirinha digital com login e senha.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <Link
+                to="/area"
+                className="btn-primary w-full inline-flex items-center justify-center gap-2"
+              >
+                <Lock size={16} />
+                Entrar na área do associado
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   )

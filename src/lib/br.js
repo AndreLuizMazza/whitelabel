@@ -28,6 +28,8 @@ export function formatPhoneBR(v=""){
   if(d.length>=11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7,11)}`;
   return d;
 }
+export const maskPhoneBR = formatPhoneBR; // 👈 adiciona isto
+
 export const phoneIsValid = v => {
   const d=onlyDigits(v); return d.length===11 || d.length===10;
 };

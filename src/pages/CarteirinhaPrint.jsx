@@ -5,7 +5,7 @@ import CarteirinhaAssociado from '@/components/CarteirinhaAssociado'
 import useAuth from '@/store/auth'
 import useTenant from '@/store/tenant'
 import { getAvatarBlobUrl } from '@/lib/profile'
-
+import BackButton from "@/components/BackButton";
 /**
  * Navegação:
  *  - Nova aba direta:
@@ -141,7 +141,7 @@ export default function CarteirinhaPrint() {
   return (
     <div className="print-wrapper">
       <ScreenStyles />
-
+  
       {/* Cabeçalho apenas quando não for autoprint (desktop e mobile) */}
       {!autoprint && (
         <div className="no-print head-note">
@@ -154,8 +154,17 @@ export default function CarteirinhaPrint() {
               Preparando impressão{avatarUrl || tenantLogoUrl ? ' (carregando imagens)…' : '…'}
             </p>
           )}
+
+                <div className="mb-4 flex items-center justify-between">
+       <BackButton to="/carteirinha" className="mb-4" />
+      </div>
         </div>
+
+        
       )}
+
+                
+
 
       {/* MOBILE: barra superior sticky com o botão Imprimir (fica longe do CTA inferior) */}
       <div className="no-print mobile-printbar">
