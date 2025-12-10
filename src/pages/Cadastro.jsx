@@ -11,12 +11,9 @@ import { celcashCriarClienteContrato, celcashGerarCarneManual } from "@/lib/celc
 import {
   CheckCircle2,
   ChevronLeft,
-  AlertTriangle,
-  MessageCircle,
-  Plus,
-  Trash2,
   Info,
   Loader2,
+  MessageCircle,
 } from "lucide-react";
 
 import DateSelectBR from "@/components/DateSelectBR";
@@ -38,7 +35,6 @@ import {
 import {
   PARENTESCOS_FALLBACK,
   PARENTESCO_LABELS,
-  labelParentesco,
   ESTADO_CIVIL_OPTIONS,
   ESTADO_CIVIL_LABEL,
   SEXO_OPTIONS,
@@ -48,6 +44,13 @@ import {
 import { efetivacaoProxMesPorDiaD, ageFromDate } from "@/lib/dates";
 import { useDebouncedCallback } from "@/lib/hooks";
 import { useViaCep } from "@/lib/useViaCep";
+
+// Etapas (componentes)
+import StepDadosComplementares from "./cadastro/StepDadosComplementares";
+import StepEndereco from "./cadastro/StepEndereco";
+import StepDependentes from "./cadastro/StepDependentes";
+import StepCarne from "./cadastro/StepCarne";
+import StepConfirmacao from "./cadastro/StepConfirmacao";
 
 const isEmpty = (v) => !String(v || "").trim();
 const requiredRing = (cond) => (cond ? "ring-1 ring-red-500" : "");
@@ -88,7 +91,7 @@ function decodePayloadParam(p) {
       return JSON.parse(atob(p));
     } catch {
       try {
-        return JSON.parse(decodeURIComponent(p));
+        return JSON.parse(deURIComponent(p));
       } catch {
         return null;
       }
@@ -104,8 +107,20 @@ export default function Cadastro() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [submitAttempted, setSubmitAttempted] = useState(false);
+
+  // Etapas:
+  // 1 - Titular + dados complementares
+  // 2 - Endereço
+  // 3 - Dependentes
+  // 4 - Cobrança
+  // 5 - Confirmação
   const [currentStep, setCurrentStep] = useState(1);
-  const [stepAttempted, setStepAttempted] = useState({ 1: false, 2: false, 3: false });
+
+  const [stepAttempted, setStepAttempted] = useState({
+    complementares: false,
+    endereco: false,
+    dependentes: false,
+  });
 
   const alertRef = useRef(null);
   const sexoRef = useRef(null);
@@ -309,6 +324,8 @@ export default function Cadastro() {
           ? ativos.length > 0
             ? "Encontramos um contrato ativo vinculado ao seu CPF."
             : "Dados carregados a partir do CPF informado."
+          : suppressNoCadastroMessage
+          ? ""
           : "",
         erro: "",
       });
@@ -426,11 +443,18 @@ export default function Cadastro() {
 
   const updDepNovo = (i, patch) =>
     setDepsNovos((prev) => prev.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
-  const addDepNovo = () =>
-    setDepsNovos((prev) => [
-      ...prev,
-      { nome: "", cpf: "", sexo: "", parentesco: "", data_nascimento: "" },
-    ]);
+const addDepNovo = (initial = {}) =>
+  setDepsNovos((prev) => [
+    ...prev,
+    {
+      nome: "",
+      cpf: "",
+      sexo: "",
+      parentesco: "",
+      data_nascimento: "",
+      ...initial,
+    },
+  ]);
   const delDepNovo = (i) => setDepsNovos((prev) => prev.filter((_, idx) => idx !== i));
 
   const e = titular.endereco || {};
@@ -526,7 +550,7 @@ export default function Cadastro() {
     }
   }
 
-  function validateStep1() {
+  function validateDadosComplementares() {
     const okEstadoCivil = !isEmpty(titular.estado_civil);
     const okSexo = !isEmpty(titular.sexo);
     if (!okEstadoCivil) {
@@ -540,15 +564,17 @@ export default function Cadastro() {
     return true;
   }
 
-  function validateStep2() {
+  function validateEndereco() {
     const addr = titular.endereco || {};
     const errors = [];
-    if (!(cepDigits.length === 8) || cepState.error) errors.push("cep");
+    const _cepDigits = onlyDigits(addr.cep || "");
+    if (!(_cepDigits.length === 8) || cepState.error) errors.push("cep");
     if (!addr.logradouro?.trim()) errors.push("logradouro");
     if (!addr.numero?.trim()) errors.push("numero");
     if (!addr.bairro?.trim()) errors.push("bairro");
     if (!addr.cidade?.trim()) errors.push("cidade");
-    if (!(ufClean && ufClean.length === 2)) errors.push("uf");
+    const uf = (addr.uf || "").toUpperCase().slice(0, 2);
+    if (!(uf && uf.length === 2)) errors.push("uf");
     if (errors.length > 0) {
       focusByField(errors[0]);
       return false;
@@ -556,7 +582,7 @@ export default function Cadastro() {
     return true;
   }
 
-  function validateStep3() {
+  function validateDependentes() {
     if (!depsNovos.length) return true;
     const localErrors = [];
     depsNovos.forEach((d, i) => {
@@ -575,6 +601,8 @@ export default function Cadastro() {
   }
 
   const [errorList, setErrorList] = useState([]);
+  const errorCount = errorList.length;
+
   useEffect(() => {
     if (submitAttempted && errorList.length > 0) {
       setTimeout(() => {
@@ -593,7 +621,7 @@ export default function Cadastro() {
     debouncedCpfLookup(titular.cpf);
   }, [titular?.cpf]);
 
-    async function handleSalvarEnviar() {
+  async function handleSalvarEnviar() {
     setSubmitAttempted(true);
     setError("");
     const list = buildErrorList();
@@ -686,13 +714,10 @@ export default function Cadastro() {
         await celcashCriarClienteContrato(contratoId, {});
       } catch (err) {
         console.error("[Cadastro] Falha ao criar cliente/contrato na CelCash", err);
-        // aqui você pode, se quiser, setar um aviso para o usuário
-        // mas não vamos interromper o fluxo principal
       }
 
       // 5) Integração CelCash (carnê manual)
       try {
-        // Exemplo simples: 1 parcela com o valor da mensalidade, no dia de efetivação
         const carnePayload = {
           mainPaymentMethodId: "boleto",
           cobrancas: [
@@ -707,7 +732,6 @@ export default function Cadastro() {
         await celcashGerarCarneManual(contratoId, carnePayload);
       } catch (err) {
         console.error("[Cadastro] Falha ao gerar carnê manual na CelCash", err);
-        // idem: não vamos travar a navegação; a equipe pode tratar depois
       }
 
       // 6) Navega para a tela de confirmação
@@ -728,7 +752,6 @@ export default function Cadastro() {
       setSaving(false);
     }
   }
-
 
   function sexoLabelFromValue(v) {
     return SEXO_OPTIONS.find(([val]) => val === v)?.[1] || "";
@@ -792,9 +815,9 @@ export default function Cadastro() {
     if (!depsExistentes.length) L.push("(Nenhum)");
     depsExistentes.forEach((d, i) =>
       L.push(
-        `${i + 1}. ${d.nome} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(
-          d.sexo
-        )} - CPF: ${formatCPF(d.cpf || "") || "(não informado)"} - nasc.: ${
+        `${i + 1}. ${d.nome} - ${PARENTESCO_LABELS[d.parentesco] || d.parentesco || "—"} - ${
+          sexoLabelFromValue(d.sexo) || "—"
+        } - CPF: ${formatCPF(d.cpf || "") || "(não informado)"} - nasc.: ${
           d.data_nascimento || ""
         }`
       )
@@ -804,9 +827,9 @@ export default function Cadastro() {
     if (!depsNovos.length) L.push("(Nenhum)");
     depsNovos.forEach((d, i) =>
       L.push(
-        `${i + 1}. ${d.nome || "(sem nome)"} - ${labelParentesco(
-          d.parentesco
-        )} - ${sexoLabelFromValue(d.sexo)} - CPF: ${
+        `${i + 1}. ${d.nome || "(sem nome)"} - ${
+          PARENTESCO_LABELS[d.parentesco] || d.parentesco || "—"
+        } - ${sexoLabelFromValue(d.sexo) || "—"} - CPF: ${
           formatCPF(d.cpf || "") || "(não informado)"
         } - nasc.: ${d.data_nascimento || ""}`
       )
@@ -824,29 +847,48 @@ export default function Cadastro() {
   };
   const onCepBlur = (v) => fetchCEP(v, applyViaCepData);
 
-  const errorCount = errorList.length;
   const bloquearCadastro = lookupState.temContratoAtivo === true;
 
   const glassCardStyle = {
-    background: "color-mix(in srgb, var(--c-surface) 78%, transparent)",
-    borderColor: "color-mix(in srgb, var(--c-border) 72%, transparent)",
-    boxShadow: "0 24px 80px rgba(15,23,42,0.45)",
+    background: "color-mix(in srgb, var(--c-surface) 84%, transparent)",
+    borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
+    boxShadow: "0 22px 70px rgba(15,23,42,0.35)",
     backdropFilter: "blur(18px)",
   };
 
   const steps = [
-    { id: 1, label: "Dados complementares" },
+    { id: 1, label: "Dados do titular" },
     { id: 2, label: "Endereço" },
     { id: 3, label: "Dependentes" },
-    { id: 4, label: "Finalização" },
+    { id: 4, label: "Cobranças" },
+    { id: 5, label: "Confirmação" },
   ];
 
   const totalSteps = steps.length || 1;
   const progressPercent = Math.round((currentStep / totalSteps) * 100);
 
-  const canGoBack = currentStep > 1;
-  const goNext = () => setCurrentStep((s) => Math.min(4, s + 1));
-  const goPrev = () => setCurrentStep((s) => Math.max(1, s - 1));
+  const todayISO = new Date().toISOString().slice(0, 10);
+
+  const cobrancasPreview = useMemo(() => {
+    const list = [];
+    if (valorAdesaoPlano > 0) {
+      list.push({
+        id: "adesao",
+        tipo: "Taxa de adesão",
+        valor: valorAdesaoPlano,
+        dataVencimentoISO: todayISO,
+      });
+    }
+    list.push({
+      id: "mensal-1",
+      tipo: "1ª mensalidade",
+      valor: valorMensalidadePlano,
+      dataVencimentoISO: dataEfetivacaoISO,
+    });
+    return list;
+  }, [valorAdesaoPlano, valorMensalidadePlano, dataEfetivacaoISO, todayISO]);
+
+  // === Render principal ===
 
   return (
     <section className="section">
@@ -925,7 +967,7 @@ export default function Cadastro() {
         {!bloquearCadastro && (
           <div className="mb-5">
             <ol
-              className="flex flex-wrap gap-2 rounded-3xl border px-2 py-2 shadow-[0_22px_80px_rgba(15,23,42,0.55)] backdrop-blur-xl"
+              className="flex flex-wrap gap-2 rounded-3xl border px-2 py-2 shadow-[0_22px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl"
               style={{
                 background: "color-mix(in srgb, var(--c-surface) 78%, transparent)",
                 borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
@@ -939,7 +981,7 @@ export default function Cadastro() {
                     <button
                       type="button"
                       onClick={() => {
-                        if (completed || active) setCurrentStep(step.id);
+                        if (step.id <= currentStep) setCurrentStep(step.id);
                       }}
                       className={`flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-xs md:text-sm transition-all ${
                         active
@@ -992,6 +1034,7 @@ export default function Cadastro() {
           </div>
         )}
 
+        {/* Cabeçalho + dados do titular (resumo sereno, estilo registro/login) */}
         <div className="rounded-3xl p-6 md:p-7 space-y-6" style={glassCardStyle}>
           <div className="flex flex-col gap-2">
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight">
@@ -1006,6 +1049,10 @@ export default function Cadastro() {
               Base mensal
               <span className="font-semibold">{money(baseMensal)}</span>
             </p>
+            <p className="text-xs md:text-sm text-[var(--c-muted)]/90">
+              Revise seus dados abaixo e avance com calma pelas etapas. Você poderá conferir o
+              resumo financeiro antes de concluir.
+            </p>
           </div>
 
           <details className="group open:pb-2" open>
@@ -1017,7 +1064,7 @@ export default function Cadastro() {
                   </span>
                 }
               >
-                Dados do titular
+                Dados do titular (resumo)
               </SectionTitle>
             </summary>
 
@@ -1033,829 +1080,112 @@ export default function Cadastro() {
               </div>
             </div>
           </details>
-
-          {!bloquearCadastro && currentStep === 1 && (
-            <div className="border-t border-[color-mix(in srgb,var(--c-border) 65%,transparent)] pt-5">
-              <SectionTitle>Dados complementares</SectionTitle>
-
-              <div className="mt-3 grid gap-3 grid-cols-2 md:grid-cols-12">
-                <div className="md:col-span-6">
-                  <label className="label text-xs font-medium" htmlFor="titular-ec">
-                    Estado civil {requiredStar}
-                  </label>
-                  <select
-                    id="titular-ec"
-                    ref={ecRef}
-                    className={`input h-11 w-full text-sm ${requiredRing(
-                      (stepAttempted[1] || submitAttempted) && isEmpty(titular.estado_civil)
-                    )}`}
-                    value={titular.estado_civil}
-                    onChange={(e) => updTit({ estado_civil: e.target.value })}
-                    aria-required="true"
-                    aria-invalid={
-                      (stepAttempted[1] || submitAttempted) && isEmpty(titular.estado_civil)
-                        ? "true"
-                        : "false"
-                    }
-                  >
-                    <option value="">Selecione…</option>
-                    {ESTADO_CIVIL_OPTIONS.map(([v, l]) => (
-                      <option key={v} value={v}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
-                  {(stepAttempted[1] || submitAttempted) && isEmpty(titular.estado_civil) && (
-                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                      Selecione o estado civil.
-                    </p>
-                  )}
-                </div>
-
-                <div className="md:col-span-6">
-                  <label className="label text-xs font-medium" htmlFor="titular-sexo">
-                    Sexo {requiredStar}
-                  </label>
-                  <select
-                    id="titular-sexo"
-                    ref={sexoRef}
-                    className={`input h-11 w-full text-sm ${requiredRing(
-                      (stepAttempted[1] || submitAttempted) && isEmpty(titular.sexo)
-                    )}`}
-                    value={titular.sexo}
-                    onChange={(e) => updTit({ sexo: e.target.value })}
-                    aria-required="true"
-                    aria-invalid={
-                      (stepAttempted[1] || submitAttempted) && isEmpty(titular.sexo)
-                        ? "true"
-                        : "false"
-                    }
-                  >
-                    <option value="">Selecione…</option>
-                    {SEXO_OPTIONS.map(([v, l]) => (
-                      <option key={v} value={v}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
-                  {(stepAttempted[1] || submitAttempted) && isEmpty(titular.sexo) && (
-                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                      Selecione o sexo.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-5 flex justify-end">
-                <CTAButton
-                  type="button"
-                  className="h-11 px-6"
-                  onClick={() => {
-                    setStepAttempted((prev) => ({ ...prev, 1: true }));
-                    if (validateStep1()) {
-                      setCurrentStep(2);
-                    }
-                  }}
-                >
-                  Continuar
-                </CTAButton>
-              </div>
-            </div>
-          )}
         </div>
 
-        {!bloquearCadastro && currentStep === 2 && (
-          <div className="mt-6 rounded-3xl p-6 md:p-7 space-y-4" style={glassCardStyle}>
-            <SectionTitle>Endereço</SectionTitle>
-
-            <div className="mt-3 space-y-3">
-              <div>
-                <div className="flex items-center justify-between gap-3">
-                  <label className="label text-xs font-medium" htmlFor="end-cep">
-                    CEP {requiredStar}
-                  </label>
-                  <button
-                    type="button"
-                    className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)] hover:opacity-80 disabled:opacity-40"
-                    onClick={() => fetchCEP(titular.endereco.cep, applyViaCepData)}
-                    disabled={cepState.loading || onlyDigits(titular.endereco.cep).length !== 8}
-                    aria-label="Buscar endereço pelo CEP"
-                  >
-                    {cepState.loading ? "Buscando…" : "Buscar CEP"}
-                  </button>
-                </div>
-                <input
-                  id="end-cep"
-                  ref={cepRef}
-                  className={`input h-11 text-sm ${
-                    requiredRing(
-                      (stepAttempted[2] || submitAttempted) &&
-                        onlyDigits(titular.endereco.cep || "").length !== 8
-                    ) || (cepState.error ? " ring-1 ring-red-500" : "")
-                  }`}
-                  inputMode="numeric"
-                  maxLength={9}
-                  value={formatCEP(titular.endereco.cep)}
-                  onChange={(e) => {
-                    const v = maskCEP(e.target.value);
-                    onCepChange(v);
-                  }}
-                  onBlur={(e) => onCepBlur(e.target.value)}
-                  placeholder="00000-000"
-                  autoComplete="postal-code"
-                  aria-required="true"
-                  aria-invalid={
-                    ((stepAttempted[2] || submitAttempted) &&
-                      onlyDigits(titular.endereco.cep || "").length !== 8) ||
-                    !!cepState.error
-                      ? "true"
-                      : "false"
-                  }
-                  aria-describedby={cepState.error ? "cep-error" : undefined}
-                />
-                {(stepAttempted[2] || submitAttempted) &&
-                  onlyDigits(titular.endereco.cep || "").length !== 8 &&
-                  !cepState.error && (
-                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                      CEP deve ter 8 dígitos.
-                    </p>
-                  )}
-                {cepState.error && (
-                  <p
-                    id="cep-error"
-                    className="text-xs text-red-600 mt-1"
-                    role="alert"
-                    aria-live="polite"
-                  >
-                    {cepState.error}
-                  </p>
-                )}
-                {!cepState.error && cepState.found && (
-                  <p className="text-xs text-green-700 mt-1" aria-live="polite">
-                    Endereço preenchido pelo CEP.
-                  </p>
-                )}
-              </div>
-
-              <div className="grid gap-3 grid-cols-[minmax(0,2.2fr),minmax(0,1fr)] md:grid-cols-[minmax(0,3fr),minmax(0,1fr)]">
-                <div>
-                  <label className="label text-xs font-medium" htmlFor="end-log">
-                    Logradouro {requiredStar}
-                  </label>
-                  <input
-                    id="end-log"
-                    ref={logRef}
-                    className={`input h-11 text-sm ${requiredRing(
-                      (stepAttempted[2] || submitAttempted) &&
-                        isEmpty(titular.endereco.logradouro)
-                    )}`}
-                    value={titular.endereco.logradouro}
-                    onChange={(e) => {
-                      setAddrTouched({ logradouro: true });
-                      updTitEndereco({ logradouro: e.target.value });
-                    }}
-                    autoComplete="address-line1"
-                    aria-required="true"
-                    aria-invalid={
-                      (stepAttempted[2] || submitAttempted) &&
-                      isEmpty(titular.endereco.logradouro)
-                        ? "true"
-                        : "false"
-                    }
-                    disabled={cepState.loading}
-                  />
-                  {(stepAttempted[2] || submitAttempted) &&
-                    isEmpty(titular.endereco.logradouro) && (
-                      <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                        Informe o logradouro.
-                      </p>
-                    )}
-                </div>
-                <div>
-                  <label className="label text-xs font-medium" htmlFor="end-num">
-                    Número {requiredStar}
-                  </label>
-                  <input
-                    id="end-num"
-                    ref={numRef}
-                    className={`input h-11 text-sm ${requiredRing(
-                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.numero)
-                    )}`}
-                    value={titular.endereco.numero}
-                    onChange={(e) => updTitEndereco({ numero: e.target.value })}
-                    autoComplete="address-line2"
-                    aria-required="true"
-                    aria-invalid={
-                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.numero)
-                        ? "true"
-                        : "false"
-                    }
-                    disabled={cepState.loading}
-                  />
-                  {(stepAttempted[2] || submitAttempted) &&
-                    isEmpty(titular.endereco.numero) && (
-                      <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                        Informe o número.
-                      </p>
-                    )}
-                </div>
-              </div>
-
-              <div>
-                <label className="label text-xs font-medium" htmlFor="end-comp">
-                  Complemento
-                </label>
-                <input
-                  id="end-comp"
-                  className="input h-11 text-sm"
-                  value={titular.endereco.complemento}
-                  onChange={(e) => updTitEndereco({ complemento: e.target.value })}
-                  disabled={cepState.loading}
-                />
-              </div>
-
-              <div>
-                <label className="label text-xs font-medium" htmlFor="end-bairro">
-                  Bairro {requiredStar}
-                </label>
-                <input
-                  id="end-bairro"
-                  ref={bairroRef}
-                  className={`input h-11 text-sm ${requiredRing(
-                    (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.bairro)
-                  )}`}
-                  value={titular.endereco.bairro}
-                  onChange={(e) => {
-                    setAddrTouched({ bairro: true });
-                    updTitEndereco({ bairro: e.target.value });
-                  }}
-                  aria-required="true"
-                  aria-invalid={
-                    (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.bairro)
-                      ? "true"
-                      : "false"
-                  }
-                  disabled={cepState.loading}
-                />
-                {(stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.bairro) && (
-                  <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                    Informe o bairro.
-                  </p>
-                )}
-              </div>
-
-              <div className="grid gap-3 grid-cols-[minmax(0,3fr),80px] md:grid-cols-[minmax(0,3fr),120px]">
-                <div>
-                  <label className="label text-xs font-medium" htmlFor="end-cidade">
-                    Cidade {requiredStar}
-                  </label>
-                  <input
-                    id="end-cidade"
-                    ref={cidadeRef}
-                    className={`input h-11 text-sm ${requiredRing(
-                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.cidade)
-                    )}`}
-                    value={titular.endereco.cidade}
-                    onChange={(e) => {
-                      setAddrTouched({ cidade: true });
-                      const cidade = e.target.value;
-                      const uf = titular.endereco.uf || UF_PADRAO || "";
-                      updTitEndereco({ cidade, uf });
-                    }}
-                    autoComplete="address-level2"
-                    aria-required="true"
-                    aria-invalid={
-                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.cidade)
-                        ? "true"
-                        : "false"
-                    }
-                    disabled={cepState.loading}
-                  />
-                  {(stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.cidade) && (
-                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                      Informe a cidade.
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="label text-xs font-medium" htmlFor="end-uf">
-                    UF {requiredStar}
-                  </label>
-                  <input
-                    id="end-uf"
-                    ref={ufRef}
-                    className={`input h-11 text-sm ${requiredRing(
-                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.uf)
-                    )}`}
-                    value={titular.endereco.uf}
-                    onChange={(e) => {
-                      setAddrTouched({ uf: true });
-                      const v = sanitizeUF(e.target.value);
-                      updTitEndereco({ uf: v });
-                    }}
-                    maxLength={2}
-                    autoComplete="address-level1"
-                    aria-required="true"
-                    aria-invalid={
-                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.uf)
-                        ? "true"
-                        : "false"
-                    }
-                    disabled={cepState.loading}
-                  />
-                  {(stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.uf) && (
-                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                      Informe a UF.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 flex justify-between gap-3">
-              <CTAButton type="button" variant="outline" className="h-11 px-5" onClick={goPrev}>
-                Voltar
-              </CTAButton>
-              <CTAButton
-                type="button"
-                className="h-11 px-6"
-                onClick={() => {
-                  setStepAttempted((prev) => ({ ...prev, 2: true }));
-                  if (validateStep2()) {
-                    setCurrentStep(3);
-                  }
-                }}
-              >
-                Continuar
-              </CTAButton>
-            </div>
-          </div>
-        )}
-
-        {!bloquearCadastro && currentStep === 3 && (
+        {/* Etapas */}
+        {!bloquearCadastro && (
           <>
-            {depsExistentes.length > 0 && (
-              <details
-                className="mt-6 rounded-3xl border px-6 py-5 md:px-7 md:py-6 backdrop-blur-xl"
-                style={glassCardStyle}
-                open
-              >
-                <summary className="cursor-pointer list-none">
-                  <SectionTitle>Dependentes existentes (somente leitura)</SectionTitle>
-                </summary>
-                <div className="mt-4 grid gap-3">
-                  {depsExistentes.map((d, i) => (
-                    <div
-                      key={d.id || i}
-                      className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/90 p-3 grid md:grid-cols-12 gap-3 shadow-sm"
-                    >
-                      <div className="md:col-span-4">
-                        <p className="text-[11px] text-[var(--c-muted)]">Nome</p>
-                        <p className="font-medium break-words text-[13px]">{d.nome}</p>
-                      </div>
-                      <div className="md:col-span-2">
-                        <p className="text-[11px] text-[var(--c-muted)]">CPF</p>
-                        <p className="font-medium text-[13px]">{formatCPF(d.cpf || "") || "—"}</p>
-                      </div>
-                      <div className="md:col-span-2">
-                        <p className="text-[11px] text-[var(--c-muted)]">Parentesco</p>
-                        <p className="font-medium text-[13px]">
-                          {PARENTESCO_LABELS[d.parentesco] || d.parentesco || "—"}
-                        </p>
-                      </div>
-                      <div className="md:col-span-2">
-                        <p className="text-[11px] text-[var(--c-muted)]">Sexo</p>
-                        <p className="font-medium text-[13px]">
-                          {sexoLabelFromValue(d.sexo) || "—"}
-                        </p>
-                      </div>
-                      <div className="md:col-span-2">
-                        <p className="text-[11px] text-[var(--c-muted)]">Nascimento</p>
-                        <p className="font-medium text-[13px]">
-                          {formatDateBR(d.data_nascimento) || "—"}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </details>
+            {currentStep === 1 && (
+              <StepDadosComplementares
+                glassCardStyle={glassCardStyle}
+                titular={titular}
+                updTit={updTit}
+                stepAttempted={stepAttempted}
+                submitAttempted={submitAttempted}
+                setStepAttempted={setStepAttempted}
+                validateDadosComplementares={validateDadosComplementares}
+                onBack={null}
+                onNext={() => setCurrentStep(2)}
+                ecRef={ecRef}
+                sexoRef={sexoRef}
+              />
             )}
 
-            <div className="mt-6 rounded-3xl p-6 md:p-7" style={glassCardStyle}>
-              <SectionTitle
-                right={
-                  <CTAButton onClick={addDepNovo} className="h-10">
-                    <Plus size={16} className="mr-2" />
-                    Adicionar dependente
-                  </CTAButton>
-                }
-              >
-                Novos dependentes ({depsNovos.length})
-              </SectionTitle>
+            {currentStep === 2 && (
+              <StepEndereco
+                glassCardStyle={glassCardStyle}
+                titular={titular}
+                updTitEndereco={updTitEndereco}
+                addressTouched={addressTouched}
+                setAddrTouched={setAddrTouched}
+                cepState={cepState}
+                onCepChange={onCepChange}
+                onCepBlur={onCepBlur}
+                stepAttempted={stepAttempted}
+                submitAttempted={submitAttempted}
+                setStepAttempted={setStepAttempted}
+                validateEndereco={validateEndereco}
+                setCurrentStep={setCurrentStep}
+                cepRef={cepRef}
+                logRef={logRef}
+                numRef={numRef}
+                bairroRef={bairroRef}
+                cidadeRef={cidadeRef}
+                ufRef={ufRef}
+                UF_PADRAO={UF_PADRAO}
+              />
+            )}
 
-              <div className="mt-4 grid gap-4">
-                {depsNovos.map((d, i) => {
-                  const issue = depsIssuesNovos[i];
-                  return (
-                    <div
-                      key={i}
-                      className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/95 p-4 shadow-md"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="inline-flex items-center gap-2 text-sm font-semibold">
-                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[var(--c-border)] text-[11px]">
-                            {i + 1}
-                          </span>
-                          Dependente novo
-                        </span>
-                        <CTAButton
-                          variant="ghost"
-                          onClick={() => delDepNovo(i)}
-                          className="h-9 px-3"
-                          aria-label={`Remover dependente novo ${i + 1}`}
-                        >
-                          <Trash2 size={16} className="mr-2" /> Remover
-                        </CTAButton>
-                      </div>
+            {currentStep === 3 && (
+              <StepDependentes
+                glassCardStyle={glassCardStyle}
+                depsExistentes={depsExistentes}
+                depsNovos={depsNovos}
+                depsIssuesNovos={depsIssuesNovos}
+                addDepNovo={addDepNovo}
+                delDepNovo={delDepNovo}
+                updDepNovo={updDepNovo}
+                countDepsFora={countDepsFora}
+                idadeMinDep={idadeMinDep}
+                idadeMaxDep={idadeMaxDep}
+                plano={plano}
+                stepAttempted={stepAttempted}
+                submitAttempted={submitAttempted}
+                setStepAttempted={setStepAttempted}
+                validateDependentes={validateDependentes}
+                setCurrentStep={setCurrentStep}
+              />
+            )}
 
-                      <div className="grid gap-3 md:grid-cols-12">
-                        <div className="md:col-span-6">
-                          <label className="label text-xs font-medium" htmlFor={`depN-${i}-nome`}>
-                            Nome completo {requiredStar}
-                          </label>
-                          <input
-                            id={`depN-${i}-nome`}
-                            className={`input h-11 w-full text-sm ${requiredRing(
-                              (stepAttempted[3] || submitAttempted) &&
-                                !((d.nome || "").trim().length >= 3)
-                            )}`}
-                            placeholder="Nome do dependente"
-                            value={d.nome}
-                            onChange={(e) => updDepNovo(i, { nome: e.target.value })}
-                            aria-required="true"
-                            aria-invalid={
-                              (stepAttempted[3] || submitAttempted) &&
-                              !((d.nome || "").trim().length >= 3)
-                                ? "true"
-                                : "false"
-                            }
-                          />
-                          {(stepAttempted[3] || submitAttempted) &&
-                            !((d.nome || "").trim().length >= 3) && (
-                              <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                                Informe o nome (mín. 3 caracteres).
-                              </p>
-                            )}
-                        </div>
-                        <div className="md:col-span-3">
-                          <label
-                            className="label text-xs font-medium"
-                            htmlFor={`depN-${i}-parentesco`}
-                          >
-                            Parentesco {requiredStar}
-                          </label>
-                          <select
-                            id={`depN-${i}-parentesco`}
-                            className={`input h-11 w-full text-sm ${requiredRing(
-                              (stepAttempted[3] || submitAttempted) && isEmpty(d.parentesco)
-                            )}`}
-                            value={d.parentesco}
-                            onChange={(e) => updDepNovo(i, { parentesco: e.target.value })}
-                            aria-required="true"
-                            aria-invalid={
-                              (stepAttempted[3] || submitAttempted) && isEmpty(d.parentesco)
-                                ? "true"
-                                : "false"
-                            }
-                          >
-                            <option value="">Selecione…</option>
-                            {(plano?.parentescos?.length
-                              ? plano.parentescos
-                              : PARENTESCOS_FALLBACK.map(([v]) => v)
-                            ).map((v) => (
-                              <option key={v} value={v}>
-                                {PARENTESCO_LABELS[v] || v}
-                              </option>
-                            ))}
-                          </select>
-                          {(stepAttempted[3] || submitAttempted) && isEmpty(d.parentesco) && (
-                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                              Selecione o parentesco.
-                            </p>
-                          )}
-                        </div>
-                        <div className="md:col-span-3">
-                          <label className="label text-xs font-medium" htmlFor={`depN-${i}-sexo`}>
-                            Sexo {requiredStar}
-                          </label>
-                          <select
-                            id={`depN-${i}-sexo`}
-                            className={`input h-11 w-full text-sm ${requiredRing(
-                              (stepAttempted[3] || submitAttempted) && isEmpty(d.sexo)
-                            )}`}
-                            value={d.sexo || ""}
-                            onChange={(e) => updDepNovo(i, { sexo: e.target.value })}
-                            aria-required="true"
-                            aria-invalid={
-                              (stepAttempted[3] || submitAttempted) && isEmpty(d.sexo)
-                                ? "true"
-                                : "false"
-                            }
-                          >
-                            <option value="">Selecione…</option>
-                            {SEXO_OPTIONS.map(([v, l]) => (
-                              <option key={v} value={v}>
-                                {l}
-                              </option>
-                            ))}
-                          </select>
-                          {(stepAttempted[3] || submitAttempted) && isEmpty(d.sexo) && (
-                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                              Selecione o sexo.
-                            </p>
-                          )}
-                        </div>
-                      </div>
+            {currentStep === 4 && (
+              <StepCarne
+                glassCardStyle={glassCardStyle}
+                diaDSelecionado={diaDSelecionado}
+                setDiaDSelecionado={setDiaDSelecionado}
+                dataEfetivacaoISO={dataEfetivacaoISO}
+                valorMensalidadePlano={valorMensalidadePlano}
+                cobrancasPreview={cobrancasPreview}
+                onBack={() => setCurrentStep(3)}
+                onNext={() => setCurrentStep(5)}
+              />
+            )}
 
-                      <div className="grid gap-3 md:grid-cols-12 mt-2">
-                        <div className="md:col-span-6">
-                          <label className="label text-xs font-medium" htmlFor={`depN-${i}-cpf`}>
-                            CPF (opcional)
-                          </label>
-                          <input
-                            id={`depN-${i}-cpf`}
-                            className={`input h-11 w-full text-sm ${
-                              d.cpf && !cpfIsValid(d.cpf) ? "ring-1 ring-red-500" : ""
-                            }`}
-                            inputMode="numeric"
-                            maxLength={14}
-                            placeholder="000.000.000-00"
-                            value={formatCPF(d.cpf || "")}
-                            onChange={(e) => updDepNovo(i, { cpf: maskCPF(e.target.value) })}
-                            aria-invalid={d.cpf && !cpfIsValid(d.cpf) ? "true" : "false"}
-                          />
-                          {d.cpf && !cpfIsValid(d.cpf) && (
-                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                              CPF inválido.
-                            </p>
-                          )}
-                        </div>
-                        <div className="md:col-span-6">
-                          <label className="label text-xs font-medium">
-                            Data de nascimento {requiredStar}
-                          </label>
-                          <DateSelectBR
-                            className="w-full"
-                            idPrefix={`depN-${i}-nasc`}
-                            valueISO={d.data_nascimento}
-                            onChangeISO={(iso) => updDepNovo(i, { data_nascimento: iso })}
-                            invalid={Boolean(
-                              (stepAttempted[3] || submitAttempted) &&
-                                (!d.data_nascimento || issue?.fora)
-                            )}
-                            minAge={
-                              Number.isFinite(idadeMinDep) ? Number(idadeMinDep) : undefined
-                            }
-                            maxAge={
-                              Number.isFinite(idadeMaxDep) ? Number(idadeMaxDep) : undefined
-                            }
-                          />
-                          {(stepAttempted[3] || submitAttempted) && !d.data_nascimento && (
-                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                              Informe a data de nascimento.
-                            </p>
-                          )}
-                          {(stepAttempted[3] || submitAttempted) &&
-                            d.data_nascimento &&
-                            issue?.fora && (
-                              <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                                Data fora do limite etário do plano.
-                              </p>
-                            )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {countDepsFora > 0 && (
-                <p
-                  className="mt-2 text-xs inline-flex items-center gap-1 text-red-600"
-                  role="alert"
-                  aria-live="polite"
-                >
-                  <AlertTriangle size={14} /> {countDepsFora} dependente(s) fora do limite etário do
-                  plano.
-                </p>
-              )}
-
-              <div className="mt-6 flex justify-between gap-3">
-                <CTAButton type="button" variant="outline" className="h-11 px-5" onClick={goPrev}>
-                  Voltar
-                </CTAButton>
-                <CTAButton
-                  type="button"
-                  className="h-11 px-6"
-                  onClick={() => {
-                    setStepAttempted((prev) => ({ ...prev, 3: true }));
-                    if (validateStep3()) {
-                      setCurrentStep(4);
-                    }
-                  }}
-                >
-                  Continuar
-                </CTAButton>
-              </div>
-            </div>
-          </>
-        )}
-
-        {!bloquearCadastro && currentStep === 4 && (
-          <>
-            <div className="mt-6 rounded-3xl p-6 md:p-7" style={glassCardStyle}>
-              <SectionTitle>Cobrança</SectionTitle>
-              <div className="mt-3 grid gap-3 md:grid-cols-3 items-stretch">
-                <div className="md:col-span-1">
-                  <label className="label text-xs font-medium" htmlFor="diaD">
-                    Dia D (vencimento)
-                  </label>
-                  <select
-                    id="diaD"
-                    className="input h-11 w-full text-sm"
-                    value={diaDSelecionado}
-                    onChange={(e) => setDiaDSelecionado(Number(e.target.value))}
-                  >
-                    {DIA_D_OPTIONS.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-[var(--c-muted)] mt-1">
-                    A primeira cobrança ocorre na <b>data de efetivação</b> abaixo (próximo mês).
-                  </p>
-                </div>
-                <div className="md:col-span-2 grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/95 p-3 shadow-sm">
-                    <p className="text-[11px] text-[var(--c-muted)]">Data de efetivação</p>
-                    <p className="font-medium text-[14px] mt-1">{formatDateBR(dataEfetivacaoISO)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/95 p-3 shadow-sm">
-                    <p className="text-[11px] text-[var(--c-muted)]">Mensalidade</p>
-                    <p className="font-medium text-[14px] mt-1">
-                      {money(valorMensalidadePlano)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-              className="mt-6 p-6 md:p-7 rounded-3xl border backdrop-blur-xl shadow-[0_26px_90px_rgba(15,23,42,0.5)]"
-              style={{
-                background: "color-mix(in srgb, var(--c-surface) 80%, transparent)",
-                borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
-              }}
-            >
-              <SectionTitle>Resumo financeiro</SectionTitle>
-              <div className="mt-3 space-y-2 text-sm">
-                <div className="flex justify-between gap-3">
-                  <span className="text-[var(--c-muted)]">Plano</span>
-                  <span className="font-medium text-right">{plano?.nome}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-[var(--c-muted)]">Base mensal</span>
-                  <span>{money(baseMensal)}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-[var(--c-muted)]">
-                    Dependentes incluídos no plano
-                  </span>
-                  <span>{numDepsIncl}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-[var(--c-muted)]">
-                    Dependentes adicionais (
-                    {Math.max(0, depsExistentes.length + depsNovos.length - numDepsIncl)}) ×{" "}
-                    {money(valorIncMensal)}
-                  </span>
-                  <span>
-                    {money(
-                      Math.max(
-                        0,
-                        depsExistentes.length + depsNovos.length - numDepsIncl
-                      ) * valorIncMensal
-                    )}
-                  </span>
-                </div>
-
-                <div className="flex justify-between gap-3">
-                  <span className="text-[var(--c-muted)]">Adesão (única)</span>
-                  <span>{money(valorAdesaoPlano)}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-[var(--c-muted)]">Dia D</span>
-                  <span>{diaDSelecionado}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-[var(--c-muted)]">Efetivação</span>
-                  <span className="font-medium">{formatDateBR(dataEfetivacaoISO)}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-[var(--c-muted)]">Mensalidade</span>
-                  <span>{money(valorMensalidadePlano)}</span>
-                </div>
-
-                <hr className="my-2 border-[color-mix(in srgb,var(--c-border) 70%,transparent)]" />
-
-                <div className="flex justify-between items-baseline gap-3">
-                  <span className="font-semibold text-[15px]">Total mensal</span>
-                  <span className="text-[color:var(--primary)] font-extrabold text-lg md:text-xl">
-                    {money(totalMensal)}
-                  </span>
-                </div>
-                {cupom ? (
-                  <div className="flex justify-between gap-3">
-                    <span className="text-[var(--c-muted)]">Cupom aplicado</span>
-                    <span className="font-medium">{cupom}</span>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="mt-6 mb-6 rounded-3xl p-6 md:p-7" style={glassCardStyle}>
-              {submitAttempted && errorList.length > 0 && (
-                <div
-                  className="rounded-2xl px-4 py-3 text-sm mb-4 backdrop-blur-md"
-                  style={{
-                    border: "1px solid color-mix(in srgb, var(--primary) 40%, transparent)",
-                    background: "color-mix(in srgb, var(--c-surface) 80%, transparent)",
-                    color: "var(--text)",
-                  }}
-                  role="alert"
-                  aria-live="assertive"
-                  ref={alertRef}
-                  tabIndex={-1}
-                >
-                  <p className="font-semibold mb-1">
-                    Revise os campos antes de continuar ({errorCount}):
-                  </p>
-                  <ul className="list-disc ml-5 space-y-1">
-                    {errorList.map((it, idx) => (
-                      <li key={idx}>
-                        <button
-                          type="button"
-                          className="underline hover:opacity-80"
-                          onClick={() => focusByField(it.field)}
-                        >
-                          {it.label}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <div className="mb-4 flex justify-start">
-                {canGoBack && (
-                  <button
-                    type="button"
-                    onClick={goPrev}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-[var(--c-muted)] hover:text-[var(--text)]"
-                  >
-                    <ChevronLeft size={14} />
-                    Voltar para dependentes
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <CTAButton
-                  type="button"
-                  onClick={handleSalvarEnviar}
-                  disabled={saving}
-                  className="h-12 w-full text-[15px] font-semibold"
-                  aria-disabled={saving ? "true" : "false"}
-                  title="Concluir contratação"
-                >
-                  {saving ? "Enviando…" : "Concluir contratação"}
-                </CTAButton>
-
-                <CTAButton
-                  variant="outline"
-                  onClick={sendWhatsFallback}
-                  className="h-12 w-full text-[15px] font-semibold"
-                  title="Enviar cadastro por WhatsApp"
-                >
-                  <MessageCircle size={16} className="mr-2" /> Enviar por WhatsApp
-                </CTAButton>
-              </div>
-
-              <p className="mt-3 text-[11px] text-[var(--c-muted)] inline-flex items-center gap-1">
-                <CheckCircle2 size={14} /> Seus dados não são gravados neste dispositivo.
-              </p>
-            </div>
+            {currentStep === 5 && (
+              <StepConfirmacao
+                glassCardStyle={glassCardStyle}
+                submitAttempted={submitAttempted}
+                errorList={errorList}
+                errorCount={errorCount}
+                alertRef={alertRef}
+                focusByField={focusByField}
+                plano={plano}
+                baseMensal={baseMensal}
+                numDepsIncl={numDepsIncl}
+                depsExistentes={depsExistentes}
+                depsNovos={depsNovos}
+                valorIncMensal={valorIncMensal}
+                valorAdesaoPlano={valorAdesaoPlano}
+                diaDSelecionado={diaDSelecionado}
+                dataEfetivacaoISO={dataEfetivacaoISO}
+                valorMensalidadePlano={valorMensalidadePlano}
+                totalMensal={totalMensal}
+                cupom={cupom}
+                handleSalvarEnviar={handleSalvarEnviar}
+                saving={saving}
+                sendWhatsFallback={sendWhatsFallback}
+                onBack={() => setCurrentStep(4)}
+              />
+            )}
           </>
         )}
       </div>
