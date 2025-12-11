@@ -73,7 +73,7 @@ export default function StepDependentes({
     [plano]
   );
 
-  // ===== Validação local do formulário =====
+  // ===== Validação local do formulário (apenas o draft atual) =====
   function validateDraft() {
     const errors = {};
 
@@ -90,10 +90,20 @@ export default function StepDependentes({
     if (!draft.data_nascimento) {
       errors.data_nascimento = "Informe a data de nascimento.";
     } else {
-      const idx = editingIndex ?? 0;
-      const issue = depsIssuesNovos[idx]; // usamos limites etários
-      if (issue?.fora) {
-        errors.data_nascimento = "Data fora do limite etário do plano.";
+      const idade = ageFromDate(draft.data_nascimento);
+      if (
+        Number.isFinite(idadeMinDep) &&
+        idade != null &&
+        idade < Number(idadeMinDep)
+      ) {
+        errors.data_nascimento = "Data fora do limite mínimo de idade do plano.";
+      }
+      if (
+        Number.isFinite(idadeMaxDep) &&
+        idade != null &&
+        idade > Number(idadeMaxDep)
+      ) {
+        errors.data_nascimento = "Data fora do limite máximo de idade do plano.";
       }
     }
 
@@ -158,7 +168,6 @@ export default function StepDependentes({
     cancelForm(); // limpa modo de formulário
 
     if (goNext) {
-      // validar etapa e ir para a PRÓXIMA (Cobranças = etapa 4)
       setStepAttempted((prev) => ({ ...prev, dependentes: true }));
       if (validateDependentes()) {
         setCurrentStep(4);
@@ -177,8 +186,7 @@ export default function StepDependentes({
     }
     setStepAttempted((prev) => ({ ...prev, dependentes: true }));
     if (validateDependentes()) {
-      // Dependentes -> próxima etapa = 4 (Cobranças)
-      setCurrentStep(4);
+      setCurrentStep(4); // Etapa 4 – Cobranças
     }
   }
 
@@ -193,7 +201,7 @@ export default function StepDependentes({
           open
         >
           <summary className="cursor-pointer list-none">
-            <SectionTitle>Dependentes existentes (somente leitura)</SectionTitle>
+            <SectionTitle>Dependentes já cadastrados</SectionTitle>
           </summary>
           <div className="mt-4 space-y-2">
             {depsExistentes.map((d, i) => {
@@ -208,11 +216,11 @@ export default function StepDependentes({
                   key={d.id || i}
                   className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/90 px-3 py-2 shadow-sm flex items-center justify-between gap-3"
                 >
-                  <div className="flex flex-col">
+                  <div className="flex flex-col min-w-0">
                     <span className="text-[10px] font-semibold tracking-[0.16em] uppercase text-[var(--c-muted)]">
                       DEPENDENTE {i + 1}
                     </span>
-                    <span className="text-[13px] font-medium leading-tight">
+                    <span className="text-[13px] font-medium leading-tight truncate">
                       {d.nome}
                     </span>
                     <span className="text-[11px] text-[var(--c-muted)]">
@@ -256,12 +264,12 @@ export default function StepDependentes({
         </SectionTitle>
 
         <p className="text-xs md:text-sm text-[var(--c-muted)]">
-          Você pode incluir <strong>dependentes adicionais</strong> ao seu plano.
+          Você pode incluir <strong>dependentes adicionais</strong> ao plano.
           Este passo é opcional e pode ser feito com calma; ele pode impactar o
           valor da mensalidade conforme as regras do plano.
         </p>
 
-        {/* Lista de dependentes novos (cards resumo: nome, parentesco, idade) */}
+        {/* Lista de dependentes novos – resumo enxuto (nome, parentesco, idade) */}
         {!mode && depsNovos.length > 0 && (
           <div className="space-y-2">
             {depsNovos.map((d, idx) => {
@@ -276,11 +284,11 @@ export default function StepDependentes({
                   key={idx}
                   className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/95 px-3 py-2 shadow-sm flex items-center justify-between gap-3"
                 >
-                  <div className="flex flex-col">
+                  <div className="flex flex-col min-w-0">
                     <span className="text-[10px] font-semibold tracking-[0.16em] uppercase text-[var(--c-muted)]">
                       DEPENDENTE {idx + 1}
                     </span>
-                    <span className="text-[13px] font-medium leading-tight">
+                    <span className="text-[13px] font-medium leading-tight truncate">
                       {d.nome}
                     </span>
                     <span className="text-[11px] text-[var(--c-muted)]">
@@ -291,7 +299,7 @@ export default function StepDependentes({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-3 text-xs">
+                  <div className="flex items-center gap-3 text-xs whitespace-nowrap">
                     <button
                       type="button"
                       className="inline-flex items-center gap-1 text-[var(--primary)] hover:opacity-80"
@@ -320,7 +328,7 @@ export default function StepDependentes({
               Nenhum dependente adicional cadastrado.
             </p>
             <p className="text-xs">
-              Se preferir, você pode seguir sem dependentes.
+              Se preferir, você pode seguir sem dependentes agora.
             </p>
           </div>
         )}
@@ -342,6 +350,7 @@ export default function StepDependentes({
             </div>
 
             <div className="grid gap-3 md:grid-cols-12">
+              {/* Nome */}
               <div className="md:col-span-6">
                 <label className="label text-xs font-medium" htmlFor="dep-nome">
                   Nome completo {requiredStar}
@@ -372,6 +381,7 @@ export default function StepDependentes({
                   )}
               </div>
 
+              {/* Parentesco */}
               <div className="md:col-span-3">
                 <label
                   className="label text-xs font-medium"
@@ -407,6 +417,7 @@ export default function StepDependentes({
                 )}
               </div>
 
+              {/* Sexo */}
               <div className="md:col-span-3">
                 <label className="label text-xs font-medium" htmlFor="dep-sexo">
                   Sexo {requiredStar}
@@ -441,6 +452,7 @@ export default function StepDependentes({
             </div>
 
             <div className="grid gap-3 md:grid-cols-12 mt-3">
+              {/* CPF opcional */}
               <div className="md:col-span-6">
                 <label className="label text-xs font-medium" htmlFor="dep-cpf">
                   CPF (opcional)
@@ -471,6 +483,7 @@ export default function StepDependentes({
                 )}
               </div>
 
+              {/* Data nascimento */}
               <div className="md:col-span-6">
                 <label className="label text-xs font-medium">
                   Data de nascimento {requiredStar}
@@ -483,7 +496,15 @@ export default function StepDependentes({
                     setDraft((d) => ({ ...d, data_nascimento: iso }))
                   }
                   invalid={Boolean(
-                    showErrors && (!draft.data_nascimento || countDepsFora > 0)
+                    showErrors &&
+                      (!draft.data_nascimento ||
+                        Object.keys(
+                          (() => {
+                            const e = validateDraft();
+                            const { data_nascimento, ...rest } = e;
+                            return data_nascimento ? { data_nascimento } : {};
+                          })()
+                        ).length > 0)
                   )}
                   minAge={
                     Number.isFinite(idadeMinDep)
@@ -515,14 +536,14 @@ export default function StepDependentes({
                 className="h-10 px-4 text-sm"
                 onClick={() => setDraft(emptyDraft)}
               >
-                Limpar / cancelar
+                Limpar campos
               </CTAButton>
               <CTAButton
                 type="button"
                 className="h-10 px-5 text-sm"
                 onClick={() => handleSave({ goNext: false })}
               >
-                + Salvar dependente
+                Salvar dependente
               </CTAButton>
             </div>
           </div>
@@ -546,11 +567,9 @@ export default function StepDependentes({
             className="h-11 px-5"
             onClick={() => {
               if (mode) {
-                // se estiver no formulário, primeiro sai do formulário
                 cancelForm();
               } else {
-                // etapa 3 -> voltar para etapa 2 (Endereço)
-                setCurrentStep(2);
+                setCurrentStep(2); // volta para Endereço
               }
             }}
           >

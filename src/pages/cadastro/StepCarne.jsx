@@ -26,10 +26,13 @@ export default function StepCarne({
   valorMensalidadePlano,
   cobrancasPreview,
   onBack,
-  onFinalizar, // callback para finalizar contratação
-  saving, // indica se está processando
+  onFinalizar,
+  saving,
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const totalParcelas = cobrancasPreview?.length || 0;
+  const primeiraCobranca = cobrancasPreview?.[0] || null;
 
   const handleClickFinalizar = () => {
     if (saving) return;
@@ -43,19 +46,15 @@ export default function StepCarne({
     }
   };
 
-  const totalParcelas = cobrancasPreview?.length || 0;
-  const primeiraCobranca = cobrancasPreview?.[0] || null;
-
-  /* ---------- MODAIS VIA PORTAL (pra ficar REALMENTE por cima de tudo) ---------- */
-
+  /* ---------- MODAL DE CONFIRMAÇÃO (PORTAL) ---------- */
   const confirmModal =
     confirmOpen && !saving
       ? createPortal(
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45">
             <div
-              className="w-full max-w-lg mx-4 rounded-3xl border shadow-[0_30px_80px_rgba(0,0,0,0.38)] p-5 md:p-6"
+              className="w-full max-w-lg mx-4 rounded-3xl border shadow-[0_30px_80px_rgba(0,0,0,0.45)] p-5 md:p-6"
               style={{
-                backgroundColor: "#ffffff", // fundo chapado para máxima leitura
+                backgroundColor: "#ffffff",
                 borderColor: "var(--c-border)",
               }}
             >
@@ -65,7 +64,7 @@ export default function StepCarne({
                     Confirmação
                   </p>
                   <h3 className="text-base md:text-lg font-semibold tracking-tight">
-                    Revise seus dados de cobrança
+                    Revise os dados de cobrança
                   </h3>
                 </div>
                 <button
@@ -81,7 +80,10 @@ export default function StepCarne({
                 {/* Resumo do carnê */}
                 <div
                   className="rounded-2xl border px-3.5 py-3 flex items-center justify-between gap-3"
-                  style={{ backgroundColor: "#ffffff", borderColor: "var(--c-border)" }}
+                  style={{
+                    backgroundColor: "#ffffff",
+                    borderColor: "var(--c-border)",
+                  }}
                 >
                   <div>
                     <p className="text-[11px] text-[var(--c-muted)] uppercase tracking-[0.16em]">
@@ -111,7 +113,10 @@ export default function StepCarne({
                 {primeiraCobranca && (
                   <div
                     className="rounded-2xl border px-3.5 py-3 flex items-center justify-between gap-3"
-                    style={{ backgroundColor: "#ffffff", borderColor: "var(--c-border)" }}
+                    style={{
+                      backgroundColor: "#ffffff",
+                      borderColor: "var(--c-border)",
+                    }}
                   >
                     <div>
                       <p className="text-[11px] text-[var(--c-muted)] uppercase tracking-[0.16em]">
@@ -119,7 +124,7 @@ export default function StepCarne({
                       </p>
                       <p className="text-xs mt-1 leading-relaxed">
                         {primeiraCobranca.id === "adesao"
-                          ? "Taxa de adesão + início da sua proteção. A efetivação ocorre após o pagamento."
+                          ? "Taxa de adesão + início da proteção. A efetivação ocorre após o pagamento."
                           : "Início da cobrança recorrente do plano. A efetivação ocorre após o pagamento."}
                       </p>
                     </div>
@@ -135,11 +140,9 @@ export default function StepCarne({
                 )}
 
                 <p className="text-[11px] text-[var(--c-muted)] leading-relaxed">
-                  Ao confirmar, seu contrato será registrado e o carnê será gerado
-                  automaticamente. A proteção do plano será ativada{" "}
-                  <b>após o pagamento da primeira cobrança</b>. Você poderá
-                  consultar os detalhes completos com a empresa sempre que
-                  necessário.
+                  Ao confirmar, seu contrato será registrado e o carnê será
+                  gerado automaticamente. A proteção do plano será ativada{" "}
+                  <b>após o pagamento da primeira cobrança</b>.
                 </p>
               </div>
 
@@ -167,6 +170,7 @@ export default function StepCarne({
         )
       : null;
 
+  /* ---------- OVERLAY DE PROCESSAMENTO (PORTAL) ---------- */
   const savingOverlay = saving
     ? createPortal(
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/45">
@@ -186,8 +190,8 @@ export default function StepCarne({
                   Finalizando sua contratação…
                 </p>
                 <p className="text-[11px] text-[var(--c-muted)] mt-0.5">
-                  Estamos registrando seu contrato e gerando o carnê de cobranças
-                  com segurança.
+                  Estamos registrando o contrato e gerando o carnê com
+                  segurança.
                 </p>
               </div>
             </div>
@@ -198,7 +202,7 @@ export default function StepCarne({
               </div>
               <p className="mt-2 text-[11px] text-[var(--c-muted)]">
                 Mantenha esta página aberta. Em instantes você será direcionado
-                para o resumo do seu contrato.
+                para o resumo do contrato.
               </p>
             </div>
           </div>
@@ -215,7 +219,7 @@ export default function StepCarne({
         className="mt-6 rounded-3xl p-6 md:p-7 relative overflow-hidden"
         style={glassCardStyle}
       >
-        {/* Halo discreto de fundo na ETAPA (não no modal) */}
+        {/* Halo discreto de fundo */}
         <div className="pointer-events-none absolute inset-0 opacity-60">
           <div className="absolute -top-32 -right-10 h-44 w-44 rounded-full bg-[radial-gradient(circle_at_center,_var(--primary)_0,_transparent_70%)] blur-3xl" />
           <div className="absolute -bottom-24 -left-10 h-40 w-40 rounded-full bg-[radial-gradient(circle_at_center,_var(--primary-muted,_#4b5563)_0,_transparent_70%)] blur-3xl" />
@@ -226,7 +230,7 @@ export default function StepCarne({
             right={
               <div className="hidden md:flex items-center gap-2 text-[11px] text-[var(--c-muted)]">
                 <ShieldCheck className="h-4 w-4" />
-                <span>Resumo da sua cobrança</span>
+                <span>Resumo da cobrança</span>
               </div>
             }
           >
@@ -275,7 +279,7 @@ export default function StepCarne({
                   {formatDateBR(dataEfetivacaoISO)}
                 </p>
                 <p className="mt-1 text-[11px] text-[var(--c-muted)]">
-                  A partir desta data seu plano entra em vigor, após o pagamento
+                  A partir desta data o plano entra em vigor, após o pagamento
                   da primeira cobrança.
                 </p>
               </div>
@@ -290,7 +294,8 @@ export default function StepCarne({
                   </p>
                 </div>
                 <p className="mt-1 text-[11px] text-[var(--c-muted)]">
-                  Valor recorrente das parcelas, sem considerar reajustes futuros.
+                  Valor recorrente das parcelas, sem considerar reajustes
+                  futuros.
                 </p>
               </div>
             </div>
@@ -305,8 +310,8 @@ export default function StepCarne({
                 </p>
                 {totalParcelas > 0 && (
                   <p className="text-xs text-[var(--c-muted)]">
-                    {totalParcelas} parcelas programadas. Revise as datas e
-                    valores antes de finalizar.
+                    {totalParcelas} parcelas programadas. Revise datas e valores
+                    antes de finalizar.
                   </p>
                 )}
               </div>
@@ -317,9 +322,9 @@ export default function StepCarne({
                   </span>
                   <span className="text-xs font-medium tabular-nums">
                     {primeiraCobranca
-                      ? `${formatDateBR(primeiraCobranca.dataVencimentoISO)} • ${money(
-                          primeiraCobranca.valor || 0
-                        )}`
+                      ? `${formatDateBR(
+                          primeiraCobranca.dataVencimentoISO
+                        )} • ${money(primeiraCobranca.valor || 0)}`
                       : "—"}
                   </span>
                 </div>
@@ -340,7 +345,7 @@ export default function StepCarne({
                   return (
                     <div
                       key={cob.id}
-                      className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--c-border)] bg-[var(--surface)] px-3.5 py-2.5 shadow-sm"
+                      className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] px-3.5 py-2.5 shadow-sm"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <span
@@ -354,7 +359,8 @@ export default function StepCarne({
                         </span>
                         <div className="min-w-0">
                           <p className="text-xs font-medium truncate">
-                            {cob.tipo || (isAdesao ? "Taxa de adesão" : "Cobrança")}
+                            {cob.tipo ||
+                              (isAdesao ? "Taxa de adesão" : "Cobrança")}
                           </p>
                           <p className="text-[11px] text-[var(--c-muted)]">
                             Vencimento em{" "}

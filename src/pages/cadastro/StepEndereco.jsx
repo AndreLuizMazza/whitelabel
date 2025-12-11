@@ -50,12 +50,17 @@ export default function StepEndereco({
       <SectionTitle
         right={
           <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)]">
-            Etapa 2 de 5
+            Etapa 2 de 4
           </span>
         }
       >
-        Endereço
+        Endereço do titular
       </SectionTitle>
+
+      <p className="text-sm text-[var(--c-muted)] leading-relaxed">
+        Informe o endereço principal do titular. Ele será usado no contrato e
+        nas cobranças.
+      </p>
 
       <div className="mt-3 space-y-3">
         {/* CEP */}
@@ -176,7 +181,9 @@ export default function StepEndereco({
               autoComplete="address-line2"
               aria-required="true"
               aria-invalid={
-                showErrors && isEmpty(titular.endereco.numero) ? "true" : "false"
+                showErrors && isEmpty(titular.endereco.numero)
+                  ? "true"
+                  : "false"
               }
               disabled={cepState.loading}
             />
@@ -224,7 +231,9 @@ export default function StepEndereco({
             }}
             aria-required="true"
             aria-invalid={
-              showErrors && isEmpty(titular.endereco.bairro) ? "true" : "false"
+              showErrors && isEmpty(titular.endereco.bairro)
+                ? "true"
+                : "false"
             }
             disabled={cepState.loading}
           />
@@ -314,6 +323,7 @@ export default function StepEndereco({
         </div>
       </div>
 
+      {/* Navegação da etapa */}
       <div className="mt-5 flex justify-between gap-3">
         <CTAButton
           type="button"

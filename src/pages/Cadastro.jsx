@@ -22,10 +22,7 @@ import {
   normalizeISODate,
 } from "@/lib/br";
 
-import {
-  ESTADO_CIVIL_LABEL,
-  SEXO_OPTIONS,
-} from "@/lib/constants";
+import { ESTADO_CIVIL_LABEL, SEXO_OPTIONS } from "@/lib/constants";
 
 import { efetivacaoProxMesPorDiaD, ageFromDate } from "@/lib/dates";
 import { useDebouncedCallback } from "@/lib/hooks";
@@ -45,9 +42,7 @@ function FieldRead({ label, value, mono = false }) {
     <div className="rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] px-3 py-1.5 shadow-sm">
       <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--c-muted)]">{label}</p>
       <p
-        className={`mt-0.5 font-medium ${
-          mono ? "tabular-nums" : ""
-        } break-words text-[13px]`}
+        className={`mt-0.5 font-medium ${mono ? "tabular-nums" : ""} break-words text-[13px]`}
       >
         {value || "—"}
       </p>
@@ -109,7 +104,7 @@ export default function Cadastro() {
   });
 
   const alertRef = useRef(null);
-  const mainCardRef = useRef(null); // âncora para scroll entre etapas
+  const stepperAnchorRef = useRef(null); // âncora para scroll entre etapas (logo acima dos formulários)
 
   const sexoRef = useRef(null);
   const ecRef = useRef(null);
@@ -780,7 +775,7 @@ export default function Cadastro() {
   };
 
   const steps = [
-    { id: 1, label: "Dados do titular" },
+    { id: 1, label: "Titular" },
     { id: 2, label: "Endereço" },
     { id: 3, label: "Dependentes" },
     { id: 4, label: "Cobranças" },
@@ -836,8 +831,8 @@ export default function Cadastro() {
   const goToStep = (step) => {
     setCurrentStep(step);
     setTimeout(() => {
-      if (!mainCardRef.current) return;
-      const rect = mainCardRef.current.getBoundingClientRect();
+      if (!stepperAnchorRef.current) return;
+      const rect = stepperAnchorRef.current.getBoundingClientRect();
       const offset = 88; // compensar navbar fixa
       const top = window.scrollY + rect.top - offset;
       window.scrollTo({
@@ -862,14 +857,16 @@ export default function Cadastro() {
           </button>
         </div>
 
-        <header className="mb-4">
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-            Cadastre-se em poucos passos
-          </h1>
-          <p className="mt-1 text-sm md:text-base leading-relaxed text-[var(--c-muted)]">
-            Você só precisa informar seus dados, adicionar os dependentes e definir a cobrança.
-          </p>
-        </header>
+        {currentStep === 1 && (
+          <header className="mb-4">
+            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+              Cadastre-se em poucos passos
+            </h1>
+            <p className="mt-1 text-sm md:text-base leading-relaxed text-[var(--c-muted)]">
+              Informe seus dados, inclua dependentes se desejar e escolha a forma de cobrança.
+            </p>
+          </header>
+        )}
 
         {(lookupState.running || lookupState.mensagem || lookupState.erro) && (
           <div
@@ -937,11 +934,7 @@ export default function Cadastro() {
         )}
 
         {/* Cabeçalho + resumo compacto do titular */}
-        <div
-          ref={mainCardRef}
-          className="rounded-3xl p-5 md:p-6 space-y-4"
-          style={glassCardStyle}
-        >
+        <div className="rounded-3xl p-5 md:p-6 space-y-4" style={glassCardStyle}>
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-base md:text-lg font-semibold tracking-tight">
@@ -955,7 +948,7 @@ export default function Cadastro() {
               ) : null}
             </div>
             <p className="text-xs md:text-sm text-[var(--c-muted)]">
-              Confira o titular e avance pelas etapas até definir o dia de cobrança.
+              Confira o titular e avance pelas etapas até definir a cobrança.
             </p>
           </div>
 
@@ -1013,7 +1006,7 @@ export default function Cadastro() {
 
         {/* Stepper DAS 4 ETAPAS */}
         {!bloquearCadastro && (
-          <div className="mt-4 mb-5">
+          <div ref={stepperAnchorRef} className="mt-4 mb-5">
             <ol
               className="flex flex-wrap gap-2 rounded-3xl border px-2 py-2 shadow-[0_22px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl"
               style={{
@@ -1053,7 +1046,7 @@ export default function Cadastro() {
                       <span className="flex flex-col">
                         <span className="font-medium">{step.label}</span>
                         <span className="text-[10px] uppercase tracking-[0.16em] opacity-70">
-                          Etapa {step.id} de {totalSteps}
+                          Etapa {step.id}
                         </span>
                       </span>
                     </button>
@@ -1063,7 +1056,7 @@ export default function Cadastro() {
             </ol>
 
             <div className="mt-3 md:hidden">
-              <div className="mb-1 flex items-center justify_between">
+              <div className="mb-1 flex items-center justify-between">
                 <span className="text-[11px] font-medium text-[var(--c-muted)]">
                   Etapa {currentStep} de {totalSteps}
                 </span>

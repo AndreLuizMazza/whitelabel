@@ -9,15 +9,17 @@ const requiredStar = <span aria-hidden="true" className="text-red-600">*</span>;
 function SectionTitle({ children, right = null }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <h2 className="text-base md:text-lg font-semibold tracking-tight">{children}</h2>
+      <h2 className="text-base md:text-lg font-semibold tracking-tight">
+        {children}
+      </h2>
       {right}
     </div>
   );
 }
 
 /**
- * Etapa 1: Titular + Dados complementares
- * – Estilo sereno, alinhado com login/registro.
+ * Etapa 1 – Dados complementares do titular
+ * Layout limpo e curto, seguindo o estilo premium do fluxo.
  */
 export default function StepTitularIntro({
   glassCardStyle,
@@ -34,11 +36,14 @@ export default function StepTitularIntro({
   const showErrors = stepAttempted?.complementares || submitAttempted;
 
   return (
-    <div className="mt-6 rounded-3xl p-6 md:p-7 space-y-5" style={glassCardStyle}>
+    <div
+      className="mt-6 rounded-3xl p-6 md:p-7 space-y-5"
+      style={glassCardStyle}
+    >
       <SectionTitle
         right={
           <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)]">
-            Etapa 1 de 5
+            Etapa 1 de 4
           </span>
         }
       >
@@ -46,11 +51,12 @@ export default function StepTitularIntro({
       </SectionTitle>
 
       <p className="text-sm text-[var(--c-muted)] leading-relaxed">
-        Revise os dados do titular exibidos acima e complete as informações abaixo. Esses dados
-        serão usados no seu contrato e nas comunicações da empresa.
+        Revise os dados do titular exibidos acima e complete as informações
+        abaixo. Elas serão usadas no contrato e nas comunicações da empresa.
       </p>
 
       <div className="mt-3 grid gap-3 grid-cols-2 md:grid-cols-12">
+        {/* Estado civil */}
         <div className="md:col-span-6">
           <label className="label text-xs font-medium" htmlFor="titular-ec">
             Estado civil {requiredStar}
@@ -64,7 +70,9 @@ export default function StepTitularIntro({
             value={titular.estado_civil}
             onChange={(e) => updTit({ estado_civil: e.target.value })}
             aria-required="true"
-            aria-invalid={showErrors && isEmpty(titular.estado_civil) ? "true" : "false"}
+            aria-invalid={
+              showErrors && isEmpty(titular.estado_civil) ? "true" : "false"
+            }
           >
             <option value="">Selecione…</option>
             {ESTADO_CIVIL_OPTIONS.map(([v, l]) => (
@@ -74,12 +82,17 @@ export default function StepTitularIntro({
             ))}
           </select>
           {showErrors && isEmpty(titular.estado_civil) && (
-            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+            <p
+              className="text-xs text-red-600 mt-1"
+              role="alert"
+              aria-live="polite"
+            >
               Selecione o estado civil.
             </p>
           )}
         </div>
 
+        {/* Sexo */}
         <div className="md:col-span-6">
           <label className="label text-xs font-medium" htmlFor="titular-sexo">
             Sexo {requiredStar}
@@ -93,7 +106,9 @@ export default function StepTitularIntro({
             value={titular.sexo}
             onChange={(e) => updTit({ sexo: e.target.value })}
             aria-required="true"
-            aria-invalid={showErrors && isEmpty(titular.sexo) ? "true" : "false"}
+            aria-invalid={
+              showErrors && isEmpty(titular.sexo) ? "true" : "false"
+            }
           >
             <option value="">Selecione…</option>
             {SEXO_OPTIONS.map(([v, l]) => (
@@ -103,7 +118,11 @@ export default function StepTitularIntro({
             ))}
           </select>
           {showErrors && isEmpty(titular.sexo) && (
-            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
+            <p
+              className="text-xs text-red-600 mt-1"
+              role="alert"
+              aria-live="polite"
+            >
               Selecione o sexo.
             </p>
           )}
