@@ -240,8 +240,8 @@ export function detalharValorMensalidadePlano(
   /* ================= REGRINHA ANTIGA (sem condicional) ================= */
   if (!usaCondicional) {
     const numDepsIncl =
-      Number(plano?.numeroDependentes ?? plano?.numero_dependentes ?? 0) ||
-      0;
+      Number(plano?.numeroDependentes ?? plano?.numero_dependentes ?? 0) || 0;
+
     const valorIncAnual = Number(
       plano?.valorIncremental ?? plano?.valor_incremental ?? 0
     );
@@ -255,11 +255,18 @@ export function detalharValorMensalidadePlano(
       return result;
     }
 
+    // Aqui aplicamos a regra pedida:
+    // numeroDependentes = quantidade de PESSOAS isentas, incluindo o titular.
+    // Então:
+    // totalPessoas = 1 (titular) + quantidade de dependentes cadastrados
+    // excedentesDep = quantos dependentes passam desse limite
     const todosDeps = [...(depsExistentes || []), ...(depsNovos || [])];
     const totalDeps = todosDeps.length;
-    const excedentes = Math.max(0, totalDeps - numDepsIncl);
+    const totalPessoas = 1 + totalDeps; // titular + dependentes
+    const excedentesDep = Math.max(0, totalPessoas - numDepsIncl);
 
-    const excedentesStartIndex = Math.max(0, totalDeps - excedentes);
+    // Apenas os últimos "excedentesDep" dependentes entram como excedentes
+    const excedentesStartIndex = Math.max(0, totalDeps - excedentesDep);
 
     dependentesCalculo.forEach((dep) => {
       const idade = dep.data_nascimento
@@ -268,8 +275,8 @@ export function detalharValorMensalidadePlano(
 
       let valorFaixa = 0;
 
-      // Titular nunca entra como excedente
-      if (!dep.isTitular && excedentes > 0) {
+      // Titular nunca entra como excedente: incrementais só em dependentes excedentes
+      if (!dep.isTitular && excedentesDep > 0) {
         const idx = todosDeps.findIndex(
           (d) =>
             d.nome === dep.nome &&
@@ -380,7 +387,7 @@ export function detalharValorMensalidadePlano(
         plano.faixasEtariasTitular.length > 0;
 
       if (ehTitular && hasFaixasTit) {
-        // Regra pedida: se existir tabela específica de titular,
+        // Regra: se existir tabela específica de titular,
         // o titular SEMPRE usa essa tabela.
         valorFaixa = valorFaixaEtaria(plano, idade, { titular: true });
       } else if (habilitarValorTitularPorFaixaEtaria) {
