@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import CTAButton from "@/components/ui/CTAButton";
-import { DIA_D_OPTIONS } from "@/lib/constants";
+import { DIA_D_OPTIONS, PARENTESCO_LABELS } from "@/lib/constants";
 import { money } from "@/lib/planUtils";
 import { formatDateBR } from "@/lib/br";
 import { Loader2, ShieldCheck, CalendarDays } from "lucide-react";
@@ -24,6 +24,7 @@ export default function StepCarne({
   setDiaDSelecionado,
   dataEfetivacaoISO,
   valorMensalidadePlano,
+  composicaoMensalidade,
   cobrancasPreview,
   onBack,
   onFinalizar,
@@ -211,6 +212,20 @@ export default function StepCarne({
       )
     : null;
 
+  /* ----------------- COMPOSIÇÃO DA MENSALIDADE ----------------- */
+
+  const dependentesComposicao =
+    composicaoMensalidade?.dependentes && Array.isArray(composicaoMensalidade.dependentes)
+      ? composicaoMensalidade.dependentes
+      : [];
+
+  const basePlano = composicaoMensalidade?.basePlano || 0;
+
+  // Mostra só os primeiros para não esticar demais a tela
+  const MAX_LINHAS = 6;
+  const mostrar = dependentesComposicao.slice(0, MAX_LINHAS);
+  const restantes = dependentesComposicao.length - mostrar.length;
+
   /* -------------------- CONTEÚDO PRINCIPAL DA ETAPA -------------------- */
 
   return (
@@ -300,6 +315,97 @@ export default function StepCarne({
               </div>
             </div>
           </div>
+
+          {/* Composição da mensalidade – compacto */}
+          {composicaoMensalidade && (
+            <div className="mt-4">
+              <details className="group rounded-2xl border border-dashed border-[var(--c-border)] bg-[var(--c-surface)]/80 px-3.5 py-3">
+                <summary className="flex items-center justify-between gap-2 cursor-pointer list-none">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--c-muted)] mb-0.5">
+                      Composição do valor
+                    </p>
+                    <p className="text-xs text-[var(--c-muted)]">
+                      Veja quanto cada pessoa contribui ou está isenta.
+                    </p>
+                  </div>
+                  <span className="text-[11px] text-[var(--c-muted)] group-open:opacity-60">
+                    Ver detalhes
+                  </span>
+                </summary>
+
+                <div className="mt-3 space-y-2">
+                  {basePlano > 0 && (
+                    <div className="flex items-center justify-between gap-3 text-xs">
+                      <span className="text-[var(--c-muted)]">
+                        Plano base (estrutura e benefícios comuns)
+                      </span>
+                      <span className="font-semibold tabular-nums">
+                        {money(basePlano)}
+                      </span>
+                    </div>
+                  )}
+
+                  {mostrar.length > 0 && (
+                    <div className="mt-1 space-y-1.5">
+                      {mostrar.map((dep, idx) => {
+                        const parentescoLabel = dep.isTitular
+                          ? "Titular"
+                          : PARENTESCO_LABELS[dep.parentesco] ||
+                            dep.parentesco ||
+                            "Dependente";
+                        const idadeTxt =
+                          dep.idade != null
+                            ? `${dep.idade} ano${dep.idade === 1 ? "" : "s"}`
+                            : "idade não informada";
+                        const nome =
+                          dep.nome ||
+                          (dep.isTitular ? "Titular" : "Dependente");
+
+                        const isIsento =
+                          dep.isento && (dep.valorTotalPessoa || 0) === 0;
+
+                        return (
+                          <div
+                            key={`${dep.id || idx}-${dep.parentesco}-${dep.idade || "?"}`}
+                            className="flex items-center justify-between gap-3 text-[11px]"
+                          >
+                            <div className="min-w-0">
+                              <p className="font-medium truncate">
+                                {nome}
+                              </p>
+                              <p className="text-[var(--c-muted)] truncate">
+                                {parentescoLabel} • {idadeTxt}
+                              </p>
+                            </div>
+                            <div className="text-right whitespace-nowrap">
+                              {isIsento ? (
+                                <span className="text-[var(--c-muted)]">
+                                  Isento
+                                </span>
+                              ) : (
+                                <span className="font-semibold tabular-nums">
+                                  {money(dep.valorTotalPessoa || 0)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {restantes > 0 && (
+                        <p className="text-[11px] text-[var(--c-muted)]">
+                          + {restantes}{" "}
+                          {restantes === 1 ? "pessoa" : "pessoas"} com as
+                          mesmas regras.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </details>
+            </div>
+          )}
 
           {/* Lista de cobranças previstas */}
           <div className="mt-6 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4">

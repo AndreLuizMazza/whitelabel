@@ -34,6 +34,11 @@ import StepEndereco from "./cadastro/StepEndereco";
 import StepDependentes from "./cadastro/StepDependentes";
 import StepCarne from "./cadastro/StepCarne";
 
+import {
+  detalharValorMensalidadePlano,
+  gerarCobrancasPlano, // <<< IMPORT IMPORTANTE
+} from "@/lib/planPricing";
+
 const isEmpty = (v) => !String(v || "").trim();
 const AREA_ASSOCIADO_PATH = (import.meta?.env?.VITE_ASSOC_AREA_PATH || "/area").toString();
 
@@ -73,7 +78,7 @@ function decodePayloadParam(p) {
       return JSON.parse(atob(p));
     } catch {
       try {
-        return JSON.parse(deURIComponent(p));
+        return JSON.parse(decodeURIComponent(p));
       } catch {
         return null;
       }
@@ -104,7 +109,7 @@ export default function Cadastro() {
   });
 
   const alertRef = useRef(null);
-  const stepperAnchorRef = useRef(null); // âncora para scroll entre etapas (logo acima dos formulários)
+  const stepperAnchorRef = useRef(null); // âncora para scroll entre etapas
 
   const sexoRef = useRef(null);
   const ecRef = useRef(null);
@@ -118,7 +123,32 @@ export default function Cadastro() {
   const payload = useMemo(() => decodePayloadParam(q.get("p")), [q]);
   const planoId = payload?.plano;
   const cupom = payload?.cupom || "";
-  const plano = payload?.planSnapshot || null;
+
+  // plano completo: começa com snapshot (se vier) e enriquece com GET /planos/{id}
+  const [plano, setPlano] = useState(payload?.planSnapshot || null);
+
+  useEffect(() => {
+    if (!planoId) return;
+
+    let alive = true;
+    (async () => {
+      try {
+        const resp = await api.get(`/api/v1/planos/${planoId}`);
+        if (!alive) return;
+        const planoApi = resp?.data || {};
+        setPlano((prev) => ({
+          ...(prev || {}),
+          ...planoApi,
+        }));
+      } catch (e) {
+        console.error("[Cadastro] Falha ao buscar plano por ID", e);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [planoId]);
 
   const UF_PADRAO = (import.meta?.env?.VITE_UF_PADRAO || window.__UF_PADRAO__ || "")
     .toString()
@@ -176,7 +206,9 @@ export default function Cadastro() {
     data = await tryGet(() => api.get(`/api/v1/pessoas/by-cpf/${onlyDigits(cpfMasked)}`));
     if (data && (data.id || data.pessoaId)) return data;
 
-    data = await tryGet(() => api.get(`/api/v1/pessoas`, { params: { cpf: onlyDigits(cpfMasked) } }));
+    data = await tryGet(() =>
+      api.get(`/api/v1/pessoas`, { params: { cpf: onlyDigits(cpfMasked) } })
+    );
     if (Array.isArray(data) && data.length) return data[0];
     if (data && (data.id || data.pessoaId)) return data;
 
@@ -396,15 +428,8 @@ export default function Cadastro() {
     fetchCEP(cepRaw, applyViaCepData);
   }, 500);
 
-  const baseMensal = Number(plano?.mensal || 0);
-  const numDepsIncl = Number(plano?.numeroDependentes || 0);
-  const valorIncAnual = Number(plano?.valorIncremental || 0);
-  const valorIncMensal = valorIncAnual / 12;
-  const excedentes = Math.max(0, depsExistentes.length + depsNovos.length - numDepsIncl);
-  const totalMensal = (baseMensal || 0) + excedentes * valorIncMensal;
-
   const valorAdesaoPlano = Number(plano?.valorAdesao ?? plano?.valor_adesao ?? 0);
-  const valorMensalidadePlano = Number(totalMensal);
+
   const dataEfetivacaoISO = efetivacaoProxMesPorDiaD(diaDSelecionado);
 
   const idadeMinDep = Number.isFinite(plano?.idadeMinimaDependente)
@@ -610,6 +635,14 @@ export default function Cadastro() {
     debouncedCpfLookup(titular.cpf);
   }, [titular?.cpf]);
 
+  // === CÁLCULO DETALHADO DA MENSALIDADE ===
+  const composicaoMensalidade = useMemo(() => {
+    if (!plano) return null;
+    return detalharValorMensalidadePlano(plano, titular, depsExistentes, depsNovos);
+  }, [plano, titular, depsExistentes, depsNovos]);
+
+  const valorMensalidadePlano = composicaoMensalidade?.total ?? 0;
+
   async function handleSalvarEnviar() {
     setSubmitAttempted(true);
     setError("");
@@ -703,17 +736,38 @@ export default function Cadastro() {
         await celcashCriarClienteContrato(contratoId, {});
       } catch (err) {
         console.error("[Cadastro] Falha ao criar cliente/contrato na CelCash", err);
-        // não interrompe o fluxo – mas você pode decidir travar se quiser
       }
 
-      // 5) Integração CelCash (carnê manual) usando a prévia de cobranças
+      // 5) Integração CelCash (carnê manual) usando a regra do plano
       try {
-        // Agora enviamos TODAS as cobranças da prévia, incluindo a adesão
-        const cobrancasForCelCash = (cobrancasPreview || []).map((c, index) => ({
-          numeroParcela: index + 1,
-          valor: Number(c.valor || 0),
-          dataVencimento: c.dataVencimentoISO, // yyyy-mm-dd
-        }));
+        const todayISOForPreview = new Date().toISOString().slice(0, 10);
+
+        // mensalidades de acordo com numeroParcelas / gerarParcelasAteDezembro
+        const mensalidades = gerarCobrancasPlano(
+          plano,
+          dataEfetivacaoISO,
+          valorMensalidadePlano
+        );
+
+        const cobrancasForCelCash = [];
+
+        // 5.1) Taxa de adesão (se houver) como primeira parcela
+        if (valorAdesaoPlano > 0) {
+          cobrancasForCelCash.push({
+            numeroParcela: 1,
+            valor: valorAdesaoPlano,
+            dataVencimento: todayISOForPreview,
+          });
+        }
+
+        // 5.2) Mensalidades conforme regra do plano
+        mensalidades.forEach((cob) => {
+          cobrancasForCelCash.push({
+            numeroParcela: cobrancasForCelCash.length + 1,
+            valor: Number(cob.valor || 0),
+            dataVencimento: cob.dataVencimentoISO,
+          });
+        });
 
         if (cobrancasForCelCash.length > 0) {
           const carnePayload = {
@@ -724,7 +778,7 @@ export default function Cadastro() {
           await celcashGerarCarneManual(contratoId, carnePayload);
         } else {
           console.warn(
-            "[Cadastro] Nenhuma cobrança calculada para envio à CelCash. Verifique cobrancasPreview."
+            "[Cadastro] Nenhuma cobrança calculada para envio à CelCash. Verifique gerarCobrancasPlano."
           );
         }
       } catch (err) {
@@ -786,17 +840,15 @@ export default function Cadastro() {
 
   const todayISO = new Date().toISOString().slice(0, 10);
 
-  // Prévia das cobranças:
-  // - Se tiver adesão: 1 cobrança de adesão (hoje) + 12 mensalidades
-  // - Se não tiver adesão: 12 mensalidades
+  // Prévia das cobranças para exibir no StepCarne
   const cobrancasPreview = useMemo(() => {
-    const list = [];
+    if (!dataEfetivacaoISO || !plano) return [];
 
-    if (!dataEfetivacaoISO) return list;
+    const lista = [];
 
-    // 1) Taxa de adesão (opcional) – será enviada como "parcela 1" na CelCash
+    // Adesão (se existir)
     if (valorAdesaoPlano > 0) {
-      list.push({
+      lista.push({
         id: "adesao",
         tipo: "Taxa de adesão",
         valor: valorAdesaoPlano,
@@ -804,28 +856,24 @@ export default function Cadastro() {
       });
     }
 
-    // 2) 12 mensalidades a partir da data de efetivação
-    const [y, m, d] = dataEfetivacaoISO.split("-").map(Number);
-    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) {
-      return list;
-    }
+    // Mensalidades conforme a regra do plano
+    const mensalidades = gerarCobrancasPlano(
+      plano,
+      dataEfetivacaoISO,
+      valorMensalidadePlano
+    );
 
-    const baseDate = new Date(Date.UTC(y, m - 1, d));
-
-    for (let i = 0; i < 12; i++) {
-      const dt = new Date(baseDate);
-      dt.setUTCMonth(baseDate.getUTCMonth() + i);
-
-      list.push({
-        id: `mensal-${i + 1}`,
-        tipo: `${i + 1}ª mensalidade`,
-        valor: valorMensalidadePlano,
-        dataVencimentoISO: dt.toISOString().slice(0, 10),
+    mensalidades.forEach((cob) => {
+      lista.push({
+        id: `mensal-${cob.numeroParcela}`,
+        tipo: `${cob.numeroParcela}ª mensalidade`,
+        valor: cob.valor,
+        dataVencimentoISO: cob.dataVencimentoISO,
       });
-    }
+    });
 
-    return list;
-  }, [valorAdesaoPlano, valorMensalidadePlano, dataEfetivacaoISO, todayISO]);
+    return lista;
+  }, [plano, valorAdesaoPlano, valorMensalidadePlano, dataEfetivacaoISO, todayISO]);
 
   // controla scroll suave ao trocar de etapa
   const goToStep = (step) => {
@@ -842,7 +890,7 @@ export default function Cadastro() {
     }, 0);
   };
 
-  // === Render principal ===
+  // === Render ===
 
   return (
     <section className="section">
@@ -1146,6 +1194,7 @@ export default function Cadastro() {
                 setDiaDSelecionado={setDiaDSelecionado}
                 dataEfetivacaoISO={dataEfetivacaoISO}
                 valorMensalidadePlano={valorMensalidadePlano}
+                composicaoMensalidade={composicaoMensalidade}
                 cobrancasPreview={cobrancasPreview}
                 onBack={() => goToStep(3)}
                 onFinalizar={handleSalvarEnviar}
