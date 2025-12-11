@@ -36,7 +36,7 @@ import StepCarne from "./cadastro/StepCarne";
 
 import {
   detalharValorMensalidadePlano,
-  gerarCobrancasPlano, // <<< IMPORT IMPORTANTE
+  gerarCobrancasPlano,
 } from "@/lib/planPricing";
 
 const isEmpty = (v) => !String(v || "").trim();

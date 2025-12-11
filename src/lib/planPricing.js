@@ -375,9 +375,20 @@ export function detalharValorMensalidadePlano(
 
     let valorFaixa = 0;
     if (!isento) {
-      if (habilitarValorTitularPorFaixaEtaria) {
+      const hasFaixasTit =
+        Array.isArray(plano.faixasEtariasTitular) &&
+        plano.faixasEtariasTitular.length > 0;
+
+      if (ehTitular && hasFaixasTit) {
+        // Regra pedida: se existir tabela específica de titular,
+        // o titular SEMPRE usa essa tabela.
+        valorFaixa = valorFaixaEtaria(plano, idade, { titular: true });
+      } else if (habilitarValorTitularPorFaixaEtaria) {
+        // Modo antigo: quando essa flag estiver ativa,
+        // usa o parâmetro titular normal.
         valorFaixa = valorFaixaEtaria(plano, idade, { titular: ehTitular });
       } else {
+        // Demais casos: usa apenas a tabela genérica de faixasEtarias.
         valorFaixa = valorFaixaEtaria(plano, idade, { titular: false });
       }
     }
