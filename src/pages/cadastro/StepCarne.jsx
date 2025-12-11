@@ -286,18 +286,7 @@ export default function StepCarne({
 
             {/* Cards resumo */}
             <div className="md:col-span-2 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-3 shadow-sm">
-                <p className="text-[11px] text-[var(--c-muted)] font-medium uppercase tracking-[0.16em]">
-                  Data de efetivação
-                </p>
-                <p className="font-semibold text-[14px] mt-1 tabular-nums">
-                  {formatDateBR(dataEfetivacaoISO)}
-                </p>
-                <p className="mt-1 text-[11px] text-[var(--c-muted)]">
-                  A partir desta data o plano entra em vigor, após o pagamento
-                  da primeira cobrança.
-                </p>
-              </div>
+
 
               <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-3 shadow-sm flex flex-col justify-between">
                 <div>
