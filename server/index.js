@@ -508,6 +508,46 @@ app.get('/api/v1/planos/:id', async (req, res) => {
   }
 });
 
+/* ===== Cupons ===== */
+app.get('/api/v1/cupons/:codigo', async (req, res) => {
+  try {
+    const { codigo } = req.params;
+
+    const url = `${BASE}/api/v1/cupons/${encodeURIComponent(codigo)}`;
+
+    console.log('[BFF] GET /api/v1/cupons/:codigo ->', url);
+
+    // Usa client credentials + dedup + retry 401 (1x)
+    const r = await fetchWithClientTokenDedupRetry(url, req, {
+      dedupMs: 400,
+      cacheMs: 5_000, // cache curto para evitar spam de validação
+    });
+
+    const data = await readAsJsonOrText(r);
+
+    console.log(
+      '[BFF] ← /api/v1/cupons/:codigo status',
+      r.status,
+      r._cached ? '(cached)' : ''
+    );
+
+    if (!r.ok) {
+      return res.status(r.status).send(data);
+    }
+
+    return res.status(200).send(data);
+  } catch (e) {
+    console.error('[BFF] cupons error:', e);
+    return res.status(500).json({
+      error: 'Falha ao validar cupom',
+      message: String(e),
+    });
+  }
+});
+
+
+
+
 /* ===== Contratos por CPF ===== */
 app.get('/api/v1/contratos/cpf/:cpf', async (req, res) => {
   try {
