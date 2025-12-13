@@ -6,7 +6,7 @@ import CTAButton from "@/components/ui/CTAButton";
 import useTenant from "@/store/tenant";
 import { celcashCriarClienteContrato, celcashGerarCarneManual } from "@/lib/celcashApi";
 
-import { CheckCircle2, ChevronLeft, Info, Loader2 } from "lucide-react";
+import { CheckCircle2, ChevronLeft, Info, Loader2, X } from "lucide-react";
 
 import {
   onlyDigits,
@@ -92,6 +92,19 @@ function decodePayloadParam(p) {
   }
 }
 
+function encodePayloadParam(obj) {
+  try {
+    const json = JSON.stringify(obj || {});
+    return btoa(encodeURIComponent(json));
+  } catch {
+    try {
+      return btoa(JSON.stringify(obj || {}));
+    } catch {
+      return "";
+    }
+  }
+}
+
 /**
  * Camada de “ambiente” premium (halo) para dar consistência visual com Login
  * sem alterar a estrutura dos Steps.
@@ -113,8 +126,53 @@ function StepAmbient({ children }) {
   );
 }
 
+/* -------------------- Modal (sem dependência) -------------------- */
+function Modal({ open, title, children, onClose }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[80]">
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div className="absolute inset-x-0 top-6 mx-auto w-[92vw] max-w-3xl">
+        <div
+          className="rounded-[28px] border shadow-[0_30px_120px_rgba(0,0,0,0.45)]"
+          style={{
+            background: "color-mix(in srgb, var(--c-surface) 88%, transparent)",
+            borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
+            backdropFilter: "blur(18px)",
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+        >
+          <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-[var(--c-border)]/60">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--c-muted)]">Seleção</p>
+              <h3 className="text-base md:text-lg font-semibold tracking-tight truncate">{title}</h3>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--c-border)] bg-[var(--c-surface)]/80 hover:bg-[var(--c-surface)] transition"
+              aria-label="Fechar"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="px-5 py-5">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Cadastro() {
   const q = useQuery();
+  const location = useLocation();
   const navigate = useNavigate();
   const empresa = useTenant((s) => s.empresa);
 
@@ -148,19 +206,115 @@ export default function Cadastro() {
   const ufRef = useRef(null);
 
   const payload = useMemo(() => decodePayloadParam(q.get("p")), [q]);
-  const planoId = payload?.plano;
+
+  // --- Agora o plano pode ser trocado a qualquer momento ---
+  const [planoIdState, setPlanoIdState] = useState(payload?.plano || null);
   const cupom = payload?.cupom || "";
 
   // plano completo: começa com snapshot (se vier) e enriquece com GET /planos/{id}
   const [plano, setPlano] = useState(payload?.planSnapshot || null);
 
+  // --- Seleção de planos (modal) ---
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [planSearch, setPlanSearch] = useState("");
+  const [planListState, setPlanListState] = useState({ loading: false, items: [], error: "" });
+
+  function applySelectedPlano(nextPlano) {
+    const nextId = nextPlano?.id ?? nextPlano?.planoId ?? null;
+    if (!nextId) return;
+
+    // Mantém cupom e o que já veio no payload, mas troca plano
+    const nextPayload = {
+      ...(payload || {}),
+      plano: Number(nextId),
+      planSnapshot: nextPlano || null,
+      cupom: cupom || (payload?.cupom || ""),
+    };
+
+    setPlanoIdState(Number(nextId));
+    setPlano(nextPlano || null);
+
+    const encoded = encodePayloadParam(nextPayload);
+    const nextUrl = encoded ? `${location.pathname}?p=${encodeURIComponent(encoded)}` : location.pathname;
+    navigate(nextUrl, { replace: true });
+
+    // ao trocar plano, o usuário não deve “perder” a etapa atual
+    setPlanModalOpen(false);
+    setError("");
+  }
+
   useEffect(() => {
-    if (!planoId) return;
+    if (!planModalOpen) return;
 
     let alive = true;
     (async () => {
       try {
-        const resp = await api.get(`/api/v1/planos/${planoId}`);
+        setPlanListState((s) => ({ ...s, loading: true, error: "" }));
+        // endpoint esperado: lista de planos disponíveis
+        const resp = await api.get(`/api/v1/planos`);
+        if (!alive) return;
+
+        const data = resp?.data;
+        const items = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+        setPlanListState({ loading: false, items, error: "" });
+      } catch (e) {
+        if (!alive) return;
+        setPlanListState({
+          loading: false,
+          items: [],
+          error: e?.response?.data?.message || e?.message || "Não foi possível carregar os planos agora.",
+        });
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [planModalOpen]);
+
+  useEffect(() => {
+    // NÃO exibir CTA de contato nesta tela:
+    // (funciona mesmo se o dock vier do Layout, pois escondemos via CSS no body)
+    const id = "cadastro-hide-contact-cta";
+    if (document.getElementById(id)) return;
+
+    const style = document.createElement("style");
+    style.id = id;
+    style.innerHTML = `
+      /* Esconde CTA/Dock de contato apenas nesta rota */
+      .sticky-contact-dock,
+      #sticky-contact-dock,
+      [data-sticky-contact-dock],
+      [data-contact-dock],
+      [data-contact-cta],
+      .ContactDock,
+      .StickyContactDock,
+      .contact-dock,
+      .whatsapp-cta,
+      .cta-contato {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+      /* protege o conteúdo de ficar “coberto” por docks */
+      body { padding-bottom: 0px !important; }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!planoIdState) return;
+
+    let alive = true;
+    (async () => {
+      try {
+        const resp = await api.get(`/api/v1/planos/${planoIdState}`);
         if (!alive) return;
         const planoApi = resp?.data || {};
         setPlano((prev) => ({
@@ -175,7 +329,7 @@ export default function Cadastro() {
     return () => {
       alive = false;
     };
-  }, [planoId]);
+  }, [planoIdState]);
 
   const UF_PADRAO = (import.meta?.env?.VITE_UF_PADRAO || window.__UF_PADRAO__ || "")
     .toString()
@@ -679,7 +833,7 @@ export default function Cadastro() {
       const todayISO = new Date().toISOString().slice(0, 10);
       const payloadContrato = {
         titularId: Number(titularId),
-        planoId: Number(planoId),
+        planoId: Number(planoIdState),
         vendedorId: 717,
         dataContrato: todayISO,
         diaD: Number(diaDSelecionado),
@@ -750,13 +904,6 @@ export default function Cadastro() {
     }
   }
 
-  const onCepChange = (v) => {
-    setCepState((s) => ({ ...s, error: "", found: false }));
-    updTitEndereco({ cep: v });
-    debouncedBuscaCEP(v);
-  };
-  const onCepBlur = (v) => fetchCEP(v, applyViaCepData);
-
   const bloquearCadastro = lookupState.temContratoAtivo === true;
 
   const glassCardStyle = {
@@ -807,6 +954,21 @@ export default function Cadastro() {
     }, 0);
   };
 
+  // Para “grudar” o stepper no topo quando rolar:
+  const stickyTop = "calc(var(--app-header-h, 72px) + 10px)";
+
+  // filtro simples na lista de planos
+  const planosFiltrados = useMemo(() => {
+    const term = (planSearch || "").trim().toLowerCase();
+    const arr = planListState.items || [];
+    if (!term) return arr;
+    return arr.filter((p) => {
+      const nome = String(p?.nome || "").toLowerCase();
+      const id = String(p?.id ?? "");
+      return nome.includes(term) || id.includes(term);
+    });
+  }, [planSearch, planListState.items]);
+
   return (
     <section className="section">
       <div className="container-max max-w-4xl md:max-w-5xl">
@@ -849,7 +1011,9 @@ export default function Cadastro() {
               </div>
               <div className="flex-1 space-y-1">
                 {lookupState.running && <p className="text-sm">Verificando CPF e contratos…</p>}
-                {!lookupState.running && lookupState.mensagem && <p className="text-sm font-medium">{lookupState.mensagem}</p>}
+                {!lookupState.running && lookupState.mensagem && (
+                  <p className="text-sm font-medium">{lookupState.mensagem}</p>
+                )}
                 {!lookupState.running && lookupState.erro && (
                   <p className="text-sm text-red-700">Falha na verificação automática: {lookupState.erro}</p>
                 )}
@@ -891,12 +1055,25 @@ export default function Cadastro() {
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-base md:text-lg font-semibold tracking-tight">Dados para contratação</h2>
-              {plano?.nome ? (
-                <span className="inline-flex items-center rounded-full border border-[var(--c-border)] px-3 py-1 text-[11px] md:text-xs text-[var(--c-muted)] bg-[var(--c-surface)]/80">
-                  Plano&nbsp;<span className="font-semibold text-[var(--text)]">{plano.nome}</span>
-                </span>
-              ) : null}
+
+              <div className="flex items-center gap-2">
+                {plano?.nome ? (
+                  <span className="inline-flex items-center rounded-full border border-[var(--c-border)] px-3 py-1 text-[11px] md:text-xs text-[var(--c-muted)] bg-[var(--c-surface)]/80">
+                    Plano&nbsp;<span className="font-semibold text-[var(--text)]">{plano.nome}</span>
+                  </span>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => setPlanModalOpen(true)}
+                  className="inline-flex items-center justify-center rounded-full border border-[var(--c-border)] bg-[var(--c-surface)]/90 px-3 py-1 text-[11px] md:text-xs font-semibold hover:bg-[var(--c-surface)] transition"
+                  aria-label="Trocar plano"
+                >
+                  Trocar plano
+                </button>
+              </div>
             </div>
+
             <p className="text-xs md:text-sm text-[var(--c-muted)]">
               Revise o titular e confirme as condições do plano antes de avançar.
             </p>
@@ -983,40 +1160,93 @@ export default function Cadastro() {
           </div>
         </div>
 
-        {/* Stepper DAS 4 ETAPAS */}
-        {!bloquearCadastro && (
-          <div ref={stepperAnchorRef} className="mt-4 mb-5">
-            <ol
-              className="rounded-3xl border px-2 py-2 shadow-[0_22px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl"
-              style={{
-                background: "color-mix(in srgb, var(--c-surface) 78%, transparent)",
-                borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
-              }}
-            >
-              {/* MOBILE: 1 linha, ícone/número acima do rótulo */}
-              <div className="grid grid-cols-4 gap-2 md:hidden">
-                {steps.map((step) => {
-                  const active = currentStep === step.id;
-                  const completed = currentStep > step.id;
+        {/* Stepper DAS 4 ETAPAS (sempre visível e “gruda” no topo ao rolar) */}
+        <div
+          ref={stepperAnchorRef}
+          className="mt-4 mb-5 sticky z-[35]"
+          style={{ top: stickyTop }}
+        >
+          <div
+            className="rounded-3xl border px-2 py-2 shadow-[0_22px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl"
+            style={{
+              background: "color-mix(in srgb, var(--c-surface) 82%, transparent)",
+              borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
+            }}
+          >
+            {/* MOBILE: 1 linha, ícone/número acima do rótulo */}
+            <div className={`grid grid-cols-4 gap-2 md:hidden ${bloquearCadastro ? "opacity-70" : ""}`}>
+              {steps.map((step) => {
+                const active = currentStep === step.id;
+                const completed = currentStep > step.id;
+                const disabled = bloquearCadastro || step.id > currentStep;
 
-                  return (
+                return (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => {
+                      if (disabled) return;
+                      goToStep(step.id);
+                    }}
+                    disabled={disabled}
+                    className={`flex flex-col items-center justify-center rounded-2xl px-2 py-2 transition-all ${
+                      active
+                        ? "bg-[var(--primary)] text-white shadow-md"
+                        : completed
+                        ? "bg-[var(--c-surface)]/96 text-[var(--c-muted)] border border-[var(--c-border)]"
+                        : "bg-transparent text-[var(--c-muted)]/85 border border-transparent"
+                    } ${disabled ? "cursor-not-allowed" : "hover:shadow-sm"}`}
+                    aria-current={active ? "step" : undefined}
+                  >
+                    <span
+                      className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold ${
+                        active
+                          ? "bg-white/20"
+                          : completed
+                          ? "bg-[var(--primary)]/10 text-[var(--primary)]"
+                          : "bg-[var(--c-surface)]/90 border border-[var(--c-border)] text-[var(--c-muted)]"
+                      }`}
+                    >
+                      {completed ? <CheckCircle2 size={14} /> : step.id}
+                    </span>
+                    <span className="mt-1 text-[11px] font-semibold leading-tight text-center">
+                      {step.label}
+                    </span>
+                    <span className="mt-0.5 text-[9px] uppercase tracking-[0.18em] opacity-70">
+                      Etapa {step.id}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* DESKTOP: mantém formato “pílula” horizontal */}
+            <div className={`hidden md:flex flex-wrap gap-2 ${bloquearCadastro ? "opacity-70" : ""}`}>
+              {steps.map((step) => {
+                const active = currentStep === step.id;
+                const completed = currentStep > step.id;
+                const disabled = bloquearCadastro || step.id > currentStep;
+
+                return (
+                  <li key={step.id} className="flex-1 min-w-[150px] list-none">
                     <button
-                      key={step.id}
                       type="button"
                       onClick={() => {
-                        if (step.id <= currentStep) goToStep(step.id);
+                        if (disabled) return;
+                        goToStep(step.id);
                       }}
-                      className={`flex flex-col items-center justify-center rounded-2xl px-2 py-2 transition-all ${
+                      disabled={disabled}
+                      className={`flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-xs md:text-sm transition-all ${
                         active
                           ? "bg-[var(--primary)] text-white shadow-md"
                           : completed
                           ? "bg-[var(--c-surface)]/96 text-[var(--c-muted)] border border-[var(--c-border)]"
                           : "bg-transparent text-[var(--c-muted)]/85 border border-transparent"
-                      }`}
+                      } ${disabled ? "cursor-not-allowed" : "hover:shadow-sm"}`}
                       aria-current={active ? "step" : undefined}
                     >
                       <span
-                        className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold ${
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ${
                           active
                             ? "bg-white/20"
                             : completed
@@ -1026,61 +1256,17 @@ export default function Cadastro() {
                       >
                         {completed ? <CheckCircle2 size={14} /> : step.id}
                       </span>
-                      <span className="mt-1 text-[11px] font-semibold leading-tight text-center">
-                        {step.label}
-                      </span>
-                      <span className="mt-0.5 text-[9px] uppercase tracking-[0.18em] opacity-70">
-                        Etapa {step.id}
+                      <span className="flex flex-col">
+                        <span className="font-medium">{step.label}</span>
+                        <span className="text-[10px] uppercase tracking-[0.16em] opacity-70">
+                          Etapa {step.id}
+                        </span>
                       </span>
                     </button>
-                  );
-                })}
-              </div>
-
-              {/* DESKTOP: mantém formato “pílula” horizontal */}
-              <div className="hidden md:flex flex-wrap gap-2">
-                {steps.map((step) => {
-                  const active = currentStep === step.id;
-                  const completed = currentStep > step.id;
-                  return (
-                    <li key={step.id} className="flex-1 min-w-[150px] list-none">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (step.id <= currentStep) goToStep(step.id);
-                        }}
-                        className={`flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-xs md:text-sm transition-all ${
-                          active
-                            ? "bg-[var(--primary)] text-white shadow-md"
-                            : completed
-                            ? "bg-[var(--c-surface)]/96 text-[var(--c-muted)] border border-[var(--c-border)]"
-                            : "bg-transparent text-[var(--c-muted)]/85 border border-transparent"
-                        }`}
-                        aria-current={active ? "step" : undefined}
-                      >
-                        <span
-                          className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ${
-                            active
-                              ? "bg-white/20"
-                              : completed
-                              ? "bg-[var(--primary)]/10 text-[var(--primary)]"
-                              : "bg-[var(--c-surface)]/90 border border-[var(--c-border)] text-[var(--c-muted)]"
-                          }`}
-                        >
-                          {completed ? <CheckCircle2 size={14} /> : step.id}
-                        </span>
-                        <span className="flex flex-col">
-                          <span className="font-medium">{step.label}</span>
-                          <span className="text-[10px] uppercase tracking-[0.16em] opacity-70">
-                            Etapa {step.id}
-                          </span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </div>
-            </ol>
+                  </li>
+                );
+              })}
+            </div>
 
             <div className="mt-3 md:hidden">
               <div className="mb-1 flex items-center justify-between">
@@ -1094,7 +1280,7 @@ export default function Cadastro() {
               </div>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Etapas */}
         {!bloquearCadastro && (
@@ -1180,6 +1366,108 @@ export default function Cadastro() {
             )}
           </StepAmbient>
         )}
+
+        {/* Modal de troca de plano (a qualquer momento) */}
+        <Modal
+          open={planModalOpen}
+          title="Trocar plano"
+          onClose={() => setPlanModalOpen(false)}
+        >
+          <div className="space-y-4">
+            <div className="grid gap-2 md:grid-cols-3">
+              <div className="md:col-span-2">
+                <p className="text-xs text-[var(--c-muted)]">
+                  Selecione um plano. O cálculo de mensalidade e cobranças será atualizado automaticamente.
+                </p>
+              </div>
+              <div className="md:col-span-1">
+                <input
+                  value={planSearch}
+                  onChange={(ev) => setPlanSearch(ev.target.value)}
+                  placeholder="Buscar por nome ou ID"
+                  className="w-full rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/80 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                />
+              </div>
+            </div>
+
+            {planListState.loading && (
+              <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/70 p-4 text-sm text-[var(--c-muted)]">
+                Carregando planos…
+              </div>
+            )}
+
+            {planListState.error && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {planListState.error}
+              </div>
+            )}
+
+            {!planListState.loading && !planListState.error && (
+              <div className="max-h-[55vh] overflow-auto pr-1">
+                <div className="grid gap-3 md:grid-cols-2">
+                  {planosFiltrados.map((p) => {
+                    const id = p?.id ?? p?.planoId;
+                    const active = Number(id) === Number(planoIdState);
+                    const valorAdesao = Number(p?.valorAdesao ?? p?.valor_adesao ?? 0);
+                    const aceita = [
+                      p?.pagamentoPix ? "Pix" : null,
+                      p?.pagamentoBoleto ? "Boleto" : null,
+                      p?.pagamentoCartao ? "Cartão" : null,
+                    ].filter(Boolean);
+
+                    return (
+                      <button
+                        key={String(id)}
+                        type="button"
+                        onClick={() => applySelectedPlano(p)}
+                        className={`text-left rounded-3xl border p-4 transition ${
+                          active
+                            ? "border-[var(--primary)] bg-[var(--primary)]/10"
+                            : "border-[var(--c-border)] bg-[var(--c-surface)]/75 hover:bg-[var(--c-surface)]"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--c-muted)]">
+                              Plano #{id}
+                            </p>
+                            <p className="mt-0.5 text-sm font-semibold truncate">{p?.nome || "Plano"}</p>
+                          </div>
+                          {active ? (
+                            <span className="inline-flex items-center rounded-full bg-[var(--primary)] text-white px-3 py-1 text-[11px] font-semibold">
+                              Atual
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <FieldRead label="Taxa de adesão" value={moneyBRL(valorAdesao)} mono />
+                          <FieldRead label="Pagamento" value={aceita.length ? aceita.join(" • ") : "—"} />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {(!planosFiltrados || planosFiltrados.length === 0) && (
+                  <div className="mt-3 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/70 p-4 text-sm text-[var(--c-muted)]">
+                    Nenhum plano encontrado com este filtro.
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="pt-2 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPlanModalOpen(false)}
+                className="inline-flex items-center justify-center rounded-full border border-[var(--c-border)] bg-[var(--c-surface)]/80 px-5 py-2.5 text-sm font-semibold hover:bg-[var(--c-surface)] transition"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </Modal>
       </div>
     </section>
   );

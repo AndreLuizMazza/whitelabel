@@ -674,66 +674,15 @@ export default function StepCarne({
                   background: "color-mix(in srgb, var(--surface-elevated) 80%, var(--text) 6%)",
                 }}
               >
-                <div className="h-full rounded-full transition-all duration-300" style={{ width: "100%", background: "var(--primary)" }} />
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{ width: "100%", background: "var(--primary)" }}
+                />
               </div>
 
               <p className="text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
                 Escolha o dia do vencimento, aplique cupom (se tiver) e gere o carnê.
               </p>
-            </div>
-
-            {/* RESUMO (banco-style) */}
-            <div className="grid gap-3 md:grid-cols-3">
-              <div
-                className="rounded-2xl border px-4 py-4 md:py-5"
-                style={{
-                  background: "color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)",
-                  borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-                }}
-              >
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">Mensalidade</p>
-                <p className="mt-1 text-xl font-semibold tabular-nums">{money(valorMensalidadePlano)}</p>
-                <p className="mt-1 text-[11px] text-[var(--text-muted)]">Valor recorrente do plano.</p>
-              </div>
-
-              <div
-                className="rounded-2xl border px-4 py-4 md:py-5"
-                style={{
-                  background: "color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)",
-                  borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-                }}
-              >
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">Economia</p>
-                <p className="mt-1 text-xl font-semibold tabular-nums">{temDesconto ? money(totalDesconto) : "—"}</p>
-                <p className="mt-1 text-[11px] text-[var(--text-muted)]">
-                  {cupomInfo ? "Desconto aplicado conforme regras do cupom." : "Aplique um cupom para economizar."}
-                </p>
-              </div>
-
-              <div
-                className="rounded-2xl border px-4 py-4 md:py-5"
-                style={{
-                  background: "color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)",
-                  borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-                }}
-              >
-                <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">Primeiro pagamento</p>
-                <p className="mt-1 text-xl font-semibold tabular-nums">{money(primeiraCobrancaReal?.valor || 0)}</p>
-
-                {primeiraCobrancaReal && Number(primeiraCobrancaReal?._desconto || 0) > 0 ? (
-                  <p className="mt-1 text-[11px] text-[var(--text-muted)] tabular-nums line-through">
-                    {money(primeiraCobrancaReal._valorOriginal || 0)}
-                  </p>
-                ) : (
-                  <p className="mt-1 text-[11px] text-[var(--text-muted)] tabular-nums">
-                    {primeiraCobrancaReal ? formatDateBR(primeiraCobrancaReal.dataVencimentoISO) : formatDateBR(dataEfetivacaoISO)}
-                  </p>
-                )}
-
-                {adesaoZerouPorCupom ? (
-                  <p className="mt-1 text-[11px] text-[var(--text-muted)]">Adesão coberta integralmente.</p>
-                ) : null}
-              </div>
             </div>
 
             {/* CUPOM */}
@@ -908,9 +857,7 @@ export default function StepCarne({
                     <p className="text-xs text-[var(--text-muted)]">Ver composição do valor por pessoa.</p>
                   </div>
                   <span className="text-[11px] text-[var(--text-muted)] group-open:opacity-60">
-                    {`${
-                      /* texto neutro (sem ícones) */ ""
-                    }`}
+                    {`${""}`}
                     Expandir
                   </span>
                 </summary>
@@ -1008,12 +955,7 @@ export default function StepCarne({
                     {!mostrarTodasCobrancas ? (
                       <>
                         {cobrancasResumo.map((cob, idx) => (
-                          <CobrancaRow
-                            key={cob.id}
-                            cob={cob}
-                            index={idx}
-                            isCompact
-                          />
+                          <CobrancaRow key={cob.id} cob={cob} index={idx} isCompact />
                         ))}
 
                         <div className="pt-1">
