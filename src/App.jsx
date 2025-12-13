@@ -59,7 +59,6 @@ import GlobalShell from '@/layouts/GlobalShell.jsx'
 
 /**
  * Resolve o “subtítulo” da página com base na rota.
- * Ideia: algo curto, elegante e útil na aba do navegador.
  */
 function resolvePageTitle(pathname = '/') {
   if (pathname === '/') return 'Início'
@@ -92,12 +91,15 @@ function resolvePageTitle(pathname = '/') {
   if (pathname === '/area/dependentes') return 'Dependentes'
   if (pathname === '/area/pagamentos') return 'Histórico de pagamentos'
 
+  // Fluxo de contratação
+  if (pathname === '/cadastro') return 'Contratação'
+  if (pathname === '/confirmacao') return 'Confirmação'
+
   return ''
 }
 
 /**
  * Hook para atualizar o título da aba com base no tenant + rota.
- * Ex.: "Planos • Funerária Patense"
  */
 function useDynamicTitle() {
   const location = useLocation()
@@ -107,15 +109,37 @@ function useDynamicTitle() {
     const base =
       tenant?.nomeFantasia ||
       tenant?.nome ||
-      'Progem Starter' // fallback geral
+      'Progem Starter'
 
     const section = resolvePageTitle(location.pathname)
     document.title = section ? `${section} • ${base}` : base
   }, [location.pathname, tenant])
 }
 
+/**
+ * Hook utilitário: marca rota no <body>.
+ * (Útil para CSS/telemetria e também para "avoidSelector" se você quiser.)
+ */
+function useBodyRouteTag() {
+  const location = useLocation()
+  useEffect(() => {
+    document.body.setAttribute('data-route', location.pathname || '/')
+    return () => {
+      document.body.removeAttribute('data-route')
+    }
+  }, [location.pathname])
+}
+
 export default function App() {
   useDynamicTitle()
+  useBodyRouteTag()
+
+  const location = useLocation()
+
+  // ✅ Dock NÃO deve existir no fluxo de contratação.
+  const hideContactDock =
+    location.pathname === '/cadastro' ||
+    location.pathname === '/confirmacao'
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -245,20 +269,23 @@ export default function App() {
 
         <Footer />
 
-        <StickyContactDock
-          position="bottom-left"
-          extraAction={{
-            label: 'Planos',
-            href: '/planos',
-            ariaLabel: 'Abrir simulador de planos',
-            badge: 'Novo',
-          }}
-          avoidSelector='[data-cookie-banner], [data-bottom-avoid]'
-          reserveSpace
-          compactNearFooter
-          hideOnKeyboard
-          autoHideOnScroll
-        />
+        {/* ✅ Dock condicional (não existe no DOM em /cadastro e /confirmacao) */}
+        {!hideContactDock && (
+          <StickyContactDock
+            position="bottom-left"
+            extraAction={{
+              label: 'Planos',
+              href: '/planos',
+              ariaLabel: 'Abrir simulador de planos',
+              badge: 'Novo',
+            }}
+            avoidSelector='[data-cookie-banner], [data-bottom-avoid]'
+            reserveSpace
+            compactNearFooter
+            hideOnKeyboard
+            autoHideOnScroll
+          />
+        )}
       </GlobalShell>
     </div>
   )
