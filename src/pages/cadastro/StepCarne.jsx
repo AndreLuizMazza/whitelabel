@@ -1,33 +1,21 @@
 // src/pages/cadastro/StepCarne.jsx
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import CTAButton from "@/components/ui/CTAButton";
 import { DIA_D_OPTIONS, PARENTESCO_LABELS } from "@/lib/constants";
 import { money } from "@/lib/planUtils";
 import { formatDateBR } from "@/lib/br";
 import api from "@/lib/api.js";
-import { Loader2, ShieldCheck, CalendarDays, Tag, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
-function SectionTitle({ children, right = null }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <h2 className="text-base md:text-lg font-semibold tracking-tight">
-        {children}
-      </h2>
-      {right}
-    </div>
-  );
-}
-
+/* ---------------- util ---------------- */
 function round2(v) {
   const n = Number(v || 0);
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
-
 function clampMin0(v) {
   return Math.max(0, Number(v || 0));
 }
-
 function applyDiscountToValue(originalValue, cupom) {
   const base = Number(originalValue || 0);
   if (!cupom) return { final: base, desconto: 0 };
@@ -50,14 +38,44 @@ function applyDiscountToValue(originalValue, cupom) {
 
   return { final: base, desconto: 0 };
 }
-
 function parseISO(v) {
   const d = new Date(v);
   return isNaN(d.getTime()) ? null : d;
 }
+function normalizeKeyFromDep(dep) {
+  const cpf = String(dep?.cpf || dep?.cpfTitular || "").replace(/\D/g, "");
+  if (cpf) return `cpf:${cpf}`;
+  const nome = String(dep?.nome || "").trim().toUpperCase();
+  const dn = String(dep?.data_nascimento || dep?.dataNascimento || "").trim();
+  const isTit = dep?.isTitular ? "T" : "D";
+  return `nd:${isTit}:${nome}:${dn}`;
+}
+function isTitularLike(dep) {
+  if (dep?.isTitular) return true;
+  const p = String(dep?.parentesco || "").trim().toUpperCase();
+  return p === "TITULAR";
+}
+function cupomTipoLabel(cupom) {
+  const tipo = String(cupom?.tipoDesconto || "").toUpperCase();
+  if (tipo === "PERCENTUAL") return "Percentual";
+  if (tipo === "VALOR_FIXO") return "Valor fixo";
+  return "—";
+}
+function cupomValorLabel(cupom) {
+  const tipo = String(cupom?.tipoDesconto || "").toUpperCase();
+  const valor = Number(cupom?.valor || 0);
+  if (tipo === "PERCENTUAL") return `${Math.min(100, Math.max(0, valor))}%`;
+  if (tipo === "VALOR_FIXO") return money(Math.max(0, valor));
+  return "—";
+}
+function safePad2(n) {
+  const v = Number(n || 0);
+  if (!Number.isFinite(v) || v <= 0) return "00";
+  return String(v).padStart(2, "0");
+}
 
 export default function StepCarne({
-  glassCardStyle,
+  glassCardStyle, // mantido por compatibilidade
   diaDSelecionado,
   setDiaDSelecionado,
   dataEfetivacaoISO,
@@ -67,8 +85,6 @@ export default function StepCarne({
   onBack,
   onFinalizar,
   saving,
-
-  // (opcionais) para o pai “enxergar” o cupom aplicado sem quebrar o fluxo atual:
   onCupomApplied,
   onCupomRemoved,
 }) {
@@ -80,13 +96,15 @@ export default function StepCarne({
   const [cupomError, setCupomError] = useState("");
   const [cupomInfo, setCupomInfo] = useState(null);
 
-  const totalParcelas = cobrancasPreview?.length || 0;
-  const primeiraCobranca = cobrancasPreview?.[0] || null;
+  // UX: lista de cobranças colapsada por padrão
+  const [mostrarTodasCobrancas, setMostrarTodasCobrancas] = useState(false);
 
-  const handleClickFinalizar = () => {
-    if (saving) return;
-    setConfirmOpen(true);
-  };
+  useEffect(() => {
+    // ao recalcular lista (ex.: troca de plano), resetar o expand
+    setMostrarTodasCobrancas(false);
+  }, [cobrancasPreview?.length]);
+
+  const totalParcelas = cobrancasPreview?.length || 0;
 
   const validarCupom = (data) => {
     if (!data) return "Cupom inválido.";
@@ -94,13 +112,10 @@ export default function StepCarne({
     const exp = parseISO(data.dataValidade);
     if (exp && exp.getTime() < Date.now()) return "Cupom expirado.";
     const tipo = String(data.tipoDesconto || "").toUpperCase();
-    if (tipo !== "PERCENTUAL" && tipo !== "VALOR_FIXO")
-      return "Tipo de desconto não suportado.";
+    if (tipo !== "PERCENTUAL" && tipo !== "VALOR_FIXO") return "Tipo de desconto não suportado.";
+
     const qtd = Number(data.quantidadeParcelas || 0);
-    if (data.adesao) {
-      // ok: desconto de adesão costuma ser 1 parcela
-      return null;
-    }
+    if (data.adesao) return null; // cupom só de adesão
     if (qtd <= 0) return "Quantidade de parcelas do cupom inválida.";
     return null;
   };
@@ -117,9 +132,7 @@ export default function StepCarne({
     setCupomError("");
     setCupomLoading(true);
     try {
-      const { data } = await api.get(
-        `/api/v1/cupons/${encodeURIComponent(codigo)}`
-      );
+      const { data } = await api.get(`/api/v1/cupons/${encodeURIComponent(codigo)}`);
 
       const err = validarCupom(data);
       if (err) {
@@ -135,8 +148,7 @@ export default function StepCarne({
       const msg =
         e?.response?.status === 404
           ? "Cupom não encontrado."
-          : e?.response?.data?.message ||
-            "Não foi possível validar o cupom. Tente novamente.";
+          : e?.response?.data?.message || "Não foi possível validar o cupom. Tente novamente.";
       setCupomError(msg);
     } finally {
       setCupomLoading(false);
@@ -150,21 +162,22 @@ export default function StepCarne({
     if (typeof onCupomRemoved === "function") onCupomRemoved();
   };
 
-  // Cobranças com desconto (apenas visual nesta etapa)
+  // Cobranças com desconto (regra correta: adesão vs mensalidades)
   const cobrancasComDesconto = useMemo(() => {
     const list = Array.isArray(cobrancasPreview) ? cobrancasPreview : [];
-    if (!cupomInfo)
+
+    if (!cupomInfo) {
       return list.map((c) => ({
         ...c,
-        _valorOriginal: c.valor,
+        _valorOriginal: Number(c?.valor || 0),
         _desconto: 0,
         _cupomAplicado: false,
       }));
+    }
 
     const isAdesaoCupom = !!cupomInfo.adesao;
     const qtd = Number(cupomInfo.quantidadeParcelas || 0);
 
-    // Índices de mensalidades (exclui adesão)
     const mensalidadesIdx = list
       .map((c, idx) => ({ c, idx }))
       .filter(({ c }) => c?.id !== "adesao")
@@ -176,9 +189,7 @@ export default function StepCarne({
       const idxAdesao = list.findIndex((c) => c?.id === "adesao");
       if (idxAdesao >= 0) idxAplicar.add(idxAdesao);
     } else {
-      mensalidadesIdx
-        .slice(0, Math.max(0, qtd))
-        .forEach((idx) => idxAplicar.add(idx));
+      mensalidadesIdx.slice(0, Math.max(0, qtd)).forEach((idx) => idxAplicar.add(idx));
     }
 
     return list.map((c, idx) => {
@@ -202,18 +213,23 @@ export default function StepCarne({
     });
   }, [cobrancasPreview, cupomInfo]);
 
-  const totalComDesconto = useMemo(() => {
-    return (cobrancasComDesconto || []).reduce(
-      (acc, c) => acc + Number(c?.valor || 0),
-      0
-    );
+  const totalDesconto = useMemo(() => {
+    return (cobrancasComDesconto || []).reduce((acc, c) => acc + Number(c?._desconto || 0), 0);
   }, [cobrancasComDesconto]);
 
-  const totalDesconto = useMemo(() => {
-    return (cobrancasComDesconto || []).reduce(
-      (acc, c) => acc + Number(c?._desconto || 0),
-      0
-    );
+  const temDesconto = totalDesconto > 0;
+
+  // Primeira cobrança “real”: primeira parcela com valor > 0 (se adesão ficou 100% off, pula)
+  const primeiraCobrancaReal = useMemo(() => {
+    const list = Array.isArray(cobrancasComDesconto) ? cobrancasComDesconto : [];
+    return list.find((c) => Number(c?.valor || 0) > 0) || null;
+  }, [cobrancasComDesconto]);
+
+  const adesaoZerouPorCupom = useMemo(() => {
+    const list = Array.isArray(cobrancasComDesconto) ? cobrancasComDesconto : [];
+    const ad = list.find((c) => c?.id === "adesao");
+    if (!ad) return false;
+    return Number(ad?._valorOriginal || 0) > 0 && Number(ad?.valor || 0) === 0;
   }, [cobrancasComDesconto]);
 
   // >>> REGRA DE ENVIO: não enviar cobranças com valor <= 5
@@ -221,162 +237,344 @@ export default function StepCarne({
     return (cobrancasComDesconto || []).filter((c) => Number(c?.valor || 0) > 5);
   }, [cobrancasComDesconto]);
 
+  const cupomDetalhes = useMemo(() => {
+    if (!cupomInfo) return null;
+
+    const isAdesao = !!cupomInfo.adesao;
+    const qtd = Number(cupomInfo.quantidadeParcelas || 0);
+    const validade = cupomInfo.dataValidade ? parseISO(cupomInfo.dataValidade) : null;
+
+    const alvoLabel = isAdesao
+      ? "Aplica somente na adesão"
+      : qtd > 0
+      ? `Aplica nas ${qtd} primeira${qtd === 1 ? "" : "s"} mensalidade${qtd === 1 ? "" : "s"}`
+      : "Aplica nas mensalidades";
+
+    return {
+      codigo: String(cupomInfo.codigo || "").toUpperCase(),
+      descricao: cupomInfo.descricaoFormatada || cupomInfo.descricao || "Cupom aplicado.",
+      tipo: cupomTipoLabel(cupomInfo),
+      valor: cupomValorLabel(cupomInfo),
+      alvoLabel,
+      validadeLabel: validade ? formatDateBR(validade.toISOString()) : null,
+    };
+  }, [cupomInfo]);
+
   const handleConfirmarEnvio = () => {
     if (typeof onFinalizar === "function") {
       setConfirmOpen(false);
-      // Compatível: se o pai ignorar argumento, segue normal.
       onFinalizar({ cobrancas: cobrancasParaEnvio });
     }
   };
 
-  /* ---------- MODAL DE CONFIRMAÇÃO (PORTAL) ---------- */
+  /* ---------------- dados p/ composição mensalidade (mantida) ---------------- */
+  const basePlano = composicaoMensalidade?.basePlano || 0;
+  const dependentesComposicaoRaw =
+    composicaoMensalidade?.dependentes && Array.isArray(composicaoMensalidade.dependentes)
+      ? composicaoMensalidade.dependentes
+      : [];
+
+  const dependentesComposicao = useMemo(() => {
+    const list = dependentesComposicaoRaw;
+    const hasExplicitTitular = list.some((d) => d?.isTitular === true);
+    const out = [];
+    const seen = new Set();
+
+    for (const d of list) {
+      if (hasExplicitTitular && !d?.isTitular && isTitularLike(d)) continue;
+      const k = normalizeKeyFromDep(d);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(d);
+    }
+    out.sort((a, b) => Number(!!b?.isTitular) - Number(!!a?.isTitular));
+    return out;
+  }, [dependentesComposicaoRaw]);
+
+  const MAX_LINHAS = 6;
+  const mostrar = dependentesComposicao.slice(0, MAX_LINHAS);
+  const restantes = dependentesComposicao.length - mostrar.length;
+
+  /* ---------------- agrupamento + lista “banco” ---------------- */
+  const cobrancasAgrupadas = useMemo(() => {
+    const list = Array.isArray(cobrancasComDesconto) ? cobrancasComDesconto : [];
+    const adesao = list.find((c) => c?.id === "adesao") || null;
+    const mensalidades = list.filter((c) => c?.id !== "adesao");
+    return { adesao, mensalidades, list };
+  }, [cobrancasComDesconto]);
+
+  const cobrancasResumo = useMemo(() => {
+    const { adesao, mensalidades } = cobrancasAgrupadas;
+
+    // “3 linhas” por padrão:
+    // 1) adesão (se existir)
+    // 2) primeira cobrança real
+    // 3) próxima mensalidade após a primeira (se existir e for diferente)
+    const out = [];
+    const pushIf = (c) => {
+      if (!c) return;
+      if (out.some((x) => x?.id === c?.id)) return;
+      out.push(c);
+    };
+
+    pushIf(adesao);
+
+    pushIf(primeiraCobrancaReal);
+
+    if (primeiraCobrancaReal) {
+      const idx = mensalidades.findIndex((m) => m?.id === primeiraCobrancaReal?.id);
+      if (idx >= 0 && mensalidades[idx + 1]) pushIf(mensalidades[idx + 1]);
+    }
+
+    // fallback se lista vier diferente
+    if (out.length < 3) {
+      (mensalidades || []).slice(0, 3 - out.length).forEach((m) => pushIf(m));
+    }
+
+    return out.filter(Boolean);
+  }, [cobrancasAgrupadas, primeiraCobrancaReal]);
+
+  const totalMensalidades = cobrancasAgrupadas.mensalidades.length;
+
+  /* ---------------- modal premium (recibo, legível) ---------------- */
   const confirmModal =
     confirmOpen && !saving
       ? createPortal(
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+            {/* overlay */}
             <div
-              className="w-full max-w-lg mx-4 rounded-3xl border shadow-[0_30px_80px_rgba(0,0,0,0.45)] p-5 md:p-6"
+              className="absolute inset-0 bg-black/55"
+              onClick={() => setConfirmOpen(false)}
+              aria-hidden="true"
+            />
+            <div className="absolute inset-0 backdrop-blur-[6px]" aria-hidden="true" />
+
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Finalizar contratação"
+              className="relative w-full max-w-xl mx-4 rounded-[28px] border shadow-[0_40px_120px_rgba(0,0,0,0.55)] overflow-hidden"
               style={{
-                backgroundColor: "#ffffff",
-                borderColor: "var(--c-border)",
+                background: "color-mix(in srgb, var(--surface) 92%, var(--text) 6%)",
+                borderColor: "color-mix(in srgb, var(--text) 18%, transparent)",
               }}
             >
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)] mb-1">
-                    Confirmação
-                  </p>
-                  <h3 className="text-base md:text-lg font-semibold tracking-tight">
-                    Revise os dados de cobrança
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setConfirmOpen(false)}
-                  className="text-[var(--c-muted)] text-xs underline underline-offset-4 hover:text-[var(--text)]"
-                >
-                  Editar depois
-                </button>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                {/* Resumo do carnê */}
-                <div
-                  className="rounded-2xl border px-3.5 py-3 flex items-center justify-between gap-3"
-                  style={{
-                    backgroundColor: "#ffffff",
-                    borderColor: "var(--c-border)",
-                  }}
-                >
-                  <div>
-                    <p className="text-[11px] text-[var(--c-muted)] uppercase tracking-[0.16em]">
-                      Resumo do carnê
+              {/* header */}
+              <div
+                className="px-5 md:px-6 pt-5 md:pt-6 pb-4"
+                style={{
+                  background:
+                    "radial-gradient(140% 160% at 80% 0%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 65%)",
+                }}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
+                      Revisão final
                     </p>
-                    <p className="text-sm mt-1">
-                      {totalParcelas} parcelas programadas, com início em{" "}
-                      <span className="font-semibold tabular-nums">
-                        {primeiraCobranca
-                          ? formatDateBR(primeiraCobranca.dataVencimentoISO)
-                          : formatDateBR(dataEfetivacaoISO)}
-                      </span>
-                      .
-                    </p>
-
-                    {cupomInfo && (
-                      <p className="text-[11px] text-[var(--c-muted)] mt-1 leading-relaxed">
-                        Cupom aplicado:{" "}
-                        <span className="font-semibold">{cupomInfo.codigo}</span>
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[11px] text-[var(--c-muted)]">Dia do vencimento</p>
-                    <p className="text-sm font-semibold tabular-nums">
-                      {String(diaDSelecionado).padStart(2, "0")}
+                    <h3 className="mt-1 text-[18px] md:text-[20px] font-semibold tracking-tight text-[var(--text)]">
+                      Confirmar contratação
+                    </h3>
+                    <p className="mt-1 text-xs md:text-sm leading-relaxed text-[var(--text-muted)]">
+                      A ativação ocorre após o primeiro pagamento.
                     </p>
                   </div>
-                </div>
 
-                {/* Primeira cobrança */}
-                {primeiraCobranca && (
-                  <div
-                    className="rounded-2xl border px-3.5 py-3 flex items-center justify-between gap-3"
+                  <button
+                    type="button"
+                    onClick={() => setConfirmOpen(false)}
+                    className="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium hover:opacity-90"
                     style={{
-                      backgroundColor: "#ffffff",
-                      borderColor: "var(--c-border)",
+                      borderColor: "color-mix(in srgb, var(--text) 18%, transparent)",
+                      color: "var(--text)",
+                      background: "color-mix(in srgb, var(--surface) 90%, transparent)",
                     }}
                   >
-                    <div>
-                      <p className="text-[11px] text-[var(--c-muted)] uppercase tracking-[0.16em]">
-                        Primeira cobrança
-                      </p>
-                      <p className="text-xs mt-1 leading-relaxed">
-                        {primeiraCobranca.id === "adesao"
-                          ? "Taxa de adesão + início da proteção. A efetivação ocorre após o pagamento."
-                          : "Início da cobrança recorrente do plano. A efetivação ocorre após o pagamento."}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold tabular-nums">
-                        {money(primeiraCobranca.valor || 0)}
-                      </p>
-                      <p className="text-[11px] text-[var(--c-muted)] tabular-nums">
-                        {formatDateBR(primeiraCobranca.dataVencimentoISO)}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {!!cupomInfo && totalDesconto > 0 && (
-                  <div
-                    className="rounded-2xl border px-3.5 py-3 flex items-center justify-between gap-3"
-                    style={{
-                      backgroundColor: "#ffffff",
-                      borderColor: "var(--c-border)",
-                    }}
-                  >
-                    <div>
-                      <p className="text-[11px] text-[var(--c-muted)] uppercase tracking-[0.16em]">
-                        Desconto aplicado
-                      </p>
-                      <p className="text-xs mt-1 text-[var(--c-muted)]">
-                        {cupomInfo.descricaoFormatada || "Cupom aplicado ao carnê."}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold tabular-nums">
-                        - {money(totalDesconto)}
-                      </p>
-                      <p className="text-[11px] text-[var(--c-muted)] tabular-nums">
-                        Total após desconto: {money(totalComDesconto)}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                <p className="text-[11px] text-[var(--c-muted)] leading-relaxed">
-                  Ao confirmar, seu contrato será registrado e o carnê será gerado automaticamente.
-                  A proteção do plano será ativada <b>após o pagamento da primeira cobrança</b>.
-                </p>
+                    Voltar
+                  </button>
+                </div>
               </div>
 
-              <div className="mt-5 flex flex-col md:flex-row md:justify-between gap-3">
-                <CTAButton
-                  type="button"
-                  variant="outline"
-                  className="h-10 px-5 order-2 md:order-1"
-                  onClick={() => setConfirmOpen(false)}
-                >
-                  Voltar e ajustar
-                </CTAButton>
+              {/* body */}
+              <div className="px-5 md:px-6 pb-5 md:pb-6">
+                <div className="grid gap-3">
+                  {/* Mensalidade (âncora) */}
+                  <div
+                    className="rounded-2xl border px-4 py-3"
+                    style={{
+                      background: "color-mix(in srgb, var(--surface-elevated) 92%, var(--text) 4%)",
+                      borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+                    }}
+                  >
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                      Mensalidade
+                    </p>
+                    <p className="mt-1 text-xl font-semibold tabular-nums text-[var(--text)]">
+                      {money(valorMensalidadePlano)}
+                      <span className="ml-1 text-xs font-normal text-[var(--text-muted)]">/ mês</span>
+                    </p>
+                  </div>
 
-                <CTAButton
-                  type="button"
-                  className="h-10 px-6 order-1 md:order-2"
-                  onClick={handleConfirmarEnvio}
-                >
-                  Confirmar e finalizar
-                </CTAButton>
+                  {/* Primeiro pagamento real */}
+                  <div
+                    className="rounded-2xl border px-4 py-3"
+                    style={{
+                      background: "color-mix(in srgb, var(--surface-elevated) 92%, var(--text) 4%)",
+                      borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                          Primeiro pagamento
+                        </p>
+                        <p className="mt-1 text-xs md:text-sm text-[var(--text-muted)]">
+                          Vencimento{" "}
+                          <span className="font-medium tabular-nums text-[var(--text)]">
+                            {primeiraCobrancaReal
+                              ? formatDateBR(primeiraCobrancaReal.dataVencimentoISO)
+                              : formatDateBR(dataEfetivacaoISO)}
+                          </span>
+                        </p>
+
+                        {adesaoZerouPorCupom ? (
+                          <p className="mt-1 text-[11px] text-[var(--text-muted)]">
+                            A adesão foi coberta integralmente. O primeiro pagamento exibido já é a próxima parcela paga.
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-xl font-semibold tabular-nums text-[var(--text)]">
+                          {money(primeiraCobrancaReal?.valor || 0)}
+                        </p>
+
+                        {primeiraCobrancaReal && Number(primeiraCobrancaReal?._desconto || 0) > 0 ? (
+                          <p className="mt-0.5 text-[11px] tabular-nums text-[var(--text-muted)] line-through">
+                            {money(primeiraCobrancaReal._valorOriginal || 0)}
+                          </p>
+                        ) : (
+                          <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
+                            {primeiraCobrancaReal?.id === "adesao" ? "Adesão" : "Mensalidade"}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Economia */}
+                    {temDesconto ? (
+                      <div
+                        className="mt-3 rounded-xl border px-3 py-2"
+                        style={{
+                          background: "color-mix(in srgb, var(--primary) 8%, var(--surface) 92%)",
+                          borderColor: "color-mix(in srgb, var(--primary) 24%, transparent)",
+                        }}
+                      >
+                        <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                          Economia aplicada
+                        </p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums text-[var(--text)]">
+                          {money(totalDesconto)}
+                        </p>
+                        {cupomDetalhes?.codigo ? (
+                          <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
+                            Cupom <span className="font-semibold text-[var(--text)]">{cupomDetalhes.codigo}</span>
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {/* Cupom detalhado (sem ícones) */}
+                  {cupomDetalhes ? (
+                    <div
+                      className="rounded-2xl border px-4 py-3"
+                      style={{
+                        background: "color-mix(in srgb, var(--surface-elevated) 92%, var(--text) 4%)",
+                        borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+                      }}
+                    >
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                        Cupom aplicado
+                      </p>
+
+                      <div className="mt-2 grid gap-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-semibold text-[var(--text)]">{cupomDetalhes.codigo}</p>
+                          <p className="text-sm font-semibold tabular-nums text-[var(--text)]">{cupomDetalhes.valor}</p>
+                        </div>
+
+                        <p className="text-xs md:text-sm text-[var(--text-muted)] leading-relaxed">
+                          {cupomDetalhes.descricao}
+                        </p>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-1">
+                          {[
+                            { k: "Tipo", v: cupomDetalhes.tipo },
+                            { k: "Aplicação", v: cupomDetalhes.alvoLabel },
+                            { k: "Validade", v: cupomDetalhes.validadeLabel || "—" },
+                          ].map((it) => (
+                            <div
+                              key={it.k}
+                              className="rounded-xl border px-3 py-2"
+                              style={{
+                                background: "color-mix(in srgb, var(--surface) 94%, var(--text) 3%)",
+                                borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                              }}
+                            >
+                              <p className="text-[11px] text-[var(--text-muted)]">{it.k}</p>
+                              <p className="text-xs font-semibold text-[var(--text)]">{it.v}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                          O desconto não altera as parcelas não contempladas.
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Resumo */}
+                  <div
+                    className="rounded-2xl border px-4 py-3"
+                    style={{
+                      background: "color-mix(in srgb, var(--surface) 92%, var(--text) 4%)",
+                      borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+                    }}
+                  >
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">Resumo</p>
+                    <div className="mt-2 grid gap-1 text-xs md:text-sm text-[var(--text)]">
+                      <p>
+                        • {totalParcelas} parcela{totalParcelas === 1 ? "" : "s"} programada{totalParcelas === 1 ? "" : "s"}
+                      </p>
+                      <p>
+                        • Vencimento todo dia{" "}
+                        <span className="font-semibold tabular-nums">{safePad2(diaDSelecionado)}</span>
+                      </p>
+                      <p className="text-[var(--text-muted)]">• Mantenha esta página aberta até concluir a geração do carnê.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex flex-col md:flex-row md:justify-between gap-3">
+                  <CTAButton
+                    type="button"
+                    variant="outline"
+                    className="h-11 px-5 rounded-2xl order-2 md:order-1"
+                    onClick={() => setConfirmOpen(false)}
+                  >
+                    Revisar
+                  </CTAButton>
+
+                  <CTAButton
+                    type="button"
+                    className="h-11 px-6 rounded-2xl order-1 md:order-2"
+                    onClick={handleConfirmarEnvio}
+                  >
+                    Confirmar e gerar carnê
+                  </CTAButton>
+                </div>
               </div>
             </div>
           </div>,
@@ -384,25 +582,31 @@ export default function StepCarne({
         )
       : null;
 
-  /* ---------- OVERLAY DE PROCESSAMENTO (PORTAL) ---------- */
+  /* ---------- overlay de processamento ---------- */
   const savingOverlay = saving
     ? createPortal(
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/45">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/55" aria-hidden="true" />
+          <div className="absolute inset-0 backdrop-blur-[6px]" aria-hidden="true" />
+
           <div
-            className="w-full max-w-sm mx-4 rounded-3xl border px-6 py-5 shadow-[0_28px_90px_rgba(0,0,0,0.85)]"
+            className="relative w-full max-w-sm mx-4 rounded-3xl border px-6 py-5 shadow-[0_28px_90px_rgba(0,0,0,0.75)]"
             style={{
-              backgroundColor: "#ffffff",
-              borderColor: "var(--c-border)",
+              background: "color-mix(in srgb, var(--surface) 92%, var(--text) 6%)",
+              borderColor: "color-mix(in srgb, var(--text) 18%, transparent)",
             }}
           >
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full flex items-center justify-center bg-[color-mix(in_srgb,_var(--primary)_28%,_black_40%)]">
+              <div
+                className="h-10 w-10 rounded-full flex items-center justify-center"
+                style={{ background: "color-mix(in srgb, var(--primary) 28%, black 40%)" }}
+              >
                 <Loader2 className="animate-spin text-white" size={20} />
               </div>
               <div>
-                <p className="font-semibold text-sm">Finalizando sua contratação…</p>
-                <p className="text-[11px] text-[var(--c-muted)] mt-0.5">
-                  Estamos registrando o contrato e gerando o carnê com segurança.
+                <p className="font-semibold text-sm text-[var(--text)]">Finalizando…</p>
+                <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                  Registrando contrato e gerando carnê com segurança.
                 </p>
               </div>
             </div>
@@ -411,9 +615,7 @@ export default function StepCarne({
               <div className="h-1.5 w-full rounded-full bg-[var(--c-border)]/40 overflow-hidden">
                 <div className="h-full w-2/3 rounded-full bg-[color-mix(in_srgb,_var(--primary)_85%,_transparent)] animate-pulse" />
               </div>
-              <p className="mt-2 text-[11px] text-[var(--c-muted)]">
-                Mantenha esta página aberta. Em instantes você será direcionado para o resumo do contrato.
-              </p>
+              <p className="mt-2 text-[11px] text-[var(--text-muted)]">Não feche esta página.</p>
             </div>
           </div>
         </div>,
@@ -421,76 +623,155 @@ export default function StepCarne({
       )
     : null;
 
-  /* ----------------- COMPOSIÇÃO DA MENSALIDADE ----------------- */
-  const dependentesComposicao =
-    composicaoMensalidade?.dependentes &&
-    Array.isArray(composicaoMensalidade.dependentes)
-      ? composicaoMensalidade.dependentes
-      : [];
-
-  const basePlano = composicaoMensalidade?.basePlano || 0;
-
-  const MAX_LINHAS = 6;
-  const mostrar = dependentesComposicao.slice(0, MAX_LINHAS);
-  const restantes = dependentesComposicao.length - mostrar.length;
-
-  /* -------------------- CONTEÚDO PRINCIPAL DA ETAPA -------------------- */
+  /* ---------------- UI ---------------- */
   return (
     <>
-      <div
-        className="mt-6 rounded-3xl p-6 md:p-7 relative overflow-hidden"
-        style={glassCardStyle}
-      >
-        {/* Halo discreto de fundo */}
-        <div className="pointer-events-none absolute inset-0 opacity-60">
-          <div className="absolute -top-32 -right-10 h-44 w-44 rounded-full bg-[radial-gradient(circle_at_center,_var(--primary)_0,_transparent_70%)] blur-3xl" />
-          <div className="absolute -bottom-24 -left-10 h-40 w-40 rounded-full bg-[radial-gradient(circle_at_center,_var(--primary-muted,_#4b5563)_0,_transparent_70%)] blur-3xl" />
-        </div>
+      <div className="mt-6">
+        <div
+          className="relative overflow-hidden rounded-3xl border shadow-xl p-6 md:p-8"
+          style={{
+            background: "color-mix(in srgb, var(--surface) 88%, var(--text) 6%)",
+            borderColor: "color-mix(in srgb, var(--text) 18%, transparent)",
+          }}
+        >
+          {/* gradiente inferior suave */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
+            style={{
+              background:
+                "radial-gradient(120% 140% at 50% 120%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)",
+              opacity: 0.65,
+            }}
+          />
 
-        <div className="relative z-10">
-          <SectionTitle
-            right={
-              <div className="hidden md:flex items-center gap-2 text-[11px] text-[var(--c-muted)]">
-                <ShieldCheck className="h-4 w-4" />
-                <span>Resumo da cobrança</span>
-              </div>
-            }
-          >
-            Cobrança (carnê)
-          </SectionTitle>
-
-          {/* CUPOM DE DESCONTO */}
-          <div className="mt-4 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold text-[var(--c-muted)] mb-1 uppercase tracking-[0.16em]">
-                  Cupom de desconto
+          <fieldset className="relative z-[1] space-y-5" disabled={saving}>
+            {/* Cabeçalho interno */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs md:text-sm font-semibold tracking-wide uppercase">
+                  Etapa 4 de 4 · Cobranças
                 </p>
-                <p className="text-xs text-[var(--c-muted)] leading-relaxed">
-                  Informe seu cupom e aplique para recalcular os valores do carnê nesta tela.
-                </p>
-              </div>
 
-              {cupomInfo ? (
-                <button
-                  type="button"
-                  onClick={removerCupom}
-                  disabled={saving || cupomLoading}
-                  className="inline-flex items-center gap-1.5 text-xs text-[var(--c-muted)] hover:text-[var(--text)]"
-                  title="Remover cupom"
+                <span
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] md:text-xs"
+                  style={{
+                    background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
+                    color: "var(--text-muted)",
+                  }}
                 >
-                  <X size={14} />
-                  Remover
-                </button>
-              ) : null}
+                  <span
+                    className="inline-block h-1.5 w-1.5 rounded-full"
+                    style={{ background: "var(--primary)" }}
+                  />
+                  Revisão
+                </span>
+              </div>
+
+              <div
+                className="h-1.5 rounded-full overflow-hidden"
+                style={{
+                  background: "color-mix(in srgb, var(--surface-elevated) 80%, var(--text) 6%)",
+                }}
+              >
+                <div className="h-full rounded-full transition-all duration-300" style={{ width: "100%", background: "var(--primary)" }} />
+              </div>
+
+              <p className="text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
+                Escolha o dia do vencimento, aplique cupom (se tiver) e gere o carnê.
+              </p>
             </div>
 
-            {!cupomInfo ? (
-              <div className="mt-3 flex flex-col md:flex-row md:items-center gap-2">
-                <div className="relative flex-1">
+            {/* RESUMO (banco-style) */}
+            <div className="grid gap-3 md:grid-cols-3">
+              <div
+                className="rounded-2xl border px-4 py-4 md:py-5"
+                style={{
+                  background: "color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)",
+                  borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+                }}
+              >
+                <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">Mensalidade</p>
+                <p className="mt-1 text-xl font-semibold tabular-nums">{money(valorMensalidadePlano)}</p>
+                <p className="mt-1 text-[11px] text-[var(--text-muted)]">Valor recorrente do plano.</p>
+              </div>
+
+              <div
+                className="rounded-2xl border px-4 py-4 md:py-5"
+                style={{
+                  background: "color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)",
+                  borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+                }}
+              >
+                <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">Economia</p>
+                <p className="mt-1 text-xl font-semibold tabular-nums">{temDesconto ? money(totalDesconto) : "—"}</p>
+                <p className="mt-1 text-[11px] text-[var(--text-muted)]">
+                  {cupomInfo ? "Desconto aplicado conforme regras do cupom." : "Aplique um cupom para economizar."}
+                </p>
+              </div>
+
+              <div
+                className="rounded-2xl border px-4 py-4 md:py-5"
+                style={{
+                  background: "color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)",
+                  borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+                }}
+              >
+                <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">Primeiro pagamento</p>
+                <p className="mt-1 text-xl font-semibold tabular-nums">{money(primeiraCobrancaReal?.valor || 0)}</p>
+
+                {primeiraCobrancaReal && Number(primeiraCobrancaReal?._desconto || 0) > 0 ? (
+                  <p className="mt-1 text-[11px] text-[var(--text-muted)] tabular-nums line-through">
+                    {money(primeiraCobrancaReal._valorOriginal || 0)}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-[11px] text-[var(--text-muted)] tabular-nums">
+                    {primeiraCobrancaReal ? formatDateBR(primeiraCobrancaReal.dataVencimentoISO) : formatDateBR(dataEfetivacaoISO)}
+                  </p>
+                )}
+
+                {adesaoZerouPorCupom ? (
+                  <p className="mt-1 text-[11px] text-[var(--text-muted)]">Adesão coberta integralmente.</p>
+                ) : null}
+              </div>
+            </div>
+
+            {/* CUPOM */}
+            <div
+              className="rounded-2xl border px-4 py-4 md:px-5 md:py-5 space-y-3"
+              style={{
+                background: "color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)",
+                borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+              }}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-1 uppercase tracking-[0.16em]">
+                    Cupom de desconto
+                  </p>
+                  <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                    Se tiver um cupom, aplicamos e recalculamos as parcelas desta etapa.
+                  </p>
+                </div>
+
+                {cupomInfo ? (
+                  <button
+                    type="button"
+                    onClick={removerCupom}
+                    disabled={saving || cupomLoading}
+                    className="text-xs font-medium underline underline-offset-4 text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40"
+                    title="Remover cupom"
+                  >
+                    Remover
+                  </button>
+                ) : null}
+              </div>
+
+              {!cupomInfo ? (
+                <div className="flex flex-col md:flex-row md:items-center gap-2">
                   <input
-                    className="input h-11 w-full text-sm pl-10"
-                    placeholder="Ex.: ADESAOFREE"
+                    className="input h-12 text-base bg-white"
+                    placeholder="Digite o código do cupom"
                     value={cupomInput}
                     onChange={(e) => setCupomInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -499,331 +780,496 @@ export default function StepCarne({
                     disabled={saving || cupomLoading}
                     autoComplete="off"
                   />
-                  <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[var(--c-muted)]">
-                    <Tag size={16} />
-                  </div>
-                </div>
 
-                <CTAButton
-                  type="button"
-                  className="h-11 px-5"
-                  onClick={aplicarCupom}
-                  disabled={saving || cupomLoading}
+                  <CTAButton
+                    type="button"
+                    className="h-12 px-6 rounded-2xl"
+                    onClick={aplicarCupom}
+                    disabled={saving || cupomLoading}
+                  >
+                    {cupomLoading ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="animate-spin" size={16} />
+                        Validando…
+                      </span>
+                    ) : (
+                      "Aplicar cupom"
+                    )}
+                  </CTAButton>
+                </div>
+              ) : (
+                <div
+                  className="rounded-2xl border px-4 py-3"
+                  style={{
+                    background: "color-mix(in srgb, var(--surface) 92%, var(--text) 4%)",
+                    borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+                  }}
                 >
-                  {cupomLoading ? (
-                    <span className="inline-flex items-center gap-2">
-                      <Loader2 className="animate-spin" size={16} />
-                      Validando…
-                    </span>
-                  ) : (
-                    "Aplicar"
-                  )}
-                </CTAButton>
-              </div>
-            ) : (
-              <div className="mt-3 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] px-3.5 py-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold truncate">{cupomInfo.codigo}</p>
-                    <p className="text-[11px] text-[var(--c-muted)] leading-relaxed mt-0.5">
-                      {cupomInfo.descricaoFormatada || "Cupom aplicado."}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[11px] text-[var(--c-muted)]">Desconto</p>
-                    <p className="text-sm font-semibold tabular-nums">
-                      - {money(totalDesconto)}
-                    </p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate text-[var(--text)]">{cupomDetalhes?.codigo}</p>
+                      <p className="text-[11px] mt-0.5 text-[var(--text-muted)] leading-relaxed">
+                        {cupomDetalhes?.descricao}
+                      </p>
+
+                      <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
+                        {[
+                          { k: "Tipo", v: cupomDetalhes?.tipo },
+                          { k: "Valor", v: cupomDetalhes?.valor },
+                          { k: "Aplicação", v: cupomDetalhes?.alvoLabel },
+                        ].map((it) => (
+                          <div
+                            key={it.k}
+                            className="rounded-xl border px-3 py-2"
+                            style={{
+                              background: "color-mix(in srgb, var(--surface) 94%, var(--text) 3%)",
+                              borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                            }}
+                          >
+                            <p className="text-[11px] text-[var(--text-muted)]">{it.k}</p>
+                            <p className="text-xs font-semibold text-[var(--text)]">{it.v || "—"}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {cupomDetalhes?.validadeLabel ? (
+                        <p className="mt-2 text-[11px] text-[var(--text-muted)]">
+                          Validade: <span className="font-semibold">{cupomDetalhes.validadeLabel}</span>
+                        </p>
+                      ) : null}
+
+                      <p className="mt-2 text-[11px] text-[var(--text-muted)]">
+                        O desconto não altera as parcelas não contempladas.
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="text-[11px] text-[var(--text-muted)]">Economia total</p>
+                      <p className="text-sm font-semibold tabular-nums text-[var(--text)]">
+                        {temDesconto ? money(totalDesconto) : "—"}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {cupomError ? <p className="mt-2 text-xs text-red-600">{cupomError}</p> : null}
-          </div>
+              {cupomError ? (
+                <p className="text-xs text-red-600" role="alert" aria-live="polite">
+                  {cupomError}
+                </p>
+              ) : null}
+            </div>
 
-          {/* Linha com dia D + resumo */}
-          <div className="mt-4 grid gap-3 md:grid-cols-3 items-stretch">
-            {/* Dia D */}
-            <div className="md:col-span-1">
-              <label className="label text-xs font-medium" htmlFor="diaD">
-                Dia D (vencimento)
+            {/* DIA DO VENCIMENTO */}
+            <div
+              className="rounded-2xl border px-4 py-4 md:px-5 md:py-5 space-y-2"
+              style={{
+                background: "color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)",
+                borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+              }}
+            >
+              <label className="label font-medium text-sm md:text-base" htmlFor="diaD">
+                Dia do vencimento
               </label>
-              <div className="relative">
-                <select
-                  id="diaD"
-                  className="input h-11 w-full text-sm pr-9"
-                  value={diaDSelecionado}
-                  onChange={(e) => setDiaDSelecionado(Number(e.target.value))}
-                  disabled={saving}
-                >
-                  {DIA_D_OPTIONS.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[var(--c-muted)]">
-                  <CalendarDays size={16} />
-                </div>
-              </div>
-              <p className="text-xs text-[var(--c-muted)] mt-1 leading-relaxed">
-                A primeira cobrança acontece a partir da <b>data de efetivação</b>.
-                As demais seguem sempre no <b>dia {diaDSelecionado}</b>.
+
+              <select
+                id="diaD"
+                className="input h-12 text-base bg-white"
+                value={diaDSelecionado}
+                onChange={(e) => setDiaDSelecionado(Number(e.target.value))}
+                disabled={saving}
+              >
+                {DIA_D_OPTIONS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+
+              <p className="text-xs md:text-sm text-[var(--text-muted)] leading-relaxed">
+                As parcelas seguintes vencem sempre no <b>dia {diaDSelecionado}</b>.
               </p>
             </div>
 
-            {/* Cards resumo */}
-            <div className="md:col-span-2 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-3 shadow-sm flex flex-col justify-between">
-                <div>
-                  <p className="text-[11px] text-[var(--c-muted)] font-medium uppercase tracking-[0.16em]">
-                    Mensalidade
-                  </p>
-                  <p className="font-semibold text-[15px] mt-1 tabular-nums">
-                    {money(valorMensalidadePlano)}
-                  </p>
-                </div>
-                <p className="mt-1 text-[11px] text-[var(--c-muted)]">
-                  Valor recorrente das parcelas, sem considerar reajustes futuros.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-3 shadow-sm flex flex-col justify-between">
-                <div>
-                  <p className="text-[11px] text-[var(--c-muted)] font-medium uppercase tracking-[0.16em]">
-                    Total do carnê
-                  </p>
-                  <p className="font-semibold text-[15px] mt-1 tabular-nums">
-                    {money(totalComDesconto)}
-                  </p>
-                </div>
-                <p className="mt-1 text-[11px] text-[var(--c-muted)]">
-                  Soma das parcelas exibidas abaixo{cupomInfo ? " (com cupom aplicado)" : ""}.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Composição da mensalidade – compacto */}
-          {composicaoMensalidade && (
-            <div className="mt-4">
-              <details className="group rounded-2xl border border-dashed border-[var(--c-border)] bg-[var(--c-surface)]/80 px-3.5 py-3">
+            {/* TRANSPARÊNCIA DO VALOR (compacto) */}
+            {composicaoMensalidade ? (
+              <details
+                className="group rounded-2xl border border-dashed px-4 py-4 md:px-5 md:py-5"
+                style={{
+                  background: "color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)",
+                  borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+                }}
+              >
                 <summary className="flex items-center justify-between gap-2 cursor-pointer list-none">
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--c-muted)] mb-0.5">
-                      Composição do valor
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)] mb-0.5">
+                      Transparência do valor
                     </p>
-                    <p className="text-xs text-[var(--c-muted)]">
-                      Veja quanto cada pessoa contribui ou está isenta.
-                    </p>
+                    <p className="text-xs text-[var(--text-muted)]">Ver composição do valor por pessoa.</p>
                   </div>
-                  <span className="text-[11px] text-[var(--c-muted)] group-open:opacity-60">
-                    Ver detalhes
+                  <span className="text-[11px] text-[var(--text-muted)] group-open:opacity-60">
+                    {`${
+                      /* texto neutro (sem ícones) */ ""
+                    }`}
+                    Expandir
                   </span>
                 </summary>
 
-                <div className="mt-3 space-y-2">
-                  {basePlano > 0 && (
+                <div className="mt-4 space-y-2">
+                  {basePlano > 0 ? (
                     <div className="flex items-center justify-between gap-3 text-xs">
-                      <span className="text-[var(--c-muted)]">
-                        Plano base (estrutura e benefícios comuns)
-                      </span>
-                      <span className="font-semibold tabular-nums">
-                        {money(basePlano)}
-                      </span>
+                      <span className="text-[var(--text-muted)]">Base do plano</span>
+                      <span className="font-semibold tabular-nums">{money(basePlano)}</span>
                     </div>
-                  )}
+                  ) : null}
 
-                  {mostrar.length > 0 && (
+                  {mostrar.length > 0 ? (
                     <div className="mt-1 space-y-1.5">
                       {mostrar.map((dep, idx) => {
                         const parentescoLabel = dep.isTitular
                           ? "Titular"
-                          : PARENTESCO_LABELS[dep.parentesco] ||
-                            dep.parentesco ||
-                            "Dependente";
-                        const idadeTxt =
-                          dep.idade != null
-                            ? `${dep.idade} ano${dep.idade === 1 ? "" : "s"}`
-                            : "idade não informada";
-                        const nome =
-                          dep.nome || (dep.isTitular ? "Titular" : "Dependente");
+                          : PARENTESCO_LABELS[dep.parentesco] || dep.parentesco || "Dependente";
 
-                        const isIsento =
-                          dep.isento && (dep.valorTotalPessoa || 0) === 0;
+                        const idadeTxt =
+                          dep.idade != null ? `${dep.idade} ano${dep.idade === 1 ? "" : "s"}` : "idade não informada";
+
+                        const nome = dep.nome || (dep.isTitular ? "Titular" : "Dependente");
+                        const isIsento = dep.isento && (dep.valorTotalPessoa || 0) === 0;
 
                         return (
                           <div
-                            key={`${dep.id || idx}-${dep.parentesco}-${dep.idade || "?"}`}
+                            key={`${normalizeKeyFromDep(dep)}:${idx}`}
                             className="flex items-center justify-between gap-3 text-[11px]"
                           >
                             <div className="min-w-0">
                               <p className="font-medium truncate">{nome}</p>
-                              <p className="text-[var(--c-muted)] truncate">
+                              <p className="text-[var(--text-muted)] truncate">
                                 {parentescoLabel} • {idadeTxt}
                               </p>
                             </div>
                             <div className="text-right whitespace-nowrap">
                               {isIsento ? (
-                                <span className="text-[var(--c-muted)]">Isento</span>
+                                <span className="text-[var(--text-muted)]">Isento</span>
                               ) : (
-                                <span className="font-semibold tabular-nums">
-                                  {money(dep.valorTotalPessoa || 0)}
-                                </span>
+                                <span className="font-semibold tabular-nums">{money(dep.valorTotalPessoa || 0)}</span>
                               )}
                             </div>
                           </div>
                         );
                       })}
 
-                      {restantes > 0 && (
-                        <p className="text-[11px] text-[var(--c-muted)]">
-                          + {restantes} {restantes === 1 ? "pessoa" : "pessoas"} com as
-                          mesmas regras.
+                      {restantes > 0 ? (
+                        <p className="text-[11px] text-[var(--text-muted)]">
+                          + {restantes} {restantes === 1 ? "pessoa" : "pessoas"} seguindo a mesma regra.
                         </p>
-                      )}
+                      ) : null}
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </details>
-            </div>
-          )}
+            ) : null}
 
-          {/* Lista de cobranças previstas */}
-          <div className="mt-6 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-semibold text-[var(--c-muted)] mb-1 uppercase tracking-[0.16em]">
-                  Cobranças previstas
-                </p>
-                {totalParcelas > 0 && (
-                  <p className="text-xs text-[var(--c-muted)]">
-                    {totalParcelas} parcelas programadas. Revise datas e valores antes de finalizar.
+            {/* COBRANÇAS PREVISTAS (colapsado por padrão) */}
+            <div
+              className="rounded-2xl border px-4 py-4 md:px-5 md:py-5"
+              style={{
+                background: "color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)",
+                borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+              }}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-1 uppercase tracking-[0.16em]">
+                    Cobranças previstas
                   </p>
-                )}
-                {cupomInfo ? (
-                  <p className="text-[11px] text-[var(--c-muted)] mt-1">
-                    Cupom aplicado: <span className="font-semibold">{cupomInfo.codigo}</span>
-                  </p>
-                ) : null}
-              </div>
-              {totalParcelas > 0 && (
-                <div className="hidden md:flex flex-col items-end text-right">
-                  <span className="text-[11px] uppercase tracking-[0.16em] text-[var(--c-muted)]">
-                    Primeira cobrança
-                  </span>
-                  <span className="text-xs font-medium tabular-nums">
-                    {primeiraCobranca
-                      ? `${formatDateBR(primeiraCobranca.dataVencimentoISO)} • ${money(
-                          primeiraCobranca.valor || 0
-                        )}`
-                      : "—"}
-                  </span>
+                  {totalParcelas > 0 ? (
+                    <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                      Confira valores e datas. Você confirma tudo ao finalizar.
+                    </p>
+                  ) : null}
                 </div>
-              )}
+
+                <div className="text-right">
+                  <p className="text-[11px] text-[var(--text-muted)]">Parcelas</p>
+                  <p className="text-sm font-semibold tabular-nums">{totalParcelas}x</p>
+                </div>
+              </div>
+
+              {(!cobrancasPreview || cobrancasPreview.length === 0) ? (
+                <p className="mt-3 text-sm text-[var(--text-muted)]">
+                  As cobranças serão calculadas automaticamente conforme o plano.
+                </p>
+              ) : null}
+
+              {cobrancasComDesconto && cobrancasComDesconto.length > 0 ? (
+                <>
+                  {/* Lista inteligente */}
+                  <div className="mt-4 space-y-2">
+                    {!mostrarTodasCobrancas ? (
+                      <>
+                        {cobrancasResumo.map((cob, idx) => (
+                          <CobrancaRow
+                            key={cob.id}
+                            cob={cob}
+                            index={idx}
+                            isCompact
+                          />
+                        ))}
+
+                        <div className="pt-1">
+                          <button
+                            type="button"
+                            className="w-full rounded-2xl border px-3.5 py-3 text-left hover:opacity-90 transition"
+                            style={{
+                              background: "color-mix(in srgb, var(--surface) 92%, var(--text) 4%)",
+                              borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+                              color: "var(--text)",
+                            }}
+                            onClick={() => setMostrarTodasCobrancas(true)}
+                          >
+                            <p className="text-xs font-semibold">Ver todas as cobranças</p>
+                            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                              Adesão{cobrancasAgrupadas.adesao ? "" : " (sem)"} • Mensalidades {totalMensalidades}x
+                            </p>
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* Adesão */}
+                        {cobrancasAgrupadas.adesao ? (
+                          <div className="space-y-2">
+                            <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)] px-1">
+                              Adesão
+                            </p>
+                            <CobrancaRow cob={cobrancasAgrupadas.adesao} index={0} />
+                          </div>
+                        ) : null}
+
+                        {/* Mensalidades */}
+                        {cobrancasAgrupadas.mensalidades?.length ? (
+                          <div className="space-y-2 mt-3">
+                            <div className="flex items-center justify-between px-1">
+                              <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                                Mensalidades
+                              </p>
+                              <p className="text-[11px] text-[var(--text-muted)] tabular-nums">
+                                {totalMensalidades}x
+                              </p>
+                            </div>
+
+                            {cobrancasAgrupadas.mensalidades.map((cob, idx) => (
+                              <CobrancaRow
+                                key={cob.id}
+                                cob={cob}
+                                index={(cobrancasAgrupadas.adesao ? 1 : 0) + idx}
+                              />
+                            ))}
+                          </div>
+                        ) : null}
+
+                        <div className="pt-1 flex justify-between gap-2">
+                          <button
+                            type="button"
+                            className="flex-1 rounded-2xl border px-3.5 py-3 text-sm font-semibold hover:opacity-90 transition"
+                            style={{
+                              background: "color-mix(in srgb, var(--surface) 92%, var(--text) 4%)",
+                              borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+                              color: "var(--text)",
+                            }}
+                            onClick={() => setMostrarTodasCobrancas(false)}
+                          >
+                            Ocultar detalhes
+                          </button>
+
+                          <button
+                            type="button"
+                            className="flex-1 rounded-2xl border px-3.5 py-3 text-sm font-semibold hover:opacity-90 transition"
+                            style={{
+                              background: "color-mix(in srgb, var(--primary) 10%, var(--surface) 90%)",
+                              borderColor: "color-mix(in srgb, var(--primary) 28%, transparent)",
+                              color: "var(--text)",
+                            }}
+                            onClick={() => setConfirmOpen(true)}
+                          >
+                            Revisar agora
+                          </button>
+                        </div>
+                      </>
+                    )}
+
+                    <div
+                      className="mt-2 rounded-2xl border px-3.5 py-3"
+                      style={{
+                        background: "color-mix(in srgb, var(--surface) 92%, var(--text) 4%)",
+                        borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+                      }}
+                    >
+                      <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                        Plano ativo após o primeiro pagamento.
+                      </p>
+                    </div>
+                  </div>
+                </>
+              ) : null}
             </div>
 
-            {(!cobrancasPreview || cobrancasPreview.length === 0) && (
-              <p className="mt-3 text-sm text-[var(--c-muted)]">
-                As cobranças serão calculadas automaticamente conforme as regras do plano.
-              </p>
-            )}
+            {/* Espaço para barra fixa não cobrir conteúdo */}
+            <div className="h-20 md:h-0" aria-hidden="true" />
 
-            {cobrancasComDesconto && cobrancasComDesconto.length > 0 && (
-              <div className="mt-4 space-y-2">
-                {cobrancasComDesconto.map((cob, index) => {
-                  const isAdesao = cob.id === "adesao";
-                  const teveDesconto =
-                    !!cob._cupomAplicado && Number(cob._desconto || 0) > 0;
+            {/* Navegação tradicional (desktop / fallback) */}
+            <div className="hidden md:flex justify-between gap-3 pt-1">
+              <CTAButton
+                type="button"
+                variant="outline"
+                className="h-12 px-5 rounded-2xl"
+                onClick={onBack}
+                disabled={saving}
+              >
+                Voltar
+              </CTAButton>
 
-                  return (
-                    <div
-                      key={cob.id}
-                      className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] px-3.5 py-2.5 shadow-sm"
+              <CTAButton
+                type="button"
+                className="h-12 px-6 rounded-2xl"
+                onClick={() => setConfirmOpen(true)}
+                disabled={saving}
+              >
+                Revisar e finalizar
+              </CTAButton>
+            </div>
+          </fieldset>
+
+          {/* Barra fixa (mobile e também útil em telas longas) */}
+          <div className="md:hidden">
+            <div
+              className="fixed inset-x-0 bottom-0 z-[60] px-4 pb-4"
+              style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
+            >
+              <div
+                className="rounded-3xl border shadow-[0_22px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl px-4 py-3"
+                style={{
+                  background: "color-mix(in srgb, var(--c-surface) 82%, transparent)",
+                  borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
+                }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--c-muted)]">
+                      Primeiro pagamento
+                    </p>
+                    <p className="text-base font-semibold tabular-nums truncate">
+                      {money(primeiraCobrancaReal?.valor || 0)}
+                      <span className="ml-2 text-[11px] font-normal text-[var(--c-muted)] tabular-nums">
+                        {primeiraCobrancaReal
+                          ? formatDateBR(primeiraCobrancaReal.dataVencimentoISO)
+                          : formatDateBR(dataEfetivacaoISO)}
+                      </span>
+                    </p>
+                    {temDesconto ? (
+                      <p className="text-[11px] text-[var(--c-muted)]">
+                        Economia: <span className="font-semibold tabular-nums">{money(totalDesconto)}</span>
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-[var(--c-muted)]">Mensalidade: {money(valorMensalidadePlano)}</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <CTAButton
+                      type="button"
+                      variant="outline"
+                      className="h-11 px-4 rounded-2xl"
+                      onClick={onBack}
+                      disabled={saving}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span
-                          className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums ${
-                            isAdesao
-                              ? "bg-[color-mix(in_srgb,_var(--primary)_16%,_white)] text-[var(--primary)]"
-                              : "bg-[var(--c-surface)] text-[var(--c-muted)] border border-[var(--c-border)]"
-                          }`}
-                        >
-                          {index + 1}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium truncate">
-                            {cob.tipo || (isAdesao ? "Taxa de adesão" : "Cobrança")}
-                          </p>
-                          <p className="text-[11px] text-[var(--c-muted)]">
-                            Vencimento em{" "}
-                            <span className="tabular-nums">
-                              {formatDateBR(cob.dataVencimentoISO)}
-                            </span>
-                          </p>
-                          {teveDesconto ? (
-                            <p className="text-[11px] text-[var(--c-muted)]">
-                              Cupom aplicado • desconto{" "}
-                              <span className="font-semibold tabular-nums">
-                                {money(cob._desconto)}
-                              </span>
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
+                      Voltar
+                    </CTAButton>
 
-                      <div className="flex flex-col items-end text-right">
-                        <p className="text-sm font-semibold tabular-nums">
-                          {money(cob.valor || 0)}
-                        </p>
-
-                        {teveDesconto ? (
-                          <p className="text-[11px] text-[var(--c-muted)] tabular-nums line-through">
-                            {money(cob._valorOriginal || 0)}
-                          </p>
-                        ) : (
-                          <p className="text-[11px] text-[var(--c-muted)]">
-                            Parcela {index + 1}
-                            {isAdesao ? " • Adesão" : ""}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                    <CTAButton
+                      type="button"
+                      className="h-11 px-5 rounded-2xl"
+                      onClick={() => setConfirmOpen(true)}
+                      disabled={saving}
+                    >
+                      Revisar
+                    </CTAButton>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-
-          {/* Ações */}
-          <div className="mt-6 flex flex-col md:flex-row md:justify-between gap-3">
-            <CTAButton
-              type="button"
-              variant="outline"
-              className="h-11 px-5 order-2 md:order-1"
-              onClick={onBack}
-              disabled={saving}
-            >
-              Voltar
-            </CTAButton>
-
-            <CTAButton
-              type="button"
-              className="h-11 px-6 order-1 md:order-2"
-              onClick={handleClickFinalizar}
-              disabled={saving}
-              aria-disabled={saving ? "true" : "false"}
-            >
-              {saving ? "Finalizando…" : "Revisar e finalizar contratação"}
-            </CTAButton>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Portais */}
       {confirmModal}
       {savingOverlay}
     </>
+  );
+}
+
+/* ---------------- subcomponent: row (sem ícones) ---------------- */
+function CobrancaRow({ cob, index, isCompact = false }) {
+  const isAdesao = cob?.id === "adesao";
+  const teveDesconto = !!cob?._cupomAplicado && Number(cob?._desconto || 0) > 0;
+
+  return (
+    <div
+      className="flex items-center justify-between gap-3 rounded-2xl border px-3.5 py-3"
+      style={{
+        background: "color-mix(in srgb, var(--surface) 92%, var(--text) 4%)",
+        borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+      }}
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <span
+          className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums"
+          style={{
+            background: isAdesao
+              ? "color-mix(in srgb, var(--primary) 14%, white)"
+              : "color-mix(in srgb, var(--surface) 94%, var(--text) 2%)",
+            color: isAdesao ? "var(--primary)" : "var(--text-muted)",
+            border: isAdesao
+              ? "1px solid transparent"
+              : "1px solid color-mix(in srgb, var(--text) 14%, transparent)",
+          }}
+        >
+          {index + 1}
+        </span>
+
+        <div className="min-w-0">
+          <p className="text-xs font-medium truncate text-[var(--text)]">
+            {cob?.tipo || (isAdesao ? "Taxa de adesão" : "Mensalidade")}
+          </p>
+          <p className="text-[11px] text-[var(--text-muted)]">
+            Vencimento <span className="tabular-nums">{formatDateBR(cob?.dataVencimentoISO)}</span>
+          </p>
+
+          {!isCompact && teveDesconto ? (
+            <p className="text-[11px] text-[var(--text-muted)]">
+              Desconto{" "}
+              <span className="font-semibold tabular-nums text-[var(--text)]">
+                {money(cob?._desconto)}
+              </span>
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="flex flex-col items-end text-right">
+        <p className="text-sm font-semibold tabular-nums text-[var(--text)]">{money(cob?.valor || 0)}</p>
+
+        {teveDesconto ? (
+          <p className="text-[11px] text-[var(--text-muted)] tabular-nums line-through">
+            {money(cob?._valorOriginal || 0)}
+          </p>
+        ) : (
+          <p className="text-[11px] text-[var(--text-muted)]">
+            Parcela {index + 1}
+            {isAdesao ? " • Adesão" : ""}
+          </p>
+        )}
+      </div>
+    </div>
   );
 }

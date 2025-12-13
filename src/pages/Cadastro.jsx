@@ -12,7 +12,6 @@ import {
   onlyDigits,
   cpfIsValid,
   formatCPF,
-  maskCPF,
   formatCEP,
   maskCEP,
   formatPhoneBR,
@@ -21,8 +20,6 @@ import {
   formatDateBR,
   normalizeISODate,
 } from "@/lib/br";
-
-import { ESTADO_CIVIL_LABEL, SEXO_OPTIONS } from "@/lib/constants";
 
 import { efetivacaoProxMesPorDiaD, ageFromDate } from "@/lib/dates";
 import { useDebouncedCallback } from "@/lib/hooks";
@@ -34,21 +31,30 @@ import StepEndereco from "./cadastro/StepEndereco";
 import StepDependentes from "./cadastro/StepDependentes";
 import StepCarne from "./cadastro/StepCarne";
 
-import {
-  detalharValorMensalidadePlano,
-  gerarCobrancasPlano,
-} from "@/lib/planPricing";
+import { detalharValorMensalidadePlano, gerarCobrancasPlano } from "@/lib/planPricing";
 
 const isEmpty = (v) => !String(v || "").trim();
 const AREA_ASSOCIADO_PATH = (import.meta?.env?.VITE_ASSOC_AREA_PATH || "/area").toString();
+
+function moneyBRL(v) {
+  const n = Number(v || 0);
+  try {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  } catch {
+    return `R$ ${n.toFixed(2)}`.replace(".", ",");
+  }
+}
 
 function FieldRead({ label, value, mono = false }) {
   return (
     <div className="rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] px-3 py-1.5 shadow-sm">
       <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--c-muted)]">{label}</p>
-      <p
-        className={`mt-0.5 font-medium ${mono ? "tabular-nums" : ""} break-words text-[13px]`}
-      >
+      <p className={`mt-0.5 font-medium ${mono ? "tabular-nums" : ""} break-words text-[13px]`}>
         {value || "—"}
       </p>
     </div>
@@ -84,6 +90,27 @@ function decodePayloadParam(p) {
       }
     }
   }
+}
+
+/**
+ * Camada de “ambiente” premium (halo) para dar consistência visual com Login
+ * sem alterar a estrutura dos Steps.
+ */
+function StepAmbient({ children }) {
+  return (
+    <div className="relative">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-[60px] mx-auto h-36 max-w-2xl rounded-[48px] opacity-70"
+        style={{
+          background:
+            "radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)",
+          zIndex: 0,
+        }}
+      />
+      <div className="relative z-[1]">{children}</div>
+    </div>
+  );
 }
 
 export default function Cadastro() {
@@ -206,9 +233,7 @@ export default function Cadastro() {
     data = await tryGet(() => api.get(`/api/v1/pessoas/by-cpf/${onlyDigits(cpfMasked)}`));
     if (data && (data.id || data.pessoaId)) return data;
 
-    data = await tryGet(() =>
-      api.get(`/api/v1/pessoas`, { params: { cpf: onlyDigits(cpfMasked) } })
-    );
+    data = await tryGet(() => api.get(`/api/v1/pessoas`, { params: { cpf: onlyDigits(cpfMasked) } }));
     if (Array.isArray(data) && data.length) return data[0];
     if (data && (data.id || data.pessoaId)) return data;
 
@@ -260,9 +285,7 @@ export default function Cadastro() {
 
   async function buscarDependentesPorPessoaId(pessoaId) {
     if (!pessoaId) return [];
-    const data = await tryGet(() =>
-      api.get(`/api/v1/dependentes/pessoa/${encodeURIComponent(pessoaId)}`)
-    );
+    const data = await tryGet(() => api.get(`/api/v1/dependentes/pessoa/${encodeURIComponent(pessoaId)}`));
     if (!Array.isArray(data)) return [];
     return data;
   }
@@ -343,13 +366,7 @@ export default function Cadastro() {
         pessoaEncontrada: temPessoa ? normalizePessoaToTitular(pessoaRaw) : null,
         temContratoAtivo: ativos.length > 0,
         contratosResumo: contratos,
-        mensagem: temPessoa
-          ? ativos.length > 0
-            ? "Encontramos um contrato ativo neste CPF."
-            : ""
-          : suppressNoCadastroMessage
-          ? ""
-          : "",
+        mensagem: temPessoa ? (ativos.length > 0 ? "Encontramos um contrato ativo neste CPF." : "") : suppressNoCadastroMessage ? "" : "",
         erro: "",
       });
     } catch (e) {
@@ -368,10 +385,7 @@ export default function Cadastro() {
     let alive = true;
     (async () => {
       try {
-        const me = await api
-          .get("/api/v1/app/me")
-          .then((r) => r?.data)
-          .catch(() => null);
+        const me = await api.get("/api/v1/app/me").then((r) => r?.data).catch(() => null);
         if (!alive || !me) return;
 
         const cpfFromMe = me?.cpf || "";
@@ -385,10 +399,7 @@ export default function Cadastro() {
         }));
 
         if (cpfIsValid(cpfFromMe)) {
-          await runLookupByCpf(cpfFromMe, {
-            prefillFromPessoa: true,
-            suppressNoCadastroMessage: true,
-          });
+          await runLookupByCpf(cpfFromMe, { prefillFromPessoa: true, suppressNoCadastroMessage: true });
         }
       } catch {}
     })();
@@ -412,9 +423,7 @@ export default function Cadastro() {
       ...t,
       endereco: {
         ...t.endereco,
-        logradouro: addressTouched.logradouro
-          ? t.endereco.logradouro
-          : data.logradouro || t.endereco.logradouro,
+        logradouro: addressTouched.logradouro ? t.endereco.logradouro : data.logradouro || t.endereco.logradouro,
         bairro: addressTouched.bairro ? t.endereco.bairro : data.bairro || t.endereco.bairro,
         cidade: addressTouched.cidade ? t.endereco.cidade : data.localidade || t.endereco.cidade,
         uf: addressTouched.uf
@@ -429,22 +438,16 @@ export default function Cadastro() {
   }, 500);
 
   const valorAdesaoPlano = Number(plano?.valorAdesao ?? plano?.valor_adesao ?? 0);
-
   const dataEfetivacaoISO = efetivacaoProxMesPorDiaD(diaDSelecionado);
 
-  const idadeMinDep = Number.isFinite(plano?.idadeMinimaDependente)
-    ? Number(plano.idadeMinimaDependente)
-    : undefined;
-  const idadeMaxDep = Number.isFinite(plano?.idadeMaximaDependente)
-    ? Number(plano.idadeMaximaDependente)
-    : undefined;
+  const idadeMinDep = Number.isFinite(plano?.idadeMinimaDependente) ? Number(plano.idadeMinimaDependente) : undefined;
+  const idadeMaxDep = Number.isFinite(plano?.idadeMaximaDependente) ? Number(plano.idadeMaximaDependente) : undefined;
 
   const depsIssuesNovos = depsNovos.map((d) => {
     const age = ageFromDate(d.data_nascimento);
     const fora =
       d.data_nascimento &&
-      ((Number.isFinite(idadeMinDep) && age < idadeMinDep) ||
-        (Number.isFinite(idadeMaxDep) && age > idadeMaxDep));
+      ((Number.isFinite(idadeMinDep) && age < idadeMinDep) || (Number.isFinite(idadeMaxDep) && age > idadeMaxDep));
     const parentescoVazio = Boolean((d.nome || "").trim()) && !d.parentesco;
     const cpfInvalido = Boolean((d.cpf || "").trim()) && !cpfIsValid(d.cpf);
     return { fora, age, parentescoVazio, cpfInvalido };
@@ -452,23 +455,11 @@ export default function Cadastro() {
   const countDepsFora = depsIssuesNovos.filter((x) => x.fora).length;
 
   const updTit = (patch) => setTitular((t) => ({ ...t, ...patch }));
-  const updTitEndereco = (patch) =>
-    setTitular((t) => ({ ...t, endereco: { ...t.endereco, ...patch } }));
+  const updTitEndereco = (patch) => setTitular((t) => ({ ...t, endereco: { ...t.endereco, ...patch } }));
 
-  const updDepNovo = (i, patch) =>
-    setDepsNovos((prev) => prev.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
+  const updDepNovo = (i, patch) => setDepsNovos((prev) => prev.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
   const addDepNovo = (initial = {}) =>
-    setDepsNovos((prev) => [
-      ...prev,
-      {
-        nome: "",
-        cpf: "",
-        sexo: "",
-        parentesco: "",
-        data_nascimento: "",
-        ...initial,
-      },
-    ]);
+    setDepsNovos((prev) => [...prev, { nome: "", cpf: "", sexo: "", parentesco: "", data_nascimento: "", ...initial }]);
   const delDepNovo = (i) => setDepsNovos((prev) => prev.filter((_, idx) => idx !== i));
 
   const e = titular.endereco || {};
@@ -478,82 +469,41 @@ export default function Cadastro() {
   function buildErrorList() {
     const items = [];
 
-    if (!(titular.nome && titular.nome.trim().length >= 3))
-      items.push({ field: "fixo", label: "Titular: nome ausente." });
-    if (!cpfIsValid(titular.cpf))
-      items.push({ field: "fixo", label: "Titular: CPF inválido ou ausente." });
-    if (!titular.data_nascimento)
-      items.push({ field: "fixo", label: "Titular: data de nascimento ausente." });
-    if (!phoneIsValid(titular.celular))
-      items.push({ field: "fixo", label: "Titular: celular ausente ou inválido." });
+    if (!(titular.nome && titular.nome.trim().length >= 3)) items.push({ field: "fixo", label: "Titular: nome ausente." });
+    if (!cpfIsValid(titular.cpf)) items.push({ field: "fixo", label: "Titular: CPF inválido ou ausente." });
+    if (!titular.data_nascimento) items.push({ field: "fixo", label: "Titular: data de nascimento ausente." });
+    if (!phoneIsValid(titular.celular)) items.push({ field: "fixo", label: "Titular: celular ausente ou inválido." });
 
     if (!titular.sexo) items.push({ field: "sexo", label: "Titular: selecione o sexo." });
-    if (!titular.estado_civil)
-      items.push({ field: "estado_civil", label: "Titular: selecione o estado civil." });
+    if (!titular.estado_civil) items.push({ field: "estado_civil", label: "Titular: selecione o estado civil." });
 
-    if (!(cepDigits.length === 8))
-      items.push({ field: "cep", label: "Endereço: CEP deve ter 8 dígitos." });
-    if (!e.logradouro?.trim())
-      items.push({ field: "logradouro", label: "Endereço: informe o logradouro." });
-    if (!e.numero?.trim())
-      items.push({ field: "numero", label: "Endereço: informe o número." });
-    if (!e.bairro?.trim())
-      items.push({ field: "bairro", label: "Endereço: informe o bairro." });
-    if (!e.cidade?.trim())
-      items.push({ field: "cidade", label: "Endereço: informe a cidade." });
-    if (!(ufClean && ufClean.length === 2))
-      items.push({ field: "uf", label: "Endereço: informe a UF (2 letras)." });
+    if (!(cepDigits.length === 8)) items.push({ field: "cep", label: "Endereço: CEP deve ter 8 dígitos." });
+    if (!e.logradouro?.trim()) items.push({ field: "logradouro", label: "Endereço: informe o logradouro." });
+    if (!e.numero?.trim()) items.push({ field: "numero", label: "Endereço: informe o número." });
+    if (!e.bairro?.trim()) items.push({ field: "bairro", label: "Endereço: informe o bairro." });
+    if (!e.cidade?.trim()) items.push({ field: "cidade", label: "Endereço: informe a cidade." });
+    if (!(ufClean && ufClean.length === 2)) items.push({ field: "uf", label: "Endereço: informe a UF (2 letras)." });
     if (cepState.error) items.push({ field: "cep", label: `Endereço: ${cepState.error}` });
 
     depsNovos.forEach((d, i) => {
       const issue = depsIssuesNovos[i];
       if (!((d.nome || "").trim().length >= 3))
-        items.push({
-          field: `depN-${i}-nome`,
-          label: `Dependente novo ${i + 1}: informe o nome (mín. 3 caracteres).`,
-        });
-      if (!d.parentesco)
-        items.push({
-          field: `depN-${i}-parentesco`,
-          label: `Dependente novo ${i + 1}: selecione o parentesco.`,
-        });
-      if (!d.sexo)
-        items.push({
-          field: `depN-${i}-sexo`,
-          label: `Dependente novo ${i + 1}: selecione o sexo.`,
-        });
+        items.push({ field: `depN-${i}-nome`, label: `Dependente novo ${i + 1}: informe o nome (mín. 3 caracteres).` });
+      if (!d.parentesco) items.push({ field: `depN-${i}-parentesco`, label: `Dependente novo ${i + 1}: selecione o parentesco.` });
+      if (!d.sexo) items.push({ field: `depN-${i}-sexo`, label: `Dependente novo ${i + 1}: selecione o sexo.` });
       if (!d.data_nascimento) {
-        items.push({
-          field: `depN-${i}-nasc`,
-          label: `Dependente novo ${i + 1}: informe a data de nascimento.`,
-        });
+        items.push({ field: `depN-${i}-nasc`, label: `Dependente novo ${i + 1}: informe a data de nascimento.` });
       } else if (issue?.fora) {
-        items.push({
-          field: `depN-${i}-nasc`,
-          label: `Dependente novo ${i + 1}: data fora do limite etário do plano.`,
-        });
+        items.push({ field: `depN-${i}-nasc`, label: `Dependente novo ${i + 1}: data fora do limite etário do plano.` });
       }
-      if (d.cpf && issue?.cpfInvalido)
-        items.push({
-          field: `depN-${i}-cpf`,
-          label: `Dependente novo ${i + 1}: CPF inválido.`,
-        });
+      if (d.cpf && issue?.cpfInvalido) items.push({ field: `depN-${i}-cpf`, label: `Dependente novo ${i + 1}: CPF inválido.` });
     });
 
     return items;
   }
 
   function focusByField(field) {
-    const map = {
-      sexo: sexoRef,
-      estado_civil: ecRef,
-      cep: cepRef,
-      logradouro: logRef,
-      numero: numRef,
-      bairro: bairroRef,
-      cidade: cidadeRef,
-      uf: ufRef,
-    };
+    const map = { sexo: sexoRef, estado_civil: ecRef, cep: cepRef, logradouro: logRef, numero: numRef, bairro: bairroRef, cidade: cidadeRef, uf: ufRef };
     if (map[field]?.current) {
       map[field].current.focus();
       return;
@@ -615,8 +565,6 @@ export default function Cadastro() {
   }
 
   const [errorList, setErrorList] = useState([]);
-  const errorCount = errorList.length;
-
   useEffect(() => {
     if (submitAttempted && errorList.length > 0) {
       setTimeout(() => {
@@ -642,6 +590,30 @@ export default function Cadastro() {
   }, [plano, titular, depsExistentes, depsNovos]);
 
   const valorMensalidadePlano = composicaoMensalidade?.total ?? 0;
+
+  const planoResumo = useMemo(() => {
+    const p = plano || {};
+    const carenciaNum = Number(p?.periodoCarencia ?? p?.carencia ?? p?.carenciaEmDias ?? 0) || 0;
+    const carenciaUn = (p?.unidadeCarencia || p?.unidade_carencia || "DIAS").toString().toUpperCase();
+    const carenciaTxt = carenciaNum > 0 ? `${carenciaNum} ${carenciaUn === "MES" || carenciaUn === "MESES" ? "meses" : "dias"}` : "Sem carência";
+
+    const depMax = Number.isFinite(p?.numeroDependentes) ? Number(p.numeroDependentes) : null;
+    const depTxt = depMax === null ? "—" : depMax === 0 ? "Apenas titular" : `Até ${depMax} dependente(s)`;
+
+    const idadeMin = Number.isFinite(p?.idadeMinimaDependente) ? Number(p.idadeMinimaDependente) : null;
+    const idadeMax = Number.isFinite(p?.idadeMaximaDependente) ? Number(p.idadeMaximaDependente) : null;
+    const idadeTxt = idadeMin === null && idadeMax === null ? "—" : `${idadeMin ?? 0} a ${idadeMax ?? 100}`;
+
+    const formas = [];
+    if (p?.pagamentoPix) formas.push("Pix");
+    if (p?.pagamentoBoleto) formas.push("Boleto");
+    if (p?.pagamentoCartao) formas.push("Cartão");
+    const formasTxt = formas.length ? formas.join(" • ") : "—";
+
+    const telTxt = p?.telemedicina === true ? "Inclusa" : p?.telemedicina === false ? "Não inclusa" : "—";
+
+    return { carenciaTxt, depTxt, idadeTxt, formasTxt, telTxt };
+  }, [plano]);
 
   async function handleSalvarEnviar() {
     setSubmitAttempted(true);
@@ -677,19 +649,14 @@ export default function Cadastro() {
       };
 
       let titularId =
-        titular?.id ||
-        lookupState?.pessoaEncontrada?.id ||
-        lookupState?.pessoaEncontrada?.pessoaId ||
-        null;
+        titular?.id || lookupState?.pessoaEncontrada?.id || lookupState?.pessoaEncontrada?.pessoaId || null;
 
-      // 1) Garante pessoa/titular
       if (!titularId) {
         const pessoaRes = await api.post("/api/v1/pessoas", payloadPessoa);
         titularId = pessoaRes?.data?.id || pessoaRes?.data?.pessoaId || pessoaRes?.data?.uuid;
         if (!titularId) throw new Error("Não foi possível obter o ID do titular (etapa pessoa).");
       }
 
-      // 2) Cria dependentes novos (se houver)
       if (depsNovos.length > 0) {
         const depsToCreate = depsNovos.map((d) => ({
           cpf: d.cpf ? onlyDigits(d.cpf) : null,
@@ -709,7 +676,6 @@ export default function Cadastro() {
         }
       }
 
-      // 3) Cria contrato no Progem
       const todayISO = new Date().toISOString().slice(0, 10);
       const payloadContrato = {
         titularId: Number(titularId),
@@ -717,41 +683,27 @@ export default function Cadastro() {
         vendedorId: 717,
         dataContrato: todayISO,
         diaD: Number(diaDSelecionado),
-        valorAdesao: valorAdesaoPlano,
-        valorMensalidade: valorMensalidadePlano,
+        valorAdesao: Number(valorAdesaoPlano || 0),
+        valorMensalidade: Number(valorMensalidadePlano || 0),
         dataEfetivacao: dataEfetivacaoISO,
         cupomDesconto: cupom || null,
       };
 
       const contratoRes = await api.post("/api/v1/contratos", payloadContrato);
-      const contratoId =
-        contratoRes?.data?.id || contratoRes?.data?.contratoId || contratoRes?.data?.uuid;
+      const contratoId = contratoRes?.data?.id || contratoRes?.data?.contratoId || contratoRes?.data?.uuid;
+      if (!contratoId) throw new Error("Não foi possível obter o ID do contrato recém-criado.");
 
-      if (!contratoId) {
-        throw new Error("Não foi possível obter o ID do contrato recém-criado.");
-      }
-
-      // 4) Integração CelCash (cliente + contrato)
       try {
         await celcashCriarClienteContrato(contratoId, {});
       } catch (err) {
         console.error("[Cadastro] Falha ao criar cliente/contrato na CelCash", err);
       }
 
-      // 5) Integração CelCash (carnê manual) usando a regra do plano
       try {
         const todayISOForPreview = new Date().toISOString().slice(0, 10);
-
-        // mensalidades de acordo com numeroParcelas / gerarParcelasAteDezembro
-        const mensalidades = gerarCobrancasPlano(
-          plano,
-          dataEfetivacaoISO,
-          valorMensalidadePlano
-        );
-
+        const mensalidades = gerarCobrancasPlano(plano, dataEfetivacaoISO, valorMensalidadePlano);
         const cobrancasForCelCash = [];
 
-        // 5.1) Taxa de adesão (se houver) como primeira parcela
         if (valorAdesaoPlano > 0) {
           cobrancasForCelCash.push({
             numeroParcela: 1,
@@ -760,7 +712,6 @@ export default function Cadastro() {
           });
         }
 
-        // 5.2) Mensalidades conforme regra do plano
         mensalidades.forEach((cob) => {
           cobrancasForCelCash.push({
             numeroParcela: cobrancasForCelCash.length + 1,
@@ -770,16 +721,8 @@ export default function Cadastro() {
         });
 
         if (cobrancasForCelCash.length > 0) {
-          const carnePayload = {
-            mainPaymentMethodId: "boleto",
-            cobrancas: cobrancasForCelCash,
-          };
-
+          const carnePayload = { mainPaymentMethodId: "boleto", cobrancas: cobrancasForCelCash };
           await celcashGerarCarneManual(contratoId, carnePayload);
-        } else {
-          console.warn(
-            "[Cadastro] Nenhuma cobrança calculada para envio à CelCash. Verifique gerarCobrancasPlano."
-          );
         }
       } catch (err) {
         console.error("[Cadastro] Falha ao gerar carnê manual na CelCash", err);
@@ -789,7 +732,6 @@ export default function Cadastro() {
         );
       }
 
-      // 6) Navega para a tela de confirmação / resumo de contrato
       navigate(`/confirmacao?contrato=${contratoId || ""}&titular=${titularId}`);
     } catch (e) {
       const msg =
@@ -806,10 +748,6 @@ export default function Cadastro() {
     } finally {
       setSaving(false);
     }
-  }
-
-  function sexoLabelFromValue(v) {
-    return SEXO_OPTIONS.find(([val]) => val === v)?.[1] || "";
   }
 
   const onCepChange = (v) => {
@@ -840,29 +778,13 @@ export default function Cadastro() {
 
   const todayISO = new Date().toISOString().slice(0, 10);
 
-  // Prévia das cobranças para exibir no StepCarne
   const cobrancasPreview = useMemo(() => {
     if (!dataEfetivacaoISO || !plano) return [];
-
     const lista = [];
-
-    // Adesão (se existir)
     if (valorAdesaoPlano > 0) {
-      lista.push({
-        id: "adesao",
-        tipo: "Taxa de adesão",
-        valor: valorAdesaoPlano,
-        dataVencimentoISO: todayISO,
-      });
+      lista.push({ id: "adesao", tipo: "Taxa de adesão", valor: valorAdesaoPlano, dataVencimentoISO: todayISO });
     }
-
-    // Mensalidades conforme a regra do plano
-    const mensalidades = gerarCobrancasPlano(
-      plano,
-      dataEfetivacaoISO,
-      valorMensalidadePlano
-    );
-
+    const mensalidades = gerarCobrancasPlano(plano, dataEfetivacaoISO, valorMensalidadePlano);
     mensalidades.forEach((cob) => {
       lista.push({
         id: `mensal-${cob.numeroParcela}`,
@@ -871,26 +793,19 @@ export default function Cadastro() {
         dataVencimentoISO: cob.dataVencimentoISO,
       });
     });
-
     return lista;
   }, [plano, valorAdesaoPlano, valorMensalidadePlano, dataEfetivacaoISO, todayISO]);
 
-  // controla scroll suave ao trocar de etapa
   const goToStep = (step) => {
     setCurrentStep(step);
     setTimeout(() => {
       if (!stepperAnchorRef.current) return;
       const rect = stepperAnchorRef.current.getBoundingClientRect();
-      const offset = 88; // compensar navbar fixa
+      const offset = 88;
       const top = window.scrollY + rect.top - offset;
-      window.scrollTo({
-        top: top < 0 ? 0 : top,
-        behavior: "smooth",
-      });
+      window.scrollTo({ top: top < 0 ? 0 : top, behavior: "smooth" });
     }, 0);
   };
-
-  // === Render ===
 
   return (
     <section className="section">
@@ -907,9 +822,7 @@ export default function Cadastro() {
 
         {currentStep === 1 && (
           <header className="mb-4">
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
-              Cadastre-se em poucos passos
-            </h1>
+            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Cadastre-se em poucos passos</h1>
             <p className="mt-1 text-sm md:text-base leading-relaxed text-[var(--c-muted)]">
               Informe seus dados, inclua dependentes se desejar e escolha a forma de cobrança.
             </p>
@@ -932,21 +845,13 @@ export default function Cadastro() {
                 className="rounded-full p-2 text-white"
                 style={{ background: "color-mix(in srgb, var(--primary) 90%, black)" }}
               >
-                {lookupState.running ? (
-                  <Loader2 className="animate-spin" size={16} />
-                ) : (
-                  <Info size={16} />
-                )}
+                {lookupState.running ? <Loader2 className="animate-spin" size={16} /> : <Info size={16} />}
               </div>
               <div className="flex-1 space-y-1">
                 {lookupState.running && <p className="text-sm">Verificando CPF e contratos…</p>}
-                {!lookupState.running && lookupState.mensagem && (
-                  <p className="text-sm font-medium">{lookupState.mensagem}</p>
-                )}
+                {!lookupState.running && lookupState.mensagem && <p className="text-sm font-medium">{lookupState.mensagem}</p>}
                 {!lookupState.running && lookupState.erro && (
-                  <p className="text-sm text-red-700">
-                    Falha na verificação automática: {lookupState.erro}
-                  </p>
+                  <p className="text-sm text-red-700">Falha na verificação automática: {lookupState.erro}</p>
                 )}
                 {!lookupState.running && lookupState.temContratoAtivo && (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -985,103 +890,133 @@ export default function Cadastro() {
         <div className="rounded-3xl p-5 md:p-6 space-y-4" style={glassCardStyle}>
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-base md:text-lg font-semibold tracking-tight">
-                Dados para contratação
-              </h2>
+              <h2 className="text-base md:text-lg font-semibold tracking-tight">Dados para contratação</h2>
               {plano?.nome ? (
                 <span className="inline-flex items-center rounded-full border border-[var(--c-border)] px-3 py-1 text-[11px] md:text-xs text-[var(--c-muted)] bg-[var(--c-surface)]/80">
-                  Plano&nbsp;
-                  <span className="font-semibold text-[var(--text)]">{plano.nome}</span>
+                  Plano&nbsp;<span className="font-semibold text-[var(--text)]">{plano.nome}</span>
                 </span>
               ) : null}
             </div>
             <p className="text-xs md:text-sm text-[var(--c-muted)]">
-              Confira o titular e avance pelas etapas até definir a cobrança.
+              Revise o titular e confirme as condições do plano antes de avançar.
             </p>
           </div>
 
-          {/* resumo mais enxuto do titular */}
-          <details className="group open:pb-2">
-            <summary className="cursor-pointer list-none">
-              <SectionTitle
-                right={
-                  <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)] group-open:opacity-60">
-                    Ver detalhes
-                  </span>
-                }
-              >
-                Titular (resumo rápido)
-              </SectionTitle>
+          <div className="grid gap-3 md:grid-cols-7">
+            <div className="md:col-span-2">
+              <details className="group rounded-3xl border border-[var(--c-border)] bg-[var(--c-surface)]/55 p-4 md:p-5">
+                <summary className="cursor-pointer list-none">
+                  <SectionTitle
+                    right={
+                      <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)] group-open:opacity-60">
+                        Ver detalhes
+                      </span>
+                    }
+                  >
+                    Titular
+                  </SectionTitle>
 
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs md:text-sm">
-                <span className="inline-flex items-center rounded-full bg-[var(--c-surface)]/90 border border-[var(--c-border)] px-3 py-1 max-w-full">
-                  <span className="font-medium truncate">
-                    {titular.nome || "Nome não informado"}
-                  </span>
-                </span>
-                <span className="inline-flex items-center rounded-full bg-[var(--c-surface)]/90 border border-[var(--c-border)] px-3 py-1">
-                  {formatCPF(titular.cpf || "") || "CPF não informado"}
-                </span>
-                {titular.celular && (
-                  <span className="inline-flex items-center rounded-full bg-[var(--c-surface)]/90 border border-[var(--c-border)] px-3 py-1">
-                    {formatPhoneBR(titular.celular)}
-                  </span>
-                )}
-              </div>
-            </summary>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm">
+                      <span className="inline-flex items-center rounded-full bg-[var(--c-surface)]/90 border border-[var(--c-border)] px-3 py-1 max-w-full">
+                        <span className="font-medium truncate">{titular.nome || "Nome não informado"}</span>
+                      </span>
+                      <span className="inline-flex items-center rounded-full bg-[var(--c-surface)]/90 border border-[var(--c-border)] px-3 py-1">
+                        {formatCPF(titular.cpf || "") || "CPF não informado"}
+                      </span>
+                      {titular.celular && (
+                        <span className="inline-flex items-center rounded-full bg-[var(--c-surface)]/90 border border-[var(--c-border)] px-3 py-1">
+                          {formatPhoneBR(titular.celular)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </summary>
 
-            <div className="mt-3 grid gap-2 grid-cols-2 md:grid-cols-4">
-              <div className="col-span-2 md:col-span-2">
-                <FieldRead label="Nome" value={titular.nome} />
-              </div>
-              <FieldRead label="CPF" value={formatCPF(titular.cpf || "")} mono />
-              <FieldRead
-                label="Nascimento"
-                value={formatDateBR(titular.data_nascimento) || "—"}
-                mono
-              />
-              <FieldRead
-                label="Celular"
-                value={formatPhoneBR(titular.celular || "") || "—"}
-                mono
-              />
-              <div className="col-span-2 md:col-span-4">
-                <FieldRead label="E-mail" value={titular.email} />
-              </div>
+                <div className="mt-4 grid gap-2 grid-cols-2">
+                  <FieldRead label="Nascimento" value={formatDateBR(titular.data_nascimento) || "—"} mono />
+                  <div className="col-span-2">
+                    <FieldRead label="E-mail" value={titular.email || "—"} />
+                  </div>
+                </div>
+              </details>
             </div>
-          </details>
+
+            <div className="md:col-span-5">
+              <details className="group rounded-3xl border border-[var(--c-border)] bg-[var(--c-surface)]/55 p-4 md:p-5">
+                <summary className="cursor-pointer list-none">
+                  <SectionTitle
+                    right={
+                      <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)] group-open:opacity-60">
+                        Ver detalhes
+                      </span>
+                    }
+                  >
+                    Plano
+                  </SectionTitle>
+
+                  <div className="mt-3 grid gap-2 grid-cols-2">
+                    <FieldRead label="Mensalidade estimada" value={moneyBRL(valorMensalidadePlano)} mono />
+                    <FieldRead label="Taxa de adesão" value={moneyBRL(valorAdesaoPlano)} mono />
+                    <div className="col-span-2">
+                      <FieldRead label="Pagamento" value={planoResumo?.formasTxt || "—"} />
+                    </div>
+                  </div>
+                </summary>
+
+                <div className="mt-4 grid gap-2 grid-cols-2">
+                  <FieldRead label="Carência" value={planoResumo?.carenciaTxt || "—"} />
+                  <FieldRead label="Dependentes" value={planoResumo?.depTxt || "—"} />
+                  <div className="col-span-2">
+                    <FieldRead label="Idade (dependentes)" value={planoResumo?.idadeTxt || "—"} />
+                  </div>
+                </div>
+
+                {cupom ? (
+                  <div className="mt-3 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/70 px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--c-muted)]">Cupom</p>
+                    <p className="mt-0.5 text-sm font-semibold break-words">{cupom}</p>
+                  </div>
+                ) : null}
+              </details>
+            </div>
+          </div>
         </div>
 
         {/* Stepper DAS 4 ETAPAS */}
         {!bloquearCadastro && (
           <div ref={stepperAnchorRef} className="mt-4 mb-5">
             <ol
-              className="flex flex-wrap gap-2 rounded-3xl border px-2 py-2 shadow-[0_22px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl"
+              className="rounded-3xl border px-2 py-2 shadow-[0_22px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl"
               style={{
                 background: "color-mix(in srgb, var(--c-surface) 78%, transparent)",
                 borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
               }}
             >
-              {steps.map((step) => {
-                const active = currentStep === step.id;
-                const completed = currentStep > step.id;
-                return (
-                  <li key={step.id} className="flex-1 min-w-[150px]">
+              {/* MOBILE: 1 linha, ícone/número acima do rótulo */}
+              <div className="grid grid-cols-4 gap-2 md:hidden">
+                {steps.map((step) => {
+                  const active = currentStep === step.id;
+                  const completed = currentStep > step.id;
+
+                  return (
                     <button
+                      key={step.id}
                       type="button"
                       onClick={() => {
                         if (step.id <= currentStep) goToStep(step.id);
                       }}
-                      className={`flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-xs md:text-sm transition-all ${
+                      className={`flex flex-col items-center justify-center rounded-2xl px-2 py-2 transition-all ${
                         active
                           ? "bg-[var(--primary)] text-white shadow-md"
                           : completed
                           ? "bg-[var(--c-surface)]/96 text-[var(--c-muted)] border border-[var(--c-border)]"
                           : "bg-transparent text-[var(--c-muted)]/85 border border-transparent"
                       }`}
+                      aria-current={active ? "step" : undefined}
                     >
                       <span
-                        className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ${
+                        className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold ${
                           active
                             ? "bg-white/20"
                             : completed
@@ -1091,16 +1026,60 @@ export default function Cadastro() {
                       >
                         {completed ? <CheckCircle2 size={14} /> : step.id}
                       </span>
-                      <span className="flex flex-col">
-                        <span className="font-medium">{step.label}</span>
-                        <span className="text-[10px] uppercase tracking-[0.16em] opacity-70">
-                          Etapa {step.id}
-                        </span>
+                      <span className="mt-1 text-[11px] font-semibold leading-tight text-center">
+                        {step.label}
+                      </span>
+                      <span className="mt-0.5 text-[9px] uppercase tracking-[0.18em] opacity-70">
+                        Etapa {step.id}
                       </span>
                     </button>
-                  </li>
-                );
-              })}
+                  );
+                })}
+              </div>
+
+              {/* DESKTOP: mantém formato “pílula” horizontal */}
+              <div className="hidden md:flex flex-wrap gap-2">
+                {steps.map((step) => {
+                  const active = currentStep === step.id;
+                  const completed = currentStep > step.id;
+                  return (
+                    <li key={step.id} className="flex-1 min-w-[150px] list-none">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (step.id <= currentStep) goToStep(step.id);
+                        }}
+                        className={`flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-xs md:text-sm transition-all ${
+                          active
+                            ? "bg-[var(--primary)] text-white shadow-md"
+                            : completed
+                            ? "bg-[var(--c-surface)]/96 text-[var(--c-muted)] border border-[var(--c-border)]"
+                            : "bg-transparent text-[var(--c-muted)]/85 border border-transparent"
+                        }`}
+                        aria-current={active ? "step" : undefined}
+                      >
+                        <span
+                          className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ${
+                            active
+                              ? "bg-white/20"
+                              : completed
+                              ? "bg-[var(--primary)]/10 text-[var(--primary)]"
+                              : "bg-[var(--c-surface)]/90 border border-[var(--c-border)] text-[var(--c-muted)]"
+                          }`}
+                        >
+                          {completed ? <CheckCircle2 size={14} /> : step.id}
+                        </span>
+                        <span className="flex flex-col">
+                          <span className="font-medium">{step.label}</span>
+                          <span className="text-[10px] uppercase tracking-[0.16em] opacity-70">
+                            Etapa {step.id}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </div>
             </ol>
 
             <div className="mt-3 md:hidden">
@@ -1108,16 +1087,10 @@ export default function Cadastro() {
                 <span className="text-[11px] font-medium text-[var(--c-muted)]">
                   Etapa {currentStep} de {totalSteps}
                 </span>
-                <span className="text-[11px] text-[var(--c-muted)]">
-                  {progressPercent}
-                  %
-                </span>
+                <span className="text-[11px] text-[var(--c-muted)]">{progressPercent}%</span>
               </div>
               <div className="h-1.5 w-full rounded-full bg-[var(--c-border)]/40 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-[var(--primary)] transition-all"
-                  style={{ width: `${progressPercent}%` }}
-                />
+                <div className="h-full rounded-full bg-[var(--primary)] transition-all" style={{ width: `${progressPercent}%` }} />
               </div>
             </div>
           </div>
@@ -1125,7 +1098,7 @@ export default function Cadastro() {
 
         {/* Etapas */}
         {!bloquearCadastro && (
-          <>
+          <StepAmbient>
             {currentStep === 1 && (
               <StepTitularIntro
                 glassCardStyle={glassCardStyle}
@@ -1149,8 +1122,12 @@ export default function Cadastro() {
                 addressTouched={addressTouched}
                 setAddrTouched={setAddrTouched}
                 cepState={cepState}
-                onCepChange={onCepChange}
-                onCepBlur={onCepBlur}
+                onCepChange={(v) => {
+                  setCepState((s) => ({ ...s, error: "", found: false }));
+                  updTitEndereco({ cep: v });
+                  debouncedBuscaCEP(v);
+                }}
+                onCepBlur={(v) => fetchCEP(v, applyViaCepData)}
                 stepAttempted={stepAttempted}
                 submitAttempted={submitAttempted}
                 setStepAttempted={setStepAttempted}
@@ -1201,7 +1178,7 @@ export default function Cadastro() {
                 saving={saving}
               />
             )}
-          </>
+          </StepAmbient>
         )}
       </div>
     </section>
