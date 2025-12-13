@@ -128,9 +128,27 @@ function StepAmbient({ children }) {
 
 /* -------------------- Modal (sem dependência) -------------------- */
 function Modal({ open, title, children, onClose }) {
+  useEffect(() => {
+    if (!open) return;
+
+    const prevOverflow = document?.body?.style?.overflow;
+    document.body.style.overflow = "hidden";
+
+    const onKeyDown = (ev) => {
+      if (ev.key === "Escape") onClose?.();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = prevOverflow || "";
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
+
   return (
-    <div className="fixed inset-0 z-[80]">
+    <div className="fixed inset-0 z-[80]" role="presentation">
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
         onClick={onClose}
@@ -163,7 +181,10 @@ function Modal({ open, title, children, onClose }) {
             </button>
           </div>
 
-          <div className="px-5 py-5">{children}</div>
+          {/* conteúdo rolável (evita “estourar” em telas menores) */}
+          <div className="px-5 py-5 max-h-[75vh] overflow-auto">
+            {children}
+          </div>
         </div>
       </div>
     </div>
@@ -183,7 +204,7 @@ export default function Cadastro() {
   // Etapas:
   // 1 - Titular + dados complementares
   // 2 - Endereço
-  // 3 - Dependentes
+  // 3 - Dependentes (pode ser ocultada se plano for "individual")
   // 4 - Cobrança (final)
   const [currentStep, setCurrentStep] = useState(1);
 
@@ -194,7 +215,10 @@ export default function Cadastro() {
   });
 
   const alertRef = useRef(null);
-  const stepperAnchorRef = useRef(null); // âncora para scroll entre etapas
+
+  // âncora real de conteúdo (para rolagem inteligente no mobile)
+  const contentAnchorRef = useRef(null);
+  const [pendingScroll, setPendingScroll] = useState(false);
 
   const sexoRef = useRef(null);
   const ecRef = useRef(null);
@@ -274,7 +298,6 @@ export default function Cadastro() {
 
   useEffect(() => {
     // NÃO exibir CTA de contato nesta tela:
-    // (funciona mesmo se o dock vier do Layout, pois escondemos via CSS no body)
     const id = "cadastro-hide-contact-cta";
     if (document.getElementById(id)) return;
 
@@ -297,7 +320,6 @@ export default function Cadastro() {
         opacity: 0 !important;
         pointer-events: none !important;
       }
-      /* protege o conteúdo de ficar “coberto” por docks */
       body { padding-bottom: 0px !important; }
     `;
     document.head.appendChild(style);
@@ -459,10 +481,7 @@ export default function Cadastro() {
     return true;
   }
 
-  async function runLookupByCpf(
-    cpfMasked,
-    { prefillFromPessoa = true, suppressNoCadastroMessage = false } = {}
-  ) {
+  async function runLookupByCpf(cpfMasked, { prefillFromPessoa = true, suppressNoCadastroMessage = false } = {}) {
     const cpfFmt = formatCPF(cpfMasked || "");
     if (!cpfIsValid(cpfFmt)) {
       setLookupState({
@@ -580,9 +599,7 @@ export default function Cadastro() {
         logradouro: addressTouched.logradouro ? t.endereco.logradouro : data.logradouro || t.endereco.logradouro,
         bairro: addressTouched.bairro ? t.endereco.bairro : data.bairro || t.endereco.bairro,
         cidade: addressTouched.cidade ? t.endereco.cidade : data.localidade || t.endereco.cidade,
-        uf: addressTouched.uf
-          ? sanitizeUF(t.endereco.uf)
-          : sanitizeUF(data.uf || t.endereco.uf || UF_PADRAO || ""),
+        uf: addressTouched.uf ? sanitizeUF(t.endereco.uf) : sanitizeUF(data.uf || t.endereco.uf || UF_PADRAO || ""),
       },
     }));
   };
@@ -620,6 +637,20 @@ export default function Cadastro() {
   const cepDigits = onlyDigits(e.cep || "");
   const ufClean = (e.uf || "").toUpperCase().slice(0, 2);
 
+  // === Regra: se o nome do plano tiver "individual", oculta etapa de dependentes ===
+  const isPlanoIndividual = useMemo(() => {
+    const nome = String(plano?.nome || "").toLowerCase();
+    return nome.includes("individual");
+  }, [plano?.nome]);
+
+  // Se estiver na etapa 3 e o plano virar "individual", pula para Cobranças
+  useEffect(() => {
+    if (isPlanoIndividual && currentStep === 3) {
+      goToStep(4);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlanoIndividual]);
+
   function buildErrorList() {
     const items = [];
 
@@ -639,25 +670,38 @@ export default function Cadastro() {
     if (!(ufClean && ufClean.length === 2)) items.push({ field: "uf", label: "Endereço: informe a UF (2 letras)." });
     if (cepState.error) items.push({ field: "cep", label: `Endereço: ${cepState.error}` });
 
-    depsNovos.forEach((d, i) => {
-      const issue = depsIssuesNovos[i];
-      if (!((d.nome || "").trim().length >= 3))
-        items.push({ field: `depN-${i}-nome`, label: `Dependente novo ${i + 1}: informe o nome (mín. 3 caracteres).` });
-      if (!d.parentesco) items.push({ field: `depN-${i}-parentesco`, label: `Dependente novo ${i + 1}: selecione o parentesco.` });
-      if (!d.sexo) items.push({ field: `depN-${i}-sexo`, label: `Dependente novo ${i + 1}: selecione o sexo.` });
-      if (!d.data_nascimento) {
-        items.push({ field: `depN-${i}-nasc`, label: `Dependente novo ${i + 1}: informe a data de nascimento.` });
-      } else if (issue?.fora) {
-        items.push({ field: `depN-${i}-nasc`, label: `Dependente novo ${i + 1}: data fora do limite etário do plano.` });
-      }
-      if (d.cpf && issue?.cpfInvalido) items.push({ field: `depN-${i}-cpf`, label: `Dependente novo ${i + 1}: CPF inválido.` });
-    });
+    // Dependentes só entram na validação final se a etapa existir
+    if (!isPlanoIndividual) {
+      depsNovos.forEach((d, i) => {
+        const issue = depsIssuesNovos[i];
+        if (!((d.nome || "").trim().length >= 3))
+          items.push({ field: `depN-${i}-nome`, label: `Dependente novo ${i + 1}: informe o nome (mín. 3 caracteres).` });
+        if (!d.parentesco)
+          items.push({ field: `depN-${i}-parentesco`, label: `Dependente novo ${i + 1}: selecione o parentesco.` });
+        if (!d.sexo) items.push({ field: `depN-${i}-sexo`, label: `Dependente novo ${i + 1}: selecione o sexo.` });
+        if (!d.data_nascimento) {
+          items.push({ field: `depN-${i}-nasc`, label: `Dependente novo ${i + 1}: informe a data de nascimento.` });
+        } else if (issue?.fora) {
+          items.push({ field: `depN-${i}-nasc`, label: `Dependente novo ${i + 1}: data fora do limite etário do plano.` });
+        }
+        if (d.cpf && issue?.cpfInvalido) items.push({ field: `depN-${i}-cpf`, label: `Dependente novo ${i + 1}: CPF inválido.` });
+      });
+    }
 
     return items;
   }
 
   function focusByField(field) {
-    const map = { sexo: sexoRef, estado_civil: ecRef, cep: cepRef, logradouro: logRef, numero: numRef, bairro: bairroRef, cidade: cidadeRef, uf: ufRef };
+    const map = {
+      sexo: sexoRef,
+      estado_civil: ecRef,
+      cep: cepRef,
+      logradouro: logRef,
+      numero: numRef,
+      bairro: bairroRef,
+      cidade: cidadeRef,
+      uf: ufRef,
+    };
     if (map[field]?.current) {
       map[field].current.focus();
       return;
@@ -701,6 +745,7 @@ export default function Cadastro() {
   }
 
   function validateDependentes() {
+    if (isPlanoIndividual) return true;
     if (!depsNovos.length) return true;
     const localErrors = [];
     depsNovos.forEach((d, i) => {
@@ -749,7 +794,8 @@ export default function Cadastro() {
     const p = plano || {};
     const carenciaNum = Number(p?.periodoCarencia ?? p?.carencia ?? p?.carenciaEmDias ?? 0) || 0;
     const carenciaUn = (p?.unidadeCarencia || p?.unidade_carencia || "DIAS").toString().toUpperCase();
-    const carenciaTxt = carenciaNum > 0 ? `${carenciaNum} ${carenciaUn === "MES" || carenciaUn === "MESES" ? "meses" : "dias"}` : "Sem carência";
+    const carenciaTxt =
+      carenciaNum > 0 ? `${carenciaNum} ${carenciaUn === "MES" || carenciaUn === "MESES" ? "meses" : "dias"}` : "Sem carência";
 
     const depMax = Number.isFinite(p?.numeroDependentes) ? Number(p.numeroDependentes) : null;
     const depTxt = depMax === null ? "—" : depMax === 0 ? "Apenas titular" : `Até ${depMax} dependente(s)`;
@@ -802,8 +848,7 @@ export default function Cadastro() {
         },
       };
 
-      let titularId =
-        titular?.id || lookupState?.pessoaEncontrada?.id || lookupState?.pessoaEncontrada?.pessoaId || null;
+      let titularId = titular?.id || lookupState?.pessoaEncontrada?.id || lookupState?.pessoaEncontrada?.pessoaId || null;
 
       if (!titularId) {
         const pessoaRes = await api.post("/api/v1/pessoas", payloadPessoa);
@@ -811,7 +856,8 @@ export default function Cadastro() {
         if (!titularId) throw new Error("Não foi possível obter o ID do titular (etapa pessoa).");
       }
 
-      if (depsNovos.length > 0) {
+      // Dependentes: só cria se a etapa existir
+      if (!isPlanoIndividual && depsNovos.length > 0) {
         const depsToCreate = depsNovos.map((d) => ({
           cpf: d.cpf ? onlyDigits(d.cpf) : null,
           nome: (d.nome || "").trim(),
@@ -913,15 +959,24 @@ export default function Cadastro() {
     backdropFilter: "blur(18px)",
   };
 
-  const steps = [
-    { id: 1, label: "Titular" },
-    { id: 2, label: "Endereço" },
-    { id: 3, label: "Dependentes" },
-    { id: 4, label: "Cobranças" },
-  ];
+  // Steps visíveis (remove Dependentes se plano for "individual")
+  const stepsAll = useMemo(
+    () => [
+      { id: 1, label: "Titular" },
+      { id: 2, label: "Endereço" },
+      { id: 3, label: "Dependentes" },
+      { id: 4, label: "Cobranças" },
+    ],
+    []
+  );
 
-  const totalSteps = steps.length || 1;
-  const progressPercent = Math.round((currentStep / totalSteps) * 100);
+  const visibleSteps = useMemo(() => {
+    if (isPlanoIndividual) return stepsAll.filter((s) => s.id !== 3);
+    return stepsAll;
+  }, [stepsAll, isPlanoIndividual]);
+
+  const currentIndex = Math.max(0, visibleSteps.findIndex((s) => s.id === currentStep));
+  const totalSteps = visibleSteps.length || 1;
 
   const todayISO = new Date().toISOString().slice(0, 10);
 
@@ -943,16 +998,52 @@ export default function Cadastro() {
     return lista;
   }, [plano, valorAdesaoPlano, valorMensalidadePlano, dataEfetivacaoISO, todayISO]);
 
-  const goToStep = (step) => {
-    setCurrentStep(step);
-    setTimeout(() => {
-      if (!stepperAnchorRef.current) return;
-      const rect = stepperAnchorRef.current.getBoundingClientRect();
-      const offset = 88;
-      const top = window.scrollY + rect.top - offset;
-      window.scrollTo({ top: top < 0 ? 0 : top, behavior: "smooth" });
-    }, 0);
+  // Mapeia um "próximo step" pedido pelos componentes para o step real quando Dependentes é ocultado
+  const mapStep = (requestedStep) => {
+    const s = Number(requestedStep);
+    if (isPlanoIndividual && s === 3) return 4;
+    return s;
   };
+
+  const goToStep = (step) => {
+    const next = mapStep(step);
+    setCurrentStep(next);
+    setPendingScroll(true);
+  };
+
+  // Rolagem inteligente (mais estável no mobile): respeita reduced motion
+  useEffect(() => {
+    if (!pendingScroll) return;
+
+    const el = contentAnchorRef.current;
+    if (!el) {
+      setPendingScroll(false);
+      return;
+    }
+
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const behavior = prefersReduced ? "auto" : "smooth";
+
+    const raf1 = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try {
+          el.scrollIntoView({ behavior, block: "start" });
+        } catch {
+          const rect = el.getBoundingClientRect();
+          const top = window.scrollY + rect.top - 88;
+          window.scrollTo({ top: Math.max(0, top), behavior });
+        } finally {
+          setPendingScroll(false);
+        }
+      });
+    });
+
+    return () => cancelAnimationFrame(raf1);
+  }, [pendingScroll, currentStep]);
 
   // Para “grudar” o stepper no topo quando rolar:
   const stickyTop = "calc(var(--app-header-h, 72px) + 10px)";
@@ -969,13 +1060,21 @@ export default function Cadastro() {
     });
   }, [planSearch, planListState.items]);
 
+  const onBackFromCarne = () => {
+    // Volta para a etapa anterior visível
+    const idx = visibleSteps.findIndex((s) => s.id === currentStep);
+    const prev = idx > 0 ? visibleSteps[idx - 1]?.id : 1;
+    goToStep(prev || 1);
+  };
+
   return (
     <section className="section">
       <div className="container-max max-w-4xl md:max-w-5xl">
         <div className="mb-4 flex items-center gap-2">
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--c-border)] bg-[var(--c-surface)]/90 px-4 py-2 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-[var(--c-surface)] transition-all"
+            disabled={saving}
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--c-border)] bg-[var(--c-surface)]/90 px-4 py-2 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-[var(--c-surface)] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             aria-label="Voltar para a página anterior"
           >
             <ChevronLeft size={16} /> Voltar
@@ -986,7 +1085,7 @@ export default function Cadastro() {
           <header className="mb-4">
             <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Cadastre-se em poucos passos</h1>
             <p className="mt-1 text-sm md:text-base leading-relaxed text-[var(--c-muted)]">
-              Informe seus dados, inclua dependentes se desejar e escolha a forma de cobrança.
+              Informe seus dados e escolha a forma de cobrança.
             </p>
           </header>
         )}
@@ -1011,9 +1110,7 @@ export default function Cadastro() {
               </div>
               <div className="flex-1 space-y-1">
                 {lookupState.running && <p className="text-sm">Verificando CPF e contratos…</p>}
-                {!lookupState.running && lookupState.mensagem && (
-                  <p className="text-sm font-medium">{lookupState.mensagem}</p>
-                )}
+                {!lookupState.running && lookupState.mensagem && <p className="text-sm font-medium">{lookupState.mensagem}</p>}
                 {!lookupState.running && lookupState.erro && (
                   <p className="text-sm text-red-700">Falha na verificação automática: {lookupState.erro}</p>
                 )}
@@ -1074,9 +1171,7 @@ export default function Cadastro() {
               </div>
             </div>
 
-            <p className="text-xs md:text-sm text-[var(--c-muted)]">
-              Revise o titular e confirme as condições do plano antes de avançar.
-            </p>
+            <p className="text-xs md:text-sm text-[var(--c-muted)]">Revise o titular e confirme as condições do plano antes de avançar.</p>
           </div>
 
           <div className="grid gap-3 md:grid-cols-7">
@@ -1160,12 +1255,8 @@ export default function Cadastro() {
           </div>
         </div>
 
-        {/* Stepper DAS 4 ETAPAS (sempre visível e “gruda” no topo ao rolar) */}
-        <div
-          ref={stepperAnchorRef}
-          className="mt-4 mb-5 sticky z-[35]"
-          style={{ top: stickyTop }}
-        >
+        {/* Stepper (gruda no topo ao rolar) */}
+        <div className="mt-4 mb-5 sticky z-[35]" style={{ top: stickyTop }}>
           <div
             className="rounded-3xl border px-2 py-2 shadow-[0_22px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl"
             style={{
@@ -1173,12 +1264,17 @@ export default function Cadastro() {
               borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
             }}
           >
-            {/* MOBILE: 1 linha, ícone/número acima do rótulo */}
-            <div className={`grid grid-cols-4 gap-2 md:hidden ${bloquearCadastro ? "opacity-70" : ""}`}>
-              {steps.map((step) => {
+            {/* MOBILE: 1 linha */}
+            <div
+              className={`grid gap-2 md:hidden ${bloquearCadastro ? "opacity-70" : ""}`}
+              style={{ gridTemplateColumns: `repeat(${visibleSteps.length}, minmax(0, 1fr))` }}
+              role="navigation"
+              aria-label="Etapas do cadastro"
+            >
+              {visibleSteps.map((step, idx) => {
                 const active = currentStep === step.id;
-                const completed = currentStep > step.id;
-                const disabled = bloquearCadastro || step.id > currentStep;
+                const completed = idx < currentIndex;
+                const disabled = bloquearCadastro || idx > currentIndex;
 
                 return (
                   <button
@@ -1207,25 +1303,23 @@ export default function Cadastro() {
                           : "bg-[var(--c-surface)]/90 border border-[var(--c-border)] text-[var(--c-muted)]"
                       }`}
                     >
-                      {completed ? <CheckCircle2 size={14} /> : step.id}
+                      {completed ? <CheckCircle2 size={14} /> : idx + 1}
                     </span>
-                    <span className="mt-1 text-[11px] font-semibold leading-tight text-center">
-                      {step.label}
-                    </span>
+                    <span className="mt-1 text-[11px] font-semibold leading-tight text-center">{step.label}</span>
                     <span className="mt-0.5 text-[9px] uppercase tracking-[0.18em] opacity-70">
-                      Etapa {step.id}
+                      Etapa {idx + 1}
                     </span>
                   </button>
                 );
               })}
             </div>
 
-            {/* DESKTOP: mantém formato “pílula” horizontal */}
-            <div className={`hidden md:flex flex-wrap gap-2 ${bloquearCadastro ? "opacity-70" : ""}`}>
-              {steps.map((step) => {
+            {/* DESKTOP: pílulas */}
+            <ul className={`hidden md:flex flex-wrap gap-2 ${bloquearCadastro ? "opacity-70" : ""}`} role="navigation" aria-label="Etapas do cadastro">
+              {visibleSteps.map((step, idx) => {
                 const active = currentStep === step.id;
-                const completed = currentStep > step.id;
-                const disabled = bloquearCadastro || step.id > currentStep;
+                const completed = idx < currentIndex;
+                const disabled = bloquearCadastro || idx > currentIndex;
 
                 return (
                   <li key={step.id} className="flex-1 min-w-[150px] list-none">
@@ -1254,33 +1348,31 @@ export default function Cadastro() {
                             : "bg-[var(--c-surface)]/90 border border-[var(--c-border)] text-[var(--c-muted)]"
                         }`}
                       >
-                        {completed ? <CheckCircle2 size={14} /> : step.id}
+                        {completed ? <CheckCircle2 size={14} /> : idx + 1}
                       </span>
                       <span className="flex flex-col">
                         <span className="font-medium">{step.label}</span>
                         <span className="text-[10px] uppercase tracking-[0.16em] opacity-70">
-                          Etapa {step.id}
+                          Etapa {idx + 1} de {totalSteps}
                         </span>
                       </span>
                     </button>
                   </li>
                 );
               })}
-            </div>
+            </ul>
 
-            <div className="mt-3 md:hidden">
-              <div className="mb-1 flex items-center justify-between">
-                <span className="text-[11px] font-medium text-[var(--c-muted)]">
-                  Etapa {currentStep} de {totalSteps}
-                </span>
-                <span className="text-[11px] text-[var(--c-muted)]">{progressPercent}%</span>
-              </div>
-              <div className="h-1.5 w-full rounded-full bg-[var(--c-border)]/40 overflow-hidden">
-                <div className="h-full rounded-full bg-[var(--primary)] transition-all" style={{ width: `${progressPercent}%` }} />
-              </div>
-            </div>
+            {/* REMOVIDO: barra de progresso logo após o indicador principal */}
           </div>
         </div>
+
+        {/* Âncora real do conteúdo da etapa (para rolagem inteligente no mobile) */}
+        <div
+          ref={contentAnchorRef}
+          style={{
+            scrollMarginTop: "calc(var(--app-header-h, 72px) + 18px)",
+          }}
+        />
 
         {/* Etapas */}
         {!bloquearCadastro && (
@@ -1318,7 +1410,7 @@ export default function Cadastro() {
                 submitAttempted={submitAttempted}
                 setStepAttempted={setStepAttempted}
                 validateEndereco={validateEndereco}
-                setCurrentStep={goToStep}
+                setCurrentStep={(s) => goToStep(s)} // StepEndereco normalmente pede 3; mapStep já pula para 4 se necessário
                 cepRef={cepRef}
                 logRef={logRef}
                 numRef={numRef}
@@ -1329,7 +1421,7 @@ export default function Cadastro() {
               />
             )}
 
-            {currentStep === 3 && (
+            {!isPlanoIndividual && currentStep === 3 && (
               <StepDependentes
                 glassCardStyle={glassCardStyle}
                 depsExistentes={depsExistentes}
@@ -1359,7 +1451,7 @@ export default function Cadastro() {
                 valorMensalidadePlano={valorMensalidadePlano}
                 composicaoMensalidade={composicaoMensalidade}
                 cobrancasPreview={cobrancasPreview}
-                onBack={() => goToStep(3)}
+                onBack={onBackFromCarne}
                 onFinalizar={handleSalvarEnviar}
                 saving={saving}
               />
@@ -1368,11 +1460,7 @@ export default function Cadastro() {
         )}
 
         {/* Modal de troca de plano (a qualquer momento) */}
-        <Modal
-          open={planModalOpen}
-          title="Trocar plano"
-          onClose={() => setPlanModalOpen(false)}
-        >
+        <Modal open={planModalOpen} title="Trocar plano" onClose={() => setPlanModalOpen(false)}>
           <div className="space-y-4">
             <div className="grid gap-2 md:grid-cols-3">
               <div className="md:col-span-2">
@@ -1403,7 +1491,7 @@ export default function Cadastro() {
             )}
 
             {!planListState.loading && !planListState.error && (
-              <div className="max-h-[55vh] overflow-auto pr-1">
+              <div className="pr-1">
                 <div className="grid gap-3 md:grid-cols-2">
                   {planosFiltrados.map((p) => {
                     const id = p?.id ?? p?.planoId;
@@ -1428,9 +1516,7 @@ export default function Cadastro() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--c-muted)]">
-                              Plano #{id}
-                            </p>
+                            <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--c-muted)]">Plano #{id}</p>
                             <p className="mt-0.5 text-sm font-semibold truncate">{p?.nome || "Plano"}</p>
                           </div>
                           {active ? (
