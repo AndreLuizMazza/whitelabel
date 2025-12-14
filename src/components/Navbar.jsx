@@ -40,20 +40,14 @@ export default function Navbar() {
   const location = useLocation()
 
   /* ===== Conta / Avatar ===== */
-  const nomeExibicao = useMemo(
-    () => user?.nome ?? user?.email ?? '',
-    [user]
-  )
+  const nomeExibicao = useMemo(() => user?.nome ?? user?.email ?? '', [user])
 
   const avatarInitial = useMemo(() => {
     const base = user?.nome || user?.email || 'U'
     return base.trim().charAt(0).toUpperCase()
   }, [user])
 
-  const tenantInitials = useMemo(
-    () => getTenantInitials(empresa),
-    [empresa]
-  )
+  const tenantInitials = useMemo(() => getTenantInitials(empresa), [empresa])
 
   const [avatarBlobUrl, setAvatarBlobUrl] = useState(null)
   const [avatarErro, setAvatarErro] = useState(false)
@@ -85,9 +79,7 @@ export default function Navbar() {
           if (objUrl) URL.revokeObjectURL(objUrl)
           return
         }
-        if (lastObjUrlRef.current) {
-          URL.revokeObjectURL(lastObjUrlRef.current)
-        }
+        if (lastObjUrlRef.current) URL.revokeObjectURL(lastObjUrlRef.current)
         lastObjUrlRef.current = objUrl || null
         setAvatarBlobUrl(objUrl || null)
         setAvatarErro(false)
@@ -127,10 +119,7 @@ export default function Navbar() {
   useEffect(() => {
     if (!showProfileMenu) return
     const handler = (e) => {
-      if (
-        profileMenuRef.current &&
-        !profileMenuRef.current.contains(e.target)
-      ) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
         setShowProfileMenu(false)
       }
     }
@@ -141,24 +130,16 @@ export default function Navbar() {
   // Flag para dock de contato
   useEffect(() => {
     const root = document.documentElement
-    if (mobileOpen) {
-      root.setAttribute('data-mobile-drawer-open', 'true')
-    } else {
-      root.removeAttribute('data-mobile-drawer-open')
-    }
-    return () => {
-      root.removeAttribute('data-mobile-drawer-open')
-    }
+    if (mobileOpen) root.setAttribute('data-mobile-drawer-open', 'true')
+    else root.removeAttribute('data-mobile-drawer-open')
+    return () => root.removeAttribute('data-mobile-drawer-open')
   }, [mobileOpen])
 
   // Modo idoso
   useEffect(() => {
     const root = document.documentElement
-    if (elderMode) {
-      root.setAttribute('data-elder-mode', 'on')
-    } else {
-      root.removeAttribute('data-elder-mode')
-    }
+    if (elderMode) root.setAttribute('data-elder-mode', 'on')
+    else root.removeAttribute('data-elder-mode')
     try {
       localStorage.setItem('elder_mode', elderMode ? 'on' : 'off')
     } catch {}
@@ -252,6 +233,35 @@ export default function Navbar() {
           <div className="hidden md:block">
             <ThemeToggle />
           </div>
+
+          {/* NÃO LOGADO: CTA sempre visível (desktop) */}
+          {!isLogged && (
+            <div className="hidden md:flex items-center gap-2">
+              <Link
+                to="/planos"
+                className="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-semibold shadow-sm hover:shadow transition"
+                style={{ background: 'var(--primary)', color: '#fff' }}
+                aria-label="Fazer adesão"
+              >
+                Fazer adesão
+              </Link>
+
+              <Link
+                to="/login"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
+                style={{
+                  borderColor: 'var(--c-border)',
+                  background:
+                    'color-mix(in srgb, var(--surface) 92%, var(--primary) 8%)',
+                  color: 'var(--text)',
+                }}
+                aria-label="Entrar"
+              >
+                <User className="h-4 w-4" />
+                <span>Entrar</span>
+              </Link>
+            </div>
+          )}
 
           {isLogged ? (
             <div className="relative" ref={profileMenuRef}>
@@ -348,7 +358,7 @@ export default function Navbar() {
 
                   <Link
                     to="/area"
-                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg:white/5 dark:hover:bg-white/5"
+                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
                     onClick={() => setShowProfileMenu(false)}
                     role="menuitem"
                   >
@@ -358,7 +368,7 @@ export default function Navbar() {
 
                   <Link
                     to="/perfil"
-                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg:white/5 dark:hover:bg-white/5"
+                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
                     onClick={() => setShowProfileMenu(false)}
                     role="menuitem"
                   >
@@ -388,20 +398,7 @@ export default function Navbar() {
             </div>
           ) : (
             <>
-              <Link
-                to="/login"
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs sm:text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
-                style={{
-                  borderColor: 'var(--primary)',
-                  background:
-                    'color-mix(in srgb, var(--primary) 10%, var(--surface) 90%)',
-                  color: 'var(--primary)',
-                }}
-              >
-                <User className="h-4 w-4" />
-                <span>Entrar</span>
-              </Link>
-
+              {/* Mobile: botão que abre drawer (sempre visível) */}
               <button
                 className="md:hidden inline-flex items-center justify-center rounded-lg border px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
                 aria-label="Abrir menu"
@@ -409,11 +406,7 @@ export default function Navbar() {
                 aria-expanded={mobileOpen}
                 onClick={() => setMobileOpen((v) => !v)}
               >
-                {mobileOpen ? (
-                  <X className="h-5 w-5" />
-                ) : (
-                  <Menu className="h-5 w-5" />
-                )}
+                {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>
             </>
           )}
@@ -506,7 +499,7 @@ export default function Navbar() {
                       className="text-xs truncate"
                       style={{ color: 'var(--text-muted)' }}
                     >
-                      Entre para acessar sua conta
+                      Acesse planos e faça sua adesão
                     </p>
                   </>
                 )}
@@ -521,23 +514,29 @@ export default function Navbar() {
               </button>
             </div>
 
-            {/* CTA Entrar para visitantes */}
+            {/* CTA (não logado) – topo do drawer */}
             {!isLogged && (
               <div
                 className="px-5 py-4 border-b"
                 style={{ borderColor: 'var(--c-border)' }}
               >
                 <Link
+                  to="/planos"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center justify-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold shadow-sm hover:shadow transition"
+                  style={{ background: 'var(--primary)', color: '#fff' }}
+                >
+                  Fazer adesão
+                </Link>
+
+                <Link
                   to="/login"
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium"
-                  style={{
-                    background: 'var(--primary)',
-                    color: '#fff',
-                  }}
+                  className="mt-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium border hover:bg-black/5 dark:hover:bg-white/5 transition"
+                  style={{ borderColor: 'var(--c-border)', color: 'var(--text)' }}
                 >
                   <UserSquare2 className="h-5 w-5" />
-                  <span>Entrar na área do associado</span>
+                  <span>Entrar</span>
                 </Link>
               </div>
             )}
@@ -605,10 +604,7 @@ export default function Navbar() {
                 >
                   <div className="flex flex-col">
                     <span className="text-xs font-medium">Tema</span>
-                    <span
-                      className="text-[11px]"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
+                    <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                       Claro / Escuro automático
                     </span>
                   </div>
@@ -625,10 +621,7 @@ export default function Navbar() {
                 >
                   <div className="flex flex-col text-left">
                     <span className="font-medium">Modo idoso</span>
-                    <span
-                      className="text-[11px]"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
+                    <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                       Letras maiores e mais contraste
                     </span>
                   </div>
@@ -650,12 +643,29 @@ export default function Navbar() {
               </div>
             </div>
 
-            {/* BOTÃO SAIR */}
-            {isLogged && (
+            {/* Sticky CTA (não logado) – reforço de conversão */}
+            {!isLogged && (
               <div
                 className="border-t px-5 py-4"
-                style={{ borderColor: 'var(--c-border)' }}
+                style={{
+                  borderColor: 'var(--c-border)',
+                  background: 'color-mix(in srgb, var(--surface) 92%, var(--primary) 8%)',
+                }}
               >
+                <Link
+                  to="/planos"
+                  onClick={() => setMobileOpen(false)}
+                  className="w-full flex items-center justify-center rounded-2xl px-4 py-3 font-semibold shadow-sm hover:shadow transition"
+                  style={{ background: 'var(--primary)', color: '#fff' }}
+                >
+                  Fazer adesão
+                </Link>
+              </div>
+            )}
+
+            {/* BOTÃO SAIR */}
+            {isLogged && (
+              <div className="border-t px-5 py-4" style={{ borderColor: 'var(--c-border)' }}>
                 <button
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm rounded-lg font-medium hover:bg-black/5 dark:hover:bg-white/5 text-[var(--danger, #b91c1c)]"
                   onClick={() => {
