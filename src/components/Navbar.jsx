@@ -491,7 +491,7 @@ export default function Navbar() {
                       }
                       style={{ color: 'var(--text-muted)' }}
                     >
-                      {empresa?.nomeFantasia || 'Minha funerária'}
+                      {empresa?.nomeFantasia || 'Minha Empresa'}
                     </p>
                   </>
                 ) : (
@@ -500,7 +500,7 @@ export default function Navbar() {
                       className="text-sm font-semibold leading-tight truncate"
                       style={{ color: 'var(--primary)' }}
                     >
-                      {empresa?.nomeFantasia || 'Minha Funerária'}
+                      {empresa?.nomeFantasia || 'Minha Empresa'}
                     </p>
                     <p
                       className="text-xs truncate"
