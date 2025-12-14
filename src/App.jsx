@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 
 import './styles/theme.css'
-import './styles/print.css' // impressão (CR-80 / A4)
+import './styles/print.css'
 import ScrollToTop from '@/components/ScrollToTop'
 import TenantBootstrapper from '@/components/TenantBootstrapper'
 import NotificationsBootstrapper from '@/components/NotificationsBootstrapper.jsx'
@@ -57,9 +57,6 @@ import useTenant from '@/store/tenant'
 // 🧩 Layout global com sidebar
 import GlobalShell from '@/layouts/GlobalShell.jsx'
 
-/**
- * Resolve o “subtítulo” da página com base na rota.
- */
 function resolvePageTitle(pathname = '/') {
   if (pathname === '/') return 'Início'
   if (pathname === '/planos') return 'Planos'
@@ -78,55 +75,36 @@ function resolvePageTitle(pathname = '/') {
   if (pathname === '/termos-uso') return 'Termos de Uso'
   if (pathname === '/filiais') return 'Unidades'
   if (pathname.startsWith('/verificar/')) return 'Verificar carteirinha'
-
   if (pathname === '/memorial') return 'Memorial'
   if (pathname.startsWith('/memorial/')) return 'Homenagem'
-
   if (pathname === '/carteirinha/print') return 'Impressão da carteirinha'
   if (pathname === '/servicos-digitais') return 'Serviços digitais'
   if (pathname === '/carteirinha') return 'Carteirinha digital'
-
   if (pathname === '/area') return 'Área do associado'
   if (pathname === '/perfil') return 'Perfil'
   if (pathname === '/area/dependentes') return 'Dependentes'
   if (pathname === '/area/pagamentos') return 'Histórico de pagamentos'
-
-  // Fluxo de contratação
   if (pathname === '/cadastro') return 'Contratação'
   if (pathname === '/confirmacao') return 'Confirmação'
-
   return ''
 }
 
-/**
- * Hook para atualizar o título da aba com base no tenant + rota.
- */
 function useDynamicTitle() {
   const location = useLocation()
   const tenant = useTenant((s) => s.empresa)
 
   useEffect(() => {
-    const base =
-      tenant?.nomeFantasia ||
-      tenant?.nome ||
-      'Progem Starter'
-
+    const base = tenant?.nomeFantasia || tenant?.nome || 'Progem Starter'
     const section = resolvePageTitle(location.pathname)
     document.title = section ? `${section} • ${base}` : base
   }, [location.pathname, tenant])
 }
 
-/**
- * Hook utilitário: marca rota no <body>.
- * (Útil para CSS/telemetria e também para "avoidSelector" se você quiser.)
- */
 function useBodyRouteTag() {
   const location = useLocation()
   useEffect(() => {
     document.body.setAttribute('data-route', location.pathname || '/')
-    return () => {
-      document.body.removeAttribute('data-route')
-    }
+    return () => document.body.removeAttribute('data-route')
   }, [location.pathname])
 }
 
@@ -138,14 +116,21 @@ export default function App() {
 
   // ✅ Dock NÃO deve existir no fluxo de contratação.
   const hideContactDock =
+    location.pathname === '/cadastro' || location.pathname === '/confirmacao'
+
+  // ✅ Footer NÃO deve aparecer na Área do Associado e nem no fluxo de contratação.
+  const hideFooter =
+    location.pathname === '/area' ||
+    location.pathname.startsWith('/area/') ||
+    location.pathname === '/perfil' ||
+    location.pathname === '/carteirinha' ||
+    location.pathname === '/servicos-digitais' ||
     location.pathname === '/cadastro' ||
     location.pathname === '/confirmacao'
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* carrega token + /unidades/me e aplica tema */}
       <TenantBootstrapper />
-      {/* escuta webhooks globalmente e atualiza store + unread */}
       <NotificationsBootstrapper />
 
       <GlobalShell>
@@ -169,7 +154,10 @@ export default function App() {
               <Route path="/redefinir-senha" element={<VerificarCodigo />} />
               <Route path="/trocar-senha" element={<TrocarSenha />} />
               <Route path="/politica-cookies" element={<PoliticaCookies />} />
-              <Route path="/politica-privacidade" element={<PoliticaPrivacidade />} />
+              <Route
+                path="/politica-privacidade"
+                element={<PoliticaPrivacidade />}
+              />
               <Route path="/termos-uso" element={<TermosUso />} />
               <Route path="/filiais" element={<Filiais />} />
               <Route path="/verificar/:cpf" element={<VerificarCarteirinha />} />
@@ -191,7 +179,7 @@ export default function App() {
                 }
               />
 
-              {/* 🔒 Fluxo de contratação: prioriza registro */}
+              {/* 🔒 Fluxo de contratação */}
               <Route
                 path="/cadastro"
                 element={
@@ -219,7 +207,7 @@ export default function App() {
                 }
               />
 
-              {/* 🔒 Carteirinha (nova página dedicada) */}
+              {/* 🔒 Carteirinha */}
               <Route
                 path="/carteirinha"
                 element={
@@ -229,7 +217,7 @@ export default function App() {
                 }
               />
 
-              {/* 🔒 Perfil (senha + avatar) */}
+              {/* 🔒 Perfil */}
               <Route
                 path="/perfil"
                 element={
@@ -239,7 +227,7 @@ export default function App() {
                 }
               />
 
-              {/* 🔒 Dependentes – área do associado */}
+              {/* 🔒 Dependentes */}
               <Route
                 path="/area/dependentes"
                 element={
@@ -249,7 +237,7 @@ export default function App() {
                 }
               />
 
-              {/* 🔒 Histórico de pagamentos – área do associado */}
+              {/* 🔒 Histórico de pagamentos */}
               <Route
                 path="/area/pagamentos"
                 element={
@@ -259,7 +247,6 @@ export default function App() {
                 }
               />
 
-              {/* Redirecionamento padrão */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </ErrorBoundary>
@@ -267,9 +254,10 @@ export default function App() {
 
         <CookieBanner />
 
-        <Footer />
+        {/* ✅ Footer condicional */}
+        {!hideFooter && <Footer />}
 
-        {/* ✅ Dock condicional (não existe no DOM em /cadastro e /confirmacao) */}
+        {/* ✅ Dock condicional */}
         {!hideContactDock && (
           <StickyContactDock
             position="bottom-left"
@@ -279,7 +267,7 @@ export default function App() {
               ariaLabel: 'Abrir simulador de planos',
               badge: 'Novo',
             }}
-            avoidSelector='[data-cookie-banner], [data-bottom-avoid]'
+            avoidSelector="[data-cookie-banner], [data-bottom-avoid]"
             reserveSpace
             compactNearFooter
             hideOnKeyboard
