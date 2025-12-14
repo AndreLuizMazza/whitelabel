@@ -1,9 +1,10 @@
-// HeroSlider.jsx (Apple-level: Modo Fotografia + player funcional)
+// HeroSlider.jsx (Apple-level: Modo Fotografia + player funcional + suporte a metaLeft/metaRight como ReactNode)
 // - Player/autoplay: NÃO trava ao clicar (foco por mouse não pausa autoplay)
 // - Acessibilidade: pausa por foco APENAS quando foco veio do teclado (Tab)
 // - SEM CORTES: objectFit contain
 // - Low-res: fundo mais forte + imagem levemente menor + máscara/vinheta mais intensas + grain
 // - Mantém: swipe, preload, CTA, fallback
+// - Upgrade: metaLeft/metaRight podem ser string OU ReactNode (para ícones + datas no hero)
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
@@ -46,13 +47,17 @@ function clampTextStyle(lines = 2) {
   };
 }
 
+function isStr(v) {
+  return typeof v === "string" || typeof v === "number";
+}
+
 export default function HeroSlider({
   title = "Memoriais Públicos",
   subtitle = "Um espaço para lembrar, homenagear e manter vivo o legado.",
   slides = [],
   statsRight = null,
   heightClass = "h-[52vh] md:h-[58vh]",
-  intervalMs = 7000,
+  intervalMs = 9000,
   className = "",
   ariaLabel = "Destaques do memorial",
   initialIndex = 0,
@@ -76,7 +81,7 @@ export default function HeroSlider({
   const hoverRef = useRef(false);
   const focusRef = useRef(false);
 
-  // 🔥 importante: distinguir foco de teclado vs clique do mouse
+  // 🔥 distinguir foco do teclado vs clique
   const lastInputRef = useRef("mouse"); // "mouse" | "keyboard" | "touch"
 
   const startXRef = useRef(null);
@@ -101,16 +106,15 @@ export default function HeroSlider({
       hasSlides ? (i - 1 + safeSlides.length) % safeSlides.length : 0
     );
 
-  // autoplay com setTimeout (menos drift)
+  // autoplay com setTimeout
   useEffect(() => {
     if (!hasSlides) return;
     if (prefersReduced) return;
     if (paused) return;
 
-    // não troca se usuário estiver com mouse em cima
     if (hoverRef.current) return;
 
-    // pausa por foco SOMENTE se foco veio do teclado (acessível sem quebrar clique)
+    // pausa por foco SOMENTE se foco veio do teclado
     if (focusRef.current && lastInputRef.current === "keyboard") return;
 
     clearTimeout(timeoutRef.current);
@@ -124,14 +128,13 @@ export default function HeroSlider({
 
   const rootRef = useRef(null);
 
-  // capturar "origem" do foco (Tab / teclado)
+  // capturar origem do input (teclado)
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
 
     const onKeyDown = (e) => {
       lastInputRef.current = "keyboard";
-
       if (!hasSlides) return;
 
       if (e.key === "ArrowRight") {
@@ -194,7 +197,10 @@ export default function HeroSlider({
 
   // overlay editorial
   const overlayBg =
-    "linear-gradient(90deg, rgba(0,0,0,.62) 0%, rgba(0,0,0,.38) 54%, rgba(0,0,0,.18) 100%)";
+    "linear-gradient(90deg, rgba(0,0,0,.66) 0%, rgba(0,0,0,.40) 54%, rgba(0,0,0,.18) 100%)";
+
+  const metaLeft = active?.metaLeft ?? null;
+  const metaRight = active?.metaRight ?? null;
 
   return (
     <section
@@ -218,7 +224,7 @@ export default function HeroSlider({
       onPointerDownCapture={() => {
         lastInputRef.current = isTouch ? "touch" : "mouse";
       }}
-      onTouchStart={() => isTouch && setPaused(true)} // toque pausa (evita troca durante swipe)
+      onTouchStart={() => isTouch && setPaused(true)}
       aria-roledescription="carousel"
       aria-label={ariaLabel}
     >
@@ -275,7 +281,9 @@ export default function HeroSlider({
                       style={{ background: "var(--primary)" }}
                       aria-hidden="true"
                     />
-                    <span>{String(active?.kicker || "Memorial").toUpperCase()}</span>
+                    <span>
+                      {String(active?.kicker || "Memorial").toUpperCase()}
+                    </span>
                   </div>
 
                   <h1
@@ -302,9 +310,9 @@ export default function HeroSlider({
                     {active?.description || subtitle}
                   </p>
 
-                  {(active?.metaLeft || active?.metaRight) && (
+                  {(metaLeft || metaRight) && (
                     <div className="mt-3 flex flex-wrap items-center gap-2 text-xs md:text-sm">
-                      {active?.metaLeft && (
+                      {metaLeft && (
                         <span
                           className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 ring-1"
                           style={{
@@ -314,12 +322,12 @@ export default function HeroSlider({
                             border: "1px solid rgba(255,255,255,.14)",
                             backdropFilter: "blur(10px)",
                           }}
-                          title={String(active.metaLeft)}
+                          title={isStr(metaLeft) ? String(metaLeft) : undefined}
                         >
-                          <span className="truncate">{active.metaLeft}</span>
+                          <span className="truncate">{metaLeft}</span>
                         </span>
                       )}
-                      {active?.metaRight && (
+                      {metaRight && (
                         <span
                           className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 ring-1"
                           style={{
@@ -329,9 +337,9 @@ export default function HeroSlider({
                             border: "1px solid rgba(255,255,255,.10)",
                             backdropFilter: "blur(10px)",
                           }}
-                          title={String(active.metaRight)}
+                          title={isStr(metaRight) ? String(metaRight) : undefined}
                         >
-                          <span className="truncate">{active.metaRight}</span>
+                          <span className="truncate">{metaRight}</span>
                         </span>
                       )}
                     </div>
@@ -399,7 +407,11 @@ export default function HeroSlider({
               {/* CONTROLES */}
               {hasSlides && (
                 <div className="mt-4 md:mt-5 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2" role="tablist" aria-label="Slides">
+                  <div
+                    className="flex items-center gap-2"
+                    role="tablist"
+                    aria-label="Slides"
+                  >
                     {safeSlides.map((_, i) => {
                       const isActive = i === index;
                       return (
@@ -413,8 +425,10 @@ export default function HeroSlider({
                             width: isActive ? 26 : 10,
                             background: isActive
                               ? "rgba(255,255,255,.92)"
-                              : "rgba(255,255,255,.35)",
-                            boxShadow: isActive ? "0 0 0 1px rgba(0,0,0,.20)" : "none",
+                              : "rgba(255,255,255,.32)",
+                            boxShadow: isActive
+                              ? "0 0 0 1px rgba(0,0,0,.20)"
+                              : "none",
                           }}
                           aria-label={`Ir para o slide ${i + 1}`}
                           aria-current={isActive ? "true" : "false"}
@@ -445,8 +459,14 @@ export default function HeroSlider({
                       }}
                       aria-label={paused ? "Reproduzir" : "Pausar"}
                     >
-                      {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                      <span className="text-xs font-semibold">{paused ? "Play" : "Pause"}</span>
+                      {paused ? (
+                        <Play className="h-4 w-4" />
+                      ) : (
+                        <Pause className="h-4 w-4" />
+                      )}
+                      <span className="text-xs font-semibold">
+                        {paused ? "Play" : "Pause"}
+                      </span>
                     </button>
 
                     <IconButton
@@ -503,7 +523,6 @@ function SlideLayer({ slide, isActive, prefersReduced, overlayBg }) {
     setLowRes(maxSide > 0 && maxSide < 900);
   };
 
-  // ✅ reforçado conforme pedido
   const photographyMaskOpacity = lowRes ? 0.86 : 0.60;
 
   return (
@@ -517,7 +536,7 @@ function SlideLayer({ slide, isActive, prefersReduced, overlayBg }) {
     >
       {!broken ? (
         <>
-          {/* Fundo (cover + blur) — reforçado no low-res */}
+          {/* Fundo (cover + blur) */}
           <div
             className="absolute inset-0"
             style={{
@@ -532,7 +551,7 @@ function SlideLayer({ slide, isActive, prefersReduced, overlayBg }) {
             }}
           />
 
-          {/* Imagem principal SEM CORTES — low-res: menor e mais “editorial” */}
+          {/* Imagem principal SEM CORTES */}
           <img
             src={slide.image}
             alt={slide.alt || ""}
@@ -558,11 +577,11 @@ function SlideLayer({ slide, isActive, prefersReduced, overlayBg }) {
             style={{
               opacity: photographyMaskOpacity,
               background:
-                "linear-gradient(90deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,.20) 20%, rgba(0,0,0,.10) 50%, rgba(0,0,0,.20) 80%, rgba(0,0,0,.55) 100%)",
+                "linear-gradient(90deg, rgba(0,0,0,.58) 0%, rgba(0,0,0,.22) 20%, rgba(0,0,0,.10) 50%, rgba(0,0,0,.22) 80%, rgba(0,0,0,.58) 100%)",
             }}
           />
 
-          {/* Vinheta — reforçada no low-res */}
+          {/* Vinheta */}
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
