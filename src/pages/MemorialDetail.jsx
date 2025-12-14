@@ -1,10 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+// src/pages/MemorialDetail.jsx
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { getMemorialById } from "@/lib/nalapide";
+
+import {
+  getMemorialById,
+  getMemorialMidias,
+  getMemorialInteracoes,
+  createMemorialInteracao,
+} from "@/lib/nalapide";
+
 import BackButton from "@/components/BackButton";
 
 import HeroPhotography from "@/components/memorial/HeroPhotography";
 import IdentityCard from "@/components/memorial/IdentityCard";
+
+import GalleryGrid from "@/components/memorial/GalleryGrid";
+import TributeForm from "@/components/memorial/TributeForm";
+import MessagesList from "@/components/memorial/MessagesList";
 
 import {
   Calendar,
@@ -62,7 +74,11 @@ function hexToHsl(hex) {
     }
     h /= 6;
   }
-  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+  return {
+    h: Math.round(h * 360),
+    s: Math.round(s * 100),
+    l: Math.round(l * 100),
+  };
 }
 function clamp(n, a, b) {
   return Math.min(b, Math.max(a, n));
@@ -111,7 +127,9 @@ function calcAge(dtNasc, dtFim) {
 
 /* ================= UI ================= */
 function openMaps(q) {
-  const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+  const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    q
+  )}`;
   window.open(url, "_blank");
 }
 
@@ -121,7 +139,9 @@ function AgendaCard({ title, data, hora, local, icon: Icon, hc }) {
     : "bg-[var(--surface)] text-[var(--text)] ring-1 ring-[color:color-mix(in_srgb,var(--c-border)_85%,transparent)] dark:bg-[var(--surface)] dark:text-[var(--text)] dark:ring-[color:color-mix(in_srgb,var(--c-border)_70%,transparent)]";
 
   return (
-    <div className={`min-h-[112px] rounded-2xl p-4 shadow-[0_12px_40px_rgba(0,0,0,.05)] ${wrap}`}>
+    <div
+      className={`min-h-[112px] rounded-2xl p-4 shadow-[0_12px_40px_rgba(0,0,0,.05)] ${wrap}`}
+    >
       <div className="flex items-center gap-2 text-sm sm:text-[15px] font-semibold">
         <Icon className="h-4.5 w-4.5 text-[color:var(--brand-700)] dark:text-[color:var(--brand-50)]" />
         {title}
@@ -169,6 +189,14 @@ export default function MemorialDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // extras
+  const [midias, setMidias] = useState([]);
+  const [interacoes, setInteracoes] = useState([]);
+  const [loadingExtras, setLoadingExtras] = useState(false);
+
+  const tributeRef = useRef(null);
+  const messagesRef = useRef(null);
+
   useEffect(() => {
     (async () => {
       try {
@@ -187,9 +215,33 @@ export default function MemorialDetail() {
 
   // aplica a cor da empresa
   useEffect(() => {
-    const cor = data?.empresa?.corPrimaria || data?.empresa?.brandColor || "#10B981";
+    const cor =
+      data?.empresa?.corPrimaria || data?.empresa?.brandColor || "#10B981";
     if (cor) setBrandVars(cor);
   }, [data?.empresa?.corPrimaria, data?.empresa?.brandColor]);
+
+  // carrega galeria + mensagens
+  useEffect(() => {
+    if (!data?.id) return;
+
+    (async () => {
+      try {
+        setLoadingExtras(true);
+        const [m, i] = await Promise.all([
+          getMemorialMidias(data.id),
+          getMemorialInteracoes(data.id),
+        ]);
+        setMidias(Array.isArray(m) ? m : []);
+        setInteracoes(Array.isArray(i) ? i : []);
+      } catch (e) {
+        console.error("[MemorialDetail] erro extras:", e);
+        setMidias([]);
+        setInteracoes([]);
+      } finally {
+        setLoadingExtras(false);
+      }
+    })();
+  }, [data?.id]);
 
   const urlAtual = useMemo(
     () => (window?.location?.origin || "") + location.pathname,
@@ -200,6 +252,21 @@ export default function MemorialDetail() {
     try {
       await navigator.clipboard.writeText(urlAtual);
     } catch {}
+  }
+
+  function scrollToTribute() {
+    tributeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function scrollToMessages() {
+    messagesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function handleCreateInteracao(obitoId, payload) {
+    await createMemorialInteracao(obitoId, payload);
+    const latest = await getMemorialInteracoes(obitoId);
+    setInteracoes(Array.isArray(latest) ? latest : []);
+    // levar o usuário para as mensagens após enviar (sensação de “registro efetuado”)
+    setTimeout(() => scrollToMessages(), 250);
   }
 
   if (loading) {
@@ -259,11 +326,12 @@ export default function MemorialDetail() {
   const epitafio = data?.epitafio;
   const biografia = data?.biografia;
 
-  const waText = encodeURIComponent(
+  const shareWhats = `https://wa.me/?text=${encodeURIComponent(
     `Em memória de ${nome} (${nasc} — ${fale})\n\nAcesse o memorial: ${urlAtual}`
-  );
-  const shareWhats = `https://wa.me/?text=${waText}`;
-  const shareFb = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(urlAtual)}`;
+  )}`;
+  const shareFb = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+    urlAtual
+  )}`;
 
   const cardWrap = highContrast
     ? "bg-[var(--surface)] ring-1 ring-black/30 dark:bg-black dark:ring-white/30"
@@ -275,7 +343,11 @@ export default function MemorialDetail() {
       <div className="flex items-center justify-between">
         <BackButton to="/memorial" />
         <div className="flex items-center gap-1 sm:gap-2">
-          <button onClick={copyLink} title="Copiar link" className="btn-brand-ghost">
+          <button
+            onClick={copyLink}
+            title="Copiar link"
+            className="btn-brand-ghost"
+          >
             <Copy className="h-5 w-5" />
           </button>
 
@@ -303,6 +375,7 @@ export default function MemorialDetail() {
             type="button"
             className="btn-brand hidden sm:inline-flex items-center gap-2 ml-1"
             title="Compartilhar"
+            onClick={copyLink}
           >
             <Share2 className="h-4 w-4" />
             <span className="text-sm font-medium">Compartilhar</span>
@@ -320,7 +393,7 @@ export default function MemorialDetail() {
         />
       </div>
 
-      {/* Identity Card — nome legível + ⭐/✝ + métricas (fora da imagem) */}
+      {/* Identity Card — nome legível + métricas (fora da imagem) */}
       <div className="-mt-8 sm:-mt-10 relative z-10 px-1">
         <IdentityCard
           nome={nome}
@@ -334,6 +407,10 @@ export default function MemorialDetail() {
           naturalidade={naturalidade}
           localFalecimento={localFalecimento}
           highContrast={highContrast}
+          // se seu IdentityCard aceitar callback/extra: pode adicionar CTA pra rolar até homenagens
+          // onOpenTribute={scrollToTribute}
+          // messagesCount={interacoes.length}
+          // onOpenMessages={scrollToMessages}
         />
       </div>
 
@@ -342,7 +419,9 @@ export default function MemorialDetail() {
         {/* Sidebar */}
         <aside className="lg:col-span-1">
           <div className="lg:sticky lg:top-6 space-y-4">
-            <div className={`${cardWrap} rounded-3xl p-4 sm:p-6 shadow-[0_18px_55px_rgba(0,0,0,.06)]`}>
+            <div
+              className={`${cardWrap} rounded-3xl p-4 sm:p-6 shadow-[0_18px_55px_rgba(0,0,0,.06)]`}
+            >
               <h2 className="text-[15px] sm:text-lg font-semibold text-[var(--text)] flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-[color:var(--brand-700)] dark:text-[color:var(--brand-50)]" />
                 Agenda & Locais
@@ -389,13 +468,49 @@ export default function MemorialDetail() {
                 )}
               </div>
             </div>
+
+            {/* Ação rápida (mobile-friendly) */}
+            <div
+              className="rounded-3xl p-4 ring-1 shadow-[0_18px_55px_rgba(0,0,0,.06)]"
+              style={{
+                borderColor:
+                  "color-mix(in srgb, var(--brand-100) 75%, var(--c-border))",
+                background:
+                  "linear-gradient(180deg, color-mix(in srgb, var(--brand-50) 92%, white) 0%, var(--surface) 70%, var(--surface) 100%)",
+              }}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Heart className="h-5 w-5 text-[color:var(--brand-700)] dark:text-[color:var(--brand-50)]" />
+                    <div className="text-sm font-semibold text-[var(--text)]">
+                      Homenagens
+                    </div>
+                    <span className="ml-1 cta-badge">{interacoes.length}</span>
+                  </div>
+                  <p className="mt-1 text-xs text-[var(--text)] opacity-80">
+                    Envie uma mensagem, assine o livro, acenda uma vela ou envie uma flor.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={scrollToTribute}
+                  className="btn-brand"
+                >
+                  Homenagear
+                </button>
+              </div>
+            </div>
           </div>
         </aside>
 
         {/* Conteúdo */}
         <main className="lg:col-span-2 space-y-4 sm:space-y-6">
           {/* Biografia */}
-          <section className={`${cardWrap} rounded-3xl p-4 sm:p-6 shadow-[0_18px_55px_rgba(0,0,0,.06)]`}>
+          <section
+            className={`${cardWrap} rounded-3xl p-4 sm:p-6 shadow-[0_18px_55px_rgba(0,0,0,.06)]`}
+          >
             <h2 className="text-[15px] sm:text-lg font-semibold text-[var(--text)]">
               Biografia
             </h2>
@@ -414,8 +529,10 @@ export default function MemorialDetail() {
               <blockquote
                 className="mt-3 sm:mt-4 rounded-2xl px-4 py-3 italic ring-1"
                 style={{
-                  background: "color-mix(in srgb, var(--surface-alt) 70%, transparent)",
-                  borderColor: "color-mix(in srgb, var(--c-border) 80%, transparent)",
+                  background:
+                    "color-mix(in srgb, var(--surface-alt) 70%, transparent)",
+                  borderColor:
+                    "color-mix(in srgb, var(--c-border) 80%, transparent)",
                   color: "var(--text)",
                 }}
               >
@@ -428,7 +545,8 @@ export default function MemorialDetail() {
           <section
             className="rounded-3xl p-4 sm:p-6 ring-1 shadow-[0_18px_55px_rgba(0,0,0,.06)]"
             style={{
-              borderColor: "color-mix(in srgb, var(--brand-100) 75%, var(--c-border))",
+              borderColor:
+                "color-mix(in srgb, var(--brand-100) 75%, var(--c-border))",
               background:
                 "linear-gradient(90deg, color-mix(in srgb, var(--brand-50) 92%, white) 0%, var(--surface) 55%, var(--surface) 100%)",
             }}
@@ -439,29 +557,65 @@ export default function MemorialDetail() {
                   <Heart className="h-5 w-5 text-[color:var(--brand-700)] dark:text-[color:var(--brand-50)]" />
                   <h3
                     className="text-[15px] sm:text-base font-semibold"
-                    style={{ color: "color-mix(in srgb, var(--brand-700) 92%, black)" }}
+                    style={{
+                      color: "color-mix(in srgb, var(--brand-700) 92%, black)",
+                    }}
                   >
                     Homenagens & Reações
                   </h3>
-                  <span className="ml-1 cta-badge">{reacoes}</span>
+                  <span className="ml-1 cta-badge">{interacoes.length}</span>
                 </div>
 
                 <p
                   className="text-sm mt-1"
-                  style={{ color: "color-mix(in srgb, var(--text) 75%, var(--brand-700))" }}
+                  style={{
+                    color:
+                      "color-mix(in srgb, var(--text) 75%, var(--brand-700))",
+                  }}
                 >
-                  Deixe uma mensagem, acenda uma vela 🕯️ ou envie flores 🌹 para homenagear {nome}.
+                  Deixe uma mensagem, assine o livro de presença, acenda uma vela 🕯️ ou envie flores 🌹 para homenagear {nome}.
                 </p>
               </div>
 
               <div className="sm:col-span-2 flex items-center sm:justify-end gap-2">
                 <div className="hidden sm:block cta-divider" aria-hidden="true" />
-                <button type="button" className="btn-brand w-full sm:w-auto">
+                <button
+                  type="button"
+                  className="btn-brand w-full sm:w-auto"
+                  onClick={scrollToTribute}
+                >
                   Enviar homenagem
                 </button>
               </div>
             </div>
           </section>
+
+          {/* FORM HOMENAGEM */}
+          <div ref={tributeRef} />
+
+<TributeForm
+  obitoId={data.id}
+  nomeFalecido={nome}
+  highContrast={highContrast}
+  onSubmit={handleCreateInteracao}
+  termosHref="/termos-de-servico.html"
+  privacidadeHref="/politica-de-privacidade.html"
+/>
+
+
+          {/* GALERIA */}
+          <GalleryGrid items={midias} highContrast={highContrast} />
+
+          {/* MENSAGENS */}
+          <div ref={messagesRef} />
+          <MessagesList items={interacoes} highContrast={highContrast} />
+
+          {/* Loader discreto para extras */}
+          {loadingExtras && (
+            <div className="text-sm text-[var(--text)] opacity-70 px-1">
+              Carregando galeria e homenagens…
+            </div>
+          )}
         </main>
       </div>
     </div>

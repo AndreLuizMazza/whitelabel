@@ -146,4 +146,27 @@ router.post('/memorial/:id/reactions', (req, res) =>
 )
 router.post('/leads', (req, res) => forward(req, res, '/interacoes'))
 
+
+// Galeria
+router.get('/memorial/:id/midias', (req, res) =>
+  forward(req, res, `/obitos/${encodeURIComponent(req.params.id)}/midias`)
+)
+
+// Mensagens (interações por óbito)
+router.get('/memorial/:id/interacoes', (req, res) =>
+  forward(req, res, `/interacoes/por-obito/${encodeURIComponent(req.params.id)}`)
+)
+
+// Criar interação (mensagem/livro/vela/flor/atualizações etc.)
+// Observação: aqui o front pode postar para /memorial/:id/interacoes e o BFF encaminha para /interacoes
+router.post('/memorial/:id/interacoes', (req, res) => {
+  // garante obitoId no body (mantém compat com seu legado)
+  req.body = { ...(req.body || {}), obitoId: req.params.id }
+  return forward(req, res, `/interacoes`)
+})
+
+// Produtos (flores)
+router.get('/produtos', (req, res) => forward(req, res, `/produtos`))
+
+
 export default router
