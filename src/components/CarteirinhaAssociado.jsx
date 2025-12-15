@@ -49,6 +49,7 @@ function usePrefersDark() {
   return dark
 }
 
+/* fonte adaptativa p/ nome/plano */
 function fontForName(n = '') {
   const len = String(n).length
   if (len > 60) return 12
@@ -69,10 +70,127 @@ function haptic(ms = 12) {
   } catch {}
 }
 
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v))
+}
+
+/**
+ * Tilt via giroscópio (deviceorientation)
+ * - Atualiza em baixa frequência (RAF)
+ * - Retorna { tiltX, tiltY } em graus
+ */
+function useDeviceTilt({ enabled, orientation }) {
+  const [tilt, setTilt] = useState({ tiltX: 0, tiltY: 0 })
+  const latestRef = useRef({ beta: 0, gamma: 0 })
+  const rafRef = useRef(null)
+
+  useEffect(() => {
+    if (!enabled) {
+      setTilt({ tiltX: 0, tiltY: 0 })
+      return
+    }
+    if (typeof window === 'undefined') return
+    if (typeof window.DeviceOrientationEvent === 'undefined') return
+
+    const onOrientation = (e) => {
+      const beta = Number(e?.beta ?? 0)
+      const gamma = Number(e?.gamma ?? 0)
+      latestRef.current = { beta, gamma }
+    }
+
+    window.addEventListener('deviceorientation', onOrientation, { passive: true })
+
+    const tick = () => {
+      const { beta, gamma } = latestRef.current
+
+      // Normalização suave (graus finais)
+      // portrait: beta -> X (inclinação pra frente/trás), gamma -> Y (esquerda/direita)
+      // landscape: troca e ajusta sinais para sensação natural após girar 90°
+      let x = 0
+      let y = 0
+      if (orientation === 'landscape') {
+        x = clamp(gamma / 10, -8, 8)
+        y = clamp(-beta / 10, -8, 8)
+      } else {
+        x = clamp(beta / 10, -8, 8)
+        y = clamp(gamma / 10, -8, 8)
+      }
+
+      // amortecimento (lerp)
+      setTilt((prev) => {
+        const nx = prev.tiltX + (x - prev.tiltX) * 0.12
+        const ny = prev.tiltY + (y - prev.tiltY) * 0.12
+        // evita renders inúteis
+        if (Math.abs(nx - prev.tiltX) < 0.01 && Math.abs(ny - prev.tiltY) < 0.01) return prev
+        return { tiltX: nx, tiltY: ny }
+      })
+
+      rafRef.current = requestAnimationFrame(tick)
+    }
+
+    rafRef.current = requestAnimationFrame(tick)
+
+    return () => {
+      window.removeEventListener('deviceorientation', onOrientation)
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+  }, [enabled, orientation])
+
+  return tilt
+}
+
+function useViewportBox({ enabled }) {
+  const [box, setBox] = useState(() => {
+    if (typeof window === 'undefined') return { w: 0, h: 0 }
+    const vv = window.visualViewport
+    return {
+      w: Math.round(vv?.width ?? window.innerWidth),
+      h: Math.round(vv?.height ?? window.innerHeight),
+    }
+  })
+
+  useEffect(() => {
+    if (!enabled) return
+    if (typeof window === 'undefined') return
+
+    const update = () => {
+      const vv = window.visualViewport
+      setBox({
+        w: Math.round(vv?.width ?? window.innerWidth),
+        h: Math.round(vv?.height ?? window.innerHeight),
+      })
+    }
+
+    update()
+    window.addEventListener('resize', update)
+    window.addEventListener('orientationchange', update)
+    window.visualViewport?.addEventListener?.('resize', update)
+    window.visualViewport?.addEventListener?.('scroll', update)
+
+    return () => {
+      window.removeEventListener('resize', update)
+      window.removeEventListener('orientationchange', update)
+      window.visualViewport?.removeEventListener?.('resize', update)
+      window.visualViewport?.removeEventListener?.('scroll', update)
+    }
+  }, [enabled])
+
+  return box
+}
+
 /**
  * Props:
+ * - user, contrato
+ * - printable?: boolean
+ * - side?: 'front' | 'back'
+ * - matchContratoHeight?: boolean
+ * - loadAvatar?: boolean
+ * - fotoUrl?: string
+ * - tenantLogoUrl?: string
  * - fullscreen?: boolean
- * - fullscreenLayout?: 'portrait' | 'landscape'  (novo)
+ * - orientation?: 'portrait' | 'landscape'
+ * - tiltEnabled?: boolean
  */
 export default function CarteirinhaAssociado({
   user = {},
@@ -84,7 +202,8 @@ export default function CarteirinhaAssociado({
   fotoUrl = null,
   tenantLogoUrl = null,
   fullscreen = false,
-  fullscreenLayout = 'portrait',
+  orientation = 'portrait',
+  tiltEnabled = false,
 }) {
   const prefersDark = usePrefersDark()
   const warnedRef = useRef(false)
@@ -92,7 +211,7 @@ export default function CarteirinhaAssociado({
   const [uiSide, setUiSide] = useState(side)
   const [matchHeight, setMatchHeight] = useState(null)
 
-  const isLandscape = fullscreen && fullscreenLayout === 'landscape'
+  const isLandscape = fullscreen && orientation === 'landscape'
 
   // swipe (fullscreen)
   const touchRef = useRef({ startX: 0, startY: 0, active: false })
@@ -203,14 +322,13 @@ export default function CarteirinhaAssociado({
 
   const avatarUrl = fotoUrl || avatarBlobUrl || fotoDeclarada || ''
 
-  // autoavisos
+  // avisos
   useEffect(() => {
     if (warnedRef.current) return
     if (!nome) showToast('Nome do titular ausente na carteirinha.')
     if (!plano) showToast('Plano não identificado.')
     if (!numero) showToast('Número do contrato ausente.')
-    if (!cpfDigits || cpfDigits.length !== 11)
-      showToast('CPF inválido ou não informado.')
+    if (!cpfDigits || cpfDigits.length !== 11) showToast('CPF inválido ou não informado.')
     warnedRef.current = true
   }, [nome, plano, numero, cpfDigits])
 
@@ -238,42 +356,61 @@ export default function CarteirinhaAssociado({
     }
   }, [matchContratoHeight, printable, fullscreen])
 
-  // card style
+  // ===== FULLSCREEN: tamanho fixo respeitando proporção do cartão =====
+  const CARD_RATIO = 85.6 / 54 // ~1.585 (cartão real)
+  const viewport = useViewportBox({ enabled: fullscreen && !printable })
+
+  const { tiltX, tiltY } = useDeviceTilt({
+    enabled: fullscreen && !printable && !!tiltEnabled,
+    orientation: isLandscape ? 'landscape' : 'portrait',
+  })
+
   const cardShadow = printable
     ? 'none'
     : prefersDark
     ? '0 18px 46px rgba(0,0,0,0.55)'
     : '0 18px 46px rgba(15,23,42,0.30)'
 
-  const ratio = 85.6 / 54 // ~1.585
   const paddingPx = printable ? 18 : fullscreen ? 20 : 18
 
-  // Fullscreen: dimensiona pelo menor limitador (altura ou largura) e preserva aspecto
-  // - portrait: usa altura disponível
-  // - landscape: usa altura menor (100svh reduzida) e deixa a largura crescer
-  const fullscreenHeight = isLandscape
-    ? 'min(72svh, calc(96vw / 1.585))'
-    : 'min(560px, calc(100svh - 140px))'
+  // cálculo de cardWidth/Height no fullscreen:
+  // - se landscape, o cartão será rotacionado 90°, então o "espaço efetivo" inverte
+  const baseW = fullscreen ? (viewport.w || 0) : 0
+  const baseH = fullscreen ? (viewport.h || 0) : 0
+  const effectiveW = isLandscape ? baseH : baseW
+  const effectiveH = isLandscape ? baseW : baseH
 
-  const fullscreenWidth = isLandscape
-    ? 'min(96vw, calc(72svh * 1.585))'
-    : 'min(740px, 96vw)'
+  // margens de segurança para topbar + respiro
+  const FULL_MARGIN = 28 // px
+  const usableW = Math.max(320, effectiveW - FULL_MARGIN * 2)
+  const usableH = Math.max(240, effectiveH - FULL_MARGIN * 2)
+
+  let fsWidth = usableW
+  let fsHeight = fsWidth / CARD_RATIO
+  if (fsHeight > usableH) {
+    fsHeight = usableH
+    fsWidth = fsHeight * CARD_RATIO
+  }
+
+  const baseRotation = isLandscape ? 'rotate(90deg)' : 'rotate(0deg)'
+  const tiltRotation = tiltEnabled ? ` rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg)` : ''
+  const composedTransform = fullscreen
+    ? `${baseRotation}${tiltRotation} translateZ(0)`
+    : undefined
 
   const cardStyle = {
-    width: fullscreen ? fullscreenWidth : '100%',
-    maxWidth: fullscreen ? fullscreenWidth : printable ? '600px' : '480px',
+    width: fullscreen ? `${Math.round(fsWidth)}px` : '100%',
+    height: fullscreen ? `${Math.round(fsHeight)}px` : undefined,
+    maxWidth: fullscreen ? undefined : printable ? '600px' : '480px',
     ...(fullscreen
-      ? {
-          height: fullscreenHeight,
-          aspectRatio: '85.6 / 54',
-        }
+      ? { aspectRatio: '85.6 / 54' }
       : matchHeight && !printable
-      ? { height: `${matchHeight}px` }
+      ? { height: `${matchHeight}px`, aspectRatio: undefined }
       : { aspectRatio: '85.6 / 54' }),
     marginTop: printable ? 0 : 'clamp(-4px, -0.4vw, -8px)',
     padding: `${paddingPx}px`,
     borderRadius: printable ? '14px' : fullscreen ? '26px' : '22px',
-    boxShadow: fullscreen ? '0 26px 70px rgba(0,0,0,0.55)' : cardShadow,
+    boxShadow: fullscreen ? '0 28px 80px rgba(0,0,0,0.60)' : cardShadow,
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
@@ -281,7 +418,9 @@ export default function CarteirinhaAssociado({
     background:
       'radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--primary) 40%, transparent) 0, transparent 55%),' +
       'linear-gradient(135deg, color-mix(in srgb, var(--primary) 88%, #000000) 0%, color-mix(in srgb, var(--primary) 60%, #ffffff) 55%, color-mix(in srgb, var(--primary) 42%, #ffffff) 100%)',
-    transform: fullscreen ? 'translateZ(0)' : undefined,
+    transform: composedTransform,
+    transformOrigin: 'center center',
+    transition: fullscreen ? 'transform 420ms cubic-bezier(0.2, 0.9, 0.2, 1)' : undefined,
   }
 
   function flipTo(next, withHaptic = true) {
@@ -324,8 +463,7 @@ export default function CarteirinhaAssociado({
                   style={{
                     width: fullscreen ? 64 : 58,
                     height: fullscreen ? 64 : 58,
-                    border:
-                      '2px solid color-mix(in srgb, var(--primary) 60%, transparent)',
+                    border: '2px solid color-mix(in srgb, var(--primary) 60%, transparent)',
                   }}
                   onError={() => setImgErro(true)}
                   referrerPolicy="no-referrer"
@@ -336,10 +474,8 @@ export default function CarteirinhaAssociado({
                   style={{
                     width: fullscreen ? 64 : 58,
                     height: fullscreen ? 64 : 58,
-                    background:
-                      'color-mix(in srgb, var(--primary) 60%, #000000)',
-                    border:
-                      '2px solid color-mix(in srgb, var(--primary) 60%, transparent)',
+                    background: 'color-mix(in srgb, var(--primary) 60%, #000000)',
+                    border: '2px solid color-mix(in srgb, var(--primary) 60%, transparent)',
                   }}
                 >
                   {initials(nome)}
@@ -351,9 +487,7 @@ export default function CarteirinhaAssociado({
               <div
                 className="font-semibold leading-snug"
                 style={{
-                  fontSize: `${
-                    fullscreen ? Math.min(fontForName(nome) + 2, 18) : fontForName(nome)
-                  }px`,
+                  fontSize: `${fullscreen ? Math.min(fontForName(nome) + 2, 18) : fontForName(nome)}px`,
                   color: 'var(--on-primary, #ffffff)',
                   wordBreak: 'break-word',
                   ...(printable
@@ -372,9 +506,7 @@ export default function CarteirinhaAssociado({
               <div
                 className="mt-0.5 font-semibold uppercase tracking-[0.08em]"
                 style={{
-                  fontSize: `${
-                    fullscreen ? Math.min(fontForPlano(plano) + 1, 14) : fontForPlano(plano)
-                  }px`,
+                  fontSize: `${fullscreen ? Math.min(fontForPlano(plano) + 1, 14) : fontForPlano(plano)}px`,
                   color: 'var(--on-primary, #ffffff)',
                   opacity: 0.96,
                   wordBreak: 'break-word',
@@ -392,10 +524,7 @@ export default function CarteirinhaAssociado({
               </div>
 
               <div className="mt-1 flex items-center flex-wrap gap-2">
-                <span
-                  className="text-[11px] opacity-90"
-                  style={{ color: 'var(--on-primary, #ffffff)' }}
-                >
+                <span className="text-[11px] opacity-90" style={{ color: 'var(--on-primary, #ffffff)' }}>
                   Contrato #{numero}
                 </span>
 
@@ -411,9 +540,7 @@ export default function CarteirinhaAssociado({
                   >
                     <span
                       className="inline-block w-2 h-2 rounded-full"
-                      style={{
-                        backgroundColor: ativo ? '#4ade80' : '#facc15',
-                      }}
+                      style={{ backgroundColor: ativo ? '#4ade80' : '#facc15' }}
                     />
                     {ativo ? 'ATIVO' : 'INATIVO'}
                   </span>
@@ -429,10 +556,7 @@ export default function CarteirinhaAssociado({
             >
               Efetivação
             </div>
-            <div
-              className="text-[13px] font-semibold"
-              style={{ color: 'var(--on-primary, #ffffff)' }}
-            >
+            <div className="text-[13px] font-semibold" style={{ color: 'var(--on-primary, #ffffff)' }}>
               {fmtDateBR(efetivacao)}
             </div>
 
@@ -476,8 +600,7 @@ export default function CarteirinhaAssociado({
                 onClick={() => flipTo('front')}
                 className="px-3 py-1.5 rounded-full text-[11px] font-medium shadow-sm transition-transform hover:scale-[1.02]"
                 style={{
-                  background:
-                    uiSide === 'front' ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.16)',
+                  background: uiSide === 'front' ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.16)',
                   color: '#0f172a',
                   backdropFilter: 'blur(6px)',
                 }}
@@ -490,8 +613,7 @@ export default function CarteirinhaAssociado({
                 onClick={() => flipTo('back')}
                 className="px-3 py-1.5 rounded-full text-[11px] font-medium shadow-sm transition-transform hover:scale-[1.02]"
                 style={{
-                  background:
-                    uiSide === 'back' ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.16)',
+                  background: uiSide === 'back' ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.16)',
                   color: '#0f172a',
                   backdropFilter: 'blur(6px)',
                 }}
@@ -634,8 +756,7 @@ export default function CarteirinhaAssociado({
               onClick={() => flipTo('front')}
               className="px-3 py-1.5 rounded-full text-[11px] font-medium shadow-sm transition-transform hover:scale-[1.02]"
               style={{
-                background:
-                  uiSide === 'front' ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.16)',
+                background: uiSide === 'front' ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.16)',
                 color: '#0f172a',
                 backdropFilter: 'blur(6px)',
               }}
@@ -648,8 +769,7 @@ export default function CarteirinhaAssociado({
               onClick={() => flipTo('back')}
               className="px-3 py-1.5 rounded-full text-[11px] font-medium shadow-sm transition-transform hover:scale-[1.02]"
               style={{
-                background:
-                  uiSide === 'back' ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.16)',
+                background: uiSide === 'back' ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.16)',
                 color: '#0f172a',
                 backdropFilter: 'blur(6px)',
               }}
@@ -688,6 +808,7 @@ export default function CarteirinhaAssociado({
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
+      {/* brilho suave no topo */}
       <div
         aria-hidden="true"
         style={{
@@ -702,8 +823,10 @@ export default function CarteirinhaAssociado({
         }}
       />
 
+      {/* MODO NORMAL */}
       {!is3DFlip && <>{uiSide === 'front' ? <Front /> : <Back />}</>}
 
+      {/* MODO FULLSCREEN (flip 3D) */}
       {is3DFlip && (
         <div
           className="absolute inset-0"
@@ -721,6 +844,7 @@ export default function CarteirinhaAssociado({
               transform: uiSide === 'back' ? 'rotateY(180deg)' : 'rotateY(0deg)',
             }}
           >
+            {/* Frente */}
             <div
               className="absolute inset-0"
               style={{
@@ -734,6 +858,7 @@ export default function CarteirinhaAssociado({
               <Front />
             </div>
 
+            {/* Verso */}
             <div
               className="absolute inset-0"
               style={{

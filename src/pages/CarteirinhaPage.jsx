@@ -6,7 +6,7 @@ import useAuth from '@/store/auth'
 import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
 import CarteirinhaAssociado from '@/components/CarteirinhaAssociado'
 import { displayCPF, formatCPF } from '@/lib/cpf'
-import { Lock, X, Maximize2 } from 'lucide-react'
+import { Lock, X, Maximize2, RotateCw, Compass, Check } from 'lucide-react'
 import { showToast } from '@/lib/toast'
 import BackButton from '@/components/BackButton'
 
@@ -24,52 +24,31 @@ function Skeleton({ className = '' }) {
   )
 }
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() => {
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() => {
     if (typeof window === 'undefined') return false
-    return window.matchMedia?.('(max-width: 768px)')?.matches ?? false
+    return window.matchMedia?.(query)?.matches ?? false
   })
 
   useEffect(() => {
     if (!window?.matchMedia) return
-    const mq = window.matchMedia('(max-width: 768px)')
-    const onChange = (e) => setIsMobile(!!e.matches)
+    const mq = window.matchMedia(query)
+    const onChange = (e) => setMatches(!!e.matches)
     mq.addEventListener?.('change', onChange)
     mq.addListener?.(onChange)
     return () => {
       mq.removeEventListener?.('change', onChange)
       mq.removeListener?.(onChange)
     }
-  }, [])
+  }, [query])
 
-  return isMobile
-}
-
-function useIsLandscape() {
-  const [isLandscape, setIsLandscape] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return window.matchMedia?.('(orientation: landscape)')?.matches ?? false
-  })
-
-  useEffect(() => {
-    if (!window?.matchMedia) return
-    const mq = window.matchMedia('(orientation: landscape)')
-    const onChange = (e) => setIsLandscape(!!e.matches)
-    mq.addEventListener?.('change', onChange)
-    mq.addListener?.(onChange)
-    return () => {
-      mq.removeEventListener?.('change', onChange)
-      mq.removeListener?.(onChange)
-    }
-  }, [])
-
-  return isLandscape
+  return matches
 }
 
 export default function CarteirinhaPage() {
   const user = useAuth((s) => s.user)
-  const isMobile = useIsMobile()
-  const isLandscape = useIsLandscape()
+  const isMobile = useMediaQuery('(max-width: 768px)')
+  const isLandscapeMQ = useMediaQuery('(orientation: landscape)')
 
   const cpf =
     user?.cpf ||
@@ -90,7 +69,7 @@ export default function CarteirinhaPage() {
     [user]
   )
 
-  /* revelação de CPF só aqui em cima, opcional */
+  /* revelação de CPF */
   const [cpfReveal, setCpfReveal] = useState(false)
   const [cpfSeconds, setCpfSeconds] = useState(0)
   const timerRef = useRef(null)
@@ -127,17 +106,86 @@ export default function CarteirinhaPage() {
   )
 
   useEffect(() => {
-    if (erro) {
-      showToast(
-        'Não foi possível carregar os dados do contrato para a carteirinha.'
-      )
-    }
+    if (erro) showToast('Não foi possível carregar os dados do contrato para a carteirinha.')
   }, [erro])
 
   const printableState = contrato && user ? { user, contrato, side: 'both' } : null
 
-  // ===== Fullscreen (mobile) =====
+  // ===== Fullscreen =====
   const [fsOpen, setFsOpen] = useState(false)
+
+  // Rotação: auto | portrait | landscape
+  const [rotationLock, setRotationLock] = useState('auto')
+
+  // ✅ Correção do “2 cliques”:
+  // - Se estiver em auto, primeiro clique trava no OPOSITO da orientação atual
+  // - Depois alterna entre portrait ↔ landscape
+  // - E volta para auto
+  function nextRotationLock() {
+    setRotationLock((v) => {
+      if (v === 'auto') return isLandscapeMQ ? 'portrait' : 'landscape'
+      if (v === 'portrait') return 'landscape'
+      return 'auto'
+    })
+  }
+
+  const effectiveOrientation =
+    rotationLock === 'auto'
+      ? isLandscapeMQ
+        ? 'landscape'
+        : 'portrait'
+      : rotationLock
+
+  // Tilt (giroscópio)
+  const [tiltOn, setTiltOn] = useState(true)
+  const [tiltAllowed, setTiltAllowed] = useState(false)
+  const [tiltNeedsPermission, setTiltNeedsPermission] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const hasDeviceOrientation = typeof window.DeviceOrientationEvent !== 'undefined'
+    if (!hasDeviceOrientation) {
+      setTiltNeedsPermission(false)
+      setTiltAllowed(false)
+      return
+    }
+    const needs = typeof window.DeviceOrientationEvent?.requestPermission === 'function'
+    setTiltNeedsPermission(needs)
+    setTiltAllowed(!needs)
+  }, [])
+
+  async function requestTiltPermissionIfNeeded() {
+    try {
+      const fn = window?.DeviceOrientationEvent?.requestPermission
+      if (typeof fn !== 'function') {
+        setTiltAllowed(true)
+        return true
+      }
+      const res = await fn.call(window.DeviceOrientationEvent)
+      const ok = String(res).toLowerCase() === 'granted'
+      setTiltAllowed(ok)
+      if (!ok) showToast('Permissão de movimento negada.')
+      return ok
+    } catch {
+      setTiltAllowed(false)
+      showToast('Não foi possível ativar o movimento neste dispositivo.')
+      return false
+    }
+  }
+
+  async function toggleTilt() {
+    if (!tiltOn) {
+      if (tiltNeedsPermission && !tiltAllowed) {
+        const ok = await requestTiltPermissionIfNeeded()
+        if (!ok) return
+      }
+      setTiltOn(true)
+      showToast('Movimento ativado.')
+    } else {
+      setTiltOn(false)
+      showToast('Movimento desativado.')
+    }
+  }
 
   useEffect(() => {
     if (!fsOpen) return
@@ -156,6 +204,41 @@ export default function CarteirinhaPage() {
     setFsOpen(false)
   }
 
+  // ===== UI helpers (legibilidade premium) =====
+  const topTextStyle = {
+    color: 'rgba(255,255,255,0.95)',
+    textShadow: '0 2px 12px rgba(0,0,0,0.55), 0 1px 2px rgba(0,0,0,0.35)',
+  }
+  const subTextStyle = {
+    color: 'rgba(255,255,255,0.78)',
+    textShadow: '0 2px 12px rgba(0,0,0,0.55), 0 1px 2px rgba(0,0,0,0.35)',
+  }
+  const chipStyle = {
+    color: 'rgba(255,255,255,0.90)',
+    background: 'rgba(0,0,0,0.26)',
+    border: '1px solid rgba(255,255,255,0.14)',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+  }
+  const iconBtnStyle = (active = false) => ({
+    width: 40,
+    height: 40,
+    background: active ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.22)',
+    border: '1px solid rgba(255,255,255,0.16)',
+    color: 'rgba(255,255,255,0.95)',
+    boxShadow: '0 12px 36px rgba(0,0,0,0.28)',
+    backdropFilter: 'blur(14px)',
+    WebkitBackdropFilter: 'blur(14px)',
+  })
+
+  const rotationLabel =
+    rotationLock === 'auto'
+      ? `Auto (${effectiveOrientation === 'landscape' ? 'Paisagem' : 'Retrato'})`
+      : rotationLock === 'portrait'
+      ? 'Retrato (travado)'
+      : 'Paisagem (travado)'
+
   const fullscreenOverlay =
     fsOpen && contrato && user
       ? createPortal(
@@ -166,7 +249,7 @@ export default function CarteirinhaPage() {
             aria-label="Carteirinha em tela cheia"
             style={{
               background:
-                'radial-gradient(circle at 20% 10%, rgba(255,255,255,0.10) 0, rgba(0,0,0,0.55) 55%, rgba(0,0,0,0.72) 100%)',
+                'radial-gradient(circle at 20% 10%, rgba(255,255,255,0.10) 0, rgba(0,0,0,0.58) 55%, rgba(0,0,0,0.76) 100%)',
               backdropFilter: 'blur(10px)',
               WebkitBackdropFilter: 'blur(10px)',
               paddingTop: 'env(safe-area-inset-top)',
@@ -187,64 +270,101 @@ export default function CarteirinhaPage() {
                 flexDirection: 'column',
               }}
             >
-              {/* Topbar fullscreen (portrait) / compacta (landscape) */}
-              <div
-                className="px-4 pt-4 flex items-center justify-between"
-                style={{
-                  paddingBottom: isLandscape ? 8 : 0,
-                }}
-              >
-                <div className="min-w-0">
-                  <div
-                    className="text-[12px] font-semibold tracking-tight"
-                    style={{ color: 'rgba(255,255,255,0.92)' }}
-                  >
-                    Carteirinha do Associado
-                  </div>
-                  <div
-                    className="text-[12px] mt-0.5 truncate"
-                    style={{ color: 'rgba(255,255,255,0.72)' }}
-                    title={nomeExibicao}
-                  >
-                    {nomeExibicao}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  className="inline-flex items-center justify-center rounded-full"
-                  onClick={closeFullscreen}
-                  aria-label="Fechar tela cheia"
+              {/* ✅ TOP GLASS BAR (legível sempre) */}
+              <div className="px-4 pt-4">
+                <div
+                  className="rounded-2xl px-4 py-3"
                   style={{
-                    width: 40,
-                    height: 40,
-                    background: 'rgba(255,255,255,0.14)',
-                    border: '1px solid rgba(255,255,255,0.22)',
-                    color: 'rgba(255,255,255,0.92)',
-                    backdropFilter: 'blur(10px)',
-                    WebkitBackdropFilter: 'blur(10px)',
+                    background:
+                      'linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.28) 100%)',
+                    border: '1px solid rgba(255,255,255,0.14)',
+                    boxShadow: '0 18px 50px rgba(0,0,0,0.30)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
                   }}
                 >
-                  <X size={18} />
-                </button>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div
+                        className="text-[12px] font-semibold tracking-tight"
+                        style={topTextStyle}
+                      >
+                        Carteirinha do Associado
+                      </div>
+                      <div
+                        className="text-[12px] mt-0.5 truncate"
+                        style={subTextStyle}
+                        title={nomeExibicao}
+                      >
+                        {nomeExibicao}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={nextRotationLock}
+                        className="inline-flex items-center justify-center rounded-full"
+                        aria-label="Travar rotação (Auto / Retrato / Paisagem)"
+                        title={rotationLabel}
+                        style={iconBtnStyle(rotationLock !== 'auto')}
+                      >
+                        <RotateCw size={18} />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={toggleTilt}
+                        className="inline-flex items-center justify-center rounded-full"
+                        aria-label="Ativar ou desativar movimento"
+                        title={tiltOn ? 'Movimento: Ativo' : 'Movimento: Desativado'}
+                        style={iconBtnStyle(tiltOn)}
+                      >
+                        {tiltOn ? <Check size={18} /> : <Compass size={18} />}
+                      </button>
+
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-full"
+                        onClick={closeFullscreen}
+                        aria-label="Fechar tela cheia"
+                        style={iconBtnStyle(false)}
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-2 flex-wrap">
+                    <div className="text-[11px] px-2 py-1 rounded-full" style={chipStyle}>
+                      Rotação:{' '}
+                      <strong style={{ color: 'rgba(255,255,255,0.95)' }}>
+                        {rotationLabel}
+                      </strong>
+                    </div>
+
+                    <div className="text-[11px] px-2 py-1 rounded-full" style={chipStyle}>
+                      Movimento:{' '}
+                      <strong style={{ color: 'rgba(255,255,255,0.95)' }}>
+                        {tiltOn ? 'Ativo' : 'Desativado'}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Card fullscreen */}
-              <div
-                className="flex-1 flex items-center justify-center px-4 pb-6"
-                style={{
-                  minHeight: 0,
-                  paddingBottom: isLandscape ? 14 : 24,
-                }}
-              >
+              <div className="flex-1 flex items-center justify-center px-4 pb-6" style={{ minHeight: 0 }}>
                 <CarteirinhaAssociado
+                  key={`fs-${effectiveOrientation}`}  // ✅ garante re-render imediato ao alternar orientação
                   user={user}
                   contrato={contrato}
                   printable={false}
                   matchContratoHeight={false}
                   loadAvatar={true}
                   fullscreen={true}
-                  fullscreenLayout={isLandscape ? 'landscape' : 'portrait'}
+                  orientation={effectiveOrientation}
+                  tiltEnabled={tiltOn && tiltAllowed}
                 />
               </div>
             </div>
@@ -264,16 +384,13 @@ export default function CarteirinhaPage() {
 
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              Carteirinha do Associado
-            </h1>
+            <h1 className="text-2xl font-bold tracking-tight">Carteirinha do Associado</h1>
             <p className="mt-1 text-sm" style={{ color: 'var(--text)' }}>
               {nomeExibicao}
               {cpf && (
                 <>
                   {' '}
-                  • CPF{' '}
-                  {cpfReveal ? formatCPF(cpf) : displayCPF(cpf, 'last2')}
+                  • CPF {cpfReveal ? formatCPF(cpf) : displayCPF(cpf, 'last2')}
                 </>
               )}
             </p>
@@ -314,12 +431,9 @@ export default function CarteirinhaPage() {
 
         {!loading && !contrato && !erro && (
           <div className="mt-6 card p-6 text-center">
-            <p className="font-medium">
-              Nenhum contrato localizado para exibir a carteirinha.
-            </p>
+            <p className="font-medium">Nenhum contrato localizado para exibir a carteirinha.</p>
             <p className="mt-2 text-sm" style={{ color: 'var(--text)' }}>
-              Assim que seu contrato for efetivado, sua carteirinha digital
-              ficará disponível aqui.
+              Assim que seu contrato for efetivado, sua carteirinha digital ficará disponível aqui.
             </p>
             <div className="mt-4">
               <Link to="/planos" className="btn-primary">
