@@ -220,10 +220,10 @@ export default function StepCarne({
   const temDesconto = totalDesconto > 0;
 
   // Primeira cobrança “real”: primeira parcela com valor > 0 (se adesão ficou 100% off, pula)
-  const primeiraCobrancaReal = useMemo(() => {
-    const list = Array.isArray(cobrancasComDesconto) ? cobrancasComDesconto : [];
-    return list.find((c) => Number(c?.valor || 0) > 0) || null;
-  }, [cobrancasComDesconto]);
+const primeiraCobrancaReal = useMemo(() => {
+  const list = Array.isArray(cobrancasComDesconto) ? cobrancasComDesconto : [];
+  return list.find((c) => Number(c?.valor || 0) >= 5) || null;
+}, [cobrancasComDesconto]);
 
   const adesaoZerouPorCupom = useMemo(() => {
     const list = Array.isArray(cobrancasComDesconto) ? cobrancasComDesconto : [];
@@ -233,9 +233,12 @@ export default function StepCarne({
   }, [cobrancasComDesconto]);
 
   // >>> REGRA DE ENVIO: não enviar cobranças com valor <= 5
-  const cobrancasParaEnvio = useMemo(() => {
-    return (cobrancasComDesconto || []).filter((c) => Number(c?.valor || 0) > 5);
-  }, [cobrancasComDesconto]);
+    const cobrancasParaEnvio = useMemo(() => {
+      return (cobrancasComDesconto || []).filter((c) => {
+        const v = Number(c?.valor || 0);
+        return v >= 5; // R$ 5,00 envia | < 5,00 não envia | 0,00 não envia
+      });
+    }, [cobrancasComDesconto]);
 
   const cupomDetalhes = useMemo(() => {
     if (!cupomInfo) return null;

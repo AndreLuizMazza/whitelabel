@@ -147,11 +147,7 @@ function Modal({ open, title, children, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[80]" role="presentation">
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} aria-hidden="true" />
       <div className="absolute inset-x-0 top-6 mx-auto w-[92vw] max-w-3xl">
         <div
           className="rounded-[28px] border shadow-[0_30px_120px_rgba(0,0,0,0.45)]"
@@ -226,7 +222,9 @@ export default function Cadastro() {
   const payload = useMemo(() => decodePayloadParam(q.get("p")), [q]);
 
   const [planoIdState, setPlanoIdState] = useState(payload?.plano || null);
-  const cupom = payload?.cupom || "";
+
+  // >>> Cupom agora é estado real (sincronizado com URL/payload)
+  const [cupomCodigo, setCupomCodigo] = useState(String(payload?.cupom || "").trim().toUpperCase());
 
   const [plano, setPlano] = useState(payload?.planSnapshot || null);
 
@@ -234,23 +232,28 @@ export default function Cadastro() {
   const [planSearch, setPlanSearch] = useState("");
   const [planListState, setPlanListState] = useState({ loading: false, items: [], error: "" });
 
+  function syncPayloadPatch(patch) {
+    const nextPayload = {
+      ...(payload || {}),
+      ...(patch || {}),
+    };
+    const encoded = encodePayloadParam(nextPayload);
+    const nextUrl = encoded ? `${location.pathname}?p=${encodeURIComponent(encoded)}` : location.pathname;
+    navigate(nextUrl, { replace: true });
+  }
+
   function applySelectedPlano(nextPlano) {
     const nextId = nextPlano?.id ?? nextPlano?.planoId ?? null;
     if (!nextId) return;
 
-    const nextPayload = {
-      ...(payload || {}),
-      plano: Number(nextId),
-      planSnapshot: nextPlano || null,
-      cupom: cupom || (payload?.cupom || ""),
-    };
-
     setPlanoIdState(Number(nextId));
     setPlano(nextPlano || null);
 
-    const encoded = encodePayloadParam(nextPayload);
-    const nextUrl = encoded ? `${location.pathname}?p=${encodeURIComponent(encoded)}` : location.pathname;
-    navigate(nextUrl, { replace: true });
+    syncPayloadPatch({
+      plano: Number(nextId),
+      planSnapshot: nextPlano || null,
+      cupom: cupomCodigo || "",
+    });
 
     setPlanModalOpen(false);
     setError("");
@@ -499,17 +502,31 @@ export default function Cadastro() {
           cpf: pessoaNorm.cpf || cpfFmt,
         }));
 
-        const deps = await buscarDependentesPorPessoaId(pessoaNorm.id);
-        setDepsExistentes(
-          deps.map((d) => ({
-            id: d.id,
-            nome: d.nome,
-            cpf: d.cpf || "",
-            sexo: d.sexo || "",
-            parentesco: d.parentesco || "",
-            data_nascimento: normalizeISODate(d.dataNascimento || ""),
-          }))
-        );
+      const deps = await buscarDependentesPorPessoaId(pessoaNorm.id);
+
+      // PATCH: remover “titular duplicado” vindo como dependente (por CPF ou parentesco)
+      const titularCpfDigits = onlyDigits(pessoaNorm.cpf || cpfFmt || "");
+      const depsFiltrados = (Array.isArray(deps) ? deps : []).filter((d) => {
+        const depCpfDigits = onlyDigits(d?.cpf || "");
+        const parentesco = String(d?.parentesco || "").trim().toUpperCase();
+
+        if (parentesco === "TITULAR") return false;
+        if (titularCpfDigits && depCpfDigits && depCpfDigits === titularCpfDigits) return false;
+
+        return true;
+      });
+
+      setDepsExistentes(
+        depsFiltrados.map((d) => ({
+          id: d.id,
+          nome: d.nome,
+          cpf: d.cpf || "",
+          sexo: d.sexo || "",
+          parentesco: d.parentesco || "",
+          data_nascimento: normalizeISODate(d.dataNascimento || ""),
+        }))
+      );
+
       } else {
         setTitular((prev) => ({ ...prev, id: null, cpf: cpfFmt }));
         setDepsExistentes([]);
@@ -669,13 +686,7 @@ export default function Cadastro() {
 
   /* =======================================================================
    *  VENDEDOR (resolve por e-mail via BFF)
-   *  Preferência:
-   *   1) payload.vendedorId
-   *   2) payload.vendedorEmail
-   *   3) empresa.vendedorEmail (tenant)
-   *   4) /api/v1/vendedores/padrao (BFF; usa ENV do servidor)
    * ======================================================================= */
-
   const [vendedorState, setVendedorState] = useState({
     loading: false,
     email: "",
@@ -752,7 +763,13 @@ export default function Cadastro() {
         const v1 = await resolverVendedorPorEmail(vendedorEmailCandidate);
         if (!alive) return;
         if (v1?.id) {
-          setVendedorState({ loading: false, email: v1.email || vendedorEmailCandidate, id: v1.id, nome: v1.nome || "", error: "" });
+          setVendedorState({
+            loading: false,
+            email: v1.email || vendedorEmailCandidate,
+            id: v1.id,
+            nome: v1.nome || "",
+            error: "",
+          });
           return;
         }
       }
@@ -938,7 +955,8 @@ export default function Cadastro() {
     return { carenciaTxt, depTxt, idadeTxt, formasTxt, telTxt };
   }, [plano]);
 
-  async function handleSalvarEnviar() {
+  // >>> Agora aceita { cobrancas } vindo do StepCarne (com desconto e filtro > 5)
+  async function handleSalvarEnviar({ cobrancas } = {}) {
     setSubmitAttempted(true);
     setError("");
     const list = buildErrorList();
@@ -1011,7 +1029,7 @@ export default function Cadastro() {
         valorAdesao: Number(valorAdesaoPlano || 0),
         valorMensalidade: Number(valorMensalidadePlano || 0),
         dataEfetivacao: dataEfetivacaoISO,
-        cupomDesconto: cupom || null,
+        cupomDesconto: cupomCodigo || null,
       };
 
       const contratoRes = await api.post("/api/v1/contratos", payloadContrato);
@@ -1025,25 +1043,40 @@ export default function Cadastro() {
       }
 
       try {
-        const todayISOForPreview = new Date().toISOString().slice(0, 10);
-        const mensalidades = gerarCobrancasPlano(plano, dataEfetivacaoISO, valorMensalidadePlano);
-        const cobrancasForCelCash = [];
+        // Se StepCarne forneceu cobranças finais (com desconto), usa isso.
+        // Senão, mantém o comportamento anterior.
+        let cobrancasForCelCash = [];
 
-        if (valorAdesaoPlano > 0) {
-          cobrancasForCelCash.push({
-            numeroParcela: 1,
-            valor: valorAdesaoPlano,
-            dataVencimento: todayISOForPreview,
+        if (Array.isArray(cobrancas) && cobrancas.length > 0) {
+          cobrancasForCelCash = cobrancas.map((c, idx) => ({
+            numeroParcela: idx + 1,
+            valor: Number(c?.valor || 0),
+            dataVencimento: c?.dataVencimentoISO || c?.dataVencimento || "",
+          }));
+        } else {
+          const mensalidades = gerarCobrancasPlano(plano, dataEfetivacaoISO, valorMensalidadePlano);
+
+          if (valorAdesaoPlano > 0) {
+            cobrancasForCelCash.push({
+              numeroParcela: 1,
+              valor: valorAdesaoPlano,
+              dataVencimento: todayISO,
+            });
+          }
+
+          mensalidades.forEach((cob) => {
+            cobrancasForCelCash.push({
+              numeroParcela: cobrancasForCelCash.length + 1,
+              valor: Number(cob.valor || 0),
+              dataVencimento: cob.dataVencimentoISO,
+            });
           });
         }
 
-        mensalidades.forEach((cob) => {
-          cobrancasForCelCash.push({
-            numeroParcela: cobrancasForCelCash.length + 1,
-            valor: Number(cob.valor || 0),
-            dataVencimento: cob.dataVencimentoISO,
-          });
-        });
+       
+       // Segurança adicional: não enviar < 5 (e 0 cai fora automaticamente)
+        cobrancasForCelCash = cobrancasForCelCash.filter((c) => Number(c?.valor || 0) >= 5);
+
 
         if (cobrancasForCelCash.length > 0) {
           const carnePayload = { mainPaymentMethodId: "boleto", cobrancas: cobrancasForCelCash };
@@ -1192,10 +1225,7 @@ export default function Cadastro() {
             aria-live="polite"
           >
             <div className="flex items-start gap-3">
-              <div
-                className="rounded-full p-2 text-white"
-                style={{ background: "color-mix(in srgb, var(--primary) 90%, black)" }}
-              >
+              <div className="rounded-full p-2 text-white" style={{ background: "color-mix(in srgb, var(--primary) 90%, black)" }}>
                 {lookupState.running ? <Loader2 className="animate-spin" size={16} /> : <Info size={16} />}
               </div>
               <div className="flex-1 space-y-1">
@@ -1335,10 +1365,10 @@ export default function Cadastro() {
                   </div>
                 </div>
 
-                {cupom ? (
+                {cupomCodigo ? (
                   <div className="mt-3 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/70 px-3 py-2">
                     <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--c-muted)]">Cupom</p>
-                    <p className="mt-0.5 text-sm font-semibold break-words">{cupom}</p>
+                    <p className="mt-0.5 text-sm font-semibold break-words">{cupomCodigo}</p>
                   </div>
                 ) : null}
               </details>
@@ -1401,11 +1431,7 @@ export default function Cadastro() {
               })}
             </div>
 
-            <ul
-              className={`hidden md:flex flex-wrap gap-2 ${bloquearCadastro ? "opacity-70" : ""}`}
-              role="navigation"
-              aria-label="Etapas do cadastro"
-            >
+            <ul className={`hidden md:flex flex-wrap gap-2 ${bloquearCadastro ? "opacity-70" : ""}`} role="navigation" aria-label="Etapas do cadastro">
               {visibleSteps.map((step, idx) => {
                 const active = currentStep === step.id;
                 const completed = idx < currentIndex;
@@ -1540,6 +1566,16 @@ export default function Cadastro() {
                 onBack={onBackFromCarne}
                 onFinalizar={handleSalvarEnviar}
                 saving={saving}
+                initialCupomCodigo={cupomCodigo}
+                onCupomApplied={(cupomData) => {
+                  const codigo = String(cupomData?.codigo || "").trim().toUpperCase();
+                  setCupomCodigo(codigo);
+                  syncPayloadPatch({ cupom: codigo });
+                }}
+                onCupomRemoved={() => {
+                  setCupomCodigo("");
+                  syncPayloadPatch({ cupom: "" });
+                }}
               />
             )}
           </StepAmbient>
@@ -1582,11 +1618,7 @@ export default function Cadastro() {
                     const id = p?.id ?? p?.planoId;
                     const active = Number(id) === Number(planoIdState);
                     const valorAdesao = Number(p?.valorAdesao ?? p?.valor_adesao ?? 0);
-                    const aceita = [
-                      p?.pagamentoPix ? "Pix" : null,
-                      p?.pagamentoBoleto ? "Boleto" : null,
-                      p?.pagamentoCartao ? "Cartão" : null,
-                    ].filter(Boolean);
+                    const aceita = [p?.pagamentoPix ? "Pix" : null, p?.pagamentoBoleto ? "Boleto" : null, p?.pagamentoCartao ? "Cartão" : null].filter(Boolean);
 
                     return (
                       <button
@@ -1594,9 +1626,7 @@ export default function Cadastro() {
                         type="button"
                         onClick={() => applySelectedPlano(p)}
                         className={`text-left rounded-3xl border p-4 transition ${
-                          active
-                            ? "border-[var(--primary)] bg-[var(--primary)]/10"
-                            : "border-[var(--c-border)] bg-[var(--c-surface)]/75 hover:bg-[var(--c-surface)]"
+                          active ? "border-[var(--primary)] bg-[var(--primary)]/10" : "border-[var(--c-border)] bg-[var(--c-surface)]/75 hover:bg-[var(--c-surface)]"
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3">
