@@ -168,16 +168,29 @@ export default function CarteirinhaPage() {
 
   const rotationLabel = fsOrientation === 'landscape' ? 'Paisagem' : 'Retrato'
 
-  // Wrapper que mantém o cartão SEMPRE no ratio, e em paisagem rotaciona o “conjunto”
+  // ✅ Maximização real em tela cheia (cresce no limite do viewport sem cortar)
+  // Reservamos espaço para a top-bar (títulos/botões). Ajuste o toolbarPx se mudar a barra.
+  const toolbarPx = 120
+  const safePad = 16
+
+  const portraitW = `min(calc(100svw - ${safePad * 2}px), calc((100svh - ${toolbarPx}px - ${
+    safePad * 2
+  }px) * (85.6 / 54)))`
+
+  // No paisagem (rotacionado 90°): a "largura" vira a altura disponível.
+  // Fica visivelmente maior (estilo Apple Wallet).
+  const landscapeW = `min(calc(100svh - ${safePad * 2}px), calc((100svw - ${toolbarPx}px - ${
+    safePad * 2
+  }px) * (85.6 / 54)))`
+
   const cardWrapStyle =
     fsOrientation === 'portrait'
       ? {
-          width: 'min(92vw, 560px)',
+          width: portraitW,
           transform: 'rotate(0deg)',
         }
       : {
-          // quando rotaciona 90°, a largura “útil” passa a ser a altura da viewport
-          width: 'min(92vh, 560px)',
+          width: landscapeW,
           transform: 'rotate(90deg)',
         }
 
@@ -271,12 +284,15 @@ export default function CarteirinhaPage() {
               </div>
 
               {/* Card fullscreen */}
-              <div className="flex-1 flex items-center justify-center px-4 pb-6" style={{ minHeight: 0 }}>
+              <div
+                className="flex-1 flex items-center justify-center px-4 pb-6"
+                style={{ minHeight: 0 }}
+              >
                 <div
                   style={{
                     ...cardWrapStyle,
                     transformOrigin: 'center center',
-                    transition: 'transform 220ms ease',
+                    transition: 'transform 220ms ease, width 220ms ease',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
