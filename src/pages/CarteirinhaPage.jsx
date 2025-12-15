@@ -45,10 +45,36 @@ function useMediaQuery(query) {
   return matches
 }
 
+/**
+ * Debounce de orientação para evitar “oscilações” (piscadas) no fullscreen.
+ * Só assume a nova orientação se ficar estável por X ms.
+ */
+function useStableBool(value, ms = 220) {
+  const [stable, setStable] = useState(value)
+  const tRef = useRef(null)
+
+  useEffect(() => {
+    if (value === stable) return
+    if (tRef.current) clearTimeout(tRef.current)
+    tRef.current = setTimeout(() => {
+      setStable(value)
+      tRef.current = null
+    }, ms)
+    return () => {
+      if (tRef.current) clearTimeout(tRef.current)
+    }
+  }, [value, ms, stable])
+
+  return stable
+}
+
 export default function CarteirinhaPage() {
   const user = useAuth((s) => s.user)
   const isMobile = useMediaQuery('(max-width: 768px)')
   const isLandscapeMQ = useMediaQuery('(orientation: landscape)')
+
+  // ✅ orientação estável (para AUTO)
+  const isLandscapeStable = useStableBool(isLandscapeMQ, 220)
 
   const cpf =
     user?.cpf ||
@@ -117,21 +143,19 @@ export default function CarteirinhaPage() {
   // Rotação: auto | portrait | landscape
   const [rotationLock, setRotationLock] = useState('auto')
 
-  // ✅ Correção do “2 cliques”:
-  // - Se estiver em auto, primeiro clique trava no OPOSITO da orientação atual
-  // - Depois alterna entre portrait ↔ landscape
-  // - E volta para auto
+  // ✅ Correção do “1 clique” + usando orientação estável
   function nextRotationLock() {
     setRotationLock((v) => {
-      if (v === 'auto') return isLandscapeMQ ? 'portrait' : 'landscape'
+      if (v === 'auto') return isLandscapeStable ? 'portrait' : 'landscape'
       if (v === 'portrait') return 'landscape'
       return 'auto'
     })
   }
 
+  // ✅ effectiveOrientation: se travado, ignora MQ (sem oscilação)
   const effectiveOrientation =
     rotationLock === 'auto'
-      ? isLandscapeMQ
+      ? isLandscapeStable
         ? 'landscape'
         : 'portrait'
       : rotationLock
@@ -270,7 +294,7 @@ export default function CarteirinhaPage() {
                 flexDirection: 'column',
               }}
             >
-              {/* ✅ TOP GLASS BAR (legível sempre) */}
+              {/* TOP GLASS BAR (legível) */}
               <div className="px-4 pt-4">
                 <div
                   className="rounded-2xl px-4 py-3"
@@ -285,17 +309,10 @@ export default function CarteirinhaPage() {
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <div
-                        className="text-[12px] font-semibold tracking-tight"
-                        style={topTextStyle}
-                      >
+                      <div className="text-[12px] font-semibold tracking-tight" style={topTextStyle}>
                         Carteirinha do Associado
                       </div>
-                      <div
-                        className="text-[12px] mt-0.5 truncate"
-                        style={subTextStyle}
-                        title={nomeExibicao}
-                      >
+                      <div className="text-[12px] mt-0.5 truncate" style={subTextStyle} title={nomeExibicao}>
                         {nomeExibicao}
                       </div>
                     </div>
@@ -338,9 +355,7 @@ export default function CarteirinhaPage() {
                   <div className="mt-3 flex items-center gap-2 flex-wrap">
                     <div className="text-[11px] px-2 py-1 rounded-full" style={chipStyle}>
                       Rotação:{' '}
-                      <strong style={{ color: 'rgba(255,255,255,0.95)' }}>
-                        {rotationLabel}
-                      </strong>
+                      <strong style={{ color: 'rgba(255,255,255,0.95)' }}>{rotationLabel}</strong>
                     </div>
 
                     <div className="text-[11px] px-2 py-1 rounded-full" style={chipStyle}>
@@ -355,8 +370,8 @@ export default function CarteirinhaPage() {
 
               {/* Card fullscreen */}
               <div className="flex-1 flex items-center justify-center px-4 pb-6" style={{ minHeight: 0 }}>
+                {/* ✅ IMPORTANTE: sem key (evita remount / piscada) */}
                 <CarteirinhaAssociado
-                  key={`fs-${effectiveOrientation}`}  // ✅ garante re-render imediato ao alternar orientação
                   user={user}
                   contrato={contrato}
                   printable={false}
