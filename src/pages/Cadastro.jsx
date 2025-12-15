@@ -12,8 +12,6 @@ import {
   onlyDigits,
   cpfIsValid,
   formatCPF,
-  formatCEP,
-  maskCEP,
   formatPhoneBR,
   phoneIsValid,
   sanitizeUF,
@@ -181,10 +179,7 @@ function Modal({ open, title, children, onClose }) {
             </button>
           </div>
 
-          {/* conteúdo rolável (evita “estourar” em telas menores) */}
-          <div className="px-5 py-5 max-h-[75vh] overflow-auto">
-            {children}
-          </div>
+          <div className="px-5 py-5 max-h-[75vh] overflow-auto">{children}</div>
         </div>
       </div>
     </div>
@@ -216,7 +211,6 @@ export default function Cadastro() {
 
   const alertRef = useRef(null);
 
-  // âncora real de conteúdo (para rolagem inteligente no mobile)
   const contentAnchorRef = useRef(null);
   const [pendingScroll, setPendingScroll] = useState(false);
 
@@ -231,14 +225,11 @@ export default function Cadastro() {
 
   const payload = useMemo(() => decodePayloadParam(q.get("p")), [q]);
 
-  // --- Agora o plano pode ser trocado a qualquer momento ---
   const [planoIdState, setPlanoIdState] = useState(payload?.plano || null);
   const cupom = payload?.cupom || "";
 
-  // plano completo: começa com snapshot (se vier) e enriquece com GET /planos/{id}
   const [plano, setPlano] = useState(payload?.planSnapshot || null);
 
-  // --- Seleção de planos (modal) ---
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [planSearch, setPlanSearch] = useState("");
   const [planListState, setPlanListState] = useState({ loading: false, items: [], error: "" });
@@ -247,7 +238,6 @@ export default function Cadastro() {
     const nextId = nextPlano?.id ?? nextPlano?.planoId ?? null;
     if (!nextId) return;
 
-    // Mantém cupom e o que já veio no payload, mas troca plano
     const nextPayload = {
       ...(payload || {}),
       plano: Number(nextId),
@@ -262,7 +252,6 @@ export default function Cadastro() {
     const nextUrl = encoded ? `${location.pathname}?p=${encodeURIComponent(encoded)}` : location.pathname;
     navigate(nextUrl, { replace: true });
 
-    // ao trocar plano, o usuário não deve “perder” a etapa atual
     setPlanModalOpen(false);
     setError("");
   }
@@ -274,7 +263,6 @@ export default function Cadastro() {
     (async () => {
       try {
         setPlanListState((s) => ({ ...s, loading: true, error: "" }));
-        // endpoint esperado: lista de planos disponíveis
         const resp = await api.get(`/api/v1/planos`);
         if (!alive) return;
 
@@ -297,14 +285,12 @@ export default function Cadastro() {
   }, [planModalOpen]);
 
   useEffect(() => {
-    // NÃO exibir CTA de contato nesta tela:
     const id = "cadastro-hide-contact-cta";
     if (document.getElementById(id)) return;
 
     const style = document.createElement("style");
     style.id = id;
     style.innerHTML = `
-      /* Esconde CTA/Dock de contato apenas nesta rota */
       .sticky-contact-dock,
       #sticky-contact-dock,
       [data-sticky-contact-dock],
@@ -643,13 +629,151 @@ export default function Cadastro() {
     return nome.includes("individual");
   }, [plano?.nome]);
 
+  // Steps visíveis (remove Dependentes se plano for "individual")
+  const stepsAll = useMemo(
+    () => [
+      { id: 1, label: "Titular" },
+      { id: 2, label: "Endereço" },
+      { id: 3, label: "Dependentes" },
+      { id: 4, label: "Cobranças" },
+    ],
+    []
+  );
+
+  const visibleSteps = useMemo(() => {
+    if (isPlanoIndividual) return stepsAll.filter((s) => s.id !== 3);
+    return stepsAll;
+  }, [stepsAll, isPlanoIndividual]);
+
+  const currentIndex = Math.max(0, visibleSteps.findIndex((s) => s.id === currentStep));
+  const totalSteps = visibleSteps.length || 1;
+
+  // Mapeia um "próximo step" pedido pelos componentes para o step real quando Dependentes é ocultado
+  const mapStep = (requestedStep) => {
+    const s = Number(requestedStep);
+    if (isPlanoIndividual && s === 3) return 4;
+    return s;
+  };
+
+  const goToStep = (step) => {
+    const next = mapStep(step);
+    setCurrentStep(next);
+    setPendingScroll(true);
+  };
+
   // Se estiver na etapa 3 e o plano virar "individual", pula para Cobranças
   useEffect(() => {
-    if (isPlanoIndividual && currentStep === 3) {
-      goToStep(4);
-    }
+    if (isPlanoIndividual && currentStep === 3) goToStep(4);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlanoIndividual]);
+
+  /* =======================================================================
+   *  VENDEDOR (resolve por e-mail via BFF)
+   *  Preferência:
+   *   1) payload.vendedorId
+   *   2) payload.vendedorEmail
+   *   3) empresa.vendedorEmail (tenant)
+   *   4) /api/v1/vendedores/padrao (BFF; usa ENV do servidor)
+   * ======================================================================= */
+
+  const [vendedorState, setVendedorState] = useState({
+    loading: false,
+    email: "",
+    id: null,
+    nome: "",
+    error: "",
+  });
+
+  const vendedorIdFromPayload = useMemo(() => {
+    const v = payload?.vendedorId ?? payload?.vendedorID ?? payload?.vendedor ?? null;
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [payload]);
+
+  const vendedorEmailCandidate = useMemo(() => {
+    const pEmail = String(payload?.vendedorEmail || payload?.emailVendedor || "").trim();
+    const empEmail = String(
+      empresa?.vendedorEmail || empresa?.emailVendedor || empresa?.contatos?.emailVendedor || ""
+    ).trim();
+
+    return pEmail || empEmail || "";
+  }, [payload, empresa]);
+
+  function normalizeVendedorResp(data, fallbackEmail = "") {
+    const raw = Array.isArray(data) ? data[0] : data?.data ? data.data : data;
+    const id = raw?.id ?? raw?.vendedorId ?? raw?.vendedorID ?? null;
+    const n = Number(id);
+    if (!Number.isFinite(n) || n <= 0) return null;
+
+    return {
+      id: n,
+      nome: String(raw?.nome || "").trim(),
+      email: String(raw?.email || fallbackEmail || "").trim(),
+    };
+  }
+
+  async function resolverVendedorPorEmail(email) {
+    const ee = String(email || "").trim();
+    if (!ee) return null;
+
+    try {
+      const resp = await api.get(`/api/v1/vendedores/email/${encodeURIComponent(ee)}`);
+      return normalizeVendedorResp(resp?.data, ee);
+    } catch {
+      return null;
+    }
+  }
+
+  async function resolverVendedorPadrao() {
+    try {
+      const resp = await api.get(`/api/v1/vendedores/padrao`);
+      return normalizeVendedorResp(resp?.data, "");
+    } catch {
+      return null;
+    }
+  }
+
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      if (vendedorIdFromPayload) {
+        setVendedorState({ loading: false, email: "", id: vendedorIdFromPayload, nome: "", error: "" });
+        return;
+      }
+
+      // evita reprocessamento
+      if (vendedorState.id) return;
+
+      setVendedorState((s) => ({ ...s, loading: true, error: "" }));
+
+      // 1) tenta email do payload/tenant
+      if (vendedorEmailCandidate) {
+        const v1 = await resolverVendedorPorEmail(vendedorEmailCandidate);
+        if (!alive) return;
+        if (v1?.id) {
+          setVendedorState({ loading: false, email: v1.email || vendedorEmailCandidate, id: v1.id, nome: v1.nome || "", error: "" });
+          return;
+        }
+      }
+
+      // 2) tenta vendedor padrão do BFF (ENV do servidor)
+      const v2 = await resolverVendedorPadrao();
+      if (!alive) return;
+
+      if (v2?.id) {
+        setVendedorState({ loading: false, email: v2.email || "", id: v2.id, nome: v2.nome || "", error: "" });
+        return;
+      }
+
+      setVendedorState({ loading: false, email: vendedorEmailCandidate || "", id: null, nome: "", error: "" });
+    })();
+
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vendedorIdFromPayload, vendedorEmailCandidate]);
 
   function buildErrorList() {
     const items = [];
@@ -670,7 +794,6 @@ export default function Cadastro() {
     if (!(ufClean && ufClean.length === 2)) items.push({ field: "uf", label: "Endereço: informe a UF (2 letras)." });
     if (cepState.error) items.push({ field: "cep", label: `Endereço: ${cepState.error}` });
 
-    // Dependentes só entram na validação final se a etapa existir
     if (!isPlanoIndividual) {
       depsNovos.forEach((d, i) => {
         const issue = depsIssuesNovos[i];
@@ -780,7 +903,7 @@ export default function Cadastro() {
   useEffect(() => {
     if (!titular?.cpf) return;
     debouncedCpfLookup(titular.cpf);
-  }, [titular?.cpf]);
+  }, [titular?.cpf]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // === CÁLCULO DETALHADO DA MENSALIDADE ===
   const composicaoMensalidade = useMemo(() => {
@@ -856,7 +979,6 @@ export default function Cadastro() {
         if (!titularId) throw new Error("Não foi possível obter o ID do titular (etapa pessoa).");
       }
 
-      // Dependentes: só cria se a etapa existir
       if (!isPlanoIndividual && depsNovos.length > 0) {
         const depsToCreate = depsNovos.map((d) => ({
           cpf: d.cpf ? onlyDigits(d.cpf) : null,
@@ -876,11 +998,14 @@ export default function Cadastro() {
         }
       }
 
+      // Resolve vendedor: 1) payload vendedorId 2) vendedorState.id 3) fallback 717
+      const vendedorIdFinal = Number(vendedorIdFromPayload || vendedorState?.id || 717);
+
       const todayISO = new Date().toISOString().slice(0, 10);
       const payloadContrato = {
         titularId: Number(titularId),
         planoId: Number(planoIdState),
-        vendedorId: 717,
+        vendedorId: vendedorIdFinal,
         dataContrato: todayISO,
         diaD: Number(diaDSelecionado),
         valorAdesao: Number(valorAdesaoPlano || 0),
@@ -959,25 +1084,6 @@ export default function Cadastro() {
     backdropFilter: "blur(18px)",
   };
 
-  // Steps visíveis (remove Dependentes se plano for "individual")
-  const stepsAll = useMemo(
-    () => [
-      { id: 1, label: "Titular" },
-      { id: 2, label: "Endereço" },
-      { id: 3, label: "Dependentes" },
-      { id: 4, label: "Cobranças" },
-    ],
-    []
-  );
-
-  const visibleSteps = useMemo(() => {
-    if (isPlanoIndividual) return stepsAll.filter((s) => s.id !== 3);
-    return stepsAll;
-  }, [stepsAll, isPlanoIndividual]);
-
-  const currentIndex = Math.max(0, visibleSteps.findIndex((s) => s.id === currentStep));
-  const totalSteps = visibleSteps.length || 1;
-
   const todayISO = new Date().toISOString().slice(0, 10);
 
   const cobrancasPreview = useMemo(() => {
@@ -998,20 +1104,7 @@ export default function Cadastro() {
     return lista;
   }, [plano, valorAdesaoPlano, valorMensalidadePlano, dataEfetivacaoISO, todayISO]);
 
-  // Mapeia um "próximo step" pedido pelos componentes para o step real quando Dependentes é ocultado
-  const mapStep = (requestedStep) => {
-    const s = Number(requestedStep);
-    if (isPlanoIndividual && s === 3) return 4;
-    return s;
-  };
-
-  const goToStep = (step) => {
-    const next = mapStep(step);
-    setCurrentStep(next);
-    setPendingScroll(true);
-  };
-
-  // Rolagem inteligente (mais estável no mobile): respeita reduced motion
+  // Rolagem inteligente (mais estável no mobile)
   useEffect(() => {
     if (!pendingScroll) return;
 
@@ -1045,10 +1138,8 @@ export default function Cadastro() {
     return () => cancelAnimationFrame(raf1);
   }, [pendingScroll, currentStep]);
 
-  // Para “grudar” o stepper no topo quando rolar:
   const stickyTop = "calc(var(--app-header-h, 72px) + 10px)";
 
-  // filtro simples na lista de planos
   const planosFiltrados = useMemo(() => {
     const term = (planSearch || "").trim().toLowerCase();
     const arr = planListState.items || [];
@@ -1061,7 +1152,6 @@ export default function Cadastro() {
   }, [planSearch, planListState.items]);
 
   const onBackFromCarne = () => {
-    // Volta para a etapa anterior visível
     const idx = visibleSteps.findIndex((s) => s.id === currentStep);
     const prev = idx > 0 ? visibleSteps[idx - 1]?.id : 1;
     goToStep(prev || 1);
@@ -1147,7 +1237,6 @@ export default function Cadastro() {
           </div>
         )}
 
-        {/* Cabeçalho + resumo compacto do titular */}
         <div className="rounded-3xl p-5 md:p-6 space-y-4" style={glassCardStyle}>
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-3">
@@ -1171,7 +1260,9 @@ export default function Cadastro() {
               </div>
             </div>
 
-            <p className="text-xs md:text-sm text-[var(--c-muted)]">Revise o titular e confirme as condições do plano antes de avançar.</p>
+            <p className="text-xs md:text-sm text-[var(--c-muted)]">
+              Revise o titular e confirme as condições do plano antes de avançar.
+            </p>
           </div>
 
           <div className="grid gap-3 md:grid-cols-7">
@@ -1255,7 +1346,6 @@ export default function Cadastro() {
           </div>
         </div>
 
-        {/* Stepper (gruda no topo ao rolar) */}
         <div className="mt-4 mb-5 sticky z-[35]" style={{ top: stickyTop }}>
           <div
             className="rounded-3xl border px-2 py-2 shadow-[0_22px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl"
@@ -1264,7 +1354,6 @@ export default function Cadastro() {
               borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
             }}
           >
-            {/* MOBILE: 1 linha */}
             <div
               className={`grid gap-2 md:hidden ${bloquearCadastro ? "opacity-70" : ""}`}
               style={{ gridTemplateColumns: `repeat(${visibleSteps.length}, minmax(0, 1fr))` }}
@@ -1306,16 +1395,17 @@ export default function Cadastro() {
                       {completed ? <CheckCircle2 size={14} /> : idx + 1}
                     </span>
                     <span className="mt-1 text-[11px] font-semibold leading-tight text-center">{step.label}</span>
-                    <span className="mt-0.5 text-[9px] uppercase tracking-[0.18em] opacity-70">
-                      Etapa {idx + 1}
-                    </span>
+                    <span className="mt-0.5 text-[9px] uppercase tracking-[0.18em] opacity-70">Etapa {idx + 1}</span>
                   </button>
                 );
               })}
             </div>
 
-            {/* DESKTOP: pílulas */}
-            <ul className={`hidden md:flex flex-wrap gap-2 ${bloquearCadastro ? "opacity-70" : ""}`} role="navigation" aria-label="Etapas do cadastro">
+            <ul
+              className={`hidden md:flex flex-wrap gap-2 ${bloquearCadastro ? "opacity-70" : ""}`}
+              role="navigation"
+              aria-label="Etapas do cadastro"
+            >
               {visibleSteps.map((step, idx) => {
                 const active = currentStep === step.id;
                 const completed = idx < currentIndex;
@@ -1361,12 +1451,9 @@ export default function Cadastro() {
                 );
               })}
             </ul>
-
-            {/* REMOVIDO: barra de progresso logo após o indicador principal */}
           </div>
         </div>
 
-        {/* Âncora real do conteúdo da etapa (para rolagem inteligente no mobile) */}
         <div
           ref={contentAnchorRef}
           style={{
@@ -1374,7 +1461,6 @@ export default function Cadastro() {
           }}
         />
 
-        {/* Etapas */}
         {!bloquearCadastro && (
           <StepAmbient>
             {currentStep === 1 && (
@@ -1410,7 +1496,7 @@ export default function Cadastro() {
                 submitAttempted={submitAttempted}
                 setStepAttempted={setStepAttempted}
                 validateEndereco={validateEndereco}
-                setCurrentStep={(s) => goToStep(s)} // StepEndereco normalmente pede 3; mapStep já pula para 4 se necessário
+                setCurrentStep={(s) => goToStep(s)}
                 cepRef={cepRef}
                 logRef={logRef}
                 numRef={numRef}
@@ -1459,7 +1545,6 @@ export default function Cadastro() {
           </StepAmbient>
         )}
 
-        {/* Modal de troca de plano (a qualquer momento) */}
         <Modal open={planModalOpen} title="Trocar plano" onClose={() => setPlanModalOpen(false)}>
           <div className="space-y-4">
             <div className="grid gap-2 md:grid-cols-3">

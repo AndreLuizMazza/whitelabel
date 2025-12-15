@@ -22,6 +22,7 @@ logNalapideBoot();
  * - FRONTEND_URL (ex.: https://seuapp.vercel.app)
  * - NALAPIDE_API_BASE / NALAPIDE_API_KEY (só no backend)
  * - TRUST_PROXY (opcional: "1" na Vercel; vazio/0 em dev)
+ * - VENDEDOR_EMAIL_PADRAO (opcional, recomendado) ex: petterson.riolife@gmail.com
  */
 const app = express();
 
@@ -54,6 +55,9 @@ const OAUTH_SCOPE =
 const OAUTH_CLIENT_ID = process.env.OAUTH_CLIENT_ID || '';
 const OAUTH_CLIENT_SECRET = process.env.OAUTH_CLIENT_SECRET || '';
 
+// ✅ vendedor padrão por ENV do servidor (não vaza no bundle)
+const VENDEDOR_EMAIL_PADRAO = (process.env.VENDEDOR_EMAIL_PADRAO || '').trim();
+
 /* ===== Rotas de Health/Debug (aceitam com e sem /api) ===== */
 app.get(['/api/health', '/health'], (_req, res) => res.json({ ok: true }));
 app.get(['/api/_debug/tenant', '/_debug/tenant'], (req, res) => {
@@ -66,6 +70,7 @@ app.get(['/api/_debug/tenant', '/_debug/tenant'], (req, res) => {
     tenantId: TENANT_ID || null,
     base: BASE,
     incoming,
+    vendedorEmailPadraoConfigured: Boolean(VENDEDOR_EMAIL_PADRAO),
   });
 });
 
@@ -383,7 +388,6 @@ app.delete('/api/v1/app/me/avatar', async (req, res) => {
   }
 });
 
-
 app.use(
   '/api/webhooks/progem',
   express.raw({ type: '*/*' }),
@@ -395,7 +399,7 @@ app.use(express.json());
 
 /* ===== /auth/client-token (somente DEV/LOCAL) ===== */
 if (!isProd) {
-  app.post('/auth/client-token', async (req, res) => {
+  app.post('/auth/client-token', async (_req, res) => {
     try {
       const data = await fetchClientToken();
       res.json(data);
@@ -441,11 +445,9 @@ app.get('/api/v1/app/me', async (req, res) => {
   }
 });
 
-
 /** =====================================================================
  *  Dispositivos (FCM) do usuário logado
  *  POST /api/v1/app/me/devices
- *  Auth: Bearer do usuário (Authorization header)
  * ===================================================================== */
 app.post('/api/v1/app/me/devices', async (req, res) => {
   try {
@@ -474,12 +476,9 @@ app.post('/api/v1/app/me/devices', async (req, res) => {
     return res.status(r.status).send(data);
   } catch (e) {
     console.error('[BFF] ERRO /api/v1/app/me/devices:', e);
-    return res
-      .status(500)
-      .json({ error: 'Falha ao registrar dispositivo', message: String(e) });
+    return res.status(500).json({ error: 'Falha ao registrar dispositivo', message: String(e) });
   }
 });
-
 
 /* ===== Planos ===== */
 app.get('/api/v1/planos', async (req, res) => {
@@ -512,41 +511,81 @@ app.get('/api/v1/planos/:id', async (req, res) => {
 app.get('/api/v1/cupons/:codigo', async (req, res) => {
   try {
     const { codigo } = req.params;
-
     const url = `${BASE}/api/v1/cupons/${encodeURIComponent(codigo)}`;
 
     console.log('[BFF] GET /api/v1/cupons/:codigo ->', url);
 
-    // Usa client credentials + dedup + retry 401 (1x)
     const r = await fetchWithClientTokenDedupRetry(url, req, {
       dedupMs: 400,
-      cacheMs: 5_000, // cache curto para evitar spam de validação
+      cacheMs: 5_000,
     });
 
     const data = await readAsJsonOrText(r);
 
-    console.log(
-      '[BFF] ← /api/v1/cupons/:codigo status',
-      r.status,
-      r._cached ? '(cached)' : ''
-    );
+    console.log('[BFF] ← /api/v1/cupons/:codigo status', r.status, r._cached ? '(cached)' : '');
 
-    if (!r.ok) {
-      return res.status(r.status).send(data);
-    }
-
+    if (!r.ok) return res.status(r.status).send(data);
     return res.status(200).send(data);
   } catch (e) {
     console.error('[BFF] cupons error:', e);
-    return res.status(500).json({
-      error: 'Falha ao validar cupom',
-      message: String(e),
-    });
+    return res.status(500).json({ error: 'Falha ao validar cupom', message: String(e) });
   }
 });
 
+/* ===== Vendedores (por e-mail) ===== */
+app.get('/api/v1/vendedores/email/:email', async (req, res) => {
+  try {
+    const email = String(req.params.email || '').trim();
+    if (!email) return res.status(400).json({ message: 'E-mail é obrigatório.' });
 
+    const url = `${BASE}/api/v1/vendedores/email/${encodeURIComponent(email)}`;
 
+    console.log('[BFF] GET /api/v1/vendedores/email/:email ->', url);
+
+    const r = await fetchWithClientTokenDedupRetry(url, req, {
+      dedupMs: 400,
+      cacheMs: 10_000,
+    });
+
+    const data = await readAsJsonOrText(r);
+
+    console.log('[BFF] ← /api/v1/vendedores/email/:email status', r.status, r._cached ? '(cached)' : '');
+
+    if (!r.ok) return res.status(r.status).send(data);
+    return res.status(200).send(data);
+  } catch (err) {
+    console.error('[BFF] vendedores/email error:', err);
+    return res.status(502).json({ message: 'Falha ao consultar vendedor por e-mail no Progem.' });
+  }
+});
+
+/* ===== ✅ Vendedor padrão (por ENV do BFF) ===== */
+app.get('/api/v1/vendedores/padrao', async (req, res) => {
+  try {
+    if (!VENDEDOR_EMAIL_PADRAO) {
+      return res.status(404).json({ message: 'VENDEDOR_EMAIL_PADRAO não configurado.' });
+    }
+
+    const url = `${BASE}/api/v1/vendedores/email/${encodeURIComponent(VENDEDOR_EMAIL_PADRAO)}`;
+
+    console.log('[BFF] GET /api/v1/vendedores/padrao ->', url);
+
+    const r = await fetchWithClientTokenDedupRetry(url, req, {
+      dedupMs: 400,
+      cacheMs: 30_000,
+    });
+
+    const data = await readAsJsonOrText(r);
+
+    console.log('[BFF] ← /api/v1/vendedores/padrao status', r.status, r._cached ? '(cached)' : '');
+
+    if (!r.ok) return res.status(r.status).send(data);
+    return res.status(200).send(data);
+  } catch (err) {
+    console.error('[BFF] vendedores/padrao error:', err);
+    return res.status(502).json({ message: 'Falha ao resolver vendedor padrão.' });
+  }
+});
 
 /* ===== Contratos por CPF ===== */
 app.get('/api/v1/contratos/cpf/:cpf', async (req, res) => {
@@ -588,12 +627,7 @@ app.get('/api/v1/contratos/:id/dependentes', async (req, res) => {
     const headers = injectHeadersFromReq(req, { Authorization: auth });
     const r = await fetchDedup(url, { headers }, { dedupMs: 400 });
     const data = await readAsJsonOrText(r);
-    console.log(
-      'BFF /api/v1/contratos/:id/dependentes ->',
-      r.status,
-      url,
-      r._cached ? '(cached/dedup)' : ''
-    );
+    console.log('BFF /api/v1/contratos/:id/dependentes ->', r.status, url, r._cached ? '(cached/dedup)' : '');
     if (!r.ok) return res.status(r.status).send(data);
     res.status(r.status).send(data);
   } catch (e) {
@@ -606,10 +640,9 @@ app.get('/api/v1/contratos/:id/pagamentos', async (req, res) => {
   try {
     const incomingAuth = req.headers.authorization;
     const headersBase = injectHeadersFromReq(req);
-    let headers;
 
     if (incomingAuth && /^bearer\s+/i.test(incomingAuth)) {
-      headers = { ...headersBase, Authorization: incomingAuth };
+      const headers = { ...headersBase, Authorization: incomingAuth };
       const url = `${BASE}/api/v1/contratos/${req.params.id}/pagamentos`;
       const r = await fetchDedup(url, { headers }, { dedupMs: 400 });
       const data = await readAsJsonOrText(r);
@@ -635,12 +668,7 @@ app.get('/api/v1/contratos/:id/pagamentos/mes', async (req, res) => {
     const headers = injectHeadersFromReq(req, { Authorization: auth });
     const r = await fetchDedup(url, { headers }, { dedupMs: 400 });
     const data = await readAsJsonOrText(r);
-    console.log(
-      'BFF /api/v1/contratos/:id/pagamentos/mes ->',
-      r.status,
-      url,
-      r._cached ? '(cached/dedup)' : ''
-    );
+    console.log('BFF /api/v1/contratos/:id/pagamentos/mes ->', r.status, url, r._cached ? '(cached/dedup)' : '');
     if (!r.ok) return res.status(r.status).send(data);
     res.status(r.status).send(data);
   } catch (e) {
@@ -655,12 +683,7 @@ app.get('/api/v1/locais/parceiros', async (req, res) => {
     const url = `${BASE}/api/v1/locais/parceiros${qs}`;
     const r = await fetchWithClientTokenDedupRetry(url, req, { dedupMs: 400 });
     const data = await readAsJsonOrText(r);
-    console.log(
-      'BFF GET /api/v1/locais/parceiros ->',
-      r.status,
-      url,
-      r._cached ? '(cached/dedup)' : ''
-    );
+    console.log('BFF GET /api/v1/locais/parceiros ->', r.status, url, r._cached ? '(cached/dedup)' : '');
     if (!r.ok) return res.status(r.status).send(data);
     return res.status(r.status).send(data);
   } catch (e) {
@@ -692,12 +715,7 @@ app.get('/api/v1/unidades/all', async (req, res) => {
     const r = await fetchWithClientTokenDedupRetry(url, req, { dedupMs: 400, cacheMs: 5_000 });
     const data = await readAsJsonOrText(r);
 
-    console.log(
-      '[BFF] GET /api/v1/unidades/all ->',
-      r.status,
-      url,
-      r._cached ? '(cached/dedup)' : ''
-    );
+    console.log('[BFF] GET /api/v1/unidades/all ->', r.status, url, r._cached ? '(cached/dedup)' : '');
     if (!r.ok) return res.status(r.status).send(data);
     return res.status(r.status).send(data);
   } catch (e) {
@@ -752,16 +770,12 @@ app.get('/api/v1/pessoas/cpf/:cpf', async (req, res) => {
   try {
     const cpf = req.params.cpf;
     const url = `${BASE}/api/v1/pessoas/cpf/${encodeURIComponent(cpf)}`;
-    console.log('[BFF] GET /api/v1/pessoas/cpf/:cpf →', {
-      url: url.replace(cpf, maskCpf(cpf)),
-    });
+    console.log('[BFF] GET /api/v1/pessoas/cpf/:cpf →', { url: url.replace(cpf, maskCpf(cpf)) });
 
-    // usa client credentials + dedup + retry 401 (1x)
     const r = await fetchWithClientTokenDedupRetry(url, req, { dedupMs: 400 });
     const data = await readAsJsonOrText(r);
 
     if (!r.ok) return res.status(r.status).send(data);
-    // pass-through (já no formato esperado pelo front)
     return res.status(r.status).send(data);
   } catch (e) {
     console.error('[BFF] pessoas/cpf error:', e);
@@ -776,7 +790,6 @@ app.get('/api/v1/dependentes/pessoa/:pessoaId', async (req, res) => {
     const url = `${BASE}/api/v1/dependentes/pessoa/${encodeURIComponent(pessoaId)}`;
     console.log('[BFF] GET /api/v1/dependentes/pessoa/:pessoaId →', url);
 
-    // também via client credentials (endpoint público ao BFF)
     const r = await fetchWithClientTokenDedupRetry(url, req, { dedupMs: 400 });
     const data = await readAsJsonOrText(r);
 
@@ -854,26 +867,15 @@ app.post('/api/v1/contratos', async (req, res) => {
   }
 });
 
-
-
 /* ===== CelCash: criar/atualizar cliente + contrato ===== */
-/** POST /api/celcash/clientes/contratos/:contratoId
- *  Encaminha para: POST {BASE}/api/celcash/clientes/contratos/:contratoId
- *  Auth: client credentials (Bearer)
- */
 app.post('/api/celcash/clientes/contratos/:contratoId', async (req, res) => {
   try {
     const { contratoId } = req.params;
     const clientToken = await getClientToken();
 
-    const url = `${BASE}/api/celcash/clientes/contratos/${encodeURIComponent(
-      contratoId
-    )}`;
+    const url = `${BASE}/api/celcash/clientes/contratos/${encodeURIComponent(contratoId)}`;
 
-    console.log(
-      '[BFF] POST /api/celcash/clientes/contratos/:contratoId ->',
-      url
-    );
+    console.log('[BFF] POST /api/celcash/clientes/contratos/:contratoId ->', url);
 
     const r = await fetch(url, {
       method: 'POST',
@@ -889,64 +891,40 @@ app.post('/api/celcash/clientes/contratos/:contratoId', async (req, res) => {
     return res.status(r.status).send(data);
   } catch (e) {
     console.error('[BFF] CelCash clientes/contratos error', e);
-    return res
-      .status(500)
-      .json({ error: 'Falha ao integrar com CelCash (clientes/contratos)', message: String(e) });
+    return res.status(500).json({ error: 'Falha ao integrar com CelCash (clientes/contratos)', message: String(e) });
   }
 });
 
 /* ===== CelCash: geração de carnê manual ===== */
-/** POST /api/v1/celcash/contratos/:contratoId/carne/manual
- *  Encaminha para: POST {BASE}/api/v1/celcash/contratos/:contratoId/carne/manual
- *  Auth: client credentials (Bearer)
- */
-app.post(
-  '/api/v1/celcash/contratos/:contratoId/carne/manual',
-  async (req, res) => {
-    try {
-      const { contratoId } = req.params;
-      const clientToken = await getClientToken();
+app.post('/api/v1/celcash/contratos/:contratoId/carne/manual', async (req, res) => {
+  try {
+    const { contratoId } = req.params;
+    const clientToken = await getClientToken();
 
-      const url = `${BASE}/api/v1/celcash/contratos/${encodeURIComponent(
-        contratoId
-      )}/carne/manual`;
+    const url = `${BASE}/api/v1/celcash/contratos/${encodeURIComponent(contratoId)}/carne/manual`;
 
-      console.log(
-        '[BFF] POST /api/v1/celcash/contratos/:contratoId/carne/manual ->',
-        url
-      );
+    console.log('[BFF] POST /api/v1/celcash/contratos/:contratoId/carne/manual ->', url);
 
-      const r = await fetch(url, {
-        method: 'POST',
-        headers: injectHeadersFromReq(req, {
-          Authorization: `Bearer ${clientToken}`,
-          'Content-Type': 'application/json',
-        }),
-        body: JSON.stringify(req.body || {}),
-      });
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: injectHeadersFromReq(req, {
+        Authorization: `Bearer ${clientToken}`,
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify(req.body || {}),
+    });
 
-      const data = await readAsJsonOrText(r);
-      if (!r.ok) return res.status(r.status).send(data);
-      return res.status(r.status).send(data);
-    } catch (e) {
-      console.error('[BFF] CelCash carne/manual error', e);
-      return res.status(500).json({
-        error: 'Falha ao integrar com CelCash (carnê manual)',
-        message: String(e),
-      });
-    }
+    const data = await readAsJsonOrText(r);
+    if (!r.ok) return res.status(r.status).send(data);
+    return res.status(r.status).send(data);
+  } catch (e) {
+    console.error('[BFF] CelCash carne/manual error', e);
+    return res.status(500).json({ error: 'Falha ao integrar com CelCash (carnê manual)', message: String(e) });
   }
-);
+});
 
-
-/* ===================================================================== */
 /* ==================  Recuperação / Troca de Senha  ==================== */
-/* ===================================================================== */
 
-/** POST /api/v1/app/password/forgot
- *  Body esperado: { ident: string }  (e-mail ou CPF)
- *  Auth: client credentials
- */
 app.post('/api/v1/app/password/forgot', async (req, res) => {
   try {
     const clientToken = await getClientToken();
@@ -968,10 +946,6 @@ app.post('/api/v1/app/password/forgot', async (req, res) => {
   }
 });
 
-/** POST /api/v1/app/password/reset
- *  Body esperado: { token: string, novaSenha: string }
- *  Auth: client credentials
- */
 app.post('/api/v1/app/password/reset', async (req, res) => {
   try {
     const clientToken = await getClientToken();
@@ -993,10 +967,6 @@ app.post('/api/v1/app/password/reset', async (req, res) => {
   }
 });
 
-/** POST /api/v1/app/password/change
- *  Body esperado: { senhaAtual: string, novaSenha: string }
- *  Auth: Bearer do usuário (Authorization header)
- */
 app.post('/api/v1/app/password/change', async (req, res) => {
   try {
     const incomingAuth = req.headers.authorization || '';
@@ -1021,7 +991,6 @@ app.post('/api/v1/app/password/change', async (req, res) => {
 /* ===== Execução local vs Vercel ===== */
 import getPort from 'get-port';
 
-/* ===== Execução local vs Vercel ===== */
 if (!isVercel) {
   const preferred = Number(process.env.PORT || 8787);
 
@@ -1029,9 +998,7 @@ if (!isVercel) {
     const PORT = await getPort({ port: preferred });
 
     if (PORT !== preferred) {
-      console.warn(
-        `[BFF] ⚠ Porta ${preferred} já está em uso. Subindo automaticamente em ${PORT}...`
-      );
+      console.warn(`[BFF] ⚠ Porta ${preferred} já está em uso. Subindo automaticamente em ${PORT}...`);
     }
 
     app.listen(PORT, () => {
@@ -1039,7 +1006,6 @@ if (!isVercel) {
     });
   })();
 }
-
 
 // 404 logger para rotas /api que não bateram em nenhuma handler
 app.use('/api', (req, res) => {
