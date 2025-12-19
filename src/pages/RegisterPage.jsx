@@ -6,6 +6,7 @@ import useAuth from '@/store/auth'
 import { registerUser } from '@/lib/authApi'
 import { AlertTriangle, UserPlus, Lock, CheckCircle2 } from 'lucide-react'
 import { registrarDispositivoFcmWeb } from '@/lib/fcm'
+import VoiceTextInput from '@/components/VoiceTextInput'
 
 const initial = {
   nome: '',
@@ -60,6 +61,7 @@ function formatCPF(v = '') {
     return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
 }
+
 function formatPhoneBR(v = '') {
   const d = onlyDigits(v).slice(0, 11)
   if (d.length <= 2) return d
@@ -188,7 +190,7 @@ function DateSelectBR({
     const iso = `${ano}-${mes}-${dia}`
     const ok = inRange(iso)
     if (!ok)
-      setSoftWarn('Data fora do intervalo permitido (entre 18 e 100 anos).')
+      setSoftWarn('Data fora do intervalo permitido (entre 18 e 100 anos)')
     onChangeISO?.(iso)
   }, [dia, mes, ano]) // eslint-disable-line
 
@@ -201,7 +203,7 @@ function DateSelectBR({
     const mClamped = clampMonthIfNeeded(y, m || 0)
     if (m && m !== mClamped) {
       setMes(String(mClamped).padStart(2, '0'))
-      setSoftWarn('Ajustamos o mês para o limite permitido.')
+      setSoftWarn('Ajustamos o mês para o limite permitido')
       m = mClamped
     }
     if (m) {
@@ -210,7 +212,7 @@ function DateSelectBR({
         const dClamped = clampDayIfNeeded(y, m, d)
         if (dClamped !== d) {
           setDia(String(dClamped).padStart(2, '0'))
-          setSoftWarn('Ajustamos o dia para o máximo permitido no período.')
+          setSoftWarn('Ajustamos o dia para o máximo permitido no período')
         }
       }
     }
@@ -225,7 +227,7 @@ function DateSelectBR({
       const dClamped = clampDayIfNeeded(y, m, d)
       if (dClamped !== d) {
         setDia(String(dClamped).padStart(2, '0'))
-        setSoftWarn('Ajustamos o dia para o máximo permitido no mês/limite.')
+        setSoftWarn('Ajustamos o dia para o máximo permitido no mês/limite')
       }
     }
   }
@@ -321,7 +323,7 @@ function DateSelectBR({
         >
           <AlertTriangle size={14} />{' '}
           {invalid
-            ? 'Você precisa ter no mínimo 18 anos (e no máximo 100).'
+            ? 'Você precisa ter no mínimo 18 anos (e no máximo 100)'
             : softWarn}
         </p>
       )}
@@ -349,6 +351,123 @@ function Rule({ ok, children }) {
       </span>
     </li>
   )
+}
+
+/* -------------------- normalizadores de voz -------------------- */
+
+const DIGIT_WORDS = new Map([
+  ['zero', '0'],
+  ['um', '1'],
+  ['uma', '1'],
+  ['dois', '2'],
+  ['duas', '2'],
+  ['tres', '3'],
+  ['três', '3'],
+  ['quatro', '4'],
+  ['cinco', '5'],
+  ['seis', '6'],
+  ['sete', '7'],
+  ['oito', '8'],
+  ['nove', '9'],
+])
+
+function normalizeDigitsFromSpeech(input = '') {
+  const raw = String(input || '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (!raw) return ''
+
+  const parts = raw.split(' ')
+  let out = ''
+
+  for (const p of parts) {
+    if (!p) continue
+    if (/^\d+$/.test(p)) {
+      out += p
+      continue
+    }
+    const digit = DIGIT_WORDS.get(p)
+    if (digit) out += digit
+  }
+
+  return out
+}
+
+function normalizeNameFromSpeech(input = '') {
+  let t = String(input || '').trim()
+  if (!t) return ''
+  t = t.replace(/[.,;:!]+$/g, '').replace(/\s+/g, ' ')
+  return t
+}
+
+/**
+ * Diagnóstico “clínico” do problema do @:
+ * - O SpeechRecognition frequentemente devolve "arroba," (com vírgula/ponto) ou "aroba".
+ * - Regex com \barroba\b não casa quando vem pontuação colada.
+ * - Solução: primeiro remover pontuação e padronizar espaços, depois trocar.
+ */
+function normalizeEmailFromSpeech(input = '') {
+  const raw = String(input || '').toLowerCase().trim()
+  if (!raw) return ''
+
+  let t = raw
+
+  // 1) Limpa pontuação cedo (CRÍTICO para casar "arroba," / "ponto.")
+  t = t
+    .replace(/[，,;:!?\u3002]/g, ' ') // inclui variações unicode comuns
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  // 2) Variações de "arroba"
+  // cobre: "arroba", "aroba", "a roba", "@"
+  t = t
+    .replace(/\s+a\s*roba\s+/g, ' @ ')
+    .replace(/\baroba\b/g, '@')
+    .replace(/\barroba\b/g, '@')
+    .replace(/\s+at\s+/g, '@')
+    .replace(/\b(at)\b/g, '@')
+
+  // 3) "ponto" -> "."
+  t = t
+    .replace(/\s+ponto\s+/g, ' . ')
+    .replace(/\bponto\b/g, '.')
+    .replace(/\s+dot\s+/g, ' . ')
+    .replace(/\bdot\b/g, '.')
+
+  // 4) Remove espaços (e normaliza casos "@ ." etc.)
+  t = t.replace(/\s+/g, '')
+
+  // 5) Atalhos de provedores falados
+  const providerMap = [
+    ['gmail', 'gmail.com'],
+    ['hotmail', 'hotmail.com'],
+    ['outlook', 'outlook.com'],
+    ['icloud', 'icloud.com'],
+    ['yahoo', 'yahoo.com'],
+  ]
+  for (const [spoken, domain] of providerMap) {
+    t = t.replace(new RegExp(`@${spoken}(?![\\w.-])`, 'g'), `@${domain}`)
+  }
+
+  // 6) Limpa caracteres inválidos
+  t = t.replace(/[^a-z0-9@._+\-]/g, '')
+
+  // 7) Colapsa repetições ruins
+  t = t.replace(/\.{2,}/g, '.').replace(/@{2,}/g, '@')
+
+  // 8) Remove ponto perto do @
+  t = t.replace(/\.@/g, '@').replace(/@\./g, '@')
+
+  // 9) Remove pontuação no final
+  t = t.replace(/[.,;:!]+$/g, '').replace(/\.+$/g, '')
+
+  // 10) Não deixa terminar com @ ou .
+  t = t.replace(/[@.]+$/g, '')
+
+  return t
 }
 
 export default function RegisterPage() {
@@ -414,7 +533,6 @@ export default function RegisterPage() {
   const formValido =
     nomeOk && emailOk && cpfOk && celularOk && idadeOk && senhaOk && confirmOk
 
-  // usados apenas como referência interna; botões já não dependem deles
   const step1Valid = nomeOk && cpfOk && idadeOk
   const step2Valid = emailOk && celularOk
   const step3Valid = senhaOk && confirmOk
@@ -433,49 +551,35 @@ export default function RegisterPage() {
     const age = ageFromISO(values.dataNascimento)
 
     if (!(values.nome || '').trim())
-      items.push({
-        field: 'nome',
-        label: 'Nome completo é obrigatório.',
-      })
+      items.push({ field: 'nome', label: 'Nome completo é obrigatório' })
+
     if (!isValidEmail(values.email))
-      items.push({
-        field: 'email',
-        label: 'Informe um e-mail válido.',
-      })
+      items.push({ field: 'email', label: 'Informe um e-mail válido' })
+
     if (!isValidCPF(values.cpf))
-      items.push({
-        field: 'cpf',
-        label: 'Informe um CPF válido.',
-      })
+      items.push({ field: 'cpf', label: 'Informe um CPF válido' })
+
     if (!phoneIsValid(values.celular))
-      items.push({
-        field: 'celular',
-        label: 'Informe um celular válido com DDD.',
-      })
+      items.push({ field: 'celular', label: 'Informe um celular válido com DDD' })
+
     if (!values.dataNascimento || age === null) {
-      items.push({
-        field: 'dataNascimento',
-        label: 'Informe sua data de nascimento.',
-      })
+      items.push({ field: 'dataNascimento', label: 'Informe sua data de nascimento' })
     } else if (age < 18 || age > 100) {
-      items.push({
-        field: 'dataNascimento',
-        label: 'Você precisa ter entre 18 e 100 anos.',
-      })
+      items.push({ field: 'dataNascimento', label: 'Você precisa ter entre 18 e 100 anos' })
     }
+
     if (!isStrongPassword(values.senha)) {
       items.push({
         field: 'senha',
         label:
-          'A senha deve ter pelo menos 8 caracteres, com letra maiúscula, minúscula e número.',
+          'A senha deve ter pelo menos 8 caracteres, com letra maiúscula, minúscula e número',
       })
     }
+
     if (!(values.confirmSenha && values.confirmSenha === values.senha)) {
-      items.push({
-        field: 'confirmSenha',
-        label: 'As senhas precisam ser iguais.',
-      })
+      items.push({ field: 'confirmSenha', label: 'As senhas precisam ser iguais' })
     }
+
     return items
   }
 
@@ -515,7 +619,7 @@ export default function RegisterPage() {
   }
 
   const onChangeMasked =
-    (name, formatter, _ref) =>
+    (name, formatter) =>
     (e) => {
       const raw = e.target.value || ''
       const nextVal = formatter(raw)
@@ -558,7 +662,6 @@ export default function RegisterPage() {
         return
       }
 
-      // Etapa 1 OK → avança para a 2 sem validações exibidas
       setStep(2)
       setSubmitted(false)
       setErrorList([])
@@ -576,7 +679,6 @@ export default function RegisterPage() {
         return
       }
 
-      // Etapa 2 OK → avança para a 3 sem validações exibidas
       setStep(3)
       setSubmitted(false)
       setErrorList([])
@@ -584,7 +686,6 @@ export default function RegisterPage() {
       return
     }
 
-    // step 3
     setSubmitted(true)
     const list = buildErrorList(form)
     setErrorList(list)
@@ -595,7 +696,7 @@ export default function RegisterPage() {
     }
 
     if (!isValidCPF(form.cpf)) {
-      setError('CPF inválido. Verifique os números digitados.')
+      setError('CPF inválido Verifique os números digitados')
       setTimeout(() => alertRef.current?.focus(), 0)
       focusByField('cpf')
       setStep(1)
@@ -612,11 +713,7 @@ export default function RegisterPage() {
         : '/area'
 
     const identificador = form.email?.trim() || onlyDigits(form.cpf)
-    const payload = {
-      ...form,
-      aceiteTermos: true,
-      aceitePrivacidade: true,
-    }
+    const payload = { ...form, aceiteTermos: true, aceitePrivacidade: true }
 
     try {
       setLoading(true)
@@ -627,17 +724,8 @@ export default function RegisterPage() {
       await login(identificador, form.senha)
 
       try {
-        console.info(
-          '[Register] Iniciando registro do dispositivo FCM (WEB) após cadastro...'
-        )
         await registrarDispositivoFcmWeb()
-        console.info('[Register] Registro do dispositivo FCM finalizado (WEB).')
-      } catch (err) {
-        console.error(
-          '[Register] Falha ao registrar dispositivo FCM (WEB):',
-          err
-        )
-      }
+      } catch {}
 
       try {
         const prefill = {
@@ -653,14 +741,13 @@ export default function RegisterPage() {
 
       navigate(from, { replace: true })
     } catch (err) {
-      console.error(err)
       const apiMsg =
         err?.response?.data?.message ||
         err?.response?.data?.error ||
         (typeof err?.response?.data === 'string'
           ? err?.response?.data
           : null) ||
-        'Não foi possível concluir o cadastro.'
+        'Não foi possível concluir o cadastro'
       setError(apiMsg)
       setOkMsg('')
       setTimeout(() => alertRef.current?.focus(), 0)
@@ -684,10 +771,10 @@ export default function RegisterPage() {
 
   const stepDesc =
     step === 1
-      ? 'Informe seus dados básicos para começarmos o cadastro.'
+      ? 'Informe seus dados básicos para começarmos o cadastro'
       : step === 2
-      ? 'Agora, confirme seus dados de contato para enviarmos comunicações importantes.'
-      : 'Por fim, defina uma senha segura para acessar sua área.'
+      ? 'Agora, confirme seus dados de contato para enviarmos comunicações importantes'
+      : 'Por fim, defina uma senha segura para acessar sua área'
 
   const progressPercent = step === 1 ? '33%' : step === 2 ? '66%' : '100%'
 
@@ -736,7 +823,7 @@ export default function RegisterPage() {
               className="mt-1 text-sm md:text-base leading-relaxed"
               style={{ color: 'var(--text-muted)' }}
             >
-              Você só precisa informar seus dados, escolher uma senha e pronto.
+              Você só precisa informar seus dados, escolher uma senha e pronto
             </p>
           </header>
 
@@ -794,10 +881,7 @@ export default function RegisterPage() {
               }}
             />
 
-            <fieldset
-              disabled={loading}
-              className="space-y-6 relative z-[1]"
-            >
+            <fieldset disabled={loading} className="space-y-6 relative z-[1]">
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs md:text-sm font-semibold tracking-wide uppercase">
@@ -839,15 +923,10 @@ export default function RegisterPage() {
                   />
                 </div>
 
-                <p
-                  className="text-xs md:text-sm"
-                  style={{ color: 'var(--text-muted)' }}
-                >
+                <p className="text-xs md:text-sm" style={{ color: 'var(--text-muted)' }}>
                   {stepDesc}
                 </p>
               </div>
-
-              
 
               {step === 3 && (
                 <div
@@ -860,20 +939,14 @@ export default function RegisterPage() {
                   }}
                 >
                   <div className="mt-0.5">
-                    <CheckCircle2
-                      size={18}
-                      style={{ color: 'var(--primary)' }}
-                    />
+                    <CheckCircle2 size={18} style={{ color: 'var(--primary)' }} />
                   </div>
                   <div>
                     <p className="font-medium mb-0.5">
-                      {firstName
-                        ? `${firstName}, seus dados estão certos.`
-                        : 'Seus dados estão certos.'}
+                      {firstName ? `${firstName}, seus dados estão certos` : 'Seus dados estão certos'}
                     </p>
                     <p style={{ color: 'var(--text-muted)' }}>
-                      Agora crie uma senha para acessar sua conta quando
-                      quiser.
+                      Agora crie uma senha para acessar sua conta quando quiser
                     </p>
                   </div>
                 </div>
@@ -884,83 +957,95 @@ export default function RegisterPage() {
                 style={{
                   background:
                     'color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)',
-                  borderColor:
-                    'color-mix(in srgb, var(--text) 16%, transparent)',
+                  borderColor: 'color-mix(in srgb, var(--text) 16%, transparent)',
                 }}
               >
                 {step === 1 && (
                   <>
                     <div>
-                      <label
-                        htmlFor="nome"
-                        className="label font-medium text-sm md:text-base"
-                      >
-                        Nome completo{' '}
-                        <span aria-hidden="true" className="text-red-600">
-                          *
-                        </span>
+                      <label htmlFor="nome" className="label font-medium text-sm md:text-base">
+                        Nome completo <span aria-hidden="true" className="text-red-600">*</span>
                       </label>
-                      <input
+
+                      <VoiceTextInput
                         id="nome"
                         name="nome"
-                        ref={nomeRef}
+                        inputRef={nomeRef}
                         value={form.nome}
                         onChange={onChange}
+                        onChangeValue={(next) => {
+                          const cleaned = normalizeNameFromSpeech(next)
+                          const nextForm = { ...form, nome: cleaned }
+                          setForm(nextForm)
+                          recomputeErrorsIfSubmitted(nextForm)
+                        }}
                         className={`input h-12 text-base bg-white ${
                           submitted && !nomeOk ? 'ring-1 ring-red-500' : ''
                         }`}
                         placeholder="Maria Oliveira"
                         autoComplete="name"
-                        aria-required="true"
-                        aria-invalid={submitted && !nomeOk}
+                        ariaRequired="true"
+                        ariaInvalid={submitted && !nomeOk}
+                        disabled={loading}
+                        enableVoice
+                        applyMode="replace"
+                        normalizeTranscript={normalizeNameFromSpeech}
+                        idleHint="Toque no microfone e diga seu nome completo."
+                        listeningHint="Para finalizar, faça uma pausa curta ou toque no ■."
                       />
+
                       {submitted && !nomeOk && (
                         <p className="text-xs md:text-sm mt-1 text-red-600">
-                          Informe ao menos 3 caracteres.
+                          Informe ao menos 3 caracteres
                         </p>
                       )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label
-                          htmlFor="cpf"
-                          className="label font-medium text-sm md:text-base"
-                        >
-                          CPF{' '}
-                          <span aria-hidden="true" className="text-red-600">
-                            *
-                          </span>
+                        <label htmlFor="cpf" className="label font-medium text-sm md:text-base">
+                          CPF <span aria-hidden="true" className="text-red-600">*</span>
                         </label>
-                        <input
+
+                        <VoiceTextInput
                           id="cpf"
                           name="cpf"
-                          ref={cpfRef}
+                          inputRef={cpfRef}
                           value={formatCPF(form.cpf)}
-                          onChange={onChangeMasked('cpf', formatCPF, cpfRef)}
+                          onChange={onChangeMasked('cpf', formatCPF)}
                           onPaste={onPasteMasked('cpf', formatCPF)}
+                          onChangeValue={(spoken) => {
+                            const digits = normalizeDigitsFromSpeech(spoken).slice(0, 11)
+                            const formatted = formatCPF(digits)
+                            const nextForm = { ...form, cpf: formatted }
+                            setForm(nextForm)
+                            recomputeErrorsIfSubmitted(nextForm)
+                          }}
                           className={`input h-12 text-base bg-white ${
                             submitted && !cpfOk ? 'ring-1 ring-red-500' : ''
                           }`}
                           placeholder="000.000.000-00"
                           inputMode="numeric"
                           autoComplete="off"
-                          aria-required="true"
-                          aria-invalid={submitted && !cpfOk}
+                          ariaRequired="true"
+                          ariaInvalid={submitted && !cpfOk}
+                          disabled={loading}
+                          enableVoice
+                          applyMode="replace"
+                          idleHint="Toque no microfone e dite os números do CPF."
+                          listeningHint="Finalize com uma pausa curta, ou toque no ■."
                         />
+
                         {submitted && !cpfOk && (
                           <p className="text-xs md:text-sm mt-1 text-red-600">
-                            CPF inválido. Verifique os números digitados.
+                            CPF inválido Verifique os números digitados
                           </p>
                         )}
                       </div>
 
                       <div>
                         <label className="label font-medium text-sm md:text-base">
-                          Data de nascimento{' '}
-                          <span aria-hidden="true" className="text-red-600">
-                            *
-                          </span>
+                          Data de nascimento <span aria-hidden="true" className="text-red-600">*</span>
                         </label>
                         <DateSelectBR
                           idPrefix="reg-nasc"
@@ -973,17 +1058,13 @@ export default function RegisterPage() {
                           }
                           minAge={18}
                           maxAge={100}
-                          invalid={
-                            submitted &&
-                            (!form.dataNascimento || !idadeOk)
-                          }
+                          invalid={submitted && (!form.dataNascimento || !idadeOk)}
                         />
-                        {submitted &&
-                          (!form.dataNascimento || !idadeOk) && (
-                            <p className="text-xs md:text-sm mt-1 text-red-600">
-                              É preciso ter entre <b>18</b> e <b>100</b> anos.
-                            </p>
-                          )}
+                        {submitted && (!form.dataNascimento || !idadeOk) && (
+                          <p className="text-xs md:text-sm mt-1 text-red-600">
+                            É preciso ter entre <b>18</b> e <b>100</b> anos
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -1001,7 +1082,7 @@ export default function RegisterPage() {
                         aria-live="assertive"
                       >
                         <p className="font-medium mb-1">
-                          Revise os campos destacados antes de continuar:
+                          Revise os campos destacados antes de continuar
                         </p>
                         <ul className="list-disc ml-5 space-y-1">
                           {errorList.map((it, idx) => (
@@ -1025,71 +1106,88 @@ export default function RegisterPage() {
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label
-                          htmlFor="email"
-                          className="label font-medium text-sm md:text-base"
-                        >
-                          E-mail{' '}
-                          <span aria-hidden="true" className="text-red-600">
-                            *
-                          </span>
+                        <label htmlFor="email" className="label font-medium text-sm md:text-base">
+                          E-mail <span aria-hidden="true" className="text-red-600">*</span>
                         </label>
-                        <input
+
+                        <VoiceTextInput
                           id="email"
-                          type="email"
                           name="email"
-                          ref={emailRef}
+                          inputRef={emailRef}
                           value={form.email}
-                          onChange={onChange}
+                          onChange={(e) => {
+                            const v = normalizeEmailFromSpeech(e.target.value || '')
+                            const nextForm = { ...form, email: v }
+                            setForm(nextForm)
+                            recomputeErrorsIfSubmitted(nextForm)
+                          }}
+                          onChangeValue={(next) => {
+                            const v = normalizeEmailFromSpeech(next)
+                            const nextForm = { ...form, email: v }
+                            setForm(nextForm)
+                            recomputeErrorsIfSubmitted(nextForm)
+                          }}
+                          type="email"
                           className={`input h-12 text-base bg-white ${
                             submitted && !emailOk ? 'ring-1 ring-red-500' : ''
                           }`}
                           placeholder="maria@exemplo.com"
                           autoComplete="email"
                           inputMode="email"
-                          aria-required="true"
-                          aria-invalid={submitted && !emailOk}
+                          ariaRequired="true"
+                          ariaInvalid={submitted && !emailOk}
+                          disabled={loading}
+                          enableVoice
+                          applyMode="replace"
+                          normalizeTranscript={normalizeEmailFromSpeech}
+                          idleHint="Toque no microfone e dite: “nome arroba domínio ponto com”."
+                          listeningHint="Para finalizar, faça uma pausa curta ou toque no ■."
                         />
+
                         {submitted && !emailOk && (
                           <p className="text-xs md:text-sm mt-1 text-red-600">
-                            Informe um e-mail válido.
+                            Informe um e-mail válido
                           </p>
                         )}
                       </div>
 
                       <div>
-                        <label
-                          htmlFor="celular"
-                          className="label font-medium text-sm md:text-base"
-                        >
-                          Celular{' '}
-                          <span aria-hidden="true" className="text-red-600">
-                            *
-                          </span>
+                        <label htmlFor="celular" className="label font-medium text-sm md:text-base">
+                          Celular <span aria-hidden="true" className="text-red-600">*</span>
                         </label>
-                        <input
+
+                        <VoiceTextInput
                           id="celular"
                           name="celular"
-                          ref={celRef}
+                          inputRef={celRef}
                           value={formatPhoneBR(form.celular)}
-                          onChange={onChangeMasked(
-                            'celular',
-                            formatPhoneBR,
-                            celRef
-                          )}
+                          onChange={onChangeMasked('celular', formatPhoneBR)}
                           onPaste={onPasteMasked('celular', formatPhoneBR)}
+                          onChangeValue={(spoken) => {
+                            const digits = normalizeDigitsFromSpeech(spoken).slice(0, 11)
+                            const formatted = formatPhoneBR(digits)
+                            const nextForm = { ...form, celular: formatted }
+                            setForm(nextForm)
+                            recomputeErrorsIfSubmitted(nextForm)
+                          }}
                           className={`input h-12 text-base bg-white ${
                             submitted && !celularOk ? 'ring-1 ring-red-500' : ''
                           }`}
                           placeholder="(00) 90000-0000"
                           inputMode="tel"
                           autoComplete="tel"
-                          aria-required="true"
-                          aria-invalid={submitted && !celularOk}
+                          ariaRequired="true"
+                          ariaInvalid={submitted && !celularOk}
+                          disabled={loading}
+                          enableVoice
+                          applyMode="replace"
+                          idleHint="Toque no microfone e dite os números com DDD."
+                          listeningHint="Finalize com uma pausa curta, ou toque no ■."
                         />
+
                         {submitted && !celularOk && (
                           <p className="text-xs md:text-sm mt-1 text-red-600">
-                            Informe um celular válido com DDD.
+                            Informe um celular válido com DDD
                           </p>
                         )}
                       </div>
@@ -1109,7 +1207,7 @@ export default function RegisterPage() {
                         aria-live="assertive"
                       >
                         <p className="font-medium mb-1">
-                          Revise os campos destacados antes de continuar:
+                          Revise os campos destacados antes de continuar
                         </p>
                         <ul className="list-disc ml-5 space-y-1">
                           {errorList.map((it, idx) => (
@@ -1147,31 +1245,22 @@ export default function RegisterPage() {
                       />
                       <div>
                         <p className="font-medium mb-0.5">
-                          Capriche em uma senha segura.
+                          Capriche em uma senha segura
                         </p>
                         <p style={{ color: 'var(--text-muted)' }}>
-                          Use uma combinação de letras maiúsculas, minúsculas e
-                          números que só você saiba.
+                          Use uma combinação de letras maiúsculas, minúsculas e números
                         </p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label
-                          htmlFor="senha"
-                          className="label font-medium text-sm md:text-base"
-                        >
-                          Senha{' '}
-                          <span aria-hidden="true" className="text-red-600">
-                            *
-                          </span>
+                        <label htmlFor="senha" className="label font-medium text-sm md:text-base">
+                          Senha <span aria-hidden="true" className="text-red-600">*</span>
                         </label>
                         <div
                           className={`relative ${
-                            submitted && !senhaOk
-                              ? 'ring-1 ring-red-500 rounded-md'
-                              : ''
+                            submitted && !senhaOk ? 'ring-1 ring-red-500 rounded-md' : ''
                           }`}
                         >
                           <input
@@ -1192,13 +1281,9 @@ export default function RegisterPage() {
                             type="button"
                             onClick={() => setShowPass((v) => !v)}
                             className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none text-sm"
-                            aria-label={
-                              showPass ? 'Ocultar senha' : 'Mostrar senha'
-                            }
+                            aria-label={showPass ? 'Ocultar senha' : 'Mostrar senha'}
                             aria-pressed={showPass}
-                            title={
-                              showPass ? 'Ocultar senha' : 'Mostrar senha'
-                            }
+                            title={showPass ? 'Ocultar senha' : 'Mostrar senha'}
                           >
                             {showPass ? '🙈' : '👁️'}
                           </button>
@@ -1214,50 +1299,31 @@ export default function RegisterPage() {
                           }}
                           aria-live="polite"
                         >
-                          <p
-                            className="text-[11px] md:text-xs mb-1"
-                            style={{ color: 'var(--text-muted)' }}
-                          >
-                            A senha precisa ter:
+                          <p className="text-[11px] md:text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+                            A senha precisa ter
                           </p>
                           <ul className="space-y-1">
-                            <Rule ok={senhaChecks.len}>
-                              Pelo menos 8 caracteres
-                            </Rule>
-                            <Rule ok={senhaChecks.upper}>
-                              Ao menos 1 letra maiúscula (A–Z)
-                            </Rule>
-                            <Rule ok={senhaChecks.lower}>
-                              Ao menos 1 letra minúscula (a–z)
-                            </Rule>
-                            <Rule ok={senhaChecks.digit}>
-                              Ao menos 1 número (0–9)
-                            </Rule>
+                            <Rule ok={senhaChecks.len}>Pelo menos 8 caracteres</Rule>
+                            <Rule ok={senhaChecks.upper}>Ao menos 1 letra maiúscula (A–Z)</Rule>
+                            <Rule ok={senhaChecks.lower}>Ao menos 1 letra minúscula (a–z)</Rule>
+                            <Rule ok={senhaChecks.digit}>Ao menos 1 número (0–9)</Rule>
                           </ul>
                         </div>
 
                         {submitted && !senhaOk && (
                           <p className="text-xs md:text-sm mt-2 text-red-600">
-                            Ajuste a senha conforme os requisitos acima.
+                            Ajuste a senha conforme os requisitos acima
                           </p>
                         )}
                       </div>
 
                       <div>
-                        <label
-                          htmlFor="confirmSenha"
-                          className="label font-medium text-sm md:text-base"
-                        >
-                          Confirmar senha{' '}
-                          <span aria-hidden="true" className="text-red-600">
-                            *
-                          </span>
+                        <label htmlFor="confirmSenha" className="label font-medium text-sm md:text-base">
+                          Confirmar senha <span aria-hidden="true" className="text-red-600">*</span>
                         </label>
                         <div
                           className={`relative ${
-                            submitted && !confirmOk
-                              ? 'ring-1 ring-red-500 rounded-md'
-                              : ''
+                            submitted && !confirmOk ? 'ring-1 ring-red-500 rounded-md' : ''
                           }`}
                         >
                           <input
@@ -1277,20 +1343,16 @@ export default function RegisterPage() {
                             type="button"
                             onClick={() => setShowConfirm((v) => !v)}
                             className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none text-sm"
-                            aria-label={
-                              showConfirm ? 'Ocultar senha' : 'Mostrar senha'
-                            }
+                            aria-label={showConfirm ? 'Ocultar senha' : 'Mostrar senha'}
                             aria-pressed={showConfirm}
-                            title={
-                              showConfirm ? 'Ocultar senha' : 'Mostrar senha'
-                            }
+                            title={showConfirm ? 'Ocultar senha' : 'Mostrar senha'}
                           >
                             {showConfirm ? '🙈' : '👁️'}
                           </button>
                         </div>
                         {submitted && !confirmOk && (
                           <p className="text-xs md:text-sm mt-1 text-red-600">
-                            As senhas precisam ser iguais.
+                            As senhas precisam ser iguais
                           </p>
                         )}
                       </div>
@@ -1310,7 +1372,7 @@ export default function RegisterPage() {
                         aria-live="assertive"
                       >
                         <p className="font-medium mb-1">
-                          Revise os campos destacados para concluir o cadastro:
+                          Revise os campos destacados para concluir o cadastro
                         </p>
                         <ul className="list-disc ml-5 space-y-1">
                           {errorList.map((it, idx) => (
@@ -1405,7 +1467,7 @@ export default function RegisterPage() {
                   className="mt-1 text-[11px] md:text-xs text-center"
                   style={{ color: 'var(--text-muted)' }}
                 >
-                  Preencha os campos com * para finalizar o cadastro.
+                  Preencha os campos com * para finalizar o cadastro
                 </p>
               )}
 
@@ -1414,25 +1476,14 @@ export default function RegisterPage() {
                 style={{ color: 'var(--text-muted)' }}
               >
                 Ao criar sua conta, você declara que leu e concorda com os{' '}
-                <a
-                  href="/termos-uso"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
+                <a href="/termos-uso" target="_blank" rel="noreferrer" className="underline">
                   Termos de Uso
                 </a>{' '}
                 e com a{' '}
-                <a
-                  href="/politica-privacidade"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
+                <a href="/politica-privacidade" target="_blank" rel="noreferrer" className="underline">
                   Política de Privacidade
-                </a>
-                . Seus dados são protegidos com criptografia e em conformidade
-                com a LGPD.
+                </a>{' '}
+                Seus dados são protegidos com criptografia e em conformidade com a LGPD
               </p>
             </fieldset>
           </form>
