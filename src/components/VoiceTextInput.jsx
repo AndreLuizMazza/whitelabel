@@ -1,20 +1,12 @@
 // src/components/VoiceTextInput.jsx
-import { useEffect, useMemo, useState } from "react";
-import { Mic, Square, Info } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
+import { Mic, Square } from "lucide-react";
 import useSpeechToText from "@/hooks/useSpeechToText";
 
 /**
  * VoiceTextInput
- * - Input com botão de microfone (Web Speech API)
- * - Aplica texto FINAL ao campo (delta), e então reseta buffers do hook.
- *
- * UX:
- * - Quando ouvindo: mostra badge “Ouvindo” + instrução de como finalizar.
- * - Quando não ouvindo: mostra dica curta ao focar (opcional).
- *
- * Prioridade de atualização:
- * 1) onChangeValue(nextValue)
- * 2) onChange({ target: { name, value: nextValue } })
+ * - Aplica apenas o ÚLTIMO trecho final (lastFinal) para evitar reprocessar acumulado
+ * - Modo "email": merge incremental e permite estado parcial durante ditado (mantém @)
  */
 export default function VoiceTextInput({
   id,
@@ -37,37 +29,100 @@ export default function VoiceTextInput({
 
   enableVoice = true,
   lang = "pt-BR",
-  applyMode = "append", // append | replace
+
+  // append | replace | email
+  applyMode = "append",
+
+  // normalizeTranscript pode ser (text, ctx) => string
+  // ctx = { mode: "final" | "interim", fieldType: "email" | "text" }
   normalizeTranscript,
+
   showPreview = true,
   autoStopOnBlur = true,
 
-  // UX opcional
-  showIdleHintOnFocus = true,
-  idleHint = "Toque no microfone e dite para preencher.",
-  listeningHint = "Para finalizar, faça uma pausa curta ou toque no ■.",
+  // UX
+  listeningHint = "Toque no quadrado para concluir",
+  idleHint = "Toque no microfone para ditar",
 }) {
   const stt = useSpeechToText({
     lang,
     continuous: true,
     interimResults: true,
-    autoResume: true, // importante para ritmo/pausas
+    autoRestart: true,
+    restartDelayMs: 220,
   });
 
-  const [focused, setFocused] = useState(false);
+  const appliedOnceRef = useRef(false);
 
-  // aplica SOMENTE quando chegar um "final" (delta)
+  function normalize(text, ctx) {
+    const raw = String(text || "");
+    if (typeof normalizeTranscript === "function") {
+      return String(normalizeTranscript(raw, ctx) || "");
+    }
+    return raw;
+  }
+
+  function mergeValue(base, chunk) {
+    const b = String(base || "");
+    const c = String(chunk || "");
+
+    if (!c.trim()) return b;
+
+    if (applyMode === "replace") return c.trim();
+
+    if (applyMode === "email") {
+      // Email é incremental e sem espaços
+      const b0 = b.replace(/\s+/g, "");
+      let c0 = c.replace(/\s+/g, "");
+
+      // Se o trecho vier começando com @, anexa direto
+      if (c0.startsWith("@")) return (b0 + c0).replace(/@{2,}/g, "@");
+
+      // Se base termina com @, anexa sem nada
+      if (b0.endsWith("@")) return (b0 + c0).replace(/@{2,}/g, "@");
+
+      // Se chunk contém @ e base já tem @, prioriza base e remove @ extra do chunk
+      if (b0.includes("@") && c0.includes("@")) {
+        c0 = c0.replace(/@+/g, "");
+        return (b0 + c0).replace(/@{2,}/g, "@");
+      }
+
+      // Se chunk tem @ e base não tem, cola direto
+      if (!b0.includes("@") && c0.includes("@")) return (b0 + c0).replace(/@{2,}/g, "@");
+
+      // Se base já tem @, só anexa domínio/continuação
+      if (b0.includes("@") && !c0.includes("@")) return b0 + c0;
+
+      // Caso geral: anexa
+      return b0 + c0;
+    }
+
+    // append normal com espaço
+    const bTrim = b.trim();
+    const cTrim = c.trim();
+    return [bTrim, cTrim].filter(Boolean).join(" ").trim();
+  }
+
+  // aplica SOMENTE quando chegar um "lastFinal"
   useEffect(() => {
-    if (!stt.finalText) return;
+    const last = stt.consumeLastFinal?.();
+    if (!last) return;
 
-    const raw = String(stt.finalText || "").trim();
-    const normalized = normalizeTranscript ? normalizeTranscript(raw) : raw;
+    const base = String(value || "");
 
-    const base = String(value || "").trim();
-    const next =
-      applyMode === "replace"
-        ? normalized
-        : [base, normalized].filter(Boolean).join(" ").trim();
+    // normaliza trecho final (permitindo estado parcial no email)
+    const chunk = normalize(last, {
+      mode: "final",
+      fieldType: applyMode === "email" ? "email" : "text",
+    });
+
+    // normaliza base também no caso de email (para não carregar sujeira)
+    const baseNormalized =
+      applyMode === "email"
+        ? normalize(base, { mode: "final", fieldType: "email" })
+        : base;
+
+    const next = mergeValue(baseNormalized, chunk);
 
     if (typeof onChangeValue === "function") {
       onChangeValue(next);
@@ -75,12 +130,13 @@ export default function VoiceTextInput({
       onChange({ target: { name, value: next, type: "text" } });
     }
 
-    // limpa buffers para não reaplicar
-    stt.reset();
+    appliedOnceRef.current = true;
+    // não chamar stt.reset aqui (isso zera buffers e atrapalha sensação de continuidade)
+    // lastFinal já foi consumido e limpo
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stt.finalText]);
+  }, [stt.lastFinal]);
 
-  // para automaticamente ao sair do campo (UX melhor)
+  // para automaticamente ao sair do campo
   useEffect(() => {
     if (!autoStopOnBlur) return;
     const el = inputRef?.current;
@@ -88,25 +144,22 @@ export default function VoiceTextInput({
 
     const onBlurLocal = () => {
       if (stt.listening) stt.stop();
-      setFocused(false);
     };
-    const onFocusLocal = () => setFocused(true);
 
     el.addEventListener("blur", onBlurLocal);
-    el.addEventListener("focus", onFocusLocal);
-    return () => {
-      el.removeEventListener("blur", onBlurLocal);
-      el.removeEventListener("focus", onFocusLocal);
-    };
+    return () => el.removeEventListener("blur", onBlurLocal);
   }, [autoStopOnBlur, inputRef, stt.listening, stt.stop]);
 
   const preview = useMemo(() => {
     if (!stt.listening) return "";
-    if (!stt.interimText) return "Ouvindo…";
     const raw = String(stt.interimText || "").trim();
-    const normalized = normalizeTranscript ? normalizeTranscript(raw) : raw;
-    return normalized ? `Ouvindo… ${normalized}` : "Ouvindo…";
-  }, [stt.listening, stt.interimText, normalizeTranscript]);
+    if (!raw) return "Ouvindo";
+    const normalized = normalize(raw, {
+      mode: "interim",
+      fieldType: applyMode === "email" ? "email" : "text",
+    });
+    return normalized ? `Ouvindo ${normalized}` : "Ouvindo";
+  }, [stt.listening, stt.interimText, applyMode]); // eslint-disable-line
 
   const micDisabled = disabled || !enableVoice || !stt.supported;
 
@@ -131,15 +184,11 @@ export default function VoiceTextInput({
       ? "Microfone indisponível"
       : stt.error === "network"
       ? "Falha de rede no reconhecimento"
-      : stt.error === "not-supported"
-      ? "Ditado por voz indisponível neste navegador"
       : "Falha no ditado por voz"
     : "";
 
-  const showStateLine =
-    enableVoice &&
-    showPreview &&
-    (stt.listening || stt.error || (focused && showIdleHintOnFocus));
+  // microcopy de UX (sem ponto final no texto)
+  const uxHint = stt.listening ? listeningHint : idleHint;
 
   return (
     <div>
@@ -175,7 +224,7 @@ export default function VoiceTextInput({
                 ? "Ditado por voz indisponível"
                 : stt.listening
                 ? "Parar ditado"
-                : "Iniciar ditado"
+                : "Falar"
             }
             aria-pressed={stt.listening}
             title={
@@ -192,56 +241,47 @@ export default function VoiceTextInput({
         )}
       </div>
 
-      {showStateLine && (
-        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] md:text-xs">
-          {/* Linha principal (ouvindo / idle) */}
-          {!stt.error && (
-            <>
-              {stt.listening ? (
-                <>
-                  <span
-                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border"
-                    style={{
-                      borderColor:
-                        "color-mix(in srgb, var(--primary) 45%, transparent)",
-                      background:
-                        "color-mix(in srgb, var(--primary) 12%, transparent)",
-                      color: "var(--text)",
-                    }}
-                    aria-live="polite"
-                  >
-                    <span
-                      className="inline-block h-1.5 w-1.5 rounded-full"
-                      style={{ background: "var(--primary)" }}
-                    />
-                    <span className="font-medium">Ouvindo</span>
-                  </span>
+      {(enableVoice && showPreview && (stt.listening || stt.error)) && (
+        <div className="mt-1 flex flex-col gap-1">
+          <div className="flex items-center gap-2 text-[11px] md:text-xs">
+            {stt.listening && (
+              <span style={{ color: "var(--text-muted)" }}>{preview}</span>
+            )}
+            {helperText && <span className="text-red-600">{helperText}</span>}
+          </div>
 
-                  <span style={{ color: "var(--text-muted)" }}>
-                    {preview}
-                  </span>
+          {enableVoice && (
+            <div
+              className="inline-flex items-center gap-2 text-[11px] md:text-xs"
+              style={{ color: "var(--text-muted)" }}
+            >
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border"
+                style={{
+                  borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+                  background:
+                    "color-mix(in srgb, var(--surface-elevated) 88%, transparent)",
+                }}
+              >
+                {uxHint}
+              </span>
 
-                  <span
-                    className="inline-flex items-center gap-1"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    <Info size={12} />
-                    {listeningHint}
-                  </span>
-                </>
-              ) : (
-                focused &&
-                showIdleHintOnFocus && (
-                  <span style={{ color: "var(--text-muted)" }}>
-                    {idleHint}
-                  </span>
-                )
+              {applyMode === "email" && stt.listening && (
+                <span
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 border"
+                  style={{
+                    borderColor:
+                      "color-mix(in srgb, var(--primary) 30%, transparent)",
+                    background:
+                      "color-mix(in srgb, var(--primary) 10%, transparent)",
+                    color: "var(--primary)",
+                  }}
+                >
+                  Dica diga arroba e ponto
+                </span>
               )}
-            </>
+            </div>
           )}
-
-          {/* Erros (se existirem) */}
-          {helperText && <span className="text-red-600">{helperText}</span>}
         </div>
       )}
     </div>

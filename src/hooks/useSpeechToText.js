@@ -7,59 +7,41 @@ function getSR() {
 }
 
 /**
- * Hook robusto para ditado (Web Speech API), com UX estável.
+ * Hook robusto para ditado (Web Speech API), com estabilidade para ritmo variado
  *
- * Melhorias principais nesta versão:
- * - `finalText` agora representa APENAS o último trecho final (delta) capturado.
- *   Isso evita “reaplicar” tudo quando o componente consumidor chama reset().
- * - Auto-resume: alguns navegadores encerram o reconhecimento após pausas.
- *   Quando `shouldBeListening=true` e não foi stop manual, reinicia automaticamente.
- * - Backoff leve e limite de tentativas para evitar loops em erro.
- * - Proteções extras para InvalidStateError e timing.
+ * Melhorias relevantes para seu caso:
+ * - expõe lastFinal (apenas o ÚLTIMO trecho final) para evitar reprocessar acumulados
+ * - autoRestart opcional: Chrome costuma encerrar após silêncio e “quebrar” frases
+ * - controle de intenção: startWantedRef evita restart após stop manual
  */
 export default function useSpeechToText({
   lang = "pt-BR",
   continuous = true,
   interimResults = true,
   maxAlternatives = 1,
-  autoStopAfterMs = 120000, // 2 min
-  autoResume = true,
-  autoResumeDelayMs = 250,
-  maxAutoResumeTries = 8,
+  autoStopAfterMs = 120000,
+  autoRestart = true,
+  restartDelayMs = 250,
 } = {}) {
   const { SR, supported } = useMemo(getSR, []);
 
   const recRef = useRef(null);
   const timerRef = useRef(null);
 
-  // flags de controle para evitar eventos bagunçando a UI
   const startingRef = useRef(false);
   const stoppingRef = useRef(false);
-
-  // intenção do usuário (o que ele quer, mesmo se o browser “cair” sozinho)
-  const shouldBeListeningRef = useRef(false);
-
-  // controle de auto-resume
-  const resumeTryRef = useRef(0);
-  const resumeTimerRef = useRef(null);
+  const startWantedRef = useRef(false);
+  const lastErrorRef = useRef("");
 
   const [listening, setListening] = useState(false);
-
-  // IMPORTANTES:
-  // - finalText: somente o último trecho FINAL (delta)
-  // - interimText: preview parcial
   const [finalText, setFinalText] = useState("");
+  const [lastFinal, setLastFinal] = useState("");
   const [interimText, setInterimText] = useState("");
   const [error, setError] = useState("");
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
-  }, []);
-
-  const clearResumeTimer = useCallback(() => {
-    if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
-    resumeTimerRef.current = null;
   }, []);
 
   const detachHandlers = useCallback((rec) => {
@@ -81,46 +63,6 @@ export default function useSpeechToText({
     } catch {}
   }, [detachHandlers]);
 
-  const scheduleAutoResume = useCallback(() => {
-    if (!autoResume) return;
-    if (!supported) return;
-
-    if (!shouldBeListeningRef.current) return;
-    if (stoppingRef.current) return;
-
-    // evita loop infinito
-    if (resumeTryRef.current >= maxAutoResumeTries) return;
-
-    clearResumeTimer();
-    const tryIndex = resumeTryRef.current;
-
-    resumeTimerRef.current = setTimeout(() => {
-      // ainda quer ouvir?
-      if (!shouldBeListeningRef.current) return;
-      if (stoppingRef.current) return;
-
-      // backoff leve (250ms, 350ms, 450ms…)
-      const backoff = autoResumeDelayMs + tryIndex * 100;
-
-      resumeTryRef.current += 1;
-      try {
-        recRef.current?.start?.();
-      } catch {
-        // se falhar, agenda uma nova tentativa com backoff
-        clearResumeTimer();
-        resumeTimerRef.current = setTimeout(() => {
-          scheduleAutoResume();
-        }, backoff);
-      }
-    }, autoResumeDelayMs);
-  }, [
-    autoResume,
-    supported,
-    maxAutoResumeTries,
-    autoResumeDelayMs,
-    clearResumeTimer,
-  ]);
-
   const ensureRecognizer = useCallback(() => {
     if (!supported) return null;
     if (recRef.current) return recRef.current;
@@ -134,15 +76,9 @@ export default function useSpeechToText({
     rec.onstart = () => {
       startingRef.current = false;
       stoppingRef.current = false;
-
+      lastErrorRef.current = "";
       setListening(true);
       setInterimText("");
-      setError("");
-
-      // reset de auto-resume ao iniciar “de verdade”
-      resumeTryRef.current = 0;
-      clearResumeTimer();
-
       clearTimer();
       timerRef.current = setTimeout(() => {
         stop();
@@ -150,7 +86,6 @@ export default function useSpeechToText({
     };
 
     rec.onresult = (event) => {
-      // alguns browsers disparam onresult durante stop; ignorar nesses casos
       if (stoppingRef.current) return;
 
       let interim = "";
@@ -165,24 +100,20 @@ export default function useSpeechToText({
         else interim += (interim ? " " : "") + text;
       }
 
-      // finalText = somente delta final (último trecho)
       if (final) {
-        setFinalText(final);
+        setFinalText((prev) => (prev ? prev + " " : "") + final);
+        setLastFinal(final);
       }
       setInterimText(interim);
     };
 
     rec.onerror = (e) => {
       const code = e?.error || "erro";
+      lastErrorRef.current = code;
       setError(code);
 
-      // Em erro, browsers podem ficar instáveis.
-      // Encerra e força recriação.
       stoppingRef.current = true;
-      shouldBeListeningRef.current = false;
-
       clearTimer();
-      clearResumeTimer();
 
       try {
         rec?.abort?.();
@@ -191,25 +122,34 @@ export default function useSpeechToText({
       setListening(false);
       setInterimText("");
 
+      // força recriação na próxima tentativa
       destroyRecognizer();
 
       stoppingRef.current = false;
       startingRef.current = false;
-      resumeTryRef.current = 0;
+      startWantedRef.current = false;
     };
 
     rec.onend = () => {
       setListening(false);
       setInterimText("");
       clearTimer();
-
       startingRef.current = false;
       stoppingRef.current = false;
 
-      // Se o usuário queria continuar (não foi stop manual),
-      // reinicia automaticamente para lidar com pausas/ritmo.
-      if (shouldBeListeningRef.current) {
-        scheduleAutoResume();
+      // Auto-restart se o usuário ainda “quer” ditado e não houve erro
+      if (
+        autoRestart &&
+        startWantedRef.current &&
+        !lastErrorRef.current &&
+        supported
+      ) {
+        setTimeout(() => {
+          const r = ensureRecognizer();
+          try {
+            r?.start?.();
+          } catch {}
+        }, restartDelayMs);
       }
     };
 
@@ -223,29 +163,26 @@ export default function useSpeechToText({
     interimResults,
     maxAlternatives,
     autoStopAfterMs,
+    autoRestart,
+    restartDelayMs,
     clearTimer,
-    clearResumeTimer,
     destroyRecognizer,
-    scheduleAutoResume,
   ]);
 
   const stop = useCallback(() => {
-    shouldBeListeningRef.current = false;
+    startWantedRef.current = false;
 
     if (!recRef.current) {
       setListening(false);
       setInterimText("");
       clearTimer();
-      clearResumeTimer();
       return;
     }
 
     stoppingRef.current = true;
     clearTimer();
-    clearResumeTimer();
 
     const rec = recRef.current;
-
     try {
       rec.stop();
     } catch {
@@ -258,17 +195,25 @@ export default function useSpeechToText({
     setListening(false);
     setInterimText("");
     stoppingRef.current = false;
-  }, [clearTimer, clearResumeTimer, destroyRecognizer]);
+  }, [clearTimer, destroyRecognizer]);
 
   const reset = useCallback(() => {
-    // Reseta buffers de exibição (não interfere com sessão ativa).
     setFinalText("");
+    setLastFinal("");
     setInterimText("");
     setError("");
+    lastErrorRef.current = "";
   }, []);
+
+  const consumeLastFinal = useCallback(() => {
+    const v = lastFinal;
+    if (v) setLastFinal("");
+    return v;
+  }, [lastFinal]);
 
   const start = useCallback(() => {
     setError("");
+    lastErrorRef.current = "";
 
     if (!supported) {
       setError("not-supported");
@@ -279,20 +224,15 @@ export default function useSpeechToText({
     const rec = ensureRecognizer();
     if (!rec) return;
 
-    // Se já está ouvindo, não reinicia
-    if (listening) {
-      shouldBeListeningRef.current = true;
-      return;
-    }
+    if (listening) return;
 
-    shouldBeListeningRef.current = true;
     startingRef.current = true;
-    resumeTryRef.current = 0;
+    startWantedRef.current = true;
 
     try {
       rec.start();
     } catch {
-      // InvalidStateError (start rápido demais) -> recria e tenta uma vez
+      // InvalidStateError (start rápido)
       try {
         rec.abort();
       } catch {}
@@ -303,7 +243,7 @@ export default function useSpeechToText({
         rec2?.start?.();
       } catch {
         setError("start-failed");
-        shouldBeListeningRef.current = false;
+        startWantedRef.current = false;
       } finally {
         startingRef.current = false;
       }
@@ -313,22 +253,23 @@ export default function useSpeechToText({
   useEffect(() => {
     return () => {
       clearTimer();
-      clearResumeTimer();
       try {
         recRef.current?.abort?.();
       } catch {}
       destroyRecognizer();
     };
-  }, [clearTimer, clearResumeTimer, destroyRecognizer]);
+  }, [clearTimer, destroyRecognizer]);
 
   return {
     supported,
     listening,
-    finalText,   // último trecho FINAL (delta)
-    interimText, // preview
+    finalText,
+    lastFinal,
+    interimText,
     error,
     start,
     stop,
     reset,
+    consumeLastFinal,
   };
 }
