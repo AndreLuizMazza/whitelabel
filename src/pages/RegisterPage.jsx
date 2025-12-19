@@ -1,12 +1,19 @@
 // src/pages/RegisterPage.jsx
+// RegisterPage (WhatsApp-inspired premium)
+// - Layout com “chat surface”: fundo com pattern sutil + cards como bubbles
+// - CTA estilo “Enviar” (pill + ícone)
+// - Campo e-mail blindado contra “sumir @” no mobile: autoCapitalize/autoCorrect/spellCheck e normalize mais permissivo em digitação
+// - Ditado por voz: normalização suave (não destrói o que o usuário digitou)
+// - Validação progressiva por etapas (3 passos)
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import useTenant from "@/store/tenant";
 import useAuth from "@/store/auth";
 import { registerUser } from "@/lib/authApi";
-import { AlertTriangle, UserPlus, Lock, CheckCircle2 } from "lucide-react";
 import { registrarDispositivoFcmWeb } from "@/lib/fcm";
 import VoiceTextInput from "@/components/VoiceTextInput";
+import { AlertTriangle, UserPlus, Lock, CheckCircle2, ArrowRight, ChevronLeft } from "lucide-react";
 
 const initial = {
   nome: "",
@@ -21,7 +28,6 @@ const initial = {
 };
 
 const onlyDigits = (s = "") => String(s || "").replace(/\D/g, "");
-
 const isValidEmail = (e = "") =>
   /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e || "").trim());
 
@@ -60,8 +66,7 @@ function formatCPF(v = "") {
   const d = onlyDigits(v).slice(0, 11);
   if (d.length <= 3) return d;
   if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
-  if (d.length <= 9)
-    return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
   return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
 }
 
@@ -69,11 +74,9 @@ function formatPhoneBR(v = "") {
   const d = onlyDigits(v).slice(0, 11);
   if (d.length <= 2) return d;
   if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
-  if (d.length === 10)
-    return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
-
 const phoneIsValid = (v = "") => {
   const d = onlyDigits(v);
   return d.length === 10 || d.length === 11;
@@ -108,7 +111,6 @@ function normalizeDigitsFromSpeech(input = "") {
 
   const parts = raw.split(" ");
   let out = "";
-
   for (const p of parts) {
     if (!p) continue;
     if (/^\d+$/.test(p)) {
@@ -118,7 +120,6 @@ function normalizeDigitsFromSpeech(input = "") {
     const digit = DIGIT_WORDS.get(p);
     if (digit) out += digit;
   }
-
   return out;
 }
 
@@ -130,29 +131,44 @@ function normalizeNameFromSpeech(input = "") {
 }
 
 /**
- * Normalizador de e-mail com modo parcial
- * - allowPartial=true mantém @ no final durante o ditado (evita sumir quando o Chrome entrega "arroba" separado)
- * - remove espaços e pontuação final
+ * E-mail: duas rotas
+ * - "typing": não tenta adivinhar demais (não remove @ final, não troca domínios agressivamente)
+ * - "voiceFinal": pode aplicar regras mais fortes ao finalizar ditado
+ *
+ * Isso evita o caso clássico: o usuário está digitando "nome@" e o normalizador “conserta” antes da hora.
  */
-function normalizeEmailFromSpeech(input = "", opts = {}) {
-  const { allowPartial = false } = opts;
+function normalizeEmailTyping(input = "") {
+  let t = String(input || "").toLowerCase();
 
-  const raw = String(input || "").toLowerCase().trim();
-  if (!raw) return "";
+  // remove espaços
+  t = t.replace(/\s+/g, "");
 
-  let t = raw;
+  // permite apenas chars válidos
+  t = t.replace(/[^a-z0-9@._+\-]/g, "");
 
-  // pontuações grudadas viram espaço
+  // evita @@ e .. repetidos
+  t = t.replace(/@{2,}/g, "@").replace(/\.{2,}/g, ".");
+
+  // não deixa ".@" ou "@." no meio
+  t = t.replace(/\.@/g, "@").replace(/@\./g, "@");
+
+  return t;
+}
+
+function normalizeEmailFromSpeechFinal(input = "") {
+  let t = String(input || "").toLowerCase().trim();
+
+  // pontuações viram espaço
   t = t.replace(/[,:;!]+/g, " ");
 
-  // arroba (variações comuns no ditado)
+  // arroba
   t = t
     .replace(/\ba\s*roba\b/g, "@")
     .replace(/\baroba\b/g, "@")
     .replace(/\barroba\b/g, "@")
     .replace(/\s+@\s+/g, "@");
 
-  // at (somente quando falado isolado)
+  // “at” isolado
   t = t.replace(/\bat\b/g, "@");
 
   // ponto
@@ -161,7 +177,7 @@ function normalizeEmailFromSpeech(input = "", opts = {}) {
   // remove espaços
   t = t.replace(/\s+/g, "");
 
-  // atalhos de provedores comuns
+  // provedores comuns
   const providerMap = [
     ["gmail", "gmail.com"],
     ["hotmail", "hotmail.com"],
@@ -173,28 +189,21 @@ function normalizeEmailFromSpeech(input = "", opts = {}) {
     t = t.replace(new RegExp(`@${spoken}(?![\\w.-])`, "g"), `@${domain}`);
   }
 
-  // limpa caracteres inválidos
+  // chars válidos
   t = t.replace(/[^a-z0-9@._+\-]/g, "");
 
-  // saneamento de repetições
-  t = t.replace(/\.{2,}/g, ".").replace(/@{2,}/g, "@");
-
-  // remove ponto colado no @
+  // saneamento
+  t = t.replace(/@{2,}/g, "@").replace(/\.{2,}/g, ".");
   t = t.replace(/\.@/g, "@").replace(/@\./g, "@");
-
-  // remove pontuação final proibida
   t = t.replace(/[.,;:!]+$/g, "");
 
-  if (!allowPartial) {
-    // no final, não deixa terminar com @ ou .
-    t = t.replace(/[@.]+$/g, "");
-  } else {
-    // parcial: permite @ no final, mas evita repetição
-    t = t.replace(/@{2,}$/g, "@").replace(/\.{2,}$/g, ".");
-  }
+  // não termina com @ ou .
+  t = t.replace(/[@.]+$/g, "");
 
   return t;
 }
+
+/* -------------------- date select -------------------- */
 
 function DateSelectBR({
   valueISO,
@@ -269,15 +278,6 @@ function DateSelectBR({
     });
   }, [ano, minY, maxY]); // eslint-disable-line
 
-  function clampMonthIfNeeded(y, m) {
-    const minM = y === minY ? minDate.getMonth() + 1 : 1;
-    const maxM = y === maxY ? maxDate.getMonth() + 1 : 12;
-    if (!m) return m;
-    if (m < minM) return minM;
-    if (m > maxM) return maxM;
-    return m;
-  }
-
   function clampDayIfNeeded(y, m, d) {
     if (!y || !m || !d) return d;
     const maxDMonth = daysInMonth(y, m);
@@ -293,16 +293,8 @@ function DateSelectBR({
 
   function inRange(iso) {
     const d = new Date(iso);
-    const a = new Date(
-      minDate.getFullYear(),
-      minDate.getMonth(),
-      minDate.getDate()
-    );
-    const b = new Date(
-      maxDate.getFullYear(),
-      maxDate.getMonth(),
-      maxDate.getDate()
-    );
+    const a = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
+    const b = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
     return !isNaN(d) && d >= a && d <= b;
   }
 
@@ -314,32 +306,6 @@ function DateSelectBR({
     if (!ok) setSoftWarn("Data fora do intervalo permitido entre 18 e 100 anos");
     onChangeISO?.(iso);
   }, [dia, mes, ano]); // eslint-disable-line
-
-  function handleChangeAno(nextAnoStr) {
-    setSoftWarn("");
-    const y = str2int(nextAnoStr);
-    setAno(nextAnoStr);
-    if (!y) return;
-
-    let m = str2int(mes);
-    const mClamped = clampMonthIfNeeded(y, m || 0);
-    if (m && m !== mClamped) {
-      setMes(String(mClamped).padStart(2, "0"));
-      setSoftWarn("Ajustamos o mês para o limite permitido");
-      m = mClamped;
-    }
-
-    if (m) {
-      const d = str2int(dia);
-      if (d) {
-        const dClamped = clampDayIfNeeded(y, m, d);
-        if (dClamped !== d) {
-          setDia(String(dClamped).padStart(2, "0"));
-          setSoftWarn("Ajustamos o dia para o máximo permitido no período");
-        }
-      }
-    }
-  }
 
   function handleChangeMes(nextMesStr) {
     setSoftWarn("");
@@ -363,9 +329,7 @@ function DateSelectBR({
   return (
     <div>
       <div
-        className={`grid grid-cols-3 gap-2 ${
-          invalid ? "ring-1 ring-red-500 rounded-md p-1" : ""
-        } ${className}`}
+        className={`grid grid-cols-3 gap-2 ${invalid ? "ring-1 ring-red-500 rounded-xl p-1" : ""} ${className}`}
       >
         <label htmlFor={idDia} className="sr-only">
           Dia
@@ -384,18 +348,14 @@ function DateSelectBR({
               maxD = 31;
             if (y && m) {
               const maxDMonth = daysInMonth(y, m);
-              minD =
-                y === minY && m === minDate.getMonth() + 1
-                  ? minDate.getDate()
-                  : 1;
+              minD = y === minY && m === minDate.getMonth() + 1 ? minDate.getDate() : 1;
               maxD =
                 y === maxY && m === maxDate.getMonth() + 1
                   ? Math.min(maxDMonth, maxDate.getDate())
                   : maxDMonth;
             }
             const arr = [];
-            for (let d = minD; d <= maxD; d++)
-              arr.push(String(d).padStart(2, "0"));
+            for (let d = minD; d <= maxD; d++) arr.push(String(d).padStart(2, "0"));
             return arr.map((d) => (
               <option key={d} value={d}>
                 {d}
@@ -428,7 +388,7 @@ function DateSelectBR({
           id={idAno}
           className="input h-12 text-base bg-white"
           value={ano}
-          onChange={(e) => handleChangeAno(e.target.value)}
+          onChange={(e) => setAno(e.target.value)}
         >
           <option value="">Ano</option>
           {anos.map((y) => (
@@ -446,8 +406,7 @@ function DateSelectBR({
           }`}
           role="alert"
         >
-          <AlertTriangle size={14} />{" "}
-          {invalid ? "Você precisa ter entre 18 e 100 anos" : softWarn}
+          <AlertTriangle size={14} /> {invalid ? "Você precisa ter entre 18 e 100 anos" : softWarn}
         </p>
       )}
     </div>
@@ -469,10 +428,84 @@ function Rule({ ok, children }) {
       >
         {ok ? "✓" : "•"}
       </span>
-      <span style={{ color: ok ? "var(--text)" : "var(--text-muted)" }}>
-        {children}
-      </span>
+      <span style={{ color: ok ? "var(--text)" : "var(--text-muted)" }}>{children}</span>
     </li>
+  );
+}
+
+function ChatBubble({ side = "left", title, children, tone = "neutral" }) {
+  const left = side === "left";
+  const bg =
+    tone === "brand"
+      ? "color-mix(in srgb, var(--primary) 16%, var(--surface) 84%)"
+      : "color-mix(in srgb, var(--surface-elevated) 92%, transparent)";
+  const border =
+    tone === "brand"
+      ? "color-mix(in srgb, var(--primary) 30%, transparent)"
+      : "color-mix(in srgb, var(--text) 14%, transparent)";
+
+  return (
+    <div className={`flex ${left ? "justify-start" : "justify-end"}`}>
+      <div
+        className="max-w-[540px] rounded-2xl px-4 py-3 border shadow-sm"
+        style={{
+          background: bg,
+          borderColor: border,
+          borderTopLeftRadius: left ? 10 : 22,
+          borderTopRightRadius: left ? 22 : 10,
+        }}
+      >
+        {title ? (
+          <p className="text-xs md:text-sm font-semibold mb-1" style={{ color: "var(--text)" }}>
+            {title}
+          </p>
+        ) : null}
+        <div className="text-xs md:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StepPills({ step }) {
+  return (
+    <div className="flex items-center gap-2">
+      {[1, 2, 3].map((n) => {
+        const active = step === n;
+        const done = step > n;
+        return (
+          <span
+            key={n}
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs md:text-sm"
+            style={{
+              borderColor: active
+                ? "color-mix(in srgb, var(--primary) 40%, transparent)"
+                : "color-mix(in srgb, var(--text) 14%, transparent)",
+              background: active
+                ? "color-mix(in srgb, var(--primary) 18%, transparent)"
+                : "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
+              color: active ? "var(--text)" : "var(--text-muted)",
+            }}
+          >
+            <span
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold"
+              style={{
+                background: done
+                  ? "color-mix(in srgb, var(--primary) 28%, transparent)"
+                  : active
+                  ? "color-mix(in srgb, var(--primary) 22%, transparent)"
+                  : "color-mix(in srgb, var(--text) 10%, transparent)",
+                color: done || active ? "var(--primary)" : "var(--text-muted)",
+              }}
+            >
+              {done ? "✓" : n}
+            </span>
+            <span>{n === 1 ? "Dados" : n === 2 ? "Contato" : "Senha"}</span>
+          </span>
+        );
+      })}
+    </div>
   );
 }
 
@@ -486,7 +519,6 @@ export default function RegisterPage() {
   const [form, setForm] = useState(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [okMsg, setOkMsg] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [errorList, setErrorList] = useState([]);
   const [step, setStep] = useState(1);
@@ -528,16 +560,12 @@ export default function RegisterPage() {
   );
   const celularOk = useMemo(() => phoneIsValid(form.celular), [form.celular]);
 
-  const formValido =
-    nomeOk && emailOk && cpfOk && celularOk && idadeOk && senhaOk && confirmOk;
-
   const step1Valid = nomeOk && cpfOk && idadeOk;
   const step2Valid = emailOk && celularOk;
   const step3Valid = senhaOk && confirmOk;
 
   useEffect(() => {
     setError("");
-    setOkMsg("");
   }, [form]);
 
   useEffect(() => {
@@ -548,17 +576,10 @@ export default function RegisterPage() {
     const items = [];
     const age = ageFromISO(values.dataNascimento);
 
-    if (!(values.nome || "").trim())
-      items.push({ field: "nome", label: "Nome completo é obrigatório" });
-
-    if (!isValidEmail(values.email))
-      items.push({ field: "email", label: "Informe um e-mail válido" });
-
-    if (!isValidCPF(values.cpf))
-      items.push({ field: "cpf", label: "Informe um CPF válido" });
-
-    if (!phoneIsValid(values.celular))
-      items.push({ field: "celular", label: "Informe um celular válido com DDD" });
+    if (!(values.nome || "").trim()) items.push({ field: "nome", label: "Nome completo é obrigatório" });
+    if (!isValidEmail(values.email)) items.push({ field: "email", label: "Informe um e-mail válido" });
+    if (!isValidCPF(values.cpf)) items.push({ field: "cpf", label: "Informe um CPF válido" });
+    if (!phoneIsValid(values.celular)) items.push({ field: "celular", label: "Informe um celular válido com DDD" });
 
     if (!values.dataNascimento || age === null) {
       items.push({ field: "dataNascimento", label: "Informe sua data de nascimento" });
@@ -580,16 +601,10 @@ export default function RegisterPage() {
     return items;
   }
 
-  function buildStep1Errors(values) {
+  function buildStepErrors(values, stepN) {
     const all = buildErrorList(values);
-    const step1Fields = ["nome", "cpf", "dataNascimento"];
-    return all.filter((it) => step1Fields.includes(it.field));
-  }
-
-  function buildStep2Errors(values) {
-    const all = buildErrorList(values);
-    const step2Fields = ["email", "celular"];
-    return all.filter((it) => step2Fields.includes(it.field));
+    const fields = stepN === 1 ? ["nome", "cpf", "dataNascimento"] : stepN === 2 ? ["email", "celular"] : null;
+    return fields ? all.filter((it) => fields.includes(it.field)) : all;
   }
 
   function focusByField(field) {
@@ -606,9 +621,7 @@ export default function RegisterPage() {
 
   const recomputeErrorsIfSubmitted = (next) => {
     if (!submitted) return;
-    const list =
-      step === 1 ? buildStep1Errors(next) : step === 2 ? buildStep2Errors(next) : buildErrorList(next);
-    setErrorList(list);
+    setErrorList(buildStepErrors(next, step));
   };
 
   const onChangeMasked =
@@ -623,35 +636,26 @@ export default function RegisterPage() {
 
   const onPasteMasked = (name, formatter) => (e) => {
     e.preventDefault();
-    const pasted =
-      (e.clipboardData || window.clipboardData).getData("text") || "";
+    const pasted = (e.clipboardData || window.clipboardData).getData("text") || "";
     const nextVal = formatter(pasted);
     const next = { ...form, [name]: nextVal };
     setForm(next);
     recomputeErrorsIfSubmitted(next);
   };
 
-  function onChange(e) {
-    const { name, value, type, checked } = e.target;
-    const next = { ...form, [name]: type === "checkbox" ? checked : value };
-    setForm(next);
-    recomputeErrorsIfSubmitted(next);
-  }
-
   async function onSubmit(e) {
     e.preventDefault();
     if (loading) return;
 
+    // Step 1 -> Step 2
     if (step === 1) {
       setSubmitted(true);
-      const list = buildStep1Errors(form);
+      const list = buildStepErrors(form, 1);
       setErrorList(list);
-
       if (list.length > 0 || !step1Valid) {
-        if (list.length > 0) focusByField(list[0].field);
+        if (list[0]) focusByField(list[0].field);
         return;
       }
-
       setStep(2);
       setSubmitted(false);
       setErrorList([]);
@@ -659,16 +663,15 @@ export default function RegisterPage() {
       return;
     }
 
+    // Step 2 -> Step 3
     if (step === 2) {
       setSubmitted(true);
-      const list = buildStep2Errors(form);
+      const list = buildStepErrors(form, 2);
       setErrorList(list);
-
       if (list.length > 0 || !step2Valid) {
-        if (list.length > 0) focusByField(list[0].field);
+        if (list[0]) focusByField(list[0].field);
         return;
       }
-
       setStep(3);
       setSubmitted(false);
       setErrorList([]);
@@ -676,21 +679,12 @@ export default function RegisterPage() {
       return;
     }
 
+    // Final
     setSubmitted(true);
     const list = buildErrorList(form);
     setErrorList(list);
-
     if (list.length > 0 || !step3Valid) {
-      if (list.length > 0) focusByField(list[0].field);
-      return;
-    }
-
-    if (!isValidCPF(form.cpf)) {
-      setError("CPF inválido verifique os números digitados");
-      setTimeout(() => alertRef.current?.focus(), 0);
-      focusByField("cpf");
-      setStep(1);
-      setSubmitted(false);
+      if (list[0]) focusByField(list[0].field);
       return;
     }
 
@@ -708,25 +702,12 @@ export default function RegisterPage() {
     try {
       setLoading(true);
       setError("");
-      setOkMsg("");
 
       await registerUser(payload);
       await login(identificador, form.senha);
 
       try {
         await registrarDispositivoFcmWeb();
-      } catch {}
-
-      try {
-        const prefill = {
-          cpf: onlyDigits(form.cpf),
-          celular: onlyDigits(form.celular),
-          dataNascimento: form.dataNascimento || "",
-          email: (form.email || "").trim(),
-          nome: (form.nome || "").trim(),
-        };
-        sessionStorage.setItem("reg_prefill", JSON.stringify(prefill));
-        localStorage.setItem("register:last", JSON.stringify(prefill));
       } catch {}
 
       navigate(from, { replace: true });
@@ -737,7 +718,6 @@ export default function RegisterPage() {
         (typeof err?.response?.data === "string" ? err?.response?.data : null) ||
         "Não foi possível concluir o cadastro";
       setError(apiMsg);
-      setOkMsg("");
       setTimeout(() => alertRef.current?.focus(), 0);
     } finally {
       setLoading(false);
@@ -750,76 +730,95 @@ export default function RegisterPage() {
     return n.split(" ")[0];
   }, [form.nome]);
 
-  const stepTitle =
+  const chatHint =
     step === 1
-      ? "Etapa 1 de 3 · Seus dados principais"
+      ? { title: "Vamos começar", text: "Preencha nome, CPF e data de nascimento. Se preferir, use o microfone." }
       : step === 2
-      ? "Etapa 2 de 3 · Contatos"
-      : "Etapa 3 de 3 · Sua senha";
+      ? {
+          title: "Agora seus contatos",
+          text: "No e-mail, digite normalmente. No ditado, diga “arroba” e “ponto”.",
+        }
+      : { title: "Falta pouco", text: "Crie uma senha forte e confirme para finalizar." };
 
-  const stepDesc =
-    step === 1
-      ? "Preencha seus dados para começar"
-      : step === 2
-      ? "Confirme e-mail e celular para enviarmos comunicados importantes"
-      : "Defina uma senha segura para acessar sua conta";
-
-  const progressPercent = step === 1 ? "33%" : step === 2 ? "66%" : "100%";
-
-  const voiceGuidance =
-    step === 1
-      ? "Toque no microfone fale e toque no quadrado para concluir"
-      : step === 2
-      ? "No e-mail diga arroba e ponto no final toque no quadrado para concluir"
-      : "Você pode digitar sua senha com segurança";
+  const sendLabel = step === 3 ? "Criar conta" : "Continuar";
+  const canGoBack = step > 1;
 
   return (
     <section className="section">
       <div className="container-max max-w-4xl relative">
         <div className="min-h-[60vh] py-8 flex flex-col justify-center">
+          {/* WhatsApp-ish chat background */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 top-[72px] mx-auto h-40 max-w-2xl rounded-[48px] opacity-70"
+            className="pointer-events-none absolute inset-0 -z-10 rounded-[48px]"
             style={{
               background:
-                "radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)",
-              zIndex: -1,
+                "radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--primary) 16%, transparent) 0, transparent 70%)," +
+                "radial-gradient(80% 80% at 10% 20%, color-mix(in srgb, var(--text) 10%, transparent) 0, transparent 60%)," +
+                "radial-gradient(80% 80% at 90% 30%, color-mix(in srgb, var(--text) 8%, transparent) 0, transparent 60%)," +
+                "linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface) 82%, transparent))",
+              maskImage:
+                "radial-gradient(120% 90% at 50% 0%, #000 0, #000 40%, transparent 75%)",
+              opacity: 0.9,
             }}
           />
 
+          {/* Top bar (WhatsApp vibe) */}
           <header className="mb-6">
             <div
-              className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--surface-elevated)_94%,transparent)] p-1 border shadow-sm"
+              className="rounded-3xl border shadow-lg px-4 py-3 flex items-center justify-between gap-3"
               style={{
-                borderColor: "color-mix(in srgb, var(--primary) 28%, transparent)",
+                background: "color-mix(in srgb, var(--surface) 88%, var(--text) 6%)",
+                borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
               }}
             >
-              <button
-                type="button"
-                className="px-4 py-1.5 text-xs md:text-sm font-semibold rounded-full bg-[color-mix(in_srgb,var(--primary)_22%,transparent)] inline-flex items-center gap-1.5"
-              >
-                <UserPlus size={14} />
-                <span>Criar conta</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate("/login")}
-                className="px-4 py-1.5 text-xs md:text-sm font-medium rounded-full hover:bg-[color-mix(in_srgb,var(--surface)_92%,transparent)]"
-              >
-                Já tenho conta
-              </button>
+              <div className="flex items-center gap-3">
+                <span
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border"
+                  style={{
+                    background: "color-mix(in srgb, var(--primary) 18%, transparent)",
+                    borderColor: "color-mix(in srgb, var(--primary) 32%, transparent)",
+                    color: "var(--primary)",
+                  }}
+                >
+                  <UserPlus size={18} />
+                </span>
+                <div>
+                  <p className="text-sm md:text-base font-semibold leading-tight">
+                    Criar conta
+                  </p>
+                  <p className="text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
+                    Cadastro rápido em 3 passos
+                  </p>
+                </div>
+              </div>
+
+              <div className="hidden sm:block">
+                <StepPills step={step} />
+              </div>
             </div>
 
-            <h1 className="mt-4 text-2xl md:text-3xl font-semibold tracking-tight">
-              Cadastro premium em poucos passos
-            </h1>
+            <div className="sm:hidden mt-3">
+              <StepPills step={step} />
+            </div>
 
-            <p
-              className="mt-1 text-sm md:text-base leading-relaxed"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Experiência fluida com validação instantânea e ditado por voz
-            </p>
+            <div className="mt-4 space-y-3">
+              <ChatBubble side="left" title={chatHint.title} tone="brand">
+                {chatHint.text}
+              </ChatBubble>
+
+              {step === 3 && (
+                <ChatBubble side="right" title="Perfeito" tone="neutral">
+                  {firstName ? (
+                    <>
+                      {firstName}, seus dados já estão prontos. Agora é só definir a senha.
+                    </>
+                  ) : (
+                    <>Seus dados já estão prontos. Agora é só definir a senha.</>
+                  )}
+                </ChatBubble>
+              )}
+            </div>
           </header>
 
           {error && (
@@ -827,10 +826,10 @@ export default function RegisterPage() {
               ref={alertRef}
               role="alert"
               tabIndex={-1}
-              className="mb-4 rounded-2xl px-4 py-3 text-sm md:text-base"
+              className="mb-4 rounded-2xl px-4 py-3 text-sm md:text-base border shadow-sm"
               style={{
-                border: "1px solid color-mix(in srgb, var(--primary) 30%, transparent)",
-                background: "color-mix(in srgb, var(--primary) 14%, transparent)",
+                borderColor: "color-mix(in srgb, var(--primary) 30%, transparent)",
+                background: "color-mix(in srgb, var(--primary) 12%, transparent)",
                 color: "var(--text)",
               }}
               aria-live="assertive"
@@ -839,134 +838,42 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {okMsg && (
-            <div
-              className="mb-4 rounded-2xl px-4 py-3 text-sm md:text-base"
-              style={{
-                border: "1px solid color-mix(in srgb, var(--primary) 25%, transparent)",
-                background: "color-mix(in srgb, var(--primary) 8%, transparent)",
-                color: "var(--text)",
-              }}
-              role="status"
-            >
-              {okMsg}
-            </div>
-          )}
-
           <form
             onSubmit={onSubmit}
-            className="relative overflow-hidden p-6 md:p-8 space-y-6 rounded-3xl border shadow-xl"
+            className="relative overflow-hidden rounded-3xl border shadow-xl"
             style={{
-              background: "color-mix(in srgb, var(--surface) 88%, var(--text) 6%)",
-              borderColor: "color-mix(in srgb, var(--text) 18%, transparent)",
+              background: "color-mix(in srgb, var(--surface) 90%, var(--text) 5%)",
+              borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
             }}
           >
+            {/* subtle “chat wallpaper” inside form */}
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-20"
+              className="pointer-events-none absolute inset-0"
               style={{
                 background:
-                  "radial-gradient(120% 140% at 50% 120%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)",
-                opacity: 0.6,
+                  "radial-gradient(circle at 10px 10px, color-mix(in srgb, var(--text) 8%, transparent) 0 1px, transparent 1px 100%)," +
+                  "radial-gradient(circle at 35px 30px, color-mix(in srgb, var(--text) 7%, transparent) 0 1px, transparent 1px 100%)",
+                backgroundSize: "48px 48px",
+                opacity: 0.35,
               }}
             />
 
-            <fieldset disabled={loading} className="space-y-6 relative z-[1]">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs md:text-sm font-semibold tracking-wide uppercase">
-                    {stepTitle}
-                  </p>
+            <fieldset disabled={loading} className="relative z-[1] p-6 md:p-8 space-y-6">
+              {/* Step content as “bubbles” */}
+              {step === 1 && (
+                <div className="space-y-4">
+                  <ChatBubble side="left" title="Seus dados principais" tone="neutral">
+                    Informe nome, CPF e nascimento para validar seu acesso com segurança.
+                  </ChatBubble>
 
-                  <span
-                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] md:text-xs"
-                    style={{
-                      background:
-                        "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
-                      color: "var(--text-muted)",
-                    }}
-                  >
-                    <span
-                      className="inline-block h-1.5 w-1.5 rounded-full"
-                      style={{ background: "var(--primary)" }}
-                    />
-                    {step === 1 ? "Começando" : step === 2 ? "Continuando" : "Finalizando"}
-                  </span>
-                </div>
-
-                <div
-                  className="h-1.5 rounded-full overflow-hidden"
-                  style={{
-                    background:
-                      "color-mix(in srgb, var(--surface-elevated) 80%, var(--text) 6%)",
-                  }}
-                >
                   <div
-                    className="h-full rounded-full transition-all duration-300"
+                    className="rounded-3xl border p-5 md:p-6 space-y-5 shadow-sm"
                     style={{
-                      width: progressPercent,
-                      background: "var(--primary)",
-                    }}
-                  />
-                </div>
-
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <p className="text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
-                    {stepDesc}
-                  </p>
-
-                  <span
-                    className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] md:text-xs border"
-                    style={{
-                      borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-                      background:
-                        "color-mix(in srgb, var(--surface-elevated) 88%, transparent)",
-                      color: "var(--text-muted)",
+                      background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
+                      borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
                     }}
                   >
-                    <span
-                      className="inline-block h-1.5 w-1.5 rounded-full"
-                      style={{
-                        background: "color-mix(in srgb, var(--primary) 75%, transparent)",
-                      }}
-                    />
-                    {voiceGuidance}
-                  </span>
-                </div>
-              </div>
-
-              {step === 3 && (
-                <div
-                  className="rounded-2xl px-4 py-3 text-xs md:text-sm mb-1 flex items-start gap-2"
-                  style={{
-                    background: "color-mix(in srgb, var(--primary) 12%, transparent)",
-                    border: "1px solid color-mix(in srgb, var(--primary) 40%, transparent)",
-                  }}
-                >
-                  <div className="mt-0.5">
-                    <CheckCircle2 size={18} style={{ color: "var(--primary)" }} />
-                  </div>
-                  <div>
-                    <p className="font-medium mb-0.5">
-                      {firstName ? `${firstName} seus dados estão prontos` : "Seus dados estão prontos"}
-                    </p>
-                    <p style={{ color: "var(--text-muted)" }}>
-                      Agora crie uma senha e finalize com um clique
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div
-                className="rounded-2xl border px-4 py-4 md:px-5 md:py-5 space-y-6"
-                style={{
-                  background:
-                    "color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)",
-                  borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-                }}
-              >
-                {step === 1 && (
-                  <>
                     <div>
                       <label htmlFor="nome" className="label font-medium text-sm md:text-base">
                         Nome completo <span aria-hidden="true" className="text-red-600">*</span>
@@ -977,16 +884,18 @@ export default function RegisterPage() {
                         name="nome"
                         inputRef={nomeRef}
                         value={form.nome}
-                        onChange={onChange}
-                        onChangeValue={(next) => {
-                          const cleaned = normalizeNameFromSpeech(next);
-                          const nextForm = { ...form, nome: cleaned };
-                          setForm(nextForm);
-                          recomputeErrorsIfSubmitted(nextForm);
+                        onChange={(e) => {
+                          const next = { ...form, nome: e.target.value };
+                          setForm(next);
+                          if (submitted) setErrorList(buildStepErrors(next, 1));
                         }}
-                        className={`input h-12 text-base bg-white ${
-                          submitted && !nomeOk ? "ring-1 ring-red-500" : ""
-                        }`}
+                        onChangeValue={(nextVal) => {
+                          const cleaned = normalizeNameFromSpeech(nextVal);
+                          const next = { ...form, nome: cleaned };
+                          setForm(next);
+                          if (submitted) setErrorList(buildStepErrors(next, 1));
+                        }}
+                        className={`input h-12 text-base bg-white ${submitted && !nomeOk ? "ring-1 ring-red-500" : ""}`}
                         placeholder="Maria Oliveira"
                         autoComplete="name"
                         ariaRequired="true"
@@ -996,13 +905,11 @@ export default function RegisterPage() {
                         applyMode="replace"
                         normalizeTranscript={(t) => normalizeNameFromSpeech(t)}
                         idleHint="Toque no microfone para ditar seu nome"
-                        listeningHint="Quando terminar toque no quadrado para concluir"
+                        listeningHint="Ao terminar toque no quadrado para concluir"
                       />
 
                       {submitted && !nomeOk && (
-                        <p className="text-xs md:text-sm mt-1 text-red-600">
-                          Informe ao menos 3 caracteres
-                        </p>
+                        <p className="text-xs md:text-sm mt-1 text-red-600">Informe ao menos 3 caracteres</p>
                       )}
                     </div>
 
@@ -1022,13 +929,11 @@ export default function RegisterPage() {
                           onChangeValue={(spoken) => {
                             const digits = normalizeDigitsFromSpeech(spoken).slice(0, 11);
                             const formatted = formatCPF(digits);
-                            const nextForm = { ...form, cpf: formatted };
-                            setForm(nextForm);
-                            recomputeErrorsIfSubmitted(nextForm);
+                            const next = { ...form, cpf: formatted };
+                            setForm(next);
+                            if (submitted) setErrorList(buildStepErrors(next, 1));
                           }}
-                          className={`input h-12 text-base bg-white ${
-                            submitted && !cpfOk ? "ring-1 ring-red-500" : ""
-                          }`}
+                          className={`input h-12 text-base bg-white ${submitted && !cpfOk ? "ring-1 ring-red-500" : ""}`}
                           placeholder="000.000.000-00"
                           inputMode="numeric"
                           autoComplete="off"
@@ -1043,26 +948,24 @@ export default function RegisterPage() {
 
                         {submitted && !cpfOk && (
                           <p className="text-xs md:text-sm mt-1 text-red-600">
-                            CPF inválido verifique os números digitados
+                            CPF inválido. Verifique os números digitados.
                           </p>
                         )}
                       </div>
 
                       <div>
                         <label className="label font-medium text-sm md:text-base">
-                          Data de nascimento{" "}
-                          <span aria-hidden="true" className="text-red-600">*</span>
+                          Data de nascimento <span aria-hidden="true" className="text-red-600">*</span>
                         </label>
 
                         <DateSelectBR
                           idPrefix="reg-nasc"
                           valueISO={form.dataNascimento}
-                          onChangeISO={(iso) =>
-                            setForm((p) => ({
-                              ...p,
-                              dataNascimento: iso,
-                            }))
-                          }
+                          onChangeISO={(iso) => {
+                            const next = { ...form, dataNascimento: iso };
+                            setForm(next);
+                            if (submitted) setErrorList(buildStepErrors(next, 1));
+                          }}
                           minAge={18}
                           maxAge={100}
                           invalid={submitted && (!form.dataNascimento || !idadeOk)}
@@ -1070,87 +973,32 @@ export default function RegisterPage() {
 
                         {submitted && (!form.dataNascimento || !idadeOk) && (
                           <p className="text-xs md:text-sm mt-1 text-red-600">
-                            É preciso ter entre <b>18</b> e <b>100</b> anos
+                            É preciso ter entre <b>18</b> e <b>100</b> anos.
                           </p>
                         )}
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
 
-                    {submitted && step === 1 && errorList.length > 0 && (
-                      <div
-                        className="rounded-2xl px-4 py-3 text-sm md:text-base mt-1"
-                        style={{
-                          border:
-                            "1px solid color-mix(in srgb, var(--primary) 30%, transparent)",
-                          background:
-                            "color-mix(in srgb, var(--primary) 12%, transparent)",
-                          color: "var(--text)",
-                        }}
-                        role="alert"
-                        aria-live="assertive"
-                      >
-                        <p className="font-medium mb-1">
-                          Revise os campos destacados antes de continuar
-                        </p>
-                        <ul className="list-disc ml-5 space-y-1">
-                          {errorList.map((it, idx) => (
-                            <li key={idx}>
-                              <button
-                                type="button"
-                                className="underline hover:opacity-80"
-                                onClick={() => focusByField(it.field)}
-                              >
-                                {it.label}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </>
-                )}
+              {step === 2 && (
+                <div className="space-y-4">
+                  <ChatBubble side="left" title="Contato" tone="neutral">
+                    No e-mail, o símbolo <b>@</b> deve funcionar normalmente. Se estiver no ditado, diga “arroba”.
+                  </ChatBubble>
 
-                {step === 2 && (
-                  <>
-                    <div
-                      className="rounded-2xl border px-4 py-3 text-xs md:text-sm"
-                      style={{
-                        borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-                        background:
-                          "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
-                        color: "var(--text-muted)",
-                      }}
-                    >
-                      <div className="flex items-start gap-2">
-                        <span
-                          className="mt-[2px] inline-flex h-5 w-5 items-center justify-center rounded-full border"
-                          style={{
-                            borderColor:
-                              "color-mix(in srgb, var(--primary) 30%, transparent)",
-                            background:
-                              "color-mix(in srgb, var(--primary) 10%, transparent)",
-                            color: "var(--primary)",
-                          }}
-                        >
-                          i
-                        </span>
-                        <div className="leading-relaxed">
-                          <p className="font-medium" style={{ color: "var(--text)" }}>
-                            Como preencher por voz
-                          </p>
-                          <p>
-                            Diga o e-mail completo usando arroba e ponto
-                          </p>
-                          <p>
-                            Exemplo maria oliveira arroba gmail ponto com
-                          </p>
-                          <p>
-                            Ao finalizar toque no quadrado para concluir o campo
-                          </p>
-                        </div>
-                      </div>
-                    </div>
+                  <ChatBubble side="left" title="Exemplo" tone="brand">
+                    “maria oliveira <b>arroba</b> gmail <b>ponto</b> com”
+                  </ChatBubble>
 
+                  <div
+                    className="rounded-3xl border p-5 md:p-6 space-y-5 shadow-sm"
+                    style={{
+                      background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
+                      borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                    }}
+                  >
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label htmlFor="email" className="label font-medium text-sm md:text-base">
@@ -1162,46 +1010,50 @@ export default function RegisterPage() {
                           name="email"
                           inputRef={emailRef}
                           value={form.email}
+                          // IMPORTANTÍSSIMO: em digitação, use normalização leve (não “come” @)
                           onChange={(e) => {
-                            const v = normalizeEmailFromSpeech(e.target.value || "", {
-                              allowPartial: true,
-                            });
-                            const nextForm = { ...form, email: v };
-                            setForm(nextForm);
-                            recomputeErrorsIfSubmitted(nextForm);
+                            const v = normalizeEmailTyping(e.target.value || "");
+                            const next = { ...form, email: v };
+                            setForm(next);
+                            recomputeErrorsIfSubmitted(next);
                           }}
-                          onChangeValue={(next) => {
-                            const v = normalizeEmailFromSpeech(next, { allowPartial: true });
-                            const nextForm = { ...form, email: v };
-                            setForm(nextForm);
-                            recomputeErrorsIfSubmitted(nextForm);
+                          onChangeValue={(nextVal) => {
+                            // ao receber texto de voz em tempo real, também aplica “typing”
+                            const v = normalizeEmailTyping(nextVal || "");
+                            const next = { ...form, email: v };
+                            setForm(next);
+                            recomputeErrorsIfSubmitted(next);
                           }}
-                          type="email"
-                          className={`input h-12 text-base bg-white ${
-                            submitted && !emailOk ? "ring-1 ring-red-500" : ""
-                          }`}
+                          // blindagem mobile para não interferir no @
+                          type="text"
+                          inputMode="email"
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          className={`input h-12 text-base bg-white ${submitted && !emailOk ? "ring-1 ring-red-500" : ""}`}
                           placeholder="maria@exemplo.com"
                           autoComplete="email"
-                          inputMode="email"
                           ariaRequired="true"
                           ariaInvalid={submitted && !emailOk}
                           disabled={loading}
                           enableVoice
+                          // quando o VoiceTextInput sinalizar “final”, aplica normalização forte
+                          normalizeTranscript={(text, ctx) => {
+                            if (ctx?.mode === "final") return normalizeEmailFromSpeechFinal(text);
+                            return normalizeEmailTyping(text);
+                          }}
                           applyMode="email"
-                          normalizeTranscript={(text, ctx) =>
-                            normalizeEmailFromSpeech(text, {
-                              allowPartial: ctx?.mode !== "final",
-                            })
-                          }
                           idleHint="Toque no microfone para ditar o e-mail"
                           listeningHint="Ao terminar toque no quadrado para concluir"
                         />
 
                         {submitted && !emailOk && (
-                          <p className="text-xs md:text-sm mt-1 text-red-600">
-                            Informe um e-mail válido
-                          </p>
+                          <p className="text-xs md:text-sm mt-1 text-red-600">Informe um e-mail válido.</p>
                         )}
+
+                        <p className="mt-2 text-[11px] md:text-xs" style={{ color: "var(--text-muted)" }}>
+                          Dica: se o teclado não mostrar <b>@</b>, altere para o teclado de e-mail (inputMode).
+                        </p>
                       </div>
 
                       <div>
@@ -1219,13 +1071,11 @@ export default function RegisterPage() {
                           onChangeValue={(spoken) => {
                             const digits = normalizeDigitsFromSpeech(spoken).slice(0, 11);
                             const formatted = formatPhoneBR(digits);
-                            const nextForm = { ...form, celular: formatted };
-                            setForm(nextForm);
-                            recomputeErrorsIfSubmitted(nextForm);
+                            const next = { ...form, celular: formatted };
+                            setForm(next);
+                            recomputeErrorsIfSubmitted(next);
                           }}
-                          className={`input h-12 text-base bg-white ${
-                            submitted && !celularOk ? "ring-1 ring-red-500" : ""
-                          }`}
+                          className={`input h-12 text-base bg-white ${submitted && !celularOk ? "ring-1 ring-red-500" : ""}`}
                           placeholder="(00) 90000-0000"
                           inputMode="tel"
                           autoComplete="tel"
@@ -1239,83 +1089,45 @@ export default function RegisterPage() {
                         />
 
                         {submitted && !celularOk && (
-                          <p className="text-xs md:text-sm mt-1 text-red-600">
-                            Informe um celular válido com DDD
-                          </p>
+                          <p className="text-xs md:text-sm mt-1 text-red-600">Informe um celular válido com DDD.</p>
                         )}
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
 
-                    {submitted && step === 2 && errorList.length > 0 && (
-                      <div
-                        className="rounded-2xl px-4 py-3 text-sm md:text-base mt-1"
-                        style={{
-                          border:
-                            "1px solid color-mix(in srgb, var(--primary) 30%, transparent)",
-                          background:
-                            "color-mix(in srgb, var(--primary) 12%, transparent)",
-                          color: "var(--text)",
-                        }}
-                        role="alert"
-                        aria-live="assertive"
-                      >
-                        <p className="font-medium mb-1">
-                          Revise os campos destacados antes de continuar
-                        </p>
-                        <ul className="list-disc ml-5 space-y-1">
-                          {errorList.map((it, idx) => (
-                            <li key={idx}>
-                              <button
-                                type="button"
-                                className="underline hover:opacity-80"
-                                onClick={() => focusByField(it.field)}
-                              >
-                                {it.label}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </>
-                )}
+              {step === 3 && (
+                <div className="space-y-4">
+                  <ChatBubble side="left" title="Senha" tone="neutral">
+                    Combine letras maiúsculas, minúsculas e números. Isso protege sua conta.
+                  </ChatBubble>
 
-                {step === 3 && (
-                  <>
-                    <div
-                      className="rounded-2xl px-4 py-3 text-xs md:text-sm mb-2 flex items-start gap-2"
-                      style={{
-                        background: "color-mix(in srgb, var(--surface) 90%, transparent)",
-                        border: "1px dashed color-mix(in srgb, var(--text) 18%, transparent)",
-                      }}
-                    >
-                      <Lock size={18} className="mt-0.5" style={{ color: "var(--text-muted)" }} />
-                      <div>
-                        <p className="font-medium mb-0.5">Senha segura com confirmação</p>
-                        <p style={{ color: "var(--text-muted)" }}>
-                          Combine maiúsculas minúsculas e números
-                        </p>
-                      </div>
-                    </div>
-
+                  <div
+                    className="rounded-3xl border p-5 md:p-6 space-y-5 shadow-sm"
+                    style={{
+                      background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
+                      borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                    }}
+                  >
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label htmlFor="senha" className="label font-medium text-sm md:text-base">
                           Senha <span aria-hidden="true" className="text-red-600">*</span>
                         </label>
 
-                        <div
-                          className={`relative ${
-                            submitted && !senhaOk ? "ring-1 ring-red-500 rounded-md" : ""
-                          }`}
-                        >
+                        <div className={`relative ${submitted && !senhaOk ? "ring-1 ring-red-500 rounded-xl" : ""}`}>
                           <input
                             id="senha"
                             type={showPass ? "text" : "password"}
                             name="senha"
                             ref={senhaRef}
                             value={form.senha}
-                            onChange={onChange}
+                            onChange={(e) => {
+                              const next = { ...form, senha: e.target.value };
+                              setForm(next);
+                              recomputeErrorsIfSubmitted(next);
+                            }}
                             className="input pr-12 h-12 text-xs sm:text-sm md:text-base bg-white"
                             placeholder="Crie uma senha forte"
                             autoComplete="new-password"
@@ -1338,15 +1150,15 @@ export default function RegisterPage() {
 
                         <div
                           id="senha-policy"
-                          className="rounded-lg px-3 py-2 mt-2"
+                          className="rounded-2xl px-4 py-3 mt-2 border"
                           style={{
-                            background: "color-mix(in srgb, var(--surface) 80%, transparent)",
-                            border: "1px solid var(--c-border)",
+                            background: "color-mix(in srgb, var(--surface) 86%, transparent)",
+                            borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
                           }}
                           aria-live="polite"
                         >
-                          <p className="text-[11px] md:text-xs mb-1" style={{ color: "var(--text-muted)" }}>
-                            Sua senha precisa ter
+                          <p className="text-[11px] md:text-xs mb-2" style={{ color: "var(--text-muted)" }}>
+                            Requisitos
                           </p>
                           <ul className="space-y-1">
                             <Rule ok={senhaChecks.len}>Pelo menos 8 caracteres</Rule>
@@ -1358,7 +1170,7 @@ export default function RegisterPage() {
 
                         {submitted && !senhaOk && (
                           <p className="text-xs md:text-sm mt-2 text-red-600">
-                            Ajuste a senha conforme os requisitos acima
+                            Ajuste a senha conforme os requisitos acima.
                           </p>
                         )}
                       </div>
@@ -1368,18 +1180,18 @@ export default function RegisterPage() {
                           Confirmar senha <span aria-hidden="true" className="text-red-600">*</span>
                         </label>
 
-                        <div
-                          className={`relative ${
-                            submitted && !confirmOk ? "ring-1 ring-red-500 rounded-md" : ""
-                          }`}
-                        >
+                        <div className={`relative ${submitted && !confirmOk ? "ring-1 ring-red-500 rounded-xl" : ""}`}>
                           <input
                             id="confirmSenha"
                             ref={confirmRef}
                             type={showConfirm ? "text" : "password"}
                             name="confirmSenha"
                             value={form.confirmSenha}
-                            onChange={onChange}
+                            onChange={(e) => {
+                              const next = { ...form, confirmSenha: e.target.value };
+                              setForm(next);
+                              recomputeErrorsIfSubmitted(next);
+                            }}
                             className="input pr-12 h-12 text-xs sm:text-sm md:text-base bg-white"
                             placeholder="Repita a mesma senha"
                             autoComplete="new-password"
@@ -1400,143 +1212,127 @@ export default function RegisterPage() {
                         </div>
 
                         {submitted && !confirmOk && (
-                          <p className="text-xs md:text-sm mt-1 text-red-600">
-                            As senhas precisam ser iguais
-                          </p>
+                          <p className="text-xs md:text-sm mt-1 text-red-600">As senhas precisam ser iguais.</p>
                         )}
+
+                        <div className="mt-3 rounded-2xl px-4 py-3 border flex items-start gap-2">
+                          <CheckCircle2 size={18} className="mt-0.5" style={{ color: "var(--primary)" }} />
+                          <div className="text-xs md:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                            Ao criar sua conta, você concorda com os{" "}
+                            <a href="/termos-uso" target="_blank" rel="noreferrer" className="underline">
+                              Termos de Uso
+                            </a>{" "}
+                            e a{" "}
+                            <a href="/politica-privacidade" target="_blank" rel="noreferrer" className="underline">
+                              Política de Privacidade
+                            </a>
+                            .
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
 
-                    {submitted && step === 3 && errorList.length > 0 && (
-                      <div
-                        className="rounded-2xl px-4 py-3 text-sm md:text-base mt-1"
-                        style={{
-                          border:
-                            "1px solid color-mix(in srgb, var(--primary) 30%, transparent)",
-                          background:
-                            "color-mix(in srgb, var(--primary) 12%, transparent)",
-                          color: "var(--text)",
-                        }}
-                        role="alert"
-                        aria-live="assertive"
-                      >
-                        <p className="font-medium mb-1">
-                          Revise os campos destacados para concluir
-                        </p>
-                        <ul className="list-disc ml-5 space-y-1">
-                          {errorList.map((it, idx) => (
-                            <li key={idx}>
-                              <button
-                                type="button"
-                                className="underline hover:opacity-80"
-                                onClick={() => focusByField(it.field)}
-                              >
-                                {it.label}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
+              {submitted && errorList.length > 0 && (
+                <div
+                  className="rounded-2xl px-4 py-3 text-sm md:text-base border"
+                  style={{
+                    borderColor: "color-mix(in srgb, var(--primary) 30%, transparent)",
+                    background: "color-mix(in srgb, var(--primary) 10%, transparent)",
+                    color: "var(--text)",
+                  }}
+                  role="alert"
+                  aria-live="assertive"
+                >
+                  <p className="font-medium mb-1">Revise os campos destacados</p>
+                  <ul className="list-disc ml-5 space-y-1">
+                    {errorList.map((it, idx) => (
+                      <li key={idx}>
+                        <button type="button" className="underline hover:opacity-80" onClick={() => focusByField(it.field)}>
+                          {it.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                {step === 1 && (
-                  <>
-                    <button
-                      type="submit"
-                      className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-12 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
-                      disabled={loading}
+              {/* Bottom bar: WhatsApp send vibe */}
+              <div
+                className="sticky bottom-0 pt-2"
+                style={{
+                  background:
+                    "linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--surface) 92%, transparent) 30%, color-mix(in srgb, var(--surface) 96%, transparent) 100%)",
+                  paddingBottom: 2,
+                }}
+              >
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed shadow-lg"
+                    disabled={loading}
+                    style={{
+                      background:
+                        "linear-gradient(180deg, color-mix(in srgb, var(--primary) 88%, #000 0%), color-mix(in srgb, var(--primary) 74%, #000 0%))",
+                      color: "var(--on-primary)",
+                    }}
+                  >
+                    <span>{loading ? "Processando…" : sendLabel}</span>
+                    <span
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full"
+                      style={{
+                        background: "color-mix(in srgb, var(--on-primary) 18%, transparent)",
+                      }}
+                      aria-hidden="true"
                     >
-                      Continuar
-                    </button>
+                      <ArrowRight size={16} />
+                    </span>
+                  </button>
 
+                  {canGoBack ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const prev = Math.max(1, step - 1);
+                        setStep(prev);
+                        setSubmitted(false);
+                        setErrorList([]);
+                        setTimeout(() => {
+                          if (prev === 1) nomeRef.current?.focus();
+                          if (prev === 2) emailRef.current?.focus();
+                        }, 0);
+                      }}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-sm md:text-base font-medium border hover:opacity-90"
+                      style={{
+                        background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
+                        borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                        color: "var(--text)",
+                      }}
+                    >
+                      <ChevronLeft size={18} />
+                      Voltar
+                    </button>
+                  ) : (
                     <Link
                       to="/login"
-                      className="btn-outline w-full sm:w-auto justify-center rounded-2xl h-12 text-sm md:text-base font-medium"
-                      aria-disabled={loading}
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-sm md:text-base font-medium border hover:opacity-90"
+                      style={{
+                        background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
+                        borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                        color: "var(--text)",
+                      }}
                     >
                       Já tenho conta
                     </Link>
-                  </>
-                )}
+                  )}
+                </div>
 
-                {step === 2 && (
-                  <>
-                    <button
-                      type="submit"
-                      className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-12 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
-                      disabled={loading}
-                    >
-                      Continuar
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStep(1);
-                        setSubmitted(false);
-                        setErrorList([]);
-                        setTimeout(() => nomeRef.current?.focus(), 0);
-                      }}
-                      className="btn-outline w-full sm:w-auto justify-center rounded-2xl h-12 text-sm md:text-base font-medium"
-                    >
-                      Voltar
-                    </button>
-                  </>
-                )}
-
-                {step === 3 && (
-                  <>
-                    <button
-                      type="submit"
-                      className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-12 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
-                      disabled={loading}
-                    >
-                      {loading ? "Criando conta…" : "Criar conta"}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStep(2);
-                        setSubmitted(false);
-                        setErrorList([]);
-                        setTimeout(() => emailRef.current?.focus(), 0);
-                      }}
-                      className="btn-outline w-full sm:w-auto justify-center rounded-2xl h-12 text-sm md:text-base font-medium"
-                    >
-                      Voltar
-                    </button>
-                  </>
-                )}
-              </div>
-
-              {!formValido && !submitted && (
-                <p
-                  className="mt-1 text-[11px] md:text-xs text-center"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  Preencha os campos obrigatórios para avançar
+                <p className="mt-3 text-[11px] md:text-xs text-center leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                  Seus dados são protegidos e tratados conforme a LGPD.
                 </p>
-              )}
-
-              <p
-                className="mt-2 text-[11px] md:text-xs text-center leading-relaxed"
-                style={{ color: "var(--text-muted)" }}
-              >
-                Ao criar sua conta, você concorda com os{" "}
-                <a href="/termos-uso" target="_blank" rel="noreferrer" className="underline">
-                  Termos de Uso
-                </a>{" "}
-                e com a{" "}
-                <a href="/politica-privacidade" target="_blank" rel="noreferrer" className="underline">
-                  Política de Privacidade
-                </a>{" "}
-                Seus dados são protegidos e tratados conforme a LGPD
-              </p>
+              </div>
             </fieldset>
           </form>
         </div>
