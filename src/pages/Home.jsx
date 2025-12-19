@@ -852,9 +852,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* PROVA SOCIAL */}
-        <StatsStrip associados="12.4k+" parceiros="180+" avaliacao="4.8/5" />
-
+       
         {/* CTA PLANOS */}
         <div className="mt-12 md:mt-16">
           <PlanosCTA onSeePlans={() => (window.location.href = '/planos')} />
