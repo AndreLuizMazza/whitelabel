@@ -732,7 +732,7 @@ export default function RegisterPage() {
 
   const chatHint =
     step === 1
-      ? { title: "Vamos começar", text: "Preencha nome, CPF e data de nascimento. Se preferir, use o microfone." }
+      ? { title: "Vamos começar", text: "Se preferir, use o microfone." }
       : step === 2
       ? {
           title: "Agora seus contatos",
