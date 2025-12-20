@@ -58,6 +58,34 @@ export default function Navbar() {
   const fotoDeclarada = user?.fotoUrl || user?.photoURL || ''
   const avatarUrl = avatarErro ? '' : (avatarBlobUrl || fotoDeclarada || '')
 
+  // ===== Publica altura real da navbar em CSS var (para steppers sticky baterem certinho)
+  const headerRef = useRef(null)
+  useEffect(() => {
+    if (!headerRef.current) return
+
+    const apply = () => {
+      const h = headerRef.current?.offsetHeight || 0
+      document.documentElement.style.setProperty('--app-navbar-h', `${h}px`)
+    }
+
+    apply()
+
+    // reage a resize / fontes / mudanças de layout
+    let ro
+    try {
+      ro = new ResizeObserver(() => apply())
+      ro.observe(headerRef.current)
+    } catch {
+      // fallback
+      window.addEventListener('resize', apply)
+    }
+
+    return () => {
+      if (ro) ro.disconnect()
+      window.removeEventListener('resize', apply)
+    }
+  }, [])
+
   // Carrega avatar
   useEffect(() => {
     let active = true
@@ -179,7 +207,11 @@ export default function Navbar() {
   }
 
   return (
-    <header className="w-full border-b bg-[var(--surface)] sticky top-0 z-40 shadow-sm">
+    <header
+      ref={headerRef}
+      data-app-navbar="true"
+      className="w-full border-b bg-[var(--surface)] sticky top-0 z-40 shadow-sm"
+    >
       <div className="container-max flex items-center justify-between flex-nowrap py-3 gap-3 sm:gap-4">
         {/* Logo */}
         <Link

@@ -1,10 +1,9 @@
 // src/pages/RegisterPage.jsx
-// RegisterPage (WhatsApp-inspired premium)
-// - Layout com “chat surface”: fundo com pattern sutil + cards como bubbles
-// - CTA estilo “Enviar” (pill + ícone)
-// - Campo e-mail blindado contra “sumir @” no mobile: autoCapitalize/autoCorrect/spellCheck e normalize mais permissivo em digitação
-// - Ditado por voz: normalização suave (não destrói o que o usuário digitou)
-// - Validação progressiva por etapas (3 passos)
+// RegisterPage – Apple-level (simplicidade + confiança)
+// - Stepper sticky abaixo da Navbar (não sobrepõe drawer)
+// - Respeita flag do Navbar: <html data-mobile-drawer-open="true">
+// - Fundo premium no formulário (como login) + “card master” do fluxo
+// - Mantém: voz, normalização suave (email @), validação por etapas, CPF/telefone, FCM
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
@@ -13,7 +12,22 @@ import useAuth from "@/store/auth";
 import { registerUser } from "@/lib/authApi";
 import { registrarDispositivoFcmWeb } from "@/lib/fcm";
 import VoiceTextInput from "@/components/VoiceTextInput";
-import { AlertTriangle, UserPlus, Lock, CheckCircle2, ArrowRight, ChevronLeft } from "lucide-react";
+import {
+  AlertTriangle,
+  UserPlus,
+  ArrowRight,
+  ChevronLeft,
+  CheckCircle2,
+  ShieldCheck,
+  Mail,
+  User,
+  Phone,
+  Fingerprint,
+} from "lucide-react";
+
+/* =========================
+   Estado inicial
+========================= */
 
 const initial = {
   nome: "",
@@ -27,7 +41,12 @@ const initial = {
   aceitePrivacidade: true,
 };
 
+/* =========================
+   Validadores / formatters
+========================= */
+
 const onlyDigits = (s = "") => String(s || "").replace(/\D/g, "");
+
 const isValidEmail = (e = "") =>
   /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e || "").trim());
 
@@ -82,7 +101,9 @@ const phoneIsValid = (v = "") => {
   return d.length === 10 || d.length === 11;
 };
 
-/* -------------------- normalizadores de voz -------------------- */
+/* =========================
+   Normalizadores de voz
+========================= */
 
 const DIGIT_WORDS = new Map([
   ["zero", "0"],
@@ -106,9 +127,7 @@ function normalizeDigitsFromSpeech(input = "") {
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
-
   if (!raw) return "";
-
   const parts = raw.split(" ");
   let out = "";
   for (const p of parts) {
@@ -131,53 +150,32 @@ function normalizeNameFromSpeech(input = "") {
 }
 
 /**
- * E-mail: duas rotas
- * - "typing": não tenta adivinhar demais (não remove @ final, não troca domínios agressivamente)
- * - "voiceFinal": pode aplicar regras mais fortes ao finalizar ditado
- *
- * Isso evita o caso clássico: o usuário está digitando "nome@" e o normalizador “conserta” antes da hora.
+ * E-mail:
+ * - typing: suave (não “come” @)
+ * - voice final: mais forte (arroba/ponto/provedores)
  */
 function normalizeEmailTyping(input = "") {
   let t = String(input || "").toLowerCase();
-
-  // remove espaços
   t = t.replace(/\s+/g, "");
-
-  // permite apenas chars válidos
   t = t.replace(/[^a-z0-9@._+\-]/g, "");
-
-  // evita @@ e .. repetidos
   t = t.replace(/@{2,}/g, "@").replace(/\.{2,}/g, ".");
-
-  // não deixa ".@" ou "@." no meio
   t = t.replace(/\.@/g, "@").replace(/@\./g, "@");
-
   return t;
 }
 
 function normalizeEmailFromSpeechFinal(input = "") {
   let t = String(input || "").toLowerCase().trim();
 
-  // pontuações viram espaço
   t = t.replace(/[,:;!]+/g, " ");
-
-  // arroba
   t = t
     .replace(/\ba\s*roba\b/g, "@")
     .replace(/\baroba\b/g, "@")
     .replace(/\barroba\b/g, "@")
     .replace(/\s+@\s+/g, "@");
-
-  // “at” isolado
   t = t.replace(/\bat\b/g, "@");
-
-  // ponto
   t = t.replace(/\bponto\b/g, ".");
-
-  // remove espaços
   t = t.replace(/\s+/g, "");
 
-  // provedores comuns
   const providerMap = [
     ["gmail", "gmail.com"],
     ["hotmail", "hotmail.com"],
@@ -189,21 +187,17 @@ function normalizeEmailFromSpeechFinal(input = "") {
     t = t.replace(new RegExp(`@${spoken}(?![\\w.-])`, "g"), `@${domain}`);
   }
 
-  // chars válidos
   t = t.replace(/[^a-z0-9@._+\-]/g, "");
-
-  // saneamento
   t = t.replace(/@{2,}/g, "@").replace(/\.{2,}/g, ".");
   t = t.replace(/\.@/g, "@").replace(/@\./g, "@");
   t = t.replace(/[.,;:!]+$/g, "");
-
-  // não termina com @ ou .
   t = t.replace(/[@.]+$/g, "");
-
   return t;
 }
 
-/* -------------------- date select -------------------- */
+/* =========================
+   DateSelectBR (mantido)
+========================= */
 
 function DateSelectBR({
   valueISO,
@@ -329,7 +323,9 @@ function DateSelectBR({
   return (
     <div>
       <div
-        className={`grid grid-cols-3 gap-2 ${invalid ? "ring-1 ring-red-500 rounded-xl p-1" : ""} ${className}`}
+        className={`grid grid-cols-3 gap-2 ${
+          invalid ? "ring-1 ring-red-500 rounded-xl p-1" : ""
+        } ${className}`}
       >
         <label htmlFor={idDia} className="sr-only">
           Dia
@@ -406,12 +402,17 @@ function DateSelectBR({
           }`}
           role="alert"
         >
-          <AlertTriangle size={14} /> {invalid ? "Você precisa ter entre 18 e 100 anos" : softWarn}
+          <AlertTriangle size={14} />{" "}
+          {invalid ? "Você precisa ter entre 18 e 100 anos" : softWarn}
         </p>
       )}
     </div>
   );
 }
+
+/* =========================
+   UI pieces (Apple-simple)
+========================= */
 
 function Rule({ ok, children }) {
   return (
@@ -433,81 +434,167 @@ function Rule({ ok, children }) {
   );
 }
 
-function ChatBubble({ side = "left", title, children, tone = "neutral" }) {
-  const left = side === "left";
-  const bg =
-    tone === "brand"
-      ? "color-mix(in srgb, var(--primary) 16%, var(--surface) 84%)"
-      : "color-mix(in srgb, var(--surface-elevated) 92%, transparent)";
-  const border =
-    tone === "brand"
-      ? "color-mix(in srgb, var(--primary) 30%, transparent)"
-      : "color-mix(in srgb, var(--text) 14%, transparent)";
-
+/**
+ * “Card master” do fluxo (igual ideia do Login):
+ * - fundo premium
+ * - gradiente suave no rodapé
+ * - mantém tudo dentro
+ */
+function MasterCard({ children }) {
   return (
-    <div className={`flex ${left ? "justify-start" : "justify-end"}`}>
+    <div
+      className="relative overflow-hidden rounded-3xl border shadow-xl"
+      style={{
+        background: "color-mix(in srgb, var(--surface) 88%, var(--text) 6%)",
+        borderColor: "color-mix(in srgb, var(--text) 18%, transparent)",
+      }}
+    >
       <div
-        className="max-w-[540px] rounded-2xl px-4 py-3 border shadow-sm"
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
         style={{
-          background: bg,
-          borderColor: border,
-          borderTopLeftRadius: left ? 10 : 22,
-          borderTopRightRadius: left ? 22 : 10,
+          background:
+            "radial-gradient(120% 140% at 50% 120%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)",
+          opacity: 0.6,
+        }}
+      />
+      <div className="relative z-[1] p-5 md:p-7">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Fundo do formulário “como no login”:
+ * - bloco interno com border e fundo próprio (surface-elevated)
+ */
+function FormPanel({ title, subtitle, children }) {
+  return (
+    <div
+      className="rounded-2xl border px-4 py-4 md:px-5 md:py-5"
+      style={{
+        background: "color-mix(in srgb, var(--surface-elevated) 90%, var(--text) 6%)",
+        borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+      }}
+    >
+      {(title || subtitle) && (
+        <div className="space-y-1 mb-4">
+          {title && (
+            <p className="text-xs md:text-sm font-semibold tracking-wide uppercase">
+              {title}
+            </p>
+          )}
+          {subtitle && (
+            <p className="text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
+              {subtitle}
+            </p>
+          )}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+function StepperPill({ active, done, n, label, onClick, disabled }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex-1 min-w-0 rounded-2xl px-3 py-2.5 border text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+      style={{
+        background: active
+          ? "color-mix(in srgb, var(--primary) 14%, var(--surface) 86%)"
+          : "color-mix(in srgb, var(--surface) 92%, transparent)",
+        borderColor: active
+          ? "color-mix(in srgb, var(--primary) 32%, transparent)"
+          : "color-mix(in srgb, var(--text) 14%, transparent)",
+        boxShadow: active ? "0 10px 26px rgba(0,0,0,0.08)" : "none",
+        transform: active ? "translateY(-1px)" : "translateY(0)",
+        transition: "transform 160ms ease, box-shadow 160ms ease",
+      }}
+      aria-current={active ? "step" : undefined}
+      aria-label={`Etapa ${n}: ${label}`}
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <span
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold"
+          style={{
+            background: done || active
+              ? "var(--primary)"
+              : "color-mix(in srgb, var(--text) 10%, transparent)",
+            color: done || active ? "var(--on-primary)" : "var(--text-muted)",
+          }}
+        >
+          {done ? "✓" : n}
+        </span>
+
+        <div className="min-w-0">
+          <p className="text-sm font-semibold leading-tight truncate" style={{ color: "var(--text)" }}>
+            {label}
+          </p>
+          <p className="text-[11px] uppercase tracking-[0.18em]" style={{ color: "var(--text-muted)" }}>
+            Etapa {n}
+          </p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function StepperDock({ step, onStep, drawerOpen, disabled }) {
+  // Fix clínico:
+  // - quando o drawer abre no mobile, o stepper some (não “aparece por cima” do menu)
+  // - no desktop (md+), mantém sempre visível
+  return (
+    <div
+      className={`sticky z-[30] ${drawerOpen ? "hidden md:block" : ""}`}
+      style={{
+        top: "calc(64px + 10px)", // “bate na navbar”
+      }}
+    >
+      <div
+        className="rounded-[22px] border shadow-lg p-2 md:p-2.5"
+        style={{
+          background: "color-mix(in srgb, var(--surface) 88%, var(--text) 6%)",
+          borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+          backdropFilter: "blur(10px)",
         }}
       >
-        {title ? (
-          <p className="text-xs md:text-sm font-semibold mb-1" style={{ color: "var(--text)" }}>
-            {title}
-          </p>
-        ) : null}
-        <div className="text-xs md:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          {children}
+        <div className="flex gap-2">
+          <StepperPill
+            n={1}
+            label="Dados"
+            active={step === 1}
+            done={step > 1}
+            disabled={disabled}
+            onClick={() => onStep?.(1)}
+          />
+          <StepperPill
+            n={2}
+            label="Contato"
+            active={step === 2}
+            done={step > 2}
+            disabled={disabled}
+            onClick={() => onStep?.(2)}
+          />
+          <StepperPill
+            n={3}
+            label="Segurança"
+            active={step === 3}
+            done={false}
+            disabled={disabled}
+            onClick={() => onStep?.(3)}
+          />
         </div>
       </div>
     </div>
   );
 }
 
-function StepPills({ step }) {
-  return (
-    <div className="flex items-center gap-2">
-      {[1, 2, 3].map((n) => {
-        const active = step === n;
-        const done = step > n;
-        return (
-          <span
-            key={n}
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs md:text-sm"
-            style={{
-              borderColor: active
-                ? "color-mix(in srgb, var(--primary) 40%, transparent)"
-                : "color-mix(in srgb, var(--text) 14%, transparent)",
-              background: active
-                ? "color-mix(in srgb, var(--primary) 18%, transparent)"
-                : "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
-              color: active ? "var(--text)" : "var(--text-muted)",
-            }}
-          >
-            <span
-              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-semibold"
-              style={{
-                background: done
-                  ? "color-mix(in srgb, var(--primary) 28%, transparent)"
-                  : active
-                  ? "color-mix(in srgb, var(--primary) 22%, transparent)"
-                  : "color-mix(in srgb, var(--text) 10%, transparent)",
-                color: done || active ? "var(--primary)" : "var(--text-muted)",
-              }}
-            >
-              {done ? "✓" : n}
-            </span>
-            <span>{n === 1 ? "Dados" : n === 2 ? "Contato" : "Senha"}</span>
-          </span>
-        );
-      })}
-    </div>
-  );
-}
+/* =========================
+   Page
+========================= */
 
 export default function RegisterPage() {
   useTenant();
@@ -533,6 +620,24 @@ export default function RegisterPage() {
   const confirmRef = useRef(null);
   const cpfRef = useRef(null);
   const celRef = useRef(null);
+
+  // ✅ Detecta abertura do drawer via atributo já setado no Navbar
+  const [drawerOpen, setDrawerOpen] = useState(() => {
+    if (typeof document === "undefined") return false;
+    return document.documentElement.getAttribute("data-mobile-drawer-open") === "true";
+  });
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const el = document.documentElement;
+    const sync = () => setDrawerOpen(el.getAttribute("data-mobile-drawer-open") === "true");
+    sync();
+
+    const obs = new MutationObserver(sync);
+    obs.observe(el, { attributes: true, attributeFilter: ["data-mobile-drawer-open"] });
+    return () => obs.disconnect();
+  }, []);
 
   const ageFromISO = (iso) => {
     if (!iso) return null;
@@ -590,7 +695,7 @@ export default function RegisterPage() {
     if (!isStrongPassword(values.senha)) {
       items.push({
         field: "senha",
-        label: "A senha precisa ter 8 caracteres com maiúscula minúscula e número",
+        label: "A senha precisa ter 8 caracteres com maiúscula, minúscula e número",
       });
     }
 
@@ -603,7 +708,11 @@ export default function RegisterPage() {
 
   function buildStepErrors(values, stepN) {
     const all = buildErrorList(values);
-    const fields = stepN === 1 ? ["nome", "cpf", "dataNascimento"] : stepN === 2 ? ["email", "celular"] : null;
+    const fields =
+      stepN === 1 ? ["nome", "cpf", "dataNascimento"] :
+      stepN === 2 ? ["email", "celular"] :
+      stepN === 3 ? ["senha", "confirmSenha"] :
+      null;
     return fields ? all.filter((it) => fields.includes(it.field)) : all;
   }
 
@@ -730,41 +839,103 @@ export default function RegisterPage() {
     return n.split(" ")[0];
   }, [form.nome]);
 
-  const chatHint =
+  const canGoBack = step > 1;
+
+  const headerHint =
     step === 1
-      ? { title: "Vamos começar", text: "Se preferir, use o microfone." }
+      ? {
+          icon: User,
+          title: "Dados do titular",
+          text: "Informe seus dados para validar o acesso com segurança.",
+        }
       : step === 2
       ? {
-          title: "Agora seus contatos",
-          text: "No e-mail, digite normalmente. No ditado, diga “arroba” e “ponto”.",
+          icon: Mail,
+          title: "Contato",
+          text: "Use um e-mail válido e seu celular com DDD.",
         }
-      : { title: "Falta pouco", text: "Crie uma senha forte e confirme para finalizar." };
+      : {
+          icon: ShieldCheck,
+          title: "Segurança",
+          text: "Crie uma senha forte para proteger sua conta.",
+        };
+
+  const IconHint = headerHint.icon;
 
   const sendLabel = step === 3 ? "Criar conta" : "Continuar";
-  const canGoBack = step > 1;
+
+  const asideInfo =
+    step === 1
+      ? {
+          badge: "Verificação",
+          icon: Fingerprint,
+          title: "Precisamos desses dados",
+          text:
+            "Nome, CPF e data de nascimento ajudam a validar o cadastro e evitar fraudes. É rápido e seguro.",
+          bullets: ["Validação do titular", "Proteção contra uso indevido", "Cadastro sem papelada"],
+        }
+      : step === 2
+      ? {
+          badge: "Contato",
+          icon: Phone,
+          title: "Mantenha seu acesso em dia",
+          text:
+            "E-mail e celular são usados para avisos, recuperação de senha e comunicações importantes.",
+          bullets: ["Recuperação de senha", "Avisos de contrato", "Confirmações e suporte"],
+        }
+      : {
+          badge: "Segurança",
+          icon: ShieldCheck,
+          title: "Conta mais protegida",
+          text:
+            "Uma senha forte reduz riscos. Você pode alterá-la depois a qualquer momento.",
+          bullets: ["Senha forte", "Menos tentativas indevidas", "Mais tranquilidade"],
+        };
+
+  const AsideIcon = asideInfo.icon;
 
   return (
     <section className="section">
-      <div className="container-max max-w-4xl relative">
-        <div className="min-h-[60vh] py-8 flex flex-col justify-center">
-          {/* WhatsApp-ish chat background */}
+      <div className="container-max max-w-5xl relative">
+        <div className="min-h-[60vh] py-6 md:py-8 flex flex-col gap-5">
+          {/* Fundo ambiental – premium e discreto */}
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 -z-10 rounded-[48px]"
             style={{
               background:
-                "radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--primary) 16%, transparent) 0, transparent 70%)," +
-                "radial-gradient(80% 80% at 10% 20%, color-mix(in srgb, var(--text) 10%, transparent) 0, transparent 60%)," +
-                "radial-gradient(80% 80% at 90% 30%, color-mix(in srgb, var(--text) 8%, transparent) 0, transparent 60%)," +
+                "radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--primary) 14%, transparent) 0, transparent 70%)," +
+                "radial-gradient(80% 80% at 12% 25%, color-mix(in srgb, var(--text) 9%, transparent) 0, transparent 60%)," +
+                "radial-gradient(80% 80% at 90% 30%, color-mix(in srgb, var(--text) 7%, transparent) 0, transparent 60%)," +
                 "linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface) 82%, transparent))",
               maskImage:
-                "radial-gradient(120% 90% at 50% 0%, #000 0, #000 40%, transparent 75%)",
-              opacity: 0.9,
+                "radial-gradient(120% 90% at 50% 0%, #000 0, #000 45%, transparent 78%)",
+              opacity: 0.95,
             }}
           />
 
-          {/* Top bar (WhatsApp vibe) */}
-          <header className="mb-6">
+          {/* Stepper sticky (corrigido: some no mobile quando drawer abre) */}
+          <StepperDock
+            step={step}
+            drawerOpen={drawerOpen}
+            disabled={loading}
+            onStep={(n) => {
+              // só permite ir para trás (UX previsível)
+              if (n <= step) {
+                setStep(n);
+                setSubmitted(false);
+                setErrorList([]);
+                setTimeout(() => {
+                  if (n === 1) nomeRef.current?.focus();
+                  if (n === 2) emailRef.current?.focus();
+                  if (n === 3) senhaRef.current?.focus();
+                }, 0);
+              }
+            }}
+          />
+
+          {/* Cabeçalho */}
+          <header className="pt-1">
             <div
               className="rounded-3xl border shadow-lg px-4 py-3 flex items-center justify-between gap-3"
               style={{
@@ -772,52 +943,76 @@ export default function RegisterPage() {
                 borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
               }}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 min-w-0">
                 <span
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border flex-shrink-0"
                   style={{
-                    background: "color-mix(in srgb, var(--primary) 18%, transparent)",
+                    background: "color-mix(in srgb, var(--primary) 16%, transparent)",
                     borderColor: "color-mix(in srgb, var(--primary) 32%, transparent)",
                     color: "var(--primary)",
                   }}
                 >
                   <UserPlus size={18} />
                 </span>
-                <div>
-                  <p className="text-sm md:text-base font-semibold leading-tight">
+                <div className="min-w-0">
+                  <p className="text-sm md:text-base font-semibold leading-tight truncate">
                     Criar conta
                   </p>
                   <p className="text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
-                    Cadastro rápido em 3 passos
+                    Cadastro rápido em 3 etapas
                   </p>
                 </div>
               </div>
 
-              <div className="hidden sm:block">
-                <StepPills step={step} />
+              <div className="hidden sm:flex items-center gap-2">
+                <span
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs md:text-sm"
+                  style={{
+                    borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                    background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  <IconHint size={14} style={{ color: "var(--primary)" }} />
+                  <span className="truncate">{headerHint.title}</span>
+                </span>
               </div>
             </div>
 
-            <div className="sm:hidden mt-3">
-              <StepPills step={step} />
-            </div>
-
-            <div className="mt-4 space-y-3">
-              <ChatBubble side="left" title={chatHint.title} tone="brand">
-                {chatHint.text}
-              </ChatBubble>
-
-              {step === 3 && (
-                <ChatBubble side="right" title="Perfeito" tone="neutral">
-                  {firstName ? (
-                    <>
-                      {firstName}, seus dados já estão prontos. Agora é só definir a senha.
-                    </>
-                  ) : (
-                    <>Seus dados já estão prontos. Agora é só definir a senha.</>
-                  )}
-                </ChatBubble>
-              )}
+            <div className="mt-3">
+              <div
+                className="rounded-3xl border px-4 py-3 flex items-start gap-3"
+                style={{
+                  background: "color-mix(in srgb, var(--surface) 92%, transparent)",
+                  borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                }}
+              >
+                <span
+                  className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-2xl border"
+                  style={{
+                    background: "color-mix(in srgb, var(--primary) 12%, transparent)",
+                    borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)",
+                    color: "var(--primary)",
+                  }}
+                  aria-hidden="true"
+                >
+                  <IconHint size={16} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm md:text-base font-semibold leading-tight" style={{ color: "var(--text)" }}>
+                    {headerHint.title}
+                  </p>
+                  <p className="text-xs md:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                    {step === 3 && firstName ? (
+                      <>
+                        {firstName}, falta pouco. {headerHint.text}
+                      </>
+                    ) : (
+                      headerHint.text
+                    )}
+                  </p>
+                </div>
+              </div>
             </div>
           </header>
 
@@ -826,7 +1021,7 @@ export default function RegisterPage() {
               ref={alertRef}
               role="alert"
               tabIndex={-1}
-              className="mb-4 rounded-2xl px-4 py-3 text-sm md:text-base border shadow-sm"
+              className="rounded-2xl px-4 py-3 text-sm md:text-base border shadow-sm"
               style={{
                 borderColor: "color-mix(in srgb, var(--primary) 30%, transparent)",
                 background: "color-mix(in srgb, var(--primary) 12%, transparent)",
@@ -838,503 +1033,539 @@ export default function RegisterPage() {
             </div>
           )}
 
-          <form
-            onSubmit={onSubmit}
-            className="relative overflow-hidden rounded-3xl border shadow-xl"
-            style={{
-              background: "color-mix(in srgb, var(--surface) 90%, var(--text) 5%)",
-              borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-            }}
-          >
-            {/* subtle “chat wallpaper” inside form */}
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0"
-              style={{
-                background:
-                  "radial-gradient(circle at 10px 10px, color-mix(in srgb, var(--text) 8%, transparent) 0 1px, transparent 1px 100%)," +
-                  "radial-gradient(circle at 35px 30px, color-mix(in srgb, var(--text) 7%, transparent) 0 1px, transparent 1px 100%)",
-                backgroundSize: "48px 48px",
-                opacity: 0.35,
-              }}
-            />
+          {/* Card master (igual login) + painel de formulário com fundo próprio */}
+          <MasterCard>
+            <form onSubmit={onSubmit} noValidate>
+              <fieldset
+                disabled={loading}
+                className="grid grid-cols-1 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-6 md:gap-8 items-start"
+              >
+                {/* COLUNA ESQUERDA – FORMULÁRIO COM FUNDO (como login) */}
+                <FormPanel
+                  title="Crie sua conta em poucos minutos"
+                  subtitle="Preencha os dados abaixo. Se preferir, use o microfone nos campos disponíveis."
+                >
+                  <div className="grid gap-4">
+                    {/* Conteúdo por etapa */}
+                    {step === 1 && (
+                      <div className="space-y-5">
+                        <div>
+                          <label htmlFor="nome" className="label font-medium text-sm md:text-base">
+                            Nome completo <span aria-hidden="true" className="text-red-600">*</span>
+                          </label>
 
-            <fieldset disabled={loading} className="relative z-[1] p-6 md:p-8 space-y-6">
-              {/* Step content as “bubbles” */}
-              {step === 1 && (
-                <div className="space-y-4">
-                  <ChatBubble side="left" title="Seus dados principais" tone="neutral">
-                    Informe nome, CPF e nascimento para validar seu acesso com segurança.
-                  </ChatBubble>
-
-                  <div
-                    className="rounded-3xl border p-5 md:p-6 space-y-5 shadow-sm"
-                    style={{
-                      background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
-                      borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-                    }}
-                  >
-                    <div>
-                      <label htmlFor="nome" className="label font-medium text-sm md:text-base">
-                        Nome completo <span aria-hidden="true" className="text-red-600">*</span>
-                      </label>
-
-                      <VoiceTextInput
-                        id="nome"
-                        name="nome"
-                        inputRef={nomeRef}
-                        value={form.nome}
-                        onChange={(e) => {
-                          const next = { ...form, nome: e.target.value };
-                          setForm(next);
-                          if (submitted) setErrorList(buildStepErrors(next, 1));
-                        }}
-                        onChangeValue={(nextVal) => {
-                          const cleaned = normalizeNameFromSpeech(nextVal);
-                          const next = { ...form, nome: cleaned };
-                          setForm(next);
-                          if (submitted) setErrorList(buildStepErrors(next, 1));
-                        }}
-                        className={`input h-12 text-base bg-white ${submitted && !nomeOk ? "ring-1 ring-red-500" : ""}`}
-                        placeholder="Maria Oliveira"
-                        autoComplete="name"
-                        ariaRequired="true"
-                        ariaInvalid={submitted && !nomeOk}
-                        disabled={loading}
-                        enableVoice
-                        applyMode="replace"
-                        normalizeTranscript={(t) => normalizeNameFromSpeech(t)}
-                        idleHint="Toque no microfone para ditar seu nome"
-                        listeningHint="Ao terminar toque no quadrado para concluir"
-                      />
-
-                      {submitted && !nomeOk && (
-                        <p className="text-xs md:text-sm mt-1 text-red-600">Informe ao menos 3 caracteres</p>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="cpf" className="label font-medium text-sm md:text-base">
-                          CPF <span aria-hidden="true" className="text-red-600">*</span>
-                        </label>
-
-                        <VoiceTextInput
-                          id="cpf"
-                          name="cpf"
-                          inputRef={cpfRef}
-                          value={formatCPF(form.cpf)}
-                          onChange={onChangeMasked("cpf", formatCPF)}
-                          onPaste={onPasteMasked("cpf", formatCPF)}
-                          onChangeValue={(spoken) => {
-                            const digits = normalizeDigitsFromSpeech(spoken).slice(0, 11);
-                            const formatted = formatCPF(digits);
-                            const next = { ...form, cpf: formatted };
-                            setForm(next);
-                            if (submitted) setErrorList(buildStepErrors(next, 1));
-                          }}
-                          className={`input h-12 text-base bg-white ${submitted && !cpfOk ? "ring-1 ring-red-500" : ""}`}
-                          placeholder="000.000.000-00"
-                          inputMode="numeric"
-                          autoComplete="off"
-                          ariaRequired="true"
-                          ariaInvalid={submitted && !cpfOk}
-                          disabled={loading}
-                          enableVoice
-                          applyMode="replace"
-                          idleHint="Toque no microfone e fale os números do CPF"
-                          listeningHint="Ao terminar toque no quadrado para concluir"
-                        />
-
-                        {submitted && !cpfOk && (
-                          <p className="text-xs md:text-sm mt-1 text-red-600">
-                            CPF inválido. Verifique os números digitados.
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="label font-medium text-sm md:text-base">
-                          Data de nascimento <span aria-hidden="true" className="text-red-600">*</span>
-                        </label>
-
-                        <DateSelectBR
-                          idPrefix="reg-nasc"
-                          valueISO={form.dataNascimento}
-                          onChangeISO={(iso) => {
-                            const next = { ...form, dataNascimento: iso };
-                            setForm(next);
-                            if (submitted) setErrorList(buildStepErrors(next, 1));
-                          }}
-                          minAge={18}
-                          maxAge={100}
-                          invalid={submitted && (!form.dataNascimento || !idadeOk)}
-                        />
-
-                        {submitted && (!form.dataNascimento || !idadeOk) && (
-                          <p className="text-xs md:text-sm mt-1 text-red-600">
-                            É preciso ter entre <b>18</b> e <b>100</b> anos.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {step === 2 && (
-                <div className="space-y-4">
-                  <ChatBubble side="left" title="Contato" tone="neutral">
-                    No e-mail, o símbolo <b>@</b> deve funcionar normalmente. Se estiver no ditado, diga “arroba”.
-                  </ChatBubble>
-
-                  <ChatBubble side="left" title="Exemplo" tone="brand">
-                    “maria oliveira <b>arroba</b> gmail <b>ponto</b> com”
-                  </ChatBubble>
-
-                  <div
-                    className="rounded-3xl border p-5 md:p-6 space-y-5 shadow-sm"
-                    style={{
-                      background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
-                      borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-                    }}
-                  >
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="email" className="label font-medium text-sm md:text-base">
-                          E-mail <span aria-hidden="true" className="text-red-600">*</span>
-                        </label>
-
-                        <VoiceTextInput
-                          id="email"
-                          name="email"
-                          inputRef={emailRef}
-                          value={form.email}
-                          // IMPORTANTÍSSIMO: em digitação, use normalização leve (não “come” @)
-                          onChange={(e) => {
-                            const v = normalizeEmailTyping(e.target.value || "");
-                            const next = { ...form, email: v };
-                            setForm(next);
-                            recomputeErrorsIfSubmitted(next);
-                          }}
-                          onChangeValue={(nextVal) => {
-                            // ao receber texto de voz em tempo real, também aplica “typing”
-                            const v = normalizeEmailTyping(nextVal || "");
-                            const next = { ...form, email: v };
-                            setForm(next);
-                            recomputeErrorsIfSubmitted(next);
-                          }}
-                          // blindagem mobile para não interferir no @
-                          type="text"
-                          inputMode="email"
-                          autoCapitalize="none"
-                          autoCorrect="off"
-                          spellCheck={false}
-                          className={`input h-12 text-base bg-white ${submitted && !emailOk ? "ring-1 ring-red-500" : ""}`}
-                          placeholder="maria@exemplo.com"
-                          autoComplete="email"
-                          ariaRequired="true"
-                          ariaInvalid={submitted && !emailOk}
-                          disabled={loading}
-                          enableVoice
-                          // quando o VoiceTextInput sinalizar “final”, aplica normalização forte
-                          normalizeTranscript={(text, ctx) => {
-                            if (ctx?.mode === "final") return normalizeEmailFromSpeechFinal(text);
-                            return normalizeEmailTyping(text);
-                          }}
-                          applyMode="email"
-                          idleHint="Toque no microfone para ditar o e-mail"
-                          listeningHint="Ao terminar toque no quadrado para concluir"
-                        />
-
-                        {submitted && !emailOk && (
-                          <p className="text-xs md:text-sm mt-1 text-red-600">Informe um e-mail válido.</p>
-                        )}
-
-                        <p className="mt-2 text-[11px] md:text-xs" style={{ color: "var(--text-muted)" }}>
-                          Dica: se o teclado não mostrar <b>@</b>, altere para o teclado de e-mail (inputMode).
-                        </p>
-                      </div>
-
-                      <div>
-                        <label htmlFor="celular" className="label font-medium text-sm md:text-base">
-                          Celular <span aria-hidden="true" className="text-red-600">*</span>
-                        </label>
-
-                        <VoiceTextInput
-                          id="celular"
-                          name="celular"
-                          inputRef={celRef}
-                          value={formatPhoneBR(form.celular)}
-                          onChange={onChangeMasked("celular", formatPhoneBR)}
-                          onPaste={onPasteMasked("celular", formatPhoneBR)}
-                          onChangeValue={(spoken) => {
-                            const digits = normalizeDigitsFromSpeech(spoken).slice(0, 11);
-                            const formatted = formatPhoneBR(digits);
-                            const next = { ...form, celular: formatted };
-                            setForm(next);
-                            recomputeErrorsIfSubmitted(next);
-                          }}
-                          className={`input h-12 text-base bg-white ${submitted && !celularOk ? "ring-1 ring-red-500" : ""}`}
-                          placeholder="(00) 90000-0000"
-                          inputMode="tel"
-                          autoComplete="tel"
-                          ariaRequired="true"
-                          ariaInvalid={submitted && !celularOk}
-                          disabled={loading}
-                          enableVoice
-                          applyMode="replace"
-                          idleHint="Toque no microfone e fale os números com DDD"
-                          listeningHint="Ao terminar toque no quadrado para concluir"
-                        />
-
-                        {submitted && !celularOk && (
-                          <p className="text-xs md:text-sm mt-1 text-red-600">Informe um celular válido com DDD.</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {step === 3 && (
-                <div className="space-y-4">
-                  <ChatBubble side="left" title="Senha" tone="neutral">
-                    Combine letras maiúsculas, minúsculas e números. Isso protege sua conta.
-                  </ChatBubble>
-
-                  <div
-                    className="rounded-3xl border p-5 md:p-6 space-y-5 shadow-sm"
-                    style={{
-                      background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
-                      borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-                    }}
-                  >
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label htmlFor="senha" className="label font-medium text-sm md:text-base">
-                          Senha <span aria-hidden="true" className="text-red-600">*</span>
-                        </label>
-
-                        <div className={`relative ${submitted && !senhaOk ? "ring-1 ring-red-500 rounded-xl" : ""}`}>
-                          <input
-                            id="senha"
-                            type={showPass ? "text" : "password"}
-                            name="senha"
-                            ref={senhaRef}
-                            value={form.senha}
+                          <VoiceTextInput
+                            id="nome"
+                            name="nome"
+                            inputRef={nomeRef}
+                            value={form.nome}
                             onChange={(e) => {
-                              const next = { ...form, senha: e.target.value };
+                              const next = { ...form, nome: e.target.value };
                               setForm(next);
-                              recomputeErrorsIfSubmitted(next);
+                              if (submitted) setErrorList(buildStepErrors(next, 1));
                             }}
-                            className="input pr-12 h-12 text-xs sm:text-sm md:text-base bg-white"
-                            placeholder="Crie uma senha forte"
-                            autoComplete="new-password"
-                            aria-required="true"
-                            aria-invalid={submitted && !senhaOk}
-                            aria-describedby="senha-policy"
+                            onChangeValue={(nextVal) => {
+                              const cleaned = normalizeNameFromSpeech(nextVal);
+                              const next = { ...form, nome: cleaned };
+                              setForm(next);
+                              if (submitted) setErrorList(buildStepErrors(next, 1));
+                            }}
+                            className={`input h-12 text-base bg-white ${
+                              submitted && !nomeOk ? "ring-1 ring-red-500" : ""
+                            }`}
+                            placeholder="Maria Oliveira"
+                            autoComplete="name"
+                            ariaRequired="true"
+                            ariaInvalid={submitted && !nomeOk}
+                            disabled={loading}
+                            enableVoice
+                            applyMode="replace"
+                            normalizeTranscript={(t) => normalizeNameFromSpeech(t)}
+                            idleHint="Toque no microfone para ditar seu nome"
+                            listeningHint="Ao terminar toque no quadrado para concluir"
                           />
 
-                          <button
-                            type="button"
-                            onClick={() => setShowPass((v) => !v)}
-                            className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none text-sm"
-                            aria-label={showPass ? "Ocultar senha" : "Mostrar senha"}
-                            aria-pressed={showPass}
-                            title={showPass ? "Ocultar senha" : "Mostrar senha"}
-                          >
-                            {showPass ? "🙈" : "👁️"}
-                          </button>
+                          {submitted && !nomeOk && (
+                            <p className="text-xs md:text-sm mt-1 text-red-600">
+                              Informe ao menos 3 caracteres.
+                            </p>
+                          )}
                         </div>
 
-                        <div
-                          id="senha-policy"
-                          className="rounded-2xl px-4 py-3 mt-2 border"
-                          style={{
-                            background: "color-mix(in srgb, var(--surface) 86%, transparent)",
-                            borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-                          }}
-                          aria-live="polite"
-                        >
-                          <p className="text-[11px] md:text-xs mb-2" style={{ color: "var(--text-muted)" }}>
-                            Requisitos
-                          </p>
-                          <ul className="space-y-1">
-                            <Rule ok={senhaChecks.len}>Pelo menos 8 caracteres</Rule>
-                            <Rule ok={senhaChecks.upper}>Ao menos 1 letra maiúscula</Rule>
-                            <Rule ok={senhaChecks.lower}>Ao menos 1 letra minúscula</Rule>
-                            <Rule ok={senhaChecks.digit}>Ao menos 1 número</Rule>
-                          </ul>
-                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label htmlFor="cpf" className="label font-medium text-sm md:text-base">
+                              CPF <span aria-hidden="true" className="text-red-600">*</span>
+                            </label>
 
-                        {submitted && !senhaOk && (
-                          <p className="text-xs md:text-sm mt-2 text-red-600">
-                            Ajuste a senha conforme os requisitos acima.
-                          </p>
-                        )}
-                      </div>
+                            <VoiceTextInput
+                              id="cpf"
+                              name="cpf"
+                              inputRef={cpfRef}
+                              value={formatCPF(form.cpf)}
+                              onChange={onChangeMasked("cpf", formatCPF)}
+                              onPaste={onPasteMasked("cpf", formatCPF)}
+                              onChangeValue={(spoken) => {
+                                const digits = normalizeDigitsFromSpeech(spoken).slice(0, 11);
+                                const formatted = formatCPF(digits);
+                                const next = { ...form, cpf: formatted };
+                                setForm(next);
+                                if (submitted) setErrorList(buildStepErrors(next, 1));
+                              }}
+                              className={`input h-12 text-base bg-white ${
+                                submitted && !cpfOk ? "ring-1 ring-red-500" : ""
+                              }`}
+                              placeholder="000.000.000-00"
+                              inputMode="numeric"
+                              autoComplete="off"
+                              ariaRequired="true"
+                              ariaInvalid={submitted && !cpfOk}
+                              disabled={loading}
+                              enableVoice
+                              applyMode="replace"
+                              idleHint="Toque no microfone e fale os números do CPF"
+                              listeningHint="Ao terminar toque no quadrado para concluir"
+                            />
 
-                      <div>
-                        <label htmlFor="confirmSenha" className="label font-medium text-sm md:text-base">
-                          Confirmar senha <span aria-hidden="true" className="text-red-600">*</span>
-                        </label>
+                            {submitted && !cpfOk && (
+                              <p className="text-xs md:text-sm mt-1 text-red-600">
+                                CPF inválido. Verifique os números digitados.
+                              </p>
+                            )}
+                          </div>
 
-                        <div className={`relative ${submitted && !confirmOk ? "ring-1 ring-red-500 rounded-xl" : ""}`}>
-                          <input
-                            id="confirmSenha"
-                            ref={confirmRef}
-                            type={showConfirm ? "text" : "password"}
-                            name="confirmSenha"
-                            value={form.confirmSenha}
-                            onChange={(e) => {
-                              const next = { ...form, confirmSenha: e.target.value };
-                              setForm(next);
-                              recomputeErrorsIfSubmitted(next);
-                            }}
-                            className="input pr-12 h-12 text-xs sm:text-sm md:text-base bg-white"
-                            placeholder="Repita a mesma senha"
-                            autoComplete="new-password"
-                            aria-required="true"
-                            aria-invalid={submitted && !confirmOk}
-                          />
+                          <div>
+                            <label className="label font-medium text-sm md:text-base">
+                              Data de nascimento <span aria-hidden="true" className="text-red-600">*</span>
+                            </label>
 
-                          <button
-                            type="button"
-                            onClick={() => setShowConfirm((v) => !v)}
-                            className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none text-sm"
-                            aria-label={showConfirm ? "Ocultar senha" : "Mostrar senha"}
-                            aria-pressed={showConfirm}
-                            title={showConfirm ? "Ocultar senha" : "Mostrar senha"}
-                          >
-                            {showConfirm ? "🙈" : "👁️"}
-                          </button>
-                        </div>
+                            <DateSelectBR
+                              idPrefix="reg-nasc"
+                              valueISO={form.dataNascimento}
+                              onChangeISO={(iso) => {
+                                const next = { ...form, dataNascimento: iso };
+                                setForm(next);
+                                if (submitted) setErrorList(buildStepErrors(next, 1));
+                              }}
+                              minAge={18}
+                              maxAge={100}
+                              invalid={submitted && (!form.dataNascimento || !idadeOk)}
+                            />
 
-                        {submitted && !confirmOk && (
-                          <p className="text-xs md:text-sm mt-1 text-red-600">As senhas precisam ser iguais.</p>
-                        )}
-
-                        <div className="mt-3 rounded-2xl px-4 py-3 border flex items-start gap-2">
-                          <CheckCircle2 size={18} className="mt-0.5" style={{ color: "var(--primary)" }} />
-                          <div className="text-xs md:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                            Ao criar sua conta, você concorda com os{" "}
-                            <a href="/termos-uso" target="_blank" rel="noreferrer" className="underline">
-                              Termos de Uso
-                            </a>{" "}
-                            e a{" "}
-                            <a href="/politica-privacidade" target="_blank" rel="noreferrer" className="underline">
-                              Política de Privacidade
-                            </a>
-                            .
+                            {submitted && (!form.dataNascimento || !idadeOk) && (
+                              <p className="text-xs md:text-sm mt-1 text-red-600">
+                                É preciso ter entre <b>18</b> e <b>100</b> anos.
+                              </p>
+                            )}
                           </div>
                         </div>
                       </div>
+                    )}
+
+                    {step === 2 && (
+                      <div className="space-y-5">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label htmlFor="email" className="label font-medium text-sm md:text-base">
+                              E-mail <span aria-hidden="true" className="text-red-600">*</span>
+                            </label>
+
+                            <VoiceTextInput
+                              id="email"
+                              name="email"
+                              inputRef={emailRef}
+                              value={form.email}
+                              onChange={(e) => {
+                                const v = normalizeEmailTyping(e.target.value || "");
+                                const next = { ...form, email: v };
+                                setForm(next);
+                                recomputeErrorsIfSubmitted(next);
+                              }}
+                              onChangeValue={(nextVal) => {
+                                const v = normalizeEmailTyping(nextVal || "");
+                                const next = { ...form, email: v };
+                                setForm(next);
+                                recomputeErrorsIfSubmitted(next);
+                              }}
+                              type="text"
+                              inputMode="email"
+                              autoCapitalize="none"
+                              autoCorrect="off"
+                              spellCheck={false}
+                              className={`input h-12 text-base bg-white ${
+                                submitted && !emailOk ? "ring-1 ring-red-500" : ""
+                              }`}
+                              placeholder="maria@exemplo.com"
+                              autoComplete="email"
+                              ariaRequired="true"
+                              ariaInvalid={submitted && !emailOk}
+                              disabled={loading}
+                              enableVoice
+                              normalizeTranscript={(text, ctx) => {
+                                if (ctx?.mode === "final") return normalizeEmailFromSpeechFinal(text);
+                                return normalizeEmailTyping(text);
+                              }}
+                              applyMode="email"
+                              idleHint="Toque no microfone para ditar o e-mail"
+                              listeningHint="Ao terminar toque no quadrado para concluir"
+                            />
+
+                            {submitted && !emailOk && (
+                              <p className="text-xs md:text-sm mt-1 text-red-600">
+                                Informe um e-mail válido.
+                              </p>
+                            )}
+
+                            <p className="mt-2 text-[11px] md:text-xs" style={{ color: "var(--text-muted)" }}>
+                              Dica: se o teclado não mostrar <b>@</b>, troque para o teclado de e-mail.
+                            </p>
+                          </div>
+
+                          <div>
+                            <label htmlFor="celular" className="label font-medium text-sm md:text-base">
+                              Celular <span aria-hidden="true" className="text-red-600">*</span>
+                            </label>
+
+                            <VoiceTextInput
+                              id="celular"
+                              name="celular"
+                              inputRef={celRef}
+                              value={formatPhoneBR(form.celular)}
+                              onChange={onChangeMasked("celular", formatPhoneBR)}
+                              onPaste={onPasteMasked("celular", formatPhoneBR)}
+                              onChangeValue={(spoken) => {
+                                const digits = normalizeDigitsFromSpeech(spoken).slice(0, 11);
+                                const formatted = formatPhoneBR(digits);
+                                const next = { ...form, celular: formatted };
+                                setForm(next);
+                                recomputeErrorsIfSubmitted(next);
+                              }}
+                              className={`input h-12 text-base bg-white ${
+                                submitted && !celularOk ? "ring-1 ring-red-500" : ""
+                              }`}
+                              placeholder="(00) 90000-0000"
+                              inputMode="tel"
+                              autoComplete="tel"
+                              ariaRequired="true"
+                              ariaInvalid={submitted && !celularOk}
+                              disabled={loading}
+                              enableVoice
+                              applyMode="replace"
+                              idleHint="Toque no microfone e fale os números com DDD"
+                              listeningHint="Ao terminar toque no quadrado para concluir"
+                            />
+
+                            {submitted && !celularOk && (
+                              <p className="text-xs md:text-sm mt-1 text-red-600">
+                                Informe um celular válido com DDD.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {step === 3 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label htmlFor="senha" className="label font-medium text-sm md:text-base">
+                            Senha <span aria-hidden="true" className="text-red-600">*</span>
+                          </label>
+
+                          <div className={`relative ${submitted && !senhaOk ? "ring-1 ring-red-500 rounded-xl" : ""}`}>
+                            <input
+                              id="senha"
+                              type={showPass ? "text" : "password"}
+                              name="senha"
+                              ref={senhaRef}
+                              value={form.senha}
+                              onChange={(e) => {
+                                const next = { ...form, senha: e.target.value };
+                                setForm(next);
+                                recomputeErrorsIfSubmitted(next);
+                              }}
+                              className="input pr-12 h-12 text-xs sm:text-sm md:text-base bg-white"
+                              placeholder="Crie uma senha forte"
+                              autoComplete="new-password"
+                              aria-required="true"
+                              aria-invalid={submitted && !senhaOk}
+                              aria-describedby="senha-policy"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() => setShowPass((v) => !v)}
+                              className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none text-sm"
+                              aria-label={showPass ? "Ocultar senha" : "Mostrar senha"}
+                              aria-pressed={showPass}
+                              title={showPass ? "Ocultar senha" : "Mostrar senha"}
+                            >
+                              {showPass ? "🙈" : "👁️"}
+                            </button>
+                          </div>
+
+                          <div
+                            id="senha-policy"
+                            className="rounded-2xl px-4 py-3 mt-2 border"
+                            style={{
+                              background: "color-mix(in srgb, var(--surface) 86%, transparent)",
+                              borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                            }}
+                            aria-live="polite"
+                          >
+                            <p className="text-[11px] md:text-xs mb-2" style={{ color: "var(--text-muted)" }}>
+                              Requisitos
+                            </p>
+                            <ul className="space-y-1">
+                              <Rule ok={senhaChecks.len}>Pelo menos 8 caracteres</Rule>
+                              <Rule ok={senhaChecks.upper}>Ao menos 1 letra maiúscula</Rule>
+                              <Rule ok={senhaChecks.lower}>Ao menos 1 letra minúscula</Rule>
+                              <Rule ok={senhaChecks.digit}>Ao menos 1 número</Rule>
+                            </ul>
+                          </div>
+
+                          {submitted && !senhaOk && (
+                            <p className="text-xs md:text-sm mt-2 text-red-600">
+                              Ajuste a senha conforme os requisitos acima.
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label htmlFor="confirmSenha" className="label font-medium text-sm md:text-base">
+                            Confirmar senha <span aria-hidden="true" className="text-red-600">*</span>
+                          </label>
+
+                          <div className={`relative ${submitted && !confirmOk ? "ring-1 ring-red-500 rounded-xl" : ""}`}>
+                            <input
+                              id="confirmSenha"
+                              ref={confirmRef}
+                              type={showConfirm ? "text" : "password"}
+                              name="confirmSenha"
+                              value={form.confirmSenha}
+                              onChange={(e) => {
+                                const next = { ...form, confirmSenha: e.target.value };
+                                setForm(next);
+                                recomputeErrorsIfSubmitted(next);
+                              }}
+                              className="input pr-12 h-12 text-xs sm:text-sm md:text-base bg-white"
+                              placeholder="Repita a mesma senha"
+                              autoComplete="new-password"
+                              aria-required="true"
+                              aria-invalid={submitted && !confirmOk}
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() => setShowConfirm((v) => !v)}
+                              className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none text-sm"
+                              aria-label={showConfirm ? "Ocultar senha" : "Mostrar senha"}
+                              aria-pressed={showConfirm}
+                              title={showConfirm ? "Ocultar senha" : "Mostrar senha"}
+                            >
+                              {showConfirm ? "🙈" : "👁️"}
+                            </button>
+                          </div>
+
+                          {submitted && !confirmOk && (
+                            <p className="text-xs md:text-sm mt-1 text-red-600">
+                              As senhas precisam ser iguais.
+                            </p>
+                          )}
+
+                          <div
+                            className="mt-3 rounded-2xl px-4 py-3 border flex items-start gap-2"
+                            style={{
+                              background: "color-mix(in srgb, var(--surface) 88%, transparent)",
+                              borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                            }}
+                          >
+                            <CheckCircle2 size={18} className="mt-0.5" style={{ color: "var(--primary)" }} />
+                            <div className="text-xs md:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                              Ao criar sua conta, você concorda com os{" "}
+                              <a href="/termos-uso" target="_blank" rel="noreferrer" className="underline">
+                                Termos de Uso
+                              </a>{" "}
+                              e a{" "}
+                              <a href="/politica-privacidade" target="_blank" rel="noreferrer" className="underline">
+                                Política de Privacidade
+                              </a>
+                              .
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {submitted && errorList.length > 0 && (
+                      <div
+                        className="rounded-2xl px-4 py-3 text-sm md:text-base border"
+                        style={{
+                          borderColor: "color-mix(in srgb, var(--primary) 30%, transparent)",
+                          background: "color-mix(in srgb, var(--primary) 10%, transparent)",
+                          color: "var(--text)",
+                        }}
+                        role="alert"
+                        aria-live="assertive"
+                      >
+                        <p className="font-medium mb-1">Revise os campos destacados</p>
+                        <ul className="list-disc ml-5 space-y-1">
+                          {errorList.map((it, idx) => (
+                            <li key={idx}>
+                              <button
+                                type="button"
+                                className="underline hover:opacity-80"
+                                onClick={() => focusByField(it.field)}
+                              >
+                                {it.label}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Bottom bar – sticky dentro do painel (não briga com drawer) */}
+                    <div
+                      className="sticky bottom-0 pt-2"
+                      style={{
+                        background:
+                          "linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--surface) 92%, transparent) 30%, color-mix(in srgb, var(--surface) 96%, transparent) 100%)",
+                        paddingBottom: 2,
+                      }}
+                    >
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <button
+                          type="submit"
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed shadow-lg"
+                          disabled={loading}
+                          style={{
+                            background:
+                              "linear-gradient(180deg, color-mix(in srgb, var(--primary) 88%, #000 0%), color-mix(in srgb, var(--primary) 74%, #000 0%))",
+                            color: "var(--on-primary)",
+                          }}
+                        >
+                          <span>{loading ? "Processando…" : sendLabel}</span>
+                          <span
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full"
+                            style={{
+                              background: "color-mix(in srgb, var(--on-primary) 18%, transparent)",
+                            }}
+                            aria-hidden="true"
+                          >
+                            <ArrowRight size={16} />
+                          </span>
+                        </button>
+
+                        {canGoBack ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const prev = Math.max(1, step - 1);
+                              setStep(prev);
+                              setSubmitted(false);
+                              setErrorList([]);
+                              setTimeout(() => {
+                                if (prev === 1) nomeRef.current?.focus();
+                                if (prev === 2) emailRef.current?.focus();
+                                if (prev === 3) senhaRef.current?.focus();
+                              }, 0);
+                            }}
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-sm md:text-base font-medium border hover:opacity-90"
+                            style={{
+                              background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
+                              borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                              color: "var(--text)",
+                            }}
+                          >
+                            <ChevronLeft size={18} />
+                            Voltar
+                          </button>
+                        ) : (
+                          <Link
+                            to="/login"
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-sm md:text-base font-medium border hover:opacity-90"
+                            style={{
+                              background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
+                              borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                              color: "var(--text)",
+                            }}
+                          >
+                            Já tenho conta
+                          </Link>
+                        )}
+                      </div>
+
+                      <p
+                        className="mt-3 text-[11px] md:text-xs text-center leading-relaxed"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        Seus dados são protegidos e tratados conforme a LGPD.
+                      </p>
                     </div>
                   </div>
-                </div>
-              )}
+                </FormPanel>
 
-              {submitted && errorList.length > 0 && (
-                <div
-                  className="rounded-2xl px-4 py-3 text-sm md:text-base border"
+                {/* COLUNA DIREITA – UX de confiança (estilo login, simples e leve) */}
+                <aside
+                  className="rounded-2xl border px-4 py-4 md:px-5 md:py-5 flex flex-col justify-between gap-4"
                   style={{
-                    borderColor: "color-mix(in srgb, var(--primary) 30%, transparent)",
-                    background: "color-mix(in srgb, var(--primary) 10%, transparent)",
-                    color: "var(--text)",
+                    background: "color-mix(in srgb, var(--surface-elevated) 94%, transparent)",
+                    borderColor: "color-mix(in srgb, var(--primary) 20%, transparent)",
                   }}
-                  role="alert"
-                  aria-live="assertive"
                 >
-                  <p className="font-medium mb-1">Revise os campos destacados</p>
-                  <ul className="list-disc ml-5 space-y-1">
-                    {errorList.map((it, idx) => (
-                      <li key={idx}>
-                        <button type="button" className="underline hover:opacity-80" onClick={() => focusByField(it.field)}>
-                          {it.label}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Bottom bar: WhatsApp send vibe */}
-              <div
-                className="sticky bottom-0 pt-2"
-                style={{
-                  background:
-                    "linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--surface) 92%, transparent) 30%, color-mix(in srgb, var(--surface) 96%, transparent) 100%)",
-                  paddingBottom: 2,
-                }}
-              >
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    type="submit"
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed shadow-lg"
-                    disabled={loading}
-                    style={{
-                      background:
-                        "linear-gradient(180deg, color-mix(in srgb, var(--primary) 88%, #000 0%), color-mix(in srgb, var(--primary) 74%, #000 0%))",
-                      color: "var(--on-primary)",
-                    }}
-                  >
-                    <span>{loading ? "Processando…" : sendLabel}</span>
-                    <span
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full"
+                  <div className="space-y-2">
+                    <div
+                      className="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[11px] md:text-xs"
                       style={{
-                        background: "color-mix(in srgb, var(--on-primary) 18%, transparent)",
+                        background: "color-mix(in srgb, var(--primary) 12%, transparent)",
+                        color: "var(--text)",
                       }}
-                      aria-hidden="true"
                     >
-                      <ArrowRight size={16} />
-                    </span>
-                  </button>
+                      <span
+                        className="inline-flex h-4 w-4 items-center justify-center rounded-full"
+                        style={{ background: "var(--primary)", color: "white" }}
+                      >
+                        <AsideIcon size={12} />
+                      </span>
+                      <span>{asideInfo.badge}</span>
+                    </div>
 
-                  {canGoBack ? (
+                    <h2 className="text-sm md:text-base font-semibold">{asideInfo.title}</h2>
+                    <p className="text-xs md:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                      {asideInfo.text}
+                    </p>
+
+                    <ul className="mt-1 space-y-1.5 text-xs md:text-sm">
+                      {asideInfo.bullets.map((b, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span
+                            className="mt-0.5 inline-block h-1.5 w-1.5 rounded-full"
+                            style={{ background: "var(--primary)" }}
+                          />
+                          <span>{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="space-y-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        const prev = Math.max(1, step - 1);
-                        setStep(prev);
-                        setSubmitted(false);
-                        setErrorList([]);
-                        setTimeout(() => {
-                          if (prev === 1) nomeRef.current?.focus();
-                          if (prev === 2) emailRef.current?.focus();
-                        }, 0);
-                      }}
-                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-sm md:text-base font-medium border hover:opacity-90"
-                      style={{
-                        background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
-                        borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-                        color: "var(--text)",
-                      }}
-                    >
-                      <ChevronLeft size={18} />
-                      Voltar
-                    </button>
-                  ) : (
-                    <Link
-                      to="/login"
-                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-sm md:text-base font-medium border hover:opacity-90"
-                      style={{
-                        background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
-                        borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-                        color: "var(--text)",
-                      }}
+                      onClick={() => navigate("/login")}
+                      className="btn-outline w-full justify-center rounded-2xl h-11 md:h-12 text-sm md:text-base font-semibold"
+                      disabled={loading}
                     >
                       Já tenho conta
-                    </Link>
-                  )}
-                </div>
-
-                <p className="mt-3 text-[11px] md:text-xs text-center leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                  Seus dados são protegidos e tratados conforme a LGPD.
-                </p>
-              </div>
-            </fieldset>
-          </form>
+                    </button>
+                    <p className="text-[11px] md:text-xs text-center" style={{ color: "var(--text-muted)" }}>
+                      Ao continuar, você concorda com os Termos de Uso e com a Política de Privacidade.
+                    </p>
+                  </div>
+                </aside>
+              </fieldset>
+            </form>
+          </MasterCard>
         </div>
       </div>
     </section>

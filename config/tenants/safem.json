@@ -1,0 +1,126 @@
+{
+  "slug": "safem",
+  "v": 1,
+
+  "vars": {
+    "--primary": "#0A2E5C",
+    "--primary-dark": "#061F3E",
+    "--primary-light": "#1E4F8A",
+    "--secondary": "#F26A1B",
+    "--on-primary": "#ffffff",
+
+    "--surface": "#ffffff",
+    "--surface-alt": "#F3F6FA",
+    "--text": "#0B1220",
+    "--text-muted": "#556274",
+    "--c-border": "rgba(0,0,0,0.10)",
+
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 12%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 22%, transparent)",
+    "--nav-active-color": "#061F3E",
+
+    "--highlight": "#F59E0B",
+    "--button-hover": "color-mix(in srgb, var(--primary) 28%, #000000)",
+
+    "--sidebar-icon": "#061F3E",
+    "--sidebar-icon-muted": "#64748B",
+    "--sidebar-icon-active": "#F26A1B",
+    "--sidebar-text": "#0B1220",
+    "--sidebar-text-muted": "#556274",
+    "--headline": "#061F3E",
+
+    "--accent-warm": "#F26A1B"
+  },
+
+  "varsDark": {
+    "--surface": "#0B1220",
+    "--surface-alt": "#0F1B2E",
+
+    "--text": "#F9FAFB",
+    "--text-muted": "#A5B4CF",
+
+    "--primary": "#1E4F8A",
+    "--primary-dark": "#0A2E5C",
+    "--primary-light": "#3B73B9",
+    "--secondary": "#F59E0B",
+
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 18%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 32%, transparent)",
+    "--nav-active-color": "#F9FAFB",
+
+    "--highlight": "#F59E0B",
+    "--button-hover": "color-mix(in srgb, var(--primary) 35%, #000000)",
+
+    "--sidebar-icon": "#F9FAFB",
+    "--sidebar-icon-muted": "#7C8CAB",
+    "--sidebar-icon-active": "#F59E0B",
+    "--sidebar-text": "#E5E7EB",
+    "--sidebar-text-muted": "#A5B4CF",
+    "--headline": "#FFFFFF",
+
+    "--c-border": "rgba(255,255,255,0.22)",
+
+    "--accent-warm": "#F26A1B"
+  },
+
+  "logo": "https://sandbox.progem.com.br/progem/api/downloads/empresa/350/arquivo?nome=3550f6f5-cbdf-4650-9979-83fc66b40020_logosemfundo.png",
+
+  "heroTitle": "Proteção e cuidado para toda a família",
+  "heroSubtitle": "Assistência familiar com estrutura, acolhimento e compromisso em todos os momentos.",
+  "heroImage": "https://seu-dominio-de-arquivos.com/safem/hero-safem.jpg",
+
+  "heroSlides": [
+    {
+      "id": "assistencia",
+      "tag": "Assistência Familiar",
+      "title": "Segurança, apoio e tranquilidade no dia a dia",
+      "subtitle": "Planos pensados para cuidar da sua família com responsabilidade e respeito.",
+      "image": "https://seu-dominio-de-arquivos.com/safem/hero-assistencia.jpg",
+      "primary": {
+        "label": "Conhecer planos",
+        "to": "/planos",
+        "variant": "primary"
+      },
+      "secondary": {
+        "label": "Área do associado",
+        "to": "/login",
+        "variant": "outline-light"
+      },
+      "showValuePills": true
+    },
+    {
+      "id": "servicos",
+      "tag": "Serviços & Estrutura",
+      "title": "Atendimento humanizado quando você mais precisa",
+      "subtitle": "Equipe preparada e serviços organizados para apoiar sua família com dignidade.",
+      "image": "https://seu-dominio-de-arquivos.com/safem/hero-servicos.jpg",
+      "primary": {
+        "label": "Produtos e serviços",
+        "to": "/servicos",
+        "variant": "primary"
+      },
+      "secondary": null,
+      "showValuePills": false
+    },
+    {
+      "id": "memorial",
+      "tag": "Memorial Digital",
+      "title": "Lembranças que permanecem",
+      "subtitle": "Um espaço online para homenagens, mensagens e informações das cerimônias.",
+      "image": "https://seu-dominio-de-arquivos.com/safem/hero-memorial.jpg",
+      "primary": {
+        "label": "Acessar memorial",
+        "to": "/memorial",
+        "variant": "primary"
+      },
+      "secondary": {
+        "label": "Falar no WhatsApp",
+        "to": "https://wa.me/?text=Olá! Gostaria de saber mais sobre os planos da SAFEM Assistência Familiar.",
+        "variant": "outline-light"
+      },
+      "showValuePills": false
+    }
+  ],
+
+  "domain": "safemassistencia.com.br"
+}
