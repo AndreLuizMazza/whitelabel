@@ -1,8 +1,9 @@
 // src/pages/RegisterPage.jsx
 // RegisterPage – Apple-level (simplicidade + confiança)
-// - Stepper sticky abaixo da Navbar (não sobrepõe drawer)
-// - Respeita flag do Navbar: <html data-mobile-drawer-open="true">
-// - Fundo premium no formulário (como login) + “card master” do fluxo
+// Ajustes principais (alta conversão):
+// - Stepper NÃO some ao focar campos (keyboard mobile): usa FIXED no mobile + STICKY no md+
+// - Respeita drawer: <html data-mobile-drawer-open="true"> (no mobile, some quando abre)
+// - Tela mais sintética: reduz “ruído” (aside minimalista e some no mobile)
 // - Mantém: voz, normalização suave (email @), validação por etapas, CPF/telefone, FCM
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -434,12 +435,6 @@ function Rule({ ok, children }) {
   );
 }
 
-/**
- * “Card master” do fluxo (igual ideia do Login):
- * - fundo premium
- * - gradiente suave no rodapé
- * - mantém tudo dentro
- */
 function MasterCard({ children }) {
   return (
     <div
@@ -463,10 +458,6 @@ function MasterCard({ children }) {
   );
 }
 
-/**
- * Fundo do formulário “como no login”:
- * - bloco interno com border e fundo próprio (surface-elevated)
- */
 function FormPanel({ title, subtitle, children }) {
   return (
     <div
@@ -542,53 +533,97 @@ function StepperPill({ active, done, n, label, onClick, disabled }) {
   );
 }
 
+/**
+ * StepperDock – FIX clínico:
+ * - No mobile: position: fixed (não “some” com teclado/focus)
+ * - No md+: mantém sticky (como no Cadastro.jsx)
+ * - Reserva espaço (spacer) para não “pular” layout
+ * - Se drawer abrir no mobile: oculta
+ */
 function StepperDock({ step, onStep, drawerOpen, disabled }) {
-  // Fix clínico:
-  // - quando o drawer abre no mobile, o stepper some (não “aparece por cima” do menu)
-  // - no desktop (md+), mantém sempre visível
-  return (
+  const [isMdUp, setIsMdUp] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.matchMedia?.("(min-width: 768px)")?.matches ?? true;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(min-width: 768px)");
+    const onChange = () => setIsMdUp(mq.matches);
+    onChange();
+    try {
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    } catch {
+      mq.addListener(onChange);
+      return () => mq.removeListener(onChange);
+    }
+  }, []);
+
+  const top = "calc(var(--app-header-h, 72px) + env(safe-area-inset-top, 0px) + 10px)";
+  const hiddenMobile = !isMdUp && drawerOpen;
+
+  const panel = (
     <div
-      className={`sticky z-[30] ${drawerOpen ? "hidden md:block" : ""}`}
+      className="rounded-[22px] border shadow-lg p-2 md:p-2.5"
       style={{
-        top: "calc(64px + 10px)", // “bate na navbar”
+        background: "color-mix(in srgb, var(--surface) 88%, var(--text) 6%)",
+        borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+        backdropFilter: "blur(10px)",
       }}
     >
-      <div
-        className="rounded-[22px] border shadow-lg p-2 md:p-2.5"
-        style={{
-          background: "color-mix(in srgb, var(--surface) 88%, var(--text) 6%)",
-          borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-          backdropFilter: "blur(10px)",
-        }}
-      >
-        <div className="flex gap-2">
-          <StepperPill
-            n={1}
-            label="Dados"
-            active={step === 1}
-            done={step > 1}
-            disabled={disabled}
-            onClick={() => onStep?.(1)}
-          />
-          <StepperPill
-            n={2}
-            label="Contato"
-            active={step === 2}
-            done={step > 2}
-            disabled={disabled}
-            onClick={() => onStep?.(2)}
-          />
-          <StepperPill
-            n={3}
-            label="Segurança"
-            active={step === 3}
-            done={false}
-            disabled={disabled}
-            onClick={() => onStep?.(3)}
-          />
-        </div>
+      <div className="flex gap-2">
+        <StepperPill
+          n={1}
+          label="Dados"
+          active={step === 1}
+          done={step > 1}
+          disabled={disabled}
+          onClick={() => onStep?.(1)}
+        />
+        <StepperPill
+          n={2}
+          label="Contato"
+          active={step === 2}
+          done={step > 2}
+          disabled={disabled}
+          onClick={() => onStep?.(2)}
+        />
+        <StepperPill
+          n={3}
+          label="Segurança"
+          active={step === 3}
+          done={false}
+          disabled={disabled}
+          onClick={() => onStep?.(3)}
+        />
       </div>
     </div>
+  );
+
+  // Spacer sempre presente para evitar “layout jump” (especialmente no mobile fixed)
+  const spacerH = isMdUp ? 0 : 88;
+
+  return (
+    <>
+      <div aria-hidden="true" style={{ height: spacerH }} />
+      <div
+        className={`${hiddenMobile ? "hidden" : ""} z-[50]`}
+        style={
+          isMdUp
+            ? { position: "sticky", top }
+            : {
+                position: "fixed",
+                top,
+                left: "50%",
+                transform: "translateX(-50%)",
+                width: "min(980px, calc(100vw - 24px))",
+              }
+        }
+      >
+        {panel}
+      </div>
+    </>
   );
 }
 
@@ -756,7 +791,6 @@ export default function RegisterPage() {
     e.preventDefault();
     if (loading) return;
 
-    // Step 1 -> Step 2
     if (step === 1) {
       setSubmitted(true);
       const list = buildStepErrors(form, 1);
@@ -772,7 +806,6 @@ export default function RegisterPage() {
       return;
     }
 
-    // Step 2 -> Step 3
     if (step === 2) {
       setSubmitted(true);
       const list = buildStepErrors(form, 2);
@@ -788,7 +821,6 @@ export default function RegisterPage() {
       return;
     }
 
-    // Final
     setSubmitted(true);
     const list = buildErrorList(form);
     setErrorList(list);
@@ -843,54 +875,21 @@ export default function RegisterPage() {
 
   const headerHint =
     step === 1
-      ? {
-          icon: User,
-          title: "Dados do titular",
-          text: "Informe seus dados para validar o acesso com segurança.",
-        }
+      ? { icon: User, title: "Dados", text: "Informações básicas para validar seu acesso." }
       : step === 2
-      ? {
-          icon: Mail,
-          title: "Contato",
-          text: "Use um e-mail válido e seu celular com DDD.",
-        }
-      : {
-          icon: ShieldCheck,
-          title: "Segurança",
-          text: "Crie uma senha forte para proteger sua conta.",
-        };
+      ? { icon: Mail, title: "Contato", text: "E-mail e celular para recuperação e avisos." }
+      : { icon: ShieldCheck, title: "Segurança", text: "Uma senha forte protege sua conta." };
 
   const IconHint = headerHint.icon;
-
   const sendLabel = step === 3 ? "Criar conta" : "Continuar";
 
+  // Aside minimalista (sem poluir): some no mobile, aparece no md+
   const asideInfo =
     step === 1
-      ? {
-          badge: "Verificação",
-          icon: Fingerprint,
-          title: "Precisamos desses dados",
-          text:
-            "Nome, CPF e data de nascimento ajudam a validar o cadastro e evitar fraudes. É rápido e seguro.",
-          bullets: ["Validação do titular", "Proteção contra uso indevido", "Cadastro sem papelada"],
-        }
+      ? { icon: Fingerprint, title: "Validação do titular", bullets: ["Evita fraudes", "Cadastro rápido", "Sem papelada"] }
       : step === 2
-      ? {
-          badge: "Contato",
-          icon: Phone,
-          title: "Mantenha seu acesso em dia",
-          text:
-            "E-mail e celular são usados para avisos, recuperação de senha e comunicações importantes.",
-          bullets: ["Recuperação de senha", "Avisos de contrato", "Confirmações e suporte"],
-        }
-      : {
-          badge: "Segurança",
-          icon: ShieldCheck,
-          title: "Conta mais protegida",
-          text:
-            "Uma senha forte reduz riscos. Você pode alterá-la depois a qualquer momento.",
-          bullets: ["Senha forte", "Menos tentativas indevidas", "Mais tranquilidade"],
-        };
+      ? { icon: Phone, title: "Recuperação e avisos", bullets: ["Recuperar senha", "Avisos do contrato", "Suporte"] }
+      : { icon: ShieldCheck, title: "Senha forte", bullets: ["Mais proteção", "Menos tentativas indevidas", "Você altera depois"] };
 
   const AsideIcon = asideInfo.icon;
 
@@ -914,13 +913,12 @@ export default function RegisterPage() {
             }}
           />
 
-          {/* Stepper sticky (corrigido: some no mobile quando drawer abre) */}
+          {/* Stepper: FIXED no mobile (não some ao focar) + some quando drawer abre */}
           <StepperDock
             step={step}
             drawerOpen={drawerOpen}
             disabled={loading}
             onStep={(n) => {
-              // só permite ir para trás (UX previsível)
               if (n <= step) {
                 setStep(n);
                 setSubmitted(false);
@@ -934,7 +932,7 @@ export default function RegisterPage() {
             }}
           />
 
-          {/* Cabeçalho */}
+          {/* Cabeçalho (mais sintético) */}
           <header className="pt-1">
             <div
               className="rounded-3xl border shadow-lg px-4 py-3 flex items-center justify-between gap-3"
@@ -955,11 +953,9 @@ export default function RegisterPage() {
                   <UserPlus size={18} />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm md:text-base font-semibold leading-tight truncate">
-                    Criar conta
-                  </p>
+                  <p className="text-sm md:text-base font-semibold leading-tight truncate">Criar conta</p>
                   <p className="text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
-                    Cadastro rápido em 3 etapas
+                    3 etapas • rápido e seguro
                   </p>
                 </div>
               </div>
@@ -1033,20 +1029,18 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* Card master (igual login) + painel de formulário com fundo próprio */}
           <MasterCard>
             <form onSubmit={onSubmit} noValidate>
               <fieldset
                 disabled={loading}
-                className="grid grid-cols-1 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-6 md:gap-8 items-start"
+                className="grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)] gap-6 md:gap-8 items-start"
               >
-                {/* COLUNA ESQUERDA – FORMULÁRIO COM FUNDO (como login) */}
+                {/* FORM */}
                 <FormPanel
-                  title="Crie sua conta em poucos minutos"
-                  subtitle="Preencha os dados abaixo. Se preferir, use o microfone nos campos disponíveis."
+                  title="Crie sua conta"
+                  subtitle="Use o microfone nos campos disponíveis, se preferir."
                 >
                   <div className="grid gap-4">
-                    {/* Conteúdo por etapa */}
                     {step === 1 && (
                       <div className="space-y-5">
                         <div>
@@ -1215,10 +1209,6 @@ export default function RegisterPage() {
                                 Informe um e-mail válido.
                               </p>
                             )}
-
-                            <p className="mt-2 text-[11px] md:text-xs" style={{ color: "var(--text-muted)" }}>
-                              Dica: se o teclado não mostrar <b>@</b>, troque para o teclado de e-mail.
-                            </p>
                           </div>
 
                           <div>
@@ -1425,7 +1415,7 @@ export default function RegisterPage() {
                       </div>
                     )}
 
-                    {/* Bottom bar – sticky dentro do painel (não briga com drawer) */}
+                    {/* Bottom bar – simples e direto */}
                     <div
                       className="sticky bottom-0 pt-2"
                       style={{
@@ -1500,50 +1490,39 @@ export default function RegisterPage() {
                         className="mt-3 text-[11px] md:text-xs text-center leading-relaxed"
                         style={{ color: "var(--text-muted)" }}
                       >
-                        Seus dados são protegidos e tratados conforme a LGPD.
+                        Seus dados são tratados conforme a LGPD.
                       </p>
                     </div>
                   </div>
                 </FormPanel>
 
-                {/* COLUNA DIREITA – UX de confiança (estilo login, simples e leve) */}
+                {/* COLUNA DIREITA – MINIMAL (não polui decisão); escondida no mobile */}
                 <aside
-                  className="rounded-2xl border px-4 py-4 md:px-5 md:py-5 flex flex-col justify-between gap-4"
+                  className="hidden md:flex rounded-2xl border px-5 py-5 flex-col justify-between gap-4"
                   style={{
                     background: "color-mix(in srgb, var(--surface-elevated) 94%, transparent)",
                     borderColor: "color-mix(in srgb, var(--primary) 20%, transparent)",
                   }}
                 >
                   <div className="space-y-2">
-                    <div
-                      className="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[11px] md:text-xs"
-                      style={{
-                        background: "color-mix(in srgb, var(--primary) 12%, transparent)",
-                        color: "var(--text)",
-                      }}
-                    >
+                    <div className="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[11px]">
                       <span
-                        className="inline-flex h-4 w-4 items-center justify-center rounded-full"
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-full"
                         style={{ background: "var(--primary)", color: "white" }}
                       >
                         <AsideIcon size={12} />
                       </span>
-                      <span>{asideInfo.badge}</span>
+                      <span style={{ color: "var(--text-muted)" }}>{asideInfo.title}</span>
                     </div>
 
-                    <h2 className="text-sm md:text-base font-semibold">{asideInfo.title}</h2>
-                    <p className="text-xs md:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                      {asideInfo.text}
-                    </p>
-
-                    <ul className="mt-1 space-y-1.5 text-xs md:text-sm">
+                    <ul className="mt-2 space-y-2 text-sm">
                       {asideInfo.bullets.map((b, idx) => (
                         <li key={idx} className="flex items-start gap-2">
                           <span
-                            className="mt-0.5 inline-block h-1.5 w-1.5 rounded-full"
+                            className="mt-2 inline-block h-1.5 w-1.5 rounded-full"
                             style={{ background: "var(--primary)" }}
                           />
-                          <span>{b}</span>
+                          <span style={{ color: "var(--text)" }}>{b}</span>
                         </li>
                       ))}
                     </ul>
@@ -1558,9 +1537,6 @@ export default function RegisterPage() {
                     >
                       Já tenho conta
                     </button>
-                    <p className="text-[11px] md:text-xs text-center" style={{ color: "var(--text-muted)" }}>
-                      Ao continuar, você concorda com os Termos de Uso e com a Política de Privacidade.
-                    </p>
                   </div>
                 </aside>
               </fieldset>
