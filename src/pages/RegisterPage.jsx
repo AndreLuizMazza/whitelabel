@@ -11,6 +11,16 @@
 // - Fundo do step (ativo e concluído) com a cor primária
 // - Número/ícone com cor de alto contraste (usa --on-primary, fallback branco)
 // - Conectores mais “premium”, legíveis em tema claro e escuro
+//
+// ✅ Upgrade Apple-level focado EXCLUSIVAMENTE na etapa de senha (UX + conversão):
+// - Indicador de força (barra + rótulo humano)
+// - Checklist “vivo” com feedback imediato e sem ruído
+// - Aviso de Caps Lock (evita frustração)
+// - Botão “Gerar senha forte” (opcional, seguro, 1 clique)
+// - Botão “Copiar” (para colar em gerenciador de senhas)
+// - Microcopy curto, orientado à ação, com foco em clareza
+// - Confirmação com status imediato (match / mismatch)
+// - Mantém toda a lógica anterior, sem quebrar nada
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
@@ -30,6 +40,13 @@ import {
   User,
   Phone,
   Fingerprint,
+  Eye,
+  EyeOff,
+  Copy,
+  Wand2,
+  Check,
+  X,
+  LockKeyhole,
 } from "lucide-react";
 
 /* =========================
@@ -163,6 +180,172 @@ function normalizeEmailTyping(input = "") {
   t = t.replace(/@{2,}/g, "@").replace(/\.{2,}/g, ".");
   t = t.replace(/\.@/g, "@").replace(/@\./g, "@");
   return t;
+}
+
+/* =========================
+   Password UX helpers (Apple-level)
+========================= */
+
+function scorePassword(pw = "") {
+  const s = String(pw || "");
+  if (!s) return { score: 0, label: "Crie uma senha", hint: "Use 8+ caracteres com letras e número." };
+
+  const checks = getPasswordChecks(s);
+  const variety =
+    (checks.lower ? 1 : 0) + (checks.upper ? 1 : 0) + (checks.digit ? 1 : 0) + (/[^A-Za-z0-9]/.test(s) ? 1 : 0);
+
+  // Heurística simples, estável e “sem susto” (0..100)
+  let score = 0;
+  score += Math.min(40, s.length * 4); // até 40
+  score += variety * 12; // até 48
+  if (s.length >= 12) score += 8;
+  if (s.length >= 16) score += 6;
+
+  // Penalidades leves
+  if (/^(.)\1{5,}$/.test(s)) score -= 20;
+  if (/1234|abcd|senha|password/i.test(s)) score -= 20;
+
+  score = Math.max(0, Math.min(100, score));
+
+  let label = "Fraca";
+  let hint = "Aumente o tamanho e misture letras e números.";
+  if (score >= 40) {
+    label = "Boa";
+    hint = "Ótimo. Se puder, use 12+ caracteres.";
+  }
+  if (score >= 70) {
+    label = "Forte";
+    hint = "Perfeito. Você pode seguir.";
+  }
+
+  if (isStrongPassword(s) && s.length >= 12 && score < 70) {
+    // suaviza: se passou nos requisitos e tem 12+, tratamos como “forte”
+    score = Math.max(score, 70);
+    label = "Forte";
+    hint = "Perfeito. Você pode seguir.";
+  }
+
+  return { score, label, hint };
+}
+
+function generatePassword(length = 14) {
+  // Gera senha forte com letras, números e símbolos comuns
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const digits = "23456789";
+  const symbols = "!@#$%&*_-+?";
+  const all = upper + lower + digits + symbols;
+
+  const cryptoObj = typeof window !== "undefined" ? window.crypto : null;
+  const rand = (n) => {
+    if (cryptoObj?.getRandomValues) {
+      const buf = new Uint32Array(1);
+      cryptoObj.getRandomValues(buf);
+      return buf[0] % n;
+    }
+    return Math.floor(Math.random() * n);
+  };
+
+  const pick = (set) => set[rand(set.length)];
+  let pw = "";
+  // garante variedade mínima
+  pw += pick(upper);
+  pw += pick(lower);
+  pw += pick(digits);
+  pw += pick(symbols);
+
+  for (let i = pw.length; i < length; i++) pw += pick(all);
+
+  // embaralha
+  const arr = pw.split("");
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = rand(i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.join("");
+}
+
+function StrengthPill({ score, label }) {
+  // Só usa primária (sem inventar paleta). Intensidade via opacidade.
+  const width = `${Math.max(6, Math.min(100, score))}%`;
+  const strong = score >= 70;
+  const good = score >= 40 && score < 70;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="inline-flex items-center gap-2">
+          <span
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full border"
+            style={{
+              background: "color-mix(in srgb, var(--primary) 14%, transparent)",
+              borderColor: "color-mix(in srgb, var(--primary) 24%, transparent)",
+              color: "var(--primary)",
+            }}
+            aria-hidden="true"
+          >
+            <LockKeyhole size={14} />
+          </span>
+          <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+            Força:{" "}
+            <span style={{ color: strong || good ? "var(--text)" : "var(--text-muted)" }}>
+              {label}
+            </span>
+          </span>
+        </div>
+
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+          {score}%
+        </span>
+      </div>
+
+      <div
+        className="h-2 rounded-full overflow-hidden border"
+        style={{
+          background: "color-mix(in srgb, var(--text) 8%, transparent)",
+          borderColor: "color-mix(in srgb, var(--text) 12%, transparent)",
+        }}
+        aria-hidden="true"
+      >
+        <div
+          className="h-full rounded-full"
+          style={{
+            width,
+            background: `linear-gradient(90deg,
+              color-mix(in srgb, var(--primary) ${Math.min(88, 35 + score * 0.6)}%, transparent),
+              color-mix(in srgb, var(--primary) ${Math.min(95, 45 + score * 0.6)}%, transparent)
+            )`,
+            boxShadow: score >= 40 ? "0 10px 18px rgba(0,0,0,0.10)" : "none",
+            transition: "width 180ms ease",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function LiveCheck({ ok, text }) {
+  return (
+    <li className="flex items-start gap-2 text-xs md:text-sm">
+      <span
+        className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full border"
+        style={{
+          background: ok
+            ? "color-mix(in srgb, var(--primary) 16%, transparent)"
+            : "color-mix(in srgb, var(--text) 10%, transparent)",
+          borderColor: ok
+            ? "color-mix(in srgb, var(--primary) 30%, transparent)"
+            : "color-mix(in srgb, var(--text) 14%, transparent)",
+          color: ok ? "var(--primary)" : "var(--text-muted)",
+          flex: "0 0 auto",
+        }}
+        aria-hidden="true"
+      >
+        {ok ? <Check size={12} /> : <X size={12} />}
+      </span>
+      <span style={{ color: ok ? "var(--text)" : "var(--text-muted)" }}>{text}</span>
+    </li>
+  );
 }
 
 /* =========================
@@ -637,6 +820,11 @@ export default function RegisterPage() {
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  // ✅ UX senha
+  const [capsOn, setCapsOn] = useState(false);
+  const [copyOk, setCopyOk] = useState(false);
+  const [genOk, setGenOk] = useState(false);
+
   const alertRef = useRef(null);
   const nomeRef = useRef(null);
   const emailRef = useRef(null);
@@ -700,6 +888,9 @@ export default function RegisterPage() {
   useEffect(() => {
     if (error) setTimeout(() => alertRef.current?.focus(), 0);
   }, [error]);
+
+  // Score da senha (UX)
+  const passScore = useMemo(() => scorePassword(form.senha), [form.senha]);
 
   function buildErrorList(values) {
     const items = [];
@@ -883,6 +1074,40 @@ export default function RegisterPage() {
   const AsideIcon = asideInfo.icon;
 
   const inputBg = "color-mix(in srgb, var(--surface-elevated) 92%, transparent)";
+
+  async function copyToClipboard(text) {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "absolute";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopyOk(true);
+      setTimeout(() => setCopyOk(false), 1200);
+    } catch {
+      setCopyOk(false);
+    }
+  }
+
+  function applyGeneratedPassword() {
+    const pw = generatePassword(14);
+    const next = { ...form, senha: pw, confirmSenha: pw };
+    setForm(next);
+    setGenOk(true);
+    setTimeout(() => setGenOk(false), 1200);
+    // mantém validações consistentes
+    if (submitted) setErrorList(buildStepErrors(next, 3));
+    // foca no botão de envio (sensação “pronto”)
+    setTimeout(() => confirmRef.current?.focus(), 0);
+  }
 
   return (
     <section className="section">
@@ -1238,14 +1463,42 @@ export default function RegisterPage() {
                       </div>
                     )}
 
+                    {/* =========================
+                        STEP 3 – SENHA (Apple-level)
+                       ========================= */}
                     {step === 3 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* COLUNA ESQUERDA: Criar senha */}
                         <div>
-                          <label htmlFor="senha" className="label font-medium text-sm md:text-base">
-                            Senha <span aria-hidden="true" className="text-red-600">*</span>
-                          </label>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <label htmlFor="senha" className="label font-medium text-sm md:text-base">
+                                Crie uma senha <span aria-hidden="true" className="text-red-600">*</span>
+                              </label>
+                              <p className="text-[11px] md:text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                                Dica: use 8+ caracteres ou gere uma senha forte em 1 clique.
+                              </p>
+                            </div>
 
-                          <div className={`relative ${submitted && !senhaOk ? "ring-1 ring-red-500 rounded-xl" : ""}`}>
+                            <button
+                              type="button"
+                              onClick={() => applyGeneratedPassword()}
+                              className="inline-flex items-center gap-2 rounded-full h-10 px-4 border text-xs md:text-sm font-semibold hover:opacity-90 active:opacity-80"
+                              style={{
+                                background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
+                                borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)",
+                                color: "var(--text)",
+                              }}
+                              disabled={loading}
+                              title="Gerar senha forte"
+                            >
+                              <Wand2 size={16} style={{ color: "var(--primary)" }} />
+                              {genOk ? "Gerada!" : "Gerar"}
+                            </button>
+                          </div>
+
+                          {/* INPUT SENHA */}
+                          <div className={`mt-2 relative ${submitted && !senhaOk ? "ring-1 ring-red-500 rounded-2xl" : ""}`}>
                             <input
                               id="senha"
                               type={showPass ? "text" : "password"}
@@ -1257,60 +1510,145 @@ export default function RegisterPage() {
                                 setForm(next);
                                 recomputeErrorsIfSubmitted(next);
                               }}
-                              className="input pr-12 h-12 text-xs sm:text-sm md:text-base"
+                              onKeyUp={(e) => {
+                                try {
+                                  setCapsOn(!!e.getModifierState?.("CapsLock"));
+                                } catch {}
+                              }}
+                              className="input pr-[104px] h-12 text-xs sm:text-sm md:text-base"
                               style={{ background: inputBg }}
-                              placeholder="Crie uma senha forte"
+                              placeholder="Ex.: MinhaSenhaForte2025"
                               autoComplete="new-password"
                               aria-required="true"
                               aria-invalid={submitted && !senhaOk}
-                              aria-describedby="senha-policy"
+                              aria-describedby="senha-ux senha-policy"
                             />
 
-                            <button
-                              type="button"
-                              onClick={() => setShowPass((v) => !v)}
-                              className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none text-sm"
-                              aria-label={showPass ? "Ocultar senha" : "Mostrar senha"}
-                              aria-pressed={showPass}
-                              title={showPass ? "Ocultar senha" : "Mostrar senha"}
+                            {/* Ações à direita (Mostrar / Copiar) */}
+                            <div className="absolute inset-y-0 right-0 flex items-center gap-1 pr-2">
+                              <button
+                                type="button"
+                                onClick={() => setShowPass((v) => !v)}
+                                className="h-9 w-9 inline-flex items-center justify-center rounded-full border hover:opacity-90 active:opacity-80"
+                                style={{
+                                  background: "color-mix(in srgb, var(--surface) 86%, transparent)",
+                                  borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                                  color: "var(--text)",
+                                }}
+                                aria-label={showPass ? "Ocultar senha" : "Mostrar senha"}
+                                aria-pressed={showPass}
+                                title={showPass ? "Ocultar" : "Mostrar"}
+                              >
+                                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(form.senha || "")}
+                                className="h-9 w-9 inline-flex items-center justify-center rounded-full border hover:opacity-90 active:opacity-80 disabled:opacity-60 disabled:cursor-not-allowed"
+                                style={{
+                                  background: "color-mix(in srgb, var(--surface) 86%, transparent)",
+                                  borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                                  color: "var(--text)",
+                                }}
+                                disabled={!form.senha}
+                                aria-label="Copiar senha"
+                                title={copyOk ? "Copiada!" : "Copiar"}
+                              >
+                                <Copy size={16} style={{ color: copyOk ? "var(--primary)" : "currentColor" }} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Caps Lock + helper */}
+                          <div id="senha-ux" className="mt-2 space-y-2">
+                            {capsOn && (
+                              <div
+                                className="rounded-2xl px-3 py-2 border text-xs md:text-sm inline-flex items-center gap-2"
+                                style={{
+                                  background: "color-mix(in srgb, var(--primary) 10%, transparent)",
+                                  borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)",
+                                  color: "var(--text)",
+                                }}
+                                role="status"
+                              >
+                                <AlertTriangle size={14} style={{ color: "var(--primary)" }} />
+                                Caps Lock ativado
+                              </div>
+                            )}
+
+                            <div
+                              className="rounded-2xl px-4 py-3 border"
+                              style={{
+                                background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
+                                borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                              }}
                             >
-                              {showPass ? "🙈" : "👁️"}
-                            </button>
-                          </div>
+                              <StrengthPill score={passScore.score} label={passScore.label} />
+                              <p className="mt-2 text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
+                                {passScore.hint}
+                              </p>
+                            </div>
 
-                          <div
-                            id="senha-policy"
-                            className="rounded-2xl px-4 py-3 mt-2 border"
-                            style={{
-                              background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
-                              borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-                            }}
-                            aria-live="polite"
-                          >
-                            <p className="text-[11px] md:text-xs mb-2" style={{ color: "var(--text-muted)" }}>
-                              Requisitos
-                            </p>
-                            <ul className="space-y-1">
-                              <Rule ok={senhaChecks.len}>Pelo menos 8 caracteres</Rule>
-                              <Rule ok={senhaChecks.upper}>Ao menos 1 letra maiúscula</Rule>
-                              <Rule ok={senhaChecks.lower}>Ao menos 1 letra minúscula</Rule>
-                              <Rule ok={senhaChecks.digit}>Ao menos 1 número</Rule>
-                            </ul>
-                          </div>
+                            {/* Checklist vivo (sem poluir) */}
+                            <div
+                              id="senha-policy"
+                              className="rounded-2xl px-4 py-3 border"
+                              style={{
+                                background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
+                                borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                              }}
+                              aria-live="polite"
+                            >
+                              <p className="text-[11px] md:text-xs mb-2 font-semibold" style={{ color: "var(--text)" }}>
+                                Requisitos mínimos
+                              </p>
+                              <ul className="space-y-1.5">
+                                <LiveCheck ok={senhaChecks.len} text="8 ou mais caracteres" />
+                                <LiveCheck ok={senhaChecks.upper} text="1 letra maiúscula (A-Z)" />
+                                <LiveCheck ok={senhaChecks.lower} text="1 letra minúscula (a-z)" />
+                                <LiveCheck ok={senhaChecks.digit} text="1 número (0-9)" />
+                              </ul>
 
-                          {submitted && !senhaOk && (
-                            <p className="text-xs md:text-sm mt-2 text-red-600">
-                              Ajuste a senha conforme os requisitos acima.
-                            </p>
-                          )}
+                              {/* Mensagem “ok” sem barulho */}
+                              {senhaOk && (
+                                <div
+                                  className="mt-3 rounded-xl px-3 py-2 border text-xs md:text-sm inline-flex items-center gap-2"
+                                  style={{
+                                    background: "color-mix(in srgb, var(--primary) 12%, transparent)",
+                                    borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)",
+                                    color: "var(--text)",
+                                  }}
+                                  role="status"
+                                >
+                                  <CheckCircle2 size={16} style={{ color: "var(--primary)" }} />
+                                  Senha aprovada
+                                </div>
+                              )}
+                            </div>
+
+                            {submitted && !senhaOk && (
+                              <p className="text-xs md:text-sm mt-1 text-red-600">
+                                Ajuste a senha para cumprir os requisitos.
+                              </p>
+                            )}
+                          </div>
                         </div>
 
+                        {/* COLUNA DIREITA: Confirmar + termos */}
                         <div>
                           <label htmlFor="confirmSenha" className="label font-medium text-sm md:text-base">
-                            Confirmar senha <span aria-hidden="true" className="text-red-600">*</span>
+                            Confirme a senha <span aria-hidden="true" className="text-red-600">*</span>
                           </label>
+                          <p className="text-[11px] md:text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                            Digite novamente para evitar erros.
+                          </p>
 
-                          <div className={`relative ${submitted && !confirmOk ? "ring-1 ring-red-500 rounded-xl" : ""}`}>
+                          <div
+                            className={`mt-2 relative ${
+                              submitted && !confirmOk ? "ring-1 ring-red-500 rounded-2xl" : ""
+                            }`}
+                          >
                             <input
                               id="confirmSenha"
                               ref={confirmRef}
@@ -1322,34 +1660,71 @@ export default function RegisterPage() {
                                 setForm(next);
                                 recomputeErrorsIfSubmitted(next);
                               }}
-                              className="input pr-12 h-12 text-xs sm:text-sm md:text-base"
+                              className="input pr-[56px] h-12 text-xs sm:text-sm md:text-base"
                               style={{ background: inputBg }}
-                              placeholder="Repita a mesma senha"
+                              placeholder="Repita exatamente a mesma senha"
                               autoComplete="new-password"
                               aria-required="true"
                               aria-invalid={submitted && !confirmOk}
+                              aria-describedby="confirm-feedback"
                             />
 
                             <button
                               type="button"
                               onClick={() => setShowConfirm((v) => !v)}
-                              className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none text-sm"
-                              aria-label={showConfirm ? "Ocultar senha" : "Mostrar senha"}
+                              className="absolute inset-y-0 right-0 my-auto mr-2 h-9 w-9 inline-flex items-center justify-center rounded-full border hover:opacity-90 active:opacity-80"
+                              style={{
+                                background: "color-mix(in srgb, var(--surface) 86%, transparent)",
+                                borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                                color: "var(--text)",
+                              }}
+                              aria-label={showConfirm ? "Ocultar confirmação" : "Mostrar confirmação"}
                               aria-pressed={showConfirm}
-                              title={showConfirm ? "Ocultar senha" : "Mostrar senha"}
+                              title={showConfirm ? "Ocultar" : "Mostrar"}
                             >
-                              {showConfirm ? "🙈" : "👁️"}
+                              {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
                             </button>
                           </div>
 
-                          {submitted && !confirmOk && (
-                            <p className="text-xs md:text-sm mt-1 text-red-600">
-                              As senhas precisam ser iguais.
-                            </p>
-                          )}
+                          {/* Feedback imediato de match (sem agressividade) */}
+                          <div id="confirm-feedback" className="mt-2">
+                            {form.confirmSenha.length > 0 && (
+                              <div
+                                className="rounded-2xl px-3 py-2 border text-xs md:text-sm inline-flex items-center gap-2"
+                                style={{
+                                  background: confirmOk
+                                    ? "color-mix(in srgb, var(--primary) 12%, transparent)"
+                                    : "color-mix(in srgb, var(--text) 8%, transparent)",
+                                  borderColor: confirmOk
+                                    ? "color-mix(in srgb, var(--primary) 22%, transparent)"
+                                    : "color-mix(in srgb, var(--text) 14%, transparent)",
+                                  color: "var(--text)",
+                                }}
+                                role="status"
+                              >
+                                {confirmOk ? (
+                                  <>
+                                    <Check size={16} style={{ color: "var(--primary)" }} />
+                                    Senhas conferem
+                                  </>
+                                ) : (
+                                  <>
+                                    <X size={16} style={{ color: "var(--text-muted)" }} />
+                                    Ainda não confere
+                                  </>
+                                )}
+                              </div>
+                            )}
+
+                            {submitted && !confirmOk && (
+                              <p className="text-xs md:text-sm mt-2 text-red-600">
+                                As senhas precisam ser iguais.
+                              </p>
+                            )}
+                          </div>
 
                           <div
-                            className="mt-3 rounded-2xl px-4 py-3 border flex items-start gap-2"
+                            className="mt-4 rounded-2xl px-4 py-3 border flex items-start gap-2"
                             style={{
                               background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
                               borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
@@ -1367,6 +1742,22 @@ export default function RegisterPage() {
                               </a>
                               .
                             </div>
+                          </div>
+
+                          {/* Dica para conversão (gerenciador) – discreto */}
+                          <div
+                            className="mt-3 rounded-2xl px-4 py-3 border"
+                            style={{
+                              background: "color-mix(in srgb, var(--surface) 92%, transparent)",
+                              borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                            }}
+                          >
+                            <p className="text-xs md:text-sm font-semibold" style={{ color: "var(--text)" }}>
+                              Sugestão rápida
+                            </p>
+                            <p className="mt-1 text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
+                              Se você usa gerenciador de senhas, pode gerar e salvar automaticamente.
+                            </p>
                           </div>
                         </div>
                       </div>
