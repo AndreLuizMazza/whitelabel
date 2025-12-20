@@ -1,10 +1,11 @@
 // src/pages/RegisterPage.jsx
 // RegisterPage – Apple-level (simplicidade + confiança)
-// Ajustes principais (alta conversão):
-// - Stepper NÃO some ao focar campos (keyboard mobile): usa FIXED no mobile + STICKY no md+
-// - Respeita drawer: <html data-mobile-drawer-open="true"> (no mobile, some quando abre)
-// - Tela mais sintética: reduz “ruído” (aside minimalista e some no mobile)
-// - Mantém: voz, normalização suave (email @), validação por etapas, CPF/telefone, FCM
+// Ajustes aplicados:
+// 1) Remove voz do campo e-mail (mantém voz nos demais campos que já tinham)
+// 2) Ordem: a) Criar conta  b) Stepper  c) Dica
+// 3) Stepper apenas com número (sem textos)
+// 4) Harmonia de cor: remove “brancos” próximos de inputs/botões (usa surfaces)
+// 5) Stepper sticky: ao rolar, bate no topo e fica sempre visível (com offset do header)
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
@@ -103,7 +104,7 @@ const phoneIsValid = (v = "") => {
 };
 
 /* =========================
-   Normalizadores de voz
+   Normalizadores (mantidos)
 ========================= */
 
 const DIGIT_WORDS = new Map([
@@ -150,49 +151,12 @@ function normalizeNameFromSpeech(input = "") {
   return t;
 }
 
-/**
- * E-mail:
- * - typing: suave (não “come” @)
- * - voice final: mais forte (arroba/ponto/provedores)
- */
 function normalizeEmailTyping(input = "") {
   let t = String(input || "").toLowerCase();
   t = t.replace(/\s+/g, "");
   t = t.replace(/[^a-z0-9@._+\-]/g, "");
   t = t.replace(/@{2,}/g, "@").replace(/\.{2,}/g, ".");
   t = t.replace(/\.@/g, "@").replace(/@\./g, "@");
-  return t;
-}
-
-function normalizeEmailFromSpeechFinal(input = "") {
-  let t = String(input || "").toLowerCase().trim();
-
-  t = t.replace(/[,:;!]+/g, " ");
-  t = t
-    .replace(/\ba\s*roba\b/g, "@")
-    .replace(/\baroba\b/g, "@")
-    .replace(/\barroba\b/g, "@")
-    .replace(/\s+@\s+/g, "@");
-  t = t.replace(/\bat\b/g, "@");
-  t = t.replace(/\bponto\b/g, ".");
-  t = t.replace(/\s+/g, "");
-
-  const providerMap = [
-    ["gmail", "gmail.com"],
-    ["hotmail", "hotmail.com"],
-    ["outlook", "outlook.com"],
-    ["icloud", "icloud.com"],
-    ["yahoo", "yahoo.com"],
-  ];
-  for (const [spoken, domain] of providerMap) {
-    t = t.replace(new RegExp(`@${spoken}(?![\\w.-])`, "g"), `@${domain}`);
-  }
-
-  t = t.replace(/[^a-z0-9@._+\-]/g, "");
-  t = t.replace(/@{2,}/g, "@").replace(/\.{2,}/g, ".");
-  t = t.replace(/\.@/g, "@").replace(/@\./g, "@");
-  t = t.replace(/[.,;:!]+$/g, "");
-  t = t.replace(/[@.]+$/g, "");
   return t;
 }
 
@@ -321,6 +285,8 @@ function DateSelectBR({
   const idMes = `${idPrefix || "date"}-mes`;
   const idAno = `${idPrefix || "date"}-ano`;
 
+  const selectBg = "color-mix(in srgb, var(--surface-elevated) 92%, transparent)";
+
   return (
     <div>
       <div
@@ -333,7 +299,8 @@ function DateSelectBR({
         </label>
         <select
           id={idDia}
-          className="input h-12 text-base bg-white"
+          className="input h-12 text-base"
+          style={{ background: selectBg }}
           value={dia}
           onChange={(e) => setDia(e.target.value)}
         >
@@ -366,7 +333,8 @@ function DateSelectBR({
         </label>
         <select
           id={idMes}
-          className="input h-12 text-base bg-white"
+          className="input h-12 text-base"
+          style={{ background: selectBg }}
           value={mes}
           onChange={(e) => handleChangeMes(e.target.value)}
         >
@@ -383,7 +351,8 @@ function DateSelectBR({
         </label>
         <select
           id={idAno}
-          className="input h-12 text-base bg-white"
+          className="input h-12 text-base"
+          style={{ background: selectBg }}
           value={ano}
           onChange={(e) => setAno(e.target.value)}
         >
@@ -463,7 +432,7 @@ function FormPanel({ title, subtitle, children }) {
     <div
       className="rounded-2xl border px-4 py-4 md:px-5 md:py-5"
       style={{
-        background: "color-mix(in srgb, var(--surface-elevated) 90%, var(--text) 6%)",
+        background: "color-mix(in srgb, var(--surface-elevated) 92%, var(--text) 5%)",
         borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
       }}
     >
@@ -486,61 +455,40 @@ function FormPanel({ title, subtitle, children }) {
   );
 }
 
-function StepperPill({ active, done, n, label, onClick, disabled }) {
+/* =========================
+   Stepper – só números (sticky)
+========================= */
+
+function StepCircle({ n, active, done, onClick, disabled }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex-1 min-w-0 rounded-2xl px-3 py-2.5 border text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+      className="h-11 w-11 md:h-12 md:w-12 rounded-full border inline-flex items-center justify-center font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
       style={{
         background: active
-          ? "color-mix(in srgb, var(--primary) 14%, var(--surface) 86%)"
-          : "color-mix(in srgb, var(--surface) 92%, transparent)",
+          ? "color-mix(in srgb, var(--primary) 18%, var(--surface) 82%)"
+          : "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
         borderColor: active
-          ? "color-mix(in srgb, var(--primary) 32%, transparent)"
+          ? "color-mix(in srgb, var(--primary) 38%, transparent)"
           : "color-mix(in srgb, var(--text) 14%, transparent)",
-        boxShadow: active ? "0 10px 26px rgba(0,0,0,0.08)" : "none",
+        color: done || active ? "var(--primary)" : "var(--text-muted)",
+        boxShadow: active ? "0 10px 26px rgba(0,0,0,0.10)" : "none",
         transform: active ? "translateY(-1px)" : "translateY(0)",
         transition: "transform 160ms ease, box-shadow 160ms ease",
       }}
       aria-current={active ? "step" : undefined}
-      aria-label={`Etapa ${n}: ${label}`}
+      aria-label={`Etapa ${n}`}
+      title={`Etapa ${n}`}
     >
-      <div className="flex items-center gap-3 min-w-0">
-        <span
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold"
-          style={{
-            background: done || active
-              ? "var(--primary)"
-              : "color-mix(in srgb, var(--text) 10%, transparent)",
-            color: done || active ? "var(--on-primary)" : "var(--text-muted)",
-          }}
-        >
-          {done ? "✓" : n}
-        </span>
-
-        <div className="min-w-0">
-          <p className="text-sm font-semibold leading-tight truncate" style={{ color: "var(--text)" }}>
-            {label}
-          </p>
-          <p className="text-[11px] uppercase tracking-[0.18em]" style={{ color: "var(--text-muted)" }}>
-            Etapa {n}
-          </p>
-        </div>
-      </div>
+      <span className="text-base">{done ? "✓" : n}</span>
     </button>
   );
 }
 
-/**
- * StepperDock – FIX clínico:
- * - No mobile: position: fixed (não “some” com teclado/focus)
- * - No md+: mantém sticky (como no Cadastro.jsx)
- * - Reserva espaço (spacer) para não “pular” layout
- * - Se drawer abrir no mobile: oculta
- */
 function StepperDock({ step, onStep, drawerOpen, disabled }) {
+  // Mantém o comportamento de ocultar no mobile quando drawer abre (sem quebrar UX)
   const [isMdUp, setIsMdUp] = useState(() => {
     if (typeof window === "undefined") return true;
     return window.matchMedia?.("(min-width: 768px)")?.matches ?? true;
@@ -560,38 +508,59 @@ function StepperDock({ step, onStep, drawerOpen, disabled }) {
     }
   }, []);
 
-  const top = "calc(var(--app-header-h, 72px) + env(safe-area-inset-top, 0px) + 10px)";
   const hiddenMobile = !isMdUp && drawerOpen;
+  const top =
+    "calc(var(--app-header-h, 72px) + env(safe-area-inset-top, 0px) + 10px)";
 
-  const panel = (
+  return (
     <div
-      className="rounded-[22px] border shadow-lg p-2 md:p-2.5"
-      style={{
-        background: "color-mix(in srgb, var(--surface) 88%, var(--text) 6%)",
-        borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-        backdropFilter: "blur(10px)",
-      }}
+      className={`${hiddenMobile ? "hidden" : ""} z-[50]`}
+      style={{ position: "sticky", top }}
     >
-      <div className="flex gap-2">
-        <StepperPill
+      <div
+        className="rounded-[22px] border shadow-lg px-3 py-2.5 flex items-center justify-center gap-3"
+        style={{
+          background: "color-mix(in srgb, var(--surface) 88%, var(--text) 6%)",
+          borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+          backdropFilter: "blur(10px)",
+        }}
+      >
+        <StepCircle
           n={1}
-          label="Dados"
           active={step === 1}
           done={step > 1}
           disabled={disabled}
           onClick={() => onStep?.(1)}
         />
-        <StepperPill
+        <span
+          aria-hidden="true"
+          className="h-[2px] w-10 md:w-14 rounded-full"
+          style={{
+            background:
+              step >= 2
+                ? "color-mix(in srgb, var(--primary) 55%, transparent)"
+                : "color-mix(in srgb, var(--text) 12%, transparent)",
+          }}
+        />
+        <StepCircle
           n={2}
-          label="Contato"
           active={step === 2}
           done={step > 2}
           disabled={disabled}
           onClick={() => onStep?.(2)}
         />
-        <StepperPill
+        <span
+          aria-hidden="true"
+          className="h-[2px] w-10 md:w-14 rounded-full"
+          style={{
+            background:
+              step >= 3
+                ? "color-mix(in srgb, var(--primary) 55%, transparent)"
+                : "color-mix(in srgb, var(--text) 12%, transparent)",
+          }}
+        />
+        <StepCircle
           n={3}
-          label="Segurança"
           active={step === 3}
           done={false}
           disabled={disabled}
@@ -599,31 +568,6 @@ function StepperDock({ step, onStep, drawerOpen, disabled }) {
         />
       </div>
     </div>
-  );
-
-  // Spacer sempre presente para evitar “layout jump” (especialmente no mobile fixed)
-  const spacerH = isMdUp ? 0 : 88;
-
-  return (
-    <>
-      <div aria-hidden="true" style={{ height: spacerH }} />
-      <div
-        className={`${hiddenMobile ? "hidden" : ""} z-[50]`}
-        style={
-          isMdUp
-            ? { position: "sticky", top }
-            : {
-                position: "fixed",
-                top,
-                left: "50%",
-                transform: "translateX(-50%)",
-                width: "min(980px, calc(100vw - 24px))",
-              }
-        }
-      >
-        {panel}
-      </div>
-    </>
   );
 }
 
@@ -893,6 +837,8 @@ export default function RegisterPage() {
 
   const AsideIcon = asideInfo.icon;
 
+  const inputBg = "color-mix(in srgb, var(--surface-elevated) 92%, transparent)";
+
   return (
     <section className="section">
       <div className="container-max max-w-5xl relative">
@@ -913,26 +859,7 @@ export default function RegisterPage() {
             }}
           />
 
-          {/* Stepper: FIXED no mobile (não some ao focar) + some quando drawer abre */}
-          <StepperDock
-            step={step}
-            drawerOpen={drawerOpen}
-            disabled={loading}
-            onStep={(n) => {
-              if (n <= step) {
-                setStep(n);
-                setSubmitted(false);
-                setErrorList([]);
-                setTimeout(() => {
-                  if (n === 1) nomeRef.current?.focus();
-                  if (n === 2) emailRef.current?.focus();
-                  if (n === 3) senhaRef.current?.focus();
-                }, 0);
-              }
-            }}
-          />
-
-          {/* Cabeçalho (mais sintético) */}
+          {/* a) Criar conta */}
           <header className="pt-1">
             <div
               className="rounded-3xl border shadow-lg px-4 py-3 flex items-center justify-between gap-3"
@@ -974,43 +901,63 @@ export default function RegisterPage() {
                 </span>
               </div>
             </div>
+          </header>
 
-            <div className="mt-3">
-              <div
-                className="rounded-3xl border px-4 py-3 flex items-start gap-3"
+          {/* b) Stepper (sticky) */}
+          <StepperDock
+            step={step}
+            drawerOpen={drawerOpen}
+            disabled={loading}
+            onStep={(n) => {
+              if (n <= step) {
+                setStep(n);
+                setSubmitted(false);
+                setErrorList([]);
+                setTimeout(() => {
+                  if (n === 1) nomeRef.current?.focus();
+                  if (n === 2) emailRef.current?.focus();
+                  if (n === 3) senhaRef.current?.focus();
+                }, 0);
+              }
+            }}
+          />
+
+          {/* c) Dica */}
+          <div>
+            <div
+              className="rounded-3xl border px-4 py-3 flex items-start gap-3"
+              style={{
+                background: "color-mix(in srgb, var(--surface) 92%, transparent)",
+                borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+              }}
+            >
+              <span
+                className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-2xl border"
                 style={{
-                  background: "color-mix(in srgb, var(--surface) 92%, transparent)",
-                  borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                  background: "color-mix(in srgb, var(--primary) 12%, transparent)",
+                  borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)",
+                  color: "var(--primary)",
                 }}
+                aria-hidden="true"
               >
-                <span
-                  className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-2xl border"
-                  style={{
-                    background: "color-mix(in srgb, var(--primary) 12%, transparent)",
-                    borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)",
-                    color: "var(--primary)",
-                  }}
-                  aria-hidden="true"
-                >
-                  <IconHint size={16} />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm md:text-base font-semibold leading-tight" style={{ color: "var(--text)" }}>
-                    {headerHint.title}
-                  </p>
-                  <p className="text-xs md:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                    {step === 3 && firstName ? (
-                      <>
-                        {firstName}, falta pouco. {headerHint.text}
-                      </>
-                    ) : (
-                      headerHint.text
-                    )}
-                  </p>
-                </div>
+                <IconHint size={16} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm md:text-base font-semibold leading-tight" style={{ color: "var(--text)" }}>
+                  {headerHint.title}
+                </p>
+                <p className="text-xs md:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                  {step === 3 && firstName ? (
+                    <>
+                      {firstName}, falta pouco. {headerHint.text}
+                    </>
+                  ) : (
+                    headerHint.text
+                  )}
+                </p>
               </div>
             </div>
-          </header>
+          </div>
 
           {error && (
             <div
@@ -1064,9 +1011,10 @@ export default function RegisterPage() {
                               setForm(next);
                               if (submitted) setErrorList(buildStepErrors(next, 1));
                             }}
-                            className={`input h-12 text-base bg-white ${
+                            className={`input h-12 text-base ${
                               submitted && !nomeOk ? "ring-1 ring-red-500" : ""
                             }`}
+                            style={{ background: inputBg }}
                             placeholder="Maria Oliveira"
                             autoComplete="name"
                             ariaRequired="true"
@@ -1106,9 +1054,10 @@ export default function RegisterPage() {
                                 setForm(next);
                                 if (submitted) setErrorList(buildStepErrors(next, 1));
                               }}
-                              className={`input h-12 text-base bg-white ${
+                              className={`input h-12 text-base ${
                                 submitted && !cpfOk ? "ring-1 ring-red-500" : ""
                               }`}
+                              style={{ background: inputBg }}
                               placeholder="000.000.000-00"
                               inputMode="numeric"
                               autoComplete="off"
@@ -1164,19 +1113,14 @@ export default function RegisterPage() {
                               E-mail <span aria-hidden="true" className="text-red-600">*</span>
                             </label>
 
-                            <VoiceTextInput
+                            {/* ✅ Sem voz no e-mail */}
+                            <input
                               id="email"
                               name="email"
-                              inputRef={emailRef}
+                              ref={emailRef}
                               value={form.email}
                               onChange={(e) => {
                                 const v = normalizeEmailTyping(e.target.value || "");
-                                const next = { ...form, email: v };
-                                setForm(next);
-                                recomputeErrorsIfSubmitted(next);
-                              }}
-                              onChangeValue={(nextVal) => {
-                                const v = normalizeEmailTyping(nextVal || "");
                                 const next = { ...form, email: v };
                                 setForm(next);
                                 recomputeErrorsIfSubmitted(next);
@@ -1186,22 +1130,15 @@ export default function RegisterPage() {
                               autoCapitalize="none"
                               autoCorrect="off"
                               spellCheck={false}
-                              className={`input h-12 text-base bg-white ${
+                              className={`input h-12 text-base ${
                                 submitted && !emailOk ? "ring-1 ring-red-500" : ""
                               }`}
+                              style={{ background: inputBg }}
                               placeholder="maria@exemplo.com"
                               autoComplete="email"
-                              ariaRequired="true"
-                              ariaInvalid={submitted && !emailOk}
+                              aria-required="true"
+                              aria-invalid={submitted && !emailOk}
                               disabled={loading}
-                              enableVoice
-                              normalizeTranscript={(text, ctx) => {
-                                if (ctx?.mode === "final") return normalizeEmailFromSpeechFinal(text);
-                                return normalizeEmailTyping(text);
-                              }}
-                              applyMode="email"
-                              idleHint="Toque no microfone para ditar o e-mail"
-                              listeningHint="Ao terminar toque no quadrado para concluir"
                             />
 
                             {submitted && !emailOk && (
@@ -1230,9 +1167,10 @@ export default function RegisterPage() {
                                 setForm(next);
                                 recomputeErrorsIfSubmitted(next);
                               }}
-                              className={`input h-12 text-base bg-white ${
+                              className={`input h-12 text-base ${
                                 submitted && !celularOk ? "ring-1 ring-red-500" : ""
                               }`}
+                              style={{ background: inputBg }}
                               placeholder="(00) 90000-0000"
                               inputMode="tel"
                               autoComplete="tel"
@@ -1274,7 +1212,8 @@ export default function RegisterPage() {
                                 setForm(next);
                                 recomputeErrorsIfSubmitted(next);
                               }}
-                              className="input pr-12 h-12 text-xs sm:text-sm md:text-base bg-white"
+                              className="input pr-12 h-12 text-xs sm:text-sm md:text-base"
+                              style={{ background: inputBg }}
                               placeholder="Crie uma senha forte"
                               autoComplete="new-password"
                               aria-required="true"
@@ -1298,7 +1237,7 @@ export default function RegisterPage() {
                             id="senha-policy"
                             className="rounded-2xl px-4 py-3 mt-2 border"
                             style={{
-                              background: "color-mix(in srgb, var(--surface) 86%, transparent)",
+                              background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
                               borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
                             }}
                             aria-live="polite"
@@ -1338,7 +1277,8 @@ export default function RegisterPage() {
                                 setForm(next);
                                 recomputeErrorsIfSubmitted(next);
                               }}
-                              className="input pr-12 h-12 text-xs sm:text-sm md:text-base bg-white"
+                              className="input pr-12 h-12 text-xs sm:text-sm md:text-base"
+                              style={{ background: inputBg }}
                               placeholder="Repita a mesma senha"
                               autoComplete="new-password"
                               aria-required="true"
@@ -1366,7 +1306,7 @@ export default function RegisterPage() {
                           <div
                             className="mt-3 rounded-2xl px-4 py-3 border flex items-start gap-2"
                             style={{
-                              background: "color-mix(in srgb, var(--surface) 88%, transparent)",
+                              background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
                               borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
                             }}
                           >
@@ -1420,7 +1360,7 @@ export default function RegisterPage() {
                       className="sticky bottom-0 pt-2"
                       style={{
                         background:
-                          "linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--surface) 92%, transparent) 30%, color-mix(in srgb, var(--surface) 96%, transparent) 100%)",
+                          "linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--surface-elevated) 92%, transparent) 30%, color-mix(in srgb, var(--surface-elevated) 96%, transparent) 100%)",
                         paddingBottom: 2,
                       }}
                     >
@@ -1463,7 +1403,7 @@ export default function RegisterPage() {
                             }}
                             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-sm md:text-base font-medium border hover:opacity-90"
                             style={{
-                              background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
+                              background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
                               borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
                               color: "var(--text)",
                             }}
@@ -1476,7 +1416,7 @@ export default function RegisterPage() {
                             to="/login"
                             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-sm md:text-base font-medium border hover:opacity-90"
                             style={{
-                              background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
+                              background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
                               borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
                               color: "var(--text)",
                             }}
