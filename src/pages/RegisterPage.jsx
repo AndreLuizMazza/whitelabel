@@ -6,6 +6,11 @@
 // 3) Stepper apenas com número (sem textos)
 // 4) Harmonia de cor: remove “brancos” próximos de inputs/botões (usa surfaces)
 // 5) Stepper sticky: ao rolar, bate no topo e fica sempre visível (com offset do header)
+//
+// ✅ Atualização solicitada (cores do Stepper):
+// - Fundo do step (ativo e concluído) com a cor primária
+// - Número/ícone com cor de alto contraste (usa --on-primary, fallback branco)
+// - Conectores mais “premium”, legíveis em tema claro e escuro
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
@@ -459,7 +464,35 @@ function FormPanel({ title, subtitle, children }) {
    Stepper – só números (sticky)
 ========================= */
 
+// Preferência do usuário (reduce motion) para suavizar animações sem “sumir” UX
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReduced(!!mq.matches);
+    sync();
+    try {
+      mq.addEventListener("change", sync);
+      return () => mq.removeEventListener("change", sync);
+    } catch {
+      mq.addListener(sync);
+      return () => mq.removeListener(sync);
+    }
+  }, []);
+  return reduced;
+}
+
 function StepCircle({ n, active, done, onClick, disabled }) {
+  const reduceMotion = usePrefersReducedMotion();
+
+  const isPrimary = active || done;
+
+  // Cor “inteligente” para contraste:
+  // - usa --on-primary se o tenant definir
+  // - fallback branco (funciona bem na maioria das paletas)
+  const onPrimary = "var(--on-primary, #ffffff)";
+
   return (
     <button
       type="button"
@@ -467,22 +500,31 @@ function StepCircle({ n, active, done, onClick, disabled }) {
       disabled={disabled}
       className="h-11 w-11 md:h-12 md:w-12 rounded-full border inline-flex items-center justify-center font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
       style={{
-        background: active
-          ? "color-mix(in srgb, var(--primary) 18%, var(--surface) 82%)"
+        background: isPrimary
+          ? "var(--primary)"
           : "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
-        borderColor: active
-          ? "color-mix(in srgb, var(--primary) 38%, transparent)"
+        borderColor: isPrimary
+          ? "color-mix(in srgb, var(--primary) 65%, #000 0%)"
           : "color-mix(in srgb, var(--text) 14%, transparent)",
-        color: done || active ? "var(--primary)" : "var(--text-muted)",
-        boxShadow: active ? "0 10px 26px rgba(0,0,0,0.10)" : "none",
+        color: isPrimary ? onPrimary : "var(--text-muted)",
+        // Premium: leve “glow” no ativo (sem estourar no dark)
+        boxShadow: active
+          ? "0 14px 30px color-mix(in srgb, var(--primary) 28%, rgba(0,0,0,0.35))"
+          : done
+          ? "0 10px 22px rgba(0,0,0,0.10)"
+          : "none",
         transform: active ? "translateY(-1px)" : "translateY(0)",
-        transition: "transform 160ms ease, box-shadow 160ms ease",
+        transition: reduceMotion
+          ? "none"
+          : "transform 160ms ease, box-shadow 180ms ease, background 180ms ease, border-color 180ms ease",
       }}
       aria-current={active ? "step" : undefined}
       aria-label={`Etapa ${n}`}
       title={`Etapa ${n}`}
     >
-      <span className="text-base">{done ? "✓" : n}</span>
+      <span className="text-base" style={{ lineHeight: 1 }}>
+        {done ? "✓" : n}
+      </span>
     </button>
   );
 }
@@ -512,6 +554,17 @@ function StepperDock({ step, onStep, drawerOpen, disabled }) {
   const top =
     "calc(var(--app-header-h, 72px) + env(safe-area-inset-top, 0px) + 10px)";
 
+  const trackOff = "color-mix(in srgb, var(--text) 12%, transparent)";
+  const trackOn = "var(--primary)";
+
+  // Conector “premium”: usa gradiente suave no concluído
+  const connectorStyle = (filled) => ({
+    background: filled
+      ? `linear-gradient(90deg, ${trackOn}, color-mix(in srgb, var(--primary) 70%, transparent))`
+      : trackOff,
+    boxShadow: filled ? "0 8px 18px rgba(0,0,0,0.10)" : "none",
+  });
+
   return (
     <div
       className={`${hiddenMobile ? "hidden" : ""} z-[50]`}
@@ -520,9 +573,11 @@ function StepperDock({ step, onStep, drawerOpen, disabled }) {
       <div
         className="rounded-[22px] border shadow-lg px-3 py-2.5 flex items-center justify-center gap-3"
         style={{
-          background: "color-mix(in srgb, var(--surface) 88%, var(--text) 6%)",
+          // fundo do dock mais “glass”, sem competir com o primário dos steps
+          background: "color-mix(in srgb, var(--surface) 86%, var(--text) 6%)",
           borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-          backdropFilter: "blur(10px)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
         }}
       >
         <StepCircle
@@ -534,13 +589,8 @@ function StepperDock({ step, onStep, drawerOpen, disabled }) {
         />
         <span
           aria-hidden="true"
-          className="h-[2px] w-10 md:w-14 rounded-full"
-          style={{
-            background:
-              step >= 2
-                ? "color-mix(in srgb, var(--primary) 55%, transparent)"
-                : "color-mix(in srgb, var(--text) 12%, transparent)",
-          }}
+          className="h-[3px] w-10 md:w-14 rounded-full"
+          style={connectorStyle(step >= 2)}
         />
         <StepCircle
           n={2}
@@ -551,13 +601,8 @@ function StepperDock({ step, onStep, drawerOpen, disabled }) {
         />
         <span
           aria-hidden="true"
-          className="h-[2px] w-10 md:w-14 rounded-full"
-          style={{
-            background:
-              step >= 3
-                ? "color-mix(in srgb, var(--primary) 55%, transparent)"
-                : "color-mix(in srgb, var(--text) 12%, transparent)",
-          }}
+          className="h-[3px] w-10 md:w-14 rounded-full"
+          style={connectorStyle(step >= 3)}
         />
         <StepCircle
           n={3}
@@ -1448,7 +1493,7 @@ export default function RegisterPage() {
                     <div className="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[11px]">
                       <span
                         className="inline-flex h-5 w-5 items-center justify-center rounded-full"
-                        style={{ background: "var(--primary)", color: "white" }}
+                        style={{ background: "var(--primary)", color: "var(--on-primary, #fff)" }}
                       >
                         <AsideIcon size={12} />
                       </span>
