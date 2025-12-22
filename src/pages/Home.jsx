@@ -34,6 +34,17 @@ import {
 
 const HERO_FALLBACKS = ['/img/hero.png', '/img/hero1.png', '/img/hero2.png']
 
+/* ===================== runtime (Capacitor) ===================== */
+
+function isCapacitorRuntime() {
+  if (typeof window === 'undefined') return false
+  const cap = window.Capacitor
+  if (!cap) return false
+  if (typeof cap.isNativePlatform === 'function') return !!cap.isNativePlatform()
+  if (typeof cap.getPlatform === 'function') return cap.getPlatform() !== 'web'
+  return true
+}
+
 /* ===================== peças utilitárias ===================== */
 
 function IconBadge({ children }) {
@@ -47,6 +58,7 @@ function IconBadge({ children }) {
         border:
           '1px solid color-mix(in srgb, var(--primary) 28%, var(--c-border))',
       }}
+      aria-hidden="true"
     >
       {children}
     </span>
@@ -77,6 +89,7 @@ function FeatureCardPremium({ icon, title, desc, to, cta, mounted, delay = 0 }) 
         focus-visible:ring-[color-mix(in_srgb,var(--primary)_60%,black)]
       "
       aria-label={`${title}. ${cta}`}
+      title={title}
     >
       <article
         className={[
@@ -85,16 +98,25 @@ function FeatureCardPremium({ icon, title, desc, to, cta, mounted, delay = 0 }) 
           'transition-all duration-500 will-change-transform',
           'hover:-translate-y-[2px] hover:shadow-md sm:hover:shadow-xl',
           'hover:bg-[var(--surface)] hover:ring-1 hover:ring-[var(--c-border)]',
+          'active:translate-y-0',
           mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
         ].join(' ')}
-        style={{ transitionDelay: `${delay}ms` }}
+        style={{
+          transitionDelay: `${delay}ms`,
+          // micro-contrast “premium”
+          boxShadow:
+            '0 1px 0 rgba(0,0,0,.04), 0 10px 30px rgba(15,23,42,.06)',
+        }}
       >
         <div className="flex items-start gap-2 sm:gap-3">
           <IconBadge>{icon}</IconBadge>
 
-          <div>
+          <div className="min-w-0">
             <h3 className="text-sm sm:text-base md:text-lg font-semibold leading-tight">
               {title}
+              {isExternal ? (
+                <span className="sr-only"> (abre em nova aba)</span>
+              ) : null}
             </h3>
             <p className="mt-1 text-xs sm:text-sm text-[var(--text)] leading-relaxed line-clamp-3">
               {desc}
@@ -135,7 +157,7 @@ function ValuePills() {
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2" aria-label="Recursos em destaque">
       <span className={pillBase} style={pillStyle}>
         <IdCard size={13} /> Carteirinha digital
       </span>
@@ -226,6 +248,7 @@ function HeroCtaButton({ cta }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: 'easeOut' }}
         style={frameStyle}
+        aria-label={`${cta.label} (abre em nova aba)`}
       >
         <div style={innerStyle}>{buttonInner}</div>
       </motion.a>
@@ -233,7 +256,7 @@ function HeroCtaButton({ cta }) {
   }
 
   return (
-    <Link to={cta.to} className="inline-block">
+    <Link to={cta.to} className="inline-block" aria-label={cta.label}>
       <motion.span
         whileHover={{ scale: 1.04, y: -1 }}
         whileTap={{ scale: 0.98, y: 0 }}
@@ -254,7 +277,7 @@ function HeroIconButton({ ariaLabel, onClick, children }) {
       type="button"
       onClick={onClick}
       aria-label={ariaLabel}
-      className="h-9 w-9 rounded-full inline-flex items-center justify-center ring-1 transition"
+      className="h-9 w-9 rounded-full inline-flex items-center justify-center ring-1 transition active:scale-[0.98]"
       style={{
         background: 'rgba(255,255,255,.10)',
         border: '1px solid rgba(255,255,255,.14)',
@@ -467,6 +490,8 @@ function HeroSlider({ slides, mounted }) {
       style={{
         background: 'var(--surface)',
         border: '1px solid var(--c-border)',
+        boxShadow:
+          '0 1px 0 rgba(255,255,255,.25) inset, 0 18px 60px rgba(15,23,42,.18)',
       }}
       onMouseEnter={() => (hoverRef.current = true)}
       onMouseLeave={() => (hoverRef.current = false)}
@@ -553,7 +578,11 @@ function HeroSlider({ slides, mounted }) {
 
             {/* CONTROLES (premium, discretos) */}
             <div className="mt-8 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2" role="tablist" aria-label="Slides">
+              <div
+                className="flex items-center gap-2"
+                role="tablist"
+                aria-label="Slides"
+              >
                 {safeSlides.map((s, i) => {
                   const active = i === index
                   return (
@@ -584,7 +613,7 @@ function HeroSlider({ slides, mounted }) {
                 <button
                   type="button"
                   onClick={() => setPaused((p) => !p)}
-                  className="h-9 px-3 rounded-full inline-flex items-center justify-center gap-2 ring-1 transition"
+                  className="h-9 px-3 rounded-full inline-flex items-center justify-center gap-2 ring-1 transition active:scale-[0.98]"
                   style={{
                     background: 'rgba(255,255,255,.10)',
                     border: '1px solid rgba(255,255,255,.14)',
@@ -593,7 +622,11 @@ function HeroSlider({ slides, mounted }) {
                   }}
                   aria-label={paused ? 'Reproduzir' : 'Pausar'}
                 >
-                  {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                  {paused ? (
+                    <Play className="h-4 w-4" />
+                  ) : (
+                    <Pause className="h-4 w-4" />
+                  )}
                   <span className="text-xs font-semibold">
                     {paused ? 'Play' : 'Pause'}
                   </span>
@@ -636,6 +669,16 @@ export default function Home() {
     const t = setTimeout(() => setMounted(true), 10)
     return () => clearTimeout(t)
   }, [])
+
+  // Detecta se está dentro do app (Capacitor) — só front, sem precisar mexer no app.
+  const inCapacitorApp = useMemo(() => isCapacitorRuntime(), [])
+
+  // Marca o <html> para permitir ajustes por CSS no futuro (opcional e inofensivo)
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    if (inCapacitorApp) document.documentElement.dataset.embedded = 'capacitor'
+    else delete document.documentElement.dataset.embedded
+  }, [inCapacitorApp])
 
   // Rolagem suave quando vier de "/#faq"
   useEffect(() => {
@@ -806,53 +849,64 @@ export default function Home() {
           />
         </div>
 
-        {/* APP SECTION */}
-        <div
-          className={[
-            'relative mt-10 md:mt-12 card p-0 overflow-hidden transition-all duration-700',
-            mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
-          ].join(' ')}
-          style={{ transitionDelay: '380ms' }}
-        >
-          <div className="grid md:grid-cols-2">
-            <div className="p-6 md:p-8 lg:p-10">
-              <h2 className="text-2xl font-extrabold text-[var(--primary)]">
-                Baixe nosso aplicativo
-              </h2>
-              <p className="mt-2 text-[var(--text)]">
-                Tenha carteirinha digital, boletos, PIX e benefícios sempre à mão.
-                Receba notificações e acompanhe seus contratos.
-              </p>
+        {/* APP SECTION (esconde quando estiver no app Capacitor) */}
+        {!inCapacitorApp && (
+          <div
+            className={[
+              'relative mt-10 md:mt-12 card p-0 overflow-hidden transition-all duration-700',
+              mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
+            ].join(' ')}
+            style={{ transitionDelay: '380ms' }}
+          >
+            <div className="grid md:grid-cols-2">
+              <div className="p-6 md:p-8 lg:p-10">
+                <h2 className="text-2xl font-extrabold text-[var(--primary)]">
+                  Baixe nosso aplicativo
+                </h2>
+                <p className="mt-2 text-[var(--text)]">
+                  Tenha carteirinha digital, boletos, PIX e benefícios sempre à mão.
+                  Receba notificações e acompanhe seus contratos.
+                </p>
 
-              <div className="mt-5 flex flex-wrap gap-3">
-                <AppStoreButton
-                  href={ANDROID_URL}
-                  icon={<Smartphone size={16} />}
-                  delay={420}
-                >
-                  Baixar para Android
-                </AppStoreButton>
+                <div className="mt-5 flex flex-wrap gap-3">
+                  <AppStoreButton
+                    href={ANDROID_URL}
+                    icon={<Smartphone size={16} />}
+                    delay={420}
+                  >
+                    Baixar para Android
+                  </AppStoreButton>
 
-                <AppStoreButton href={IOS_URL} icon={<Apple size={16} />} delay={450}>
-                  Baixar para iOS
-                </AppStoreButton>
-              </div>
-            </div>
-
-            <div className="bg-[var(--surface)] flex items-center justify-center p-8 lg:p-10">
-              <div className="rounded-2xl border bg-[var(--surface)]/70 p-10 text-center shadow-sm">
-                <div className="text-sm font-semibold text-[var(--text)]">
-                  App do Associado
+                  <AppStoreButton
+                    href={IOS_URL}
+                    icon={<Apple size={16} />}
+                    delay={450}
+                  >
+                    Baixar para iOS
+                  </AppStoreButton>
                 </div>
-                <div className="mt-1 text-xs text-[var(--text)]">
-                  Carteirinha • Pagamentos • Benefícios
+              </div>
+
+              <div className="bg-[var(--surface)] flex items-center justify-center p-8 lg:p-10">
+                <div
+                  className="rounded-2xl border bg-[var(--surface)]/70 p-10 text-center shadow-sm"
+                  style={{
+                    boxShadow:
+                      '0 1px 0 rgba(255,255,255,.65) inset, 0 18px 50px rgba(15,23,42,.08)',
+                  }}
+                >
+                  <div className="text-sm font-semibold text-[var(--text)]">
+                    App do Associado
+                  </div>
+                  <div className="mt-1 text-xs text-[var(--text)]">
+                    Carteirinha • Pagamentos • Benefícios
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-       
         {/* CTA PLANOS */}
         <div className="mt-12 md:mt-16">
           <PlanosCTA onSeePlans={() => (window.location.href = '/planos')} />
@@ -889,17 +943,21 @@ function AppStoreButton({ href, icon, children, delay = 0 }) {
     return () => clearTimeout(t)
   }, [])
 
+  const disabled = !href || href === '#'
+
   return (
     <CTAButton
       as="a"
-      href={href}
+      href={disabled ? undefined : href}
       target="_blank"
       rel="noopener noreferrer"
       variant="outline"
       size="lg"
       iconBefore={icon}
+      aria-disabled={disabled ? 'true' : 'false'}
       className={[
         'transition-all duration-500',
+        disabled ? 'opacity-60 pointer-events-none' : '',
         mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
       ].join(' ')}
       style={{ transitionDelay: `${delay}ms` }}
