@@ -116,11 +116,19 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Faixa inferior com copyright e localização/mapa */}
+      {/* Faixa inferior com copyright, crédito e localização */}
       <div className="container-max py-6 text-[11px] text-[var(--text-muted)] flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="space-x-1">
-          <span>© {ano} {nome}.</span>
-          <span>Todos os direitos reservados.</span>
+        <div className="flex flex-col gap-1 md:flex-row md:items-center md:gap-2">
+          <span>© {ano} {nome}. Todos os direitos reservados.</span>
+          <span className="hidden md:inline">•</span>
+          <a
+            href="https://progem.com.br"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-[var(--text)] transition-colors"
+          >
+            Desenvolvido por Progem
+          </a>
         </div>
 
         {end?.latitude && end?.longitude && (
