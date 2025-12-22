@@ -12,6 +12,15 @@ function normalizeContato(v) {
   return String(v || "").trim();
 }
 
+function isEmail(v) {
+  const s = String(v || "").trim();
+  return /.+@.+\..+/.test(s);
+}
+
+function normalizePhone(v) {
+  return String(v || "").replace(/\D/g, "");
+}
+
 export default function TributeForm({
   obitoId,
   nomeFalecido,
@@ -24,39 +33,59 @@ export default function TributeForm({
   const [nome, setNome] = useState("");
   const [contato, setContato] = useState("");
   const [mensagem, setMensagem] = useState("");
-  const [accepted, setAccepted] = useState(false);
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState("");
 
   const selected = useMemo(() => TYPES.find((t) => t.key === tipo), [tipo]);
 
+  function confirmTermos() {
+    return window.confirm(
+      `Ao enviar, você concorda com os Termos de Serviço e a Política de Privacidade.\n\nDeseja continuar?`
+    );
+  }
+
   async function submit() {
     setErr("");
 
-    if (!accepted) return setErr("Você precisa concordar com os Termos e a Política de Privacidade.");
-    if (!String(nome).trim()) return setErr("Informe seu nome.");
-    if (!normalizeContato(contato)) return setErr("Informe um WhatsApp ou e-mail para contato.");
-    if (selected?.needsText && !String(mensagem).trim()) return setErr("Escreva sua mensagem.");
+    const nomeOk = String(nome).trim();
+    const contatoOk = normalizeContato(contato);
+    const msgOk = String(mensagem).trim();
 
+    if (!nomeOk) return setErr("Informe seu nome.");
+    if (!contatoOk) return setErr("Informe um WhatsApp ou e-mail para contato.");
+    if (selected?.needsText && !msgOk) return setErr("Escreva sua mensagem.");
+
+    // Detecta contato
+    const email = isEmail(contatoOk) ? contatoOk : "";
+    const telefone = !email ? normalizePhone(contatoOk) : "";
+
+    // Validação mínima
+    if (!email && telefone.length < 10) {
+      return setErr("Informe um WhatsApp com DDD (somente números) ou um e-mail válido.");
+    }
+
+    if (!confirmTermos()) return;
+
+    // ✅ Schema estrito: envia apenas o que será aceito
     const payload = {
-      tipo,
-      nome: String(nome).trim(),
-      contato: normalizeContato(contato),
-      mensagem: selected?.needsText ? String(mensagem).trim() : null,
-      // opcional: origem/tenant/utm se você quiser rastrear leads
-      origem: "WHITELABEL",
+      tipo,      // UI tipo (BFF mapeia para enum NaLápide)
+      nome: nomeOk,
+      ...(email ? { email } : {}),
+      ...(telefone ? { telefone } : {}),
+      ...(selected?.needsText ? { mensagem: msgOk } : {}),
     };
 
     try {
       setSending(true);
       await onSubmit?.(obitoId, payload);
-      // reset suave (mantém tipo)
+
       setNome("");
       setContato("");
       setMensagem("");
-      setAccepted(false);
     } catch (e) {
-      setErr("Não foi possível enviar sua homenagem. Tente novamente.");
+      console.error("[TributeForm] erro:", e);
+      const isDev = import.meta.env.DEV;
+      setErr(isDev ? String(e?.message || e) : "Não foi possível enviar sua homenagem. Tente novamente.");
     } finally {
       setSending(false);
     }
@@ -67,14 +96,17 @@ export default function TributeForm({
     : "ring-[color:color-mix(in_srgb,var(--c-border)_85%,transparent)] dark:ring-[color:color-mix(in_srgb,var(--c-border)_70%,transparent)]";
 
   return (
-    <section className={`rounded-3xl p-4 sm:p-6 ring-1 ${ring} bg-[var(--surface)] shadow-[0_18px_55px_rgba(0,0,0,.06)]`}>
+    <section
+      className={`rounded-3xl p-4 sm:p-6 ring-1 ${ring} bg-[var(--surface)] shadow-[0_18px_55px_rgba(0,0,0,.06)]`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-[15px] sm:text-lg font-semibold text-[var(--text)]">
             Deixe sua homenagem
           </h3>
           <p className="mt-1 text-sm text-[var(--text)] opacity-85">
-            Seu gesto de carinho será eternizado neste memorial de <span className="font-semibold">{nomeFalecido}</span>.
+            Seu gesto de carinho será eternizado neste memorial de{" "}
+            <span className="font-semibold">{nomeFalecido}</span>.
           </p>
         </div>
       </div>
@@ -130,40 +162,31 @@ export default function TributeForm({
             value={contato}
             onChange={(e) => setContato(e.target.value)}
             className="mt-2 w-full rounded-2xl px-3 py-3 bg-[var(--surface-alt)] ring-1 ring-[color:color-mix(in_srgb,var(--c-border)_70%,transparent)] text-[var(--text)] outline-none focus:ring-[color:color-mix(in_srgb,var(--brand)_55%,var(--c-border))]"
-            placeholder="Seu contato"
+            placeholder="Ex.: maria@email.com ou 11999998888"
+            inputMode="email"
+            autoComplete="email"
           />
         </div>
       </div>
 
       <div className="mt-4 rounded-2xl px-3 py-3 bg-[color:color-mix(in_srgb,var(--surface-alt)_70%,transparent)] ring-1 ring-[color:color-mix(in_srgb,var(--c-border)_65%,transparent)]">
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={accepted}
-            onChange={(e) => setAccepted(e.target.checked)}
-            className="mt-1"
-          />
-          <span className="text-sm text-[var(--text)] opacity-90">
-            Li e concordo com os{" "}
-            <a className="underline" href={termosHref} target="_blank" rel="noreferrer">Termos</a>{" "}
-            e a{" "}
-            <a className="underline" href={privacidadeHref} target="_blank" rel="noreferrer">Política de Privacidade</a>.
-          </span>
-        </label>
+        <p className="text-sm text-[var(--text)] opacity-90">
+          Ao enviar, você concorda com os{" "}
+          <a className="underline" href={termosHref} target="_blank" rel="noreferrer">
+            Termos
+          </a>{" "}
+          e a{" "}
+          <a className="underline" href={privacidadeHref} target="_blank" rel="noreferrer">
+            Política de Privacidade
+          </a>
+          .
+        </p>
       </div>
 
-      {err && (
-        <div className="mt-3 text-sm text-red-600">
-          {err}
-        </div>
-      )}
+      {err && <div className="mt-3 text-sm text-red-600">{err}</div>}
 
       <div className="mt-4 flex items-center justify-end">
-        <CTAButton
-          onClick={submit}
-          disabled={sending}
-          className="w-full sm:w-auto"
-        >
+        <CTAButton onClick={submit} disabled={sending} className="w-full sm:w-auto">
           {sending ? "Enviando…" : "Enviar homenagem"}
         </CTAButton>
       </div>

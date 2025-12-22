@@ -1,5 +1,4 @@
 // src/lib/nalapide.js
-
 const devBff =
   (import.meta.env.VITE_BFF_BASE || "http://localhost:8787") + "/nalapide";
 
@@ -15,29 +14,57 @@ function qs(params = {}) {
   return s ? `?${s}` : "";
 }
 
+function getTenantSlug() {
+  const ds = document?.documentElement?.dataset;
+  if (ds?.tenantSlug) return ds.tenantSlug;
+  try {
+    const ls = localStorage.getItem("TENANT_SLUG");
+    if (ls) return ls;
+  } catch {}
+  return "";
+}
+
 async function http(url, init = {}) {
+  const tenant = getTenantSlug();
+
   const r = await fetch(url, {
+    ...init,
     headers: {
       Accept: "application/json",
+      ...(tenant ? { "x-tenant-slug": tenant } : {}),
       ...(init.headers || {}),
     },
-    ...init,
   });
 
   const ct = r.headers.get("content-type") || "";
-  const body = ct.includes("application/json") ? await r.json() : await r.text();
+  const raw = await r.text();
+
+  let body = raw;
+  if (ct.includes("application/json")) {
+    try {
+      body = raw ? JSON.parse(raw) : {};
+    } catch {
+      body = raw;
+    }
+  }
 
   if (!r.ok) {
-    throw new Error(
-      typeof body === "string" ? body : body?.message || "Erro na API NaLápide"
-    );
+    const msg =
+      typeof body === "string"
+        ? body
+        : body?.detail || body?.userMessage || body?.message || body?.title || `HTTP ${r.status}`;
+
+    const err = new Error(msg);
+    err.status = r.status;
+    err.url = url;
+    err.body = body;
+    throw err;
   }
 
   return body;
 }
 
 /* =================== MEMORIAL =================== */
-
 export async function listMemorial({ q = "", page = 1, perPage = 12 } = {}) {
   return http(`${BASE}/memorial${qs({ q, page, perPage })}`);
 }
@@ -46,21 +73,17 @@ export async function getMemorialById(idOrSlug) {
   return http(`${BASE}/memorial/${encodeURIComponent(idOrSlug)}`);
 }
 
-/* =================== MÍDIAS (GALERIA) =================== */
-
+/* =================== MÍDIAS =================== */
 export async function getMemorialMidias(obitoId) {
   return http(`${BASE}/memorial/${encodeURIComponent(obitoId)}/midias`);
 }
 
-/* =================== INTERAÇÕES (MENSAGENS) =================== */
-
+/* =================== INTERAÇÕES =================== */
 export async function getMemorialInteracoes(obitoId) {
-  // BFF: GET /memorial/:id/interacoes  -> upstream: /interacoes/por-obito/:id
   return http(`${BASE}/memorial/${encodeURIComponent(obitoId)}/interacoes`);
 }
 
 export async function createMemorialInteracao(obitoId, payload) {
-  // BFF: POST /memorial/:id/interacoes -> upstream: /interacoes
   return http(`${BASE}/memorial/${encodeURIComponent(obitoId)}/interacoes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -69,7 +92,6 @@ export async function createMemorialInteracao(obitoId, payload) {
 }
 
 /* =================== REAÇÕES =================== */
-
 export async function sendMemorialReaction(obitoId, payload) {
   return http(`${BASE}/memorial/${encodeURIComponent(obitoId)}/reactions`, {
     method: "POST",
@@ -79,7 +101,6 @@ export async function sendMemorialReaction(obitoId, payload) {
 }
 
 /* =================== LEADS =================== */
-
 export async function createLead(payload) {
   return http(`${BASE}/leads`, {
     method: "POST",
