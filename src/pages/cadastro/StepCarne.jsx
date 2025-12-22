@@ -104,6 +104,25 @@ export default function StepCarne({
     setMostrarTodasCobrancas(false);
   }, [cobrancasPreview?.length]);
 
+  // UX (Apple-level): quando modal/overlay estiver aberto, travar scroll do body (evita "pular" e mantém foco)
+  useEffect(() => {
+    const lock = confirmOpen || saving;
+    if (!lock) return;
+
+    const prevOverflow = document.body.style.overflow;
+    const prevPaddingRight = document.body.style.paddingRight;
+
+    // compensa scrollbar para não dar "jump" horizontal em desktop
+    const scrollbarW = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = "hidden";
+    if (scrollbarW > 0) document.body.style.paddingRight = `${scrollbarW}px`;
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.body.style.paddingRight = prevPaddingRight;
+    };
+  }, [confirmOpen, saving]);
+
   const totalParcelas = cobrancasPreview?.length || 0;
 
   const validarCupom = (data) => {
@@ -220,10 +239,10 @@ export default function StepCarne({
   const temDesconto = totalDesconto > 0;
 
   // Primeira cobrança “real”: primeira parcela com valor > 0 (se adesão ficou 100% off, pula)
-const primeiraCobrancaReal = useMemo(() => {
-  const list = Array.isArray(cobrancasComDesconto) ? cobrancasComDesconto : [];
-  return list.find((c) => Number(c?.valor || 0) >= 5) || null;
-}, [cobrancasComDesconto]);
+  const primeiraCobrancaReal = useMemo(() => {
+    const list = Array.isArray(cobrancasComDesconto) ? cobrancasComDesconto : [];
+    return list.find((c) => Number(c?.valor || 0) >= 5) || null;
+  }, [cobrancasComDesconto]);
 
   const adesaoZerouPorCupom = useMemo(() => {
     const list = Array.isArray(cobrancasComDesconto) ? cobrancasComDesconto : [];
@@ -233,12 +252,12 @@ const primeiraCobrancaReal = useMemo(() => {
   }, [cobrancasComDesconto]);
 
   // >>> REGRA DE ENVIO: não enviar cobranças com valor <= 5
-    const cobrancasParaEnvio = useMemo(() => {
-      return (cobrancasComDesconto || []).filter((c) => {
-        const v = Number(c?.valor || 0);
-        return v >= 5; // R$ 5,00 envia | < 5,00 não envia | 0,00 não envia
-      });
-    }, [cobrancasComDesconto]);
+  const cobrancasParaEnvio = useMemo(() => {
+    return (cobrancasComDesconto || []).filter((c) => {
+      const v = Number(c?.valor || 0);
+      return v >= 5; // R$ 5,00 envia | < 5,00 não envia | 0,00 não envia
+    });
+  }, [cobrancasComDesconto]);
 
   const cupomDetalhes = useMemo(() => {
     if (!cupomInfo) return null;
@@ -321,7 +340,6 @@ const primeiraCobrancaReal = useMemo(() => {
     };
 
     pushIf(adesao);
-
     pushIf(primeiraCobrancaReal);
 
     if (primeiraCobrancaReal) {
@@ -343,7 +361,10 @@ const primeiraCobrancaReal = useMemo(() => {
   const confirmModal =
     confirmOpen && !saving
       ? createPortal(
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center">
+          <div
+            className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center"
+            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+          >
             {/* overlay */}
             <div
               className="absolute inset-0 bg-black/55"
@@ -352,144 +373,78 @@ const primeiraCobrancaReal = useMemo(() => {
             />
             <div className="absolute inset-0 backdrop-blur-[6px]" aria-hidden="true" />
 
+            {/* sheet/container responsivo:
+                - mobile: bottom-sheet (mais natural, sem cortar)
+                - desktop: centralizado
+                - sempre: max-height com scroll interno (sem scroll horizontal) */}
             <div
               role="dialog"
               aria-modal="true"
               aria-label="Finalizar contratação"
-              className="relative w-full max-w-xl mx-4 rounded-[28px] border shadow-[0_40px_120px_rgba(0,0,0,0.55)] overflow-hidden"
+              className={[
+                "relative w-full",
+                "md:max-w-xl",
+                "mx-0 md:mx-4",
+                "border shadow-[0_40px_120px_rgba(0,0,0,0.55)] overflow-hidden",
+                "rounded-t-[28px] md:rounded-[28px]",
+              ].join(" ")}
               style={{
                 background: "color-mix(in srgb, var(--surface) 92%, var(--text) 6%)",
                 borderColor: "color-mix(in srgb, var(--text) 18%, transparent)",
+                // usa viewport dinâmico no mobile (evita corte com barra do browser)
+                maxHeight: "min(92dvh, 820px)",
               }}
             >
-              {/* header */}
+              {/* Scroll interno (mantém header/cta sempre acessíveis) */}
               <div
-                className="px-5 md:px-6 pt-5 md:pt-6 pb-4"
+                className="flex flex-col min-h-0"
                 style={{
-                  background:
-                    "radial-gradient(140% 160% at 80% 0%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 65%)",
+                  // garante que em telas pequenas o conteúdo role dentro do modal
+                  maxHeight: "min(92dvh, 820px)",
                 }}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
-                      Revisão final
-                    </p>
-                    <h3 className="mt-1 text-[18px] md:text-[20px] font-semibold tracking-tight text-[var(--text)]">
-                      Confirmar contratação
-                    </h3>
-                    <p className="mt-1 text-xs md:text-sm leading-relaxed text-[var(--text-muted)]">
-                      A ativação ocorre após o primeiro pagamento.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setConfirmOpen(false)}
-                    className="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium hover:opacity-90"
-                    style={{
-                      borderColor: "color-mix(in srgb, var(--text) 18%, transparent)",
-                      color: "var(--text)",
-                      background: "color-mix(in srgb, var(--surface) 90%, transparent)",
-                    }}
-                  >
-                    Voltar
-                  </button>
-                </div>
-              </div>
-
-              {/* body */}
-              <div className="px-5 md:px-6 pb-5 md:pb-6">
-                <div className="grid gap-3">
-                  {/* Mensalidade (âncora) */}
-                  <div
-                    className="rounded-2xl border px-4 py-3"
-                    style={{
-                      background: "color-mix(in srgb, var(--surface-elevated) 92%, var(--text) 4%)",
-                      borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-                    }}
-                  >
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                      Mensalidade
-                    </p>
-                    <p className="mt-1 text-xl font-semibold tabular-nums text-[var(--text)]">
-                      {money(valorMensalidadePlano)}
-                      <span className="ml-1 text-xs font-normal text-[var(--text-muted)]">/ mês</span>
-                    </p>
-                  </div>
-
-                  {/* Primeiro pagamento real */}
-                  <div
-                    className="rounded-2xl border px-4 py-3"
-                    style={{
-                      background: "color-mix(in srgb, var(--surface-elevated) 92%, var(--text) 4%)",
-                      borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                          Primeiro pagamento
-                        </p>
-                        <p className="mt-1 text-xs md:text-sm text-[var(--text-muted)]">
-                          Vencimento{" "}
-                          <span className="font-medium tabular-nums text-[var(--text)]">
-                            {primeiraCobrancaReal
-                              ? formatDateBR(primeiraCobrancaReal.dataVencimentoISO)
-                              : formatDateBR(dataEfetivacaoISO)}
-                          </span>
-                        </p>
-
-                        {adesaoZerouPorCupom ? (
-                          <p className="mt-1 text-[11px] text-[var(--text-muted)]">
-                            A adesão foi coberta integralmente. O primeiro pagamento exibido já é a próxima parcela paga.
-                          </p>
-                        ) : null}
-                      </div>
-
-                      <div className="text-right">
-                        <p className="text-xl font-semibold tabular-nums text-[var(--text)]">
-                          {money(primeiraCobrancaReal?.valor || 0)}
-                        </p>
-
-                        {primeiraCobrancaReal && Number(primeiraCobrancaReal?._desconto || 0) > 0 ? (
-                          <p className="mt-0.5 text-[11px] tabular-nums text-[var(--text-muted)] line-through">
-                            {money(primeiraCobrancaReal._valorOriginal || 0)}
-                          </p>
-                        ) : (
-                          <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
-                            {primeiraCobrancaReal?.id === "adesao" ? "Adesão" : "Mensalidade"}
-                          </p>
-                        )}
-                      </div>
+                {/* header (sticky, Apple-like) */}
+                <div
+                  className="px-5 md:px-6 pt-5 md:pt-6 pb-4 sticky top-0 z-[1]"
+                  style={{
+                    background:
+                      "radial-gradient(140% 160% at 80% 0%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 65%), color-mix(in srgb, var(--surface) 92%, var(--text) 6%)",
+                    borderBottom: "1px solid color-mix(in srgb, var(--text) 12%, transparent)",
+                    backdropFilter: "blur(10px)",
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
+                        Revisão final
+                      </p>
+                      <h3 className="mt-1 text-[18px] md:text-[20px] font-semibold tracking-tight text-[var(--text)]">
+                        Confirmar contratação
+                      </h3>
+                      <p className="mt-1 text-xs md:text-sm leading-relaxed text-[var(--text-muted)]">
+                        A ativação ocorre após o primeiro pagamento.
+                      </p>
                     </div>
 
-                    {/* Economia */}
-                    {temDesconto ? (
-                      <div
-                        className="mt-3 rounded-xl border px-3 py-2"
-                        style={{
-                          background: "color-mix(in srgb, var(--primary) 8%, var(--surface) 92%)",
-                          borderColor: "color-mix(in srgb, var(--primary) 24%, transparent)",
-                        }}
-                      >
-                        <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                          Economia aplicada
-                        </p>
-                        <p className="mt-0.5 text-sm font-semibold tabular-nums text-[var(--text)]">
-                          {money(totalDesconto)}
-                        </p>
-                        {cupomDetalhes?.codigo ? (
-                          <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
-                            Cupom <span className="font-semibold text-[var(--text)]">{cupomDetalhes.codigo}</span>
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => setConfirmOpen(false)}
+                      className="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium hover:opacity-90"
+                      style={{
+                        borderColor: "color-mix(in srgb, var(--text) 18%, transparent)",
+                        color: "var(--text)",
+                        background: "color-mix(in srgb, var(--surface) 90%, transparent)",
+                      }}
+                    >
+                      Voltar
+                    </button>
                   </div>
+                </div>
 
-                  {/* Cupom detalhado (sem ícones) */}
-                  {cupomDetalhes ? (
+                {/* body (scrollável) */}
+                <div className="px-5 md:px-6 pb-4 md:pb-5 overflow-y-auto overscroll-contain min-h-0">
+                  <div className="grid gap-3">
+                    {/* Mensalidade (âncora) */}
                     <div
                       className="rounded-2xl border px-4 py-3"
                       style={{
@@ -498,85 +453,195 @@ const primeiraCobrancaReal = useMemo(() => {
                       }}
                     >
                       <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                        Cupom aplicado
+                        Mensalidade
                       </p>
+                      <p className="mt-1 text-xl font-semibold tabular-nums text-[var(--text)]">
+                        {money(valorMensalidadePlano)}
+                        <span className="ml-1 text-xs font-normal text-[var(--text-muted)]">/ mês</span>
+                      </p>
+                    </div>
 
-                      <div className="mt-2 grid gap-2">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-sm font-semibold text-[var(--text)]">{cupomDetalhes.codigo}</p>
-                          <p className="text-sm font-semibold tabular-nums text-[var(--text)]">{cupomDetalhes.valor}</p>
+                    {/* Primeiro pagamento real */}
+                    <div
+                      className="rounded-2xl border px-4 py-3"
+                      style={{
+                        background: "color-mix(in srgb, var(--surface-elevated) 92%, var(--text) 4%)",
+                        borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                            Primeiro pagamento
+                          </p>
+                          <p className="mt-1 text-xs md:text-sm text-[var(--text-muted)]">
+                            Vencimento{" "}
+                            <span className="font-medium tabular-nums text-[var(--text)]">
+                              {primeiraCobrancaReal
+                                ? formatDateBR(primeiraCobrancaReal.dataVencimentoISO)
+                                : formatDateBR(dataEfetivacaoISO)}
+                            </span>
+                          </p>
+
+                          {adesaoZerouPorCupom ? (
+                            <p className="mt-1 text-[11px] text-[var(--text-muted)]">
+                              A adesão foi coberta integralmente. O primeiro pagamento exibido já é a próxima parcela
+                              paga.
+                            </p>
+                          ) : null}
                         </div>
 
-                        <p className="text-xs md:text-sm text-[var(--text-muted)] leading-relaxed">
-                          {cupomDetalhes.descricao}
+                        <div className="text-right">
+                          <p className="text-xl font-semibold tabular-nums text-[var(--text)]">
+                            {money(primeiraCobrancaReal?.valor || 0)}
+                          </p>
+
+                          {primeiraCobrancaReal && Number(primeiraCobrancaReal?._desconto || 0) > 0 ? (
+                            <p className="mt-0.5 text-[11px] tabular-nums text-[var(--text-muted)] line-through">
+                              {money(primeiraCobrancaReal._valorOriginal || 0)}
+                            </p>
+                          ) : (
+                            <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
+                              {primeiraCobrancaReal?.id === "adesao" ? "Adesão" : "Mensalidade"}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Economia */}
+                      {temDesconto ? (
+                        <div
+                          className="mt-3 rounded-xl border px-3 py-2"
+                          style={{
+                            background: "color-mix(in srgb, var(--primary) 8%, var(--surface) 92%)",
+                            borderColor: "color-mix(in srgb, var(--primary) 24%, transparent)",
+                          }}
+                        >
+                          <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                            Economia aplicada
+                          </p>
+                          <p className="mt-0.5 text-sm font-semibold tabular-nums text-[var(--text)]">
+                            {money(totalDesconto)}
+                          </p>
+                          {cupomDetalhes?.codigo ? (
+                            <p className="mt-0.5 text-[11px] text-[var(--text-muted)]">
+                              Cupom{" "}
+                              <span className="font-semibold text-[var(--text)]">{cupomDetalhes.codigo}</span>
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    {/* Cupom detalhado (sem ícones) */}
+                    {cupomDetalhes ? (
+                      <div
+                        className="rounded-2xl border px-4 py-3"
+                        style={{
+                          background: "color-mix(in srgb, var(--surface-elevated) 92%, var(--text) 4%)",
+                          borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+                        }}
+                      >
+                        <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                          Cupom aplicado
                         </p>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-1">
-                          {[
-                            { k: "Tipo", v: cupomDetalhes.tipo },
-                            { k: "Aplicação", v: cupomDetalhes.alvoLabel },
-                            { k: "Validade", v: cupomDetalhes.validadeLabel || "—" },
-                          ].map((it) => (
-                            <div
-                              key={it.k}
-                              className="rounded-xl border px-3 py-2"
-                              style={{
-                                background: "color-mix(in srgb, var(--surface) 94%, var(--text) 3%)",
-                                borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-                              }}
-                            >
-                              <p className="text-[11px] text-[var(--text-muted)]">{it.k}</p>
-                              <p className="text-xs font-semibold text-[var(--text)]">{it.v}</p>
-                            </div>
-                          ))}
-                        </div>
+                        <div className="mt-2 grid gap-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm font-semibold text-[var(--text)]">{cupomDetalhes.codigo}</p>
+                            <p className="text-sm font-semibold tabular-nums text-[var(--text)]">{cupomDetalhes.valor}</p>
+                          </div>
 
-                        <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                          O desconto não altera as parcelas não contempladas.
+                          <p className="text-xs md:text-sm text-[var(--text-muted)] leading-relaxed">
+                            {cupomDetalhes.descricao}
+                          </p>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-1">
+                            {[
+                              { k: "Tipo", v: cupomDetalhes.tipo },
+                              { k: "Aplicação", v: cupomDetalhes.alvoLabel },
+                              { k: "Validade", v: cupomDetalhes.validadeLabel || "—" },
+                            ].map((it) => (
+                              <div
+                                key={it.k}
+                                className="rounded-xl border px-3 py-2"
+                                style={{
+                                  background: "color-mix(in srgb, var(--surface) 94%, var(--text) 3%)",
+                                  borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                                }}
+                              >
+                                <p className="text-[11px] text-[var(--text-muted)]">{it.k}</p>
+                                <p className="text-xs font-semibold text-[var(--text)]">{it.v}</p>
+                              </div>
+                            ))}
+                          </div>
+
+                          <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+                            O desconto não altera as parcelas não contempladas.
+                          </p>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {/* Resumo */}
+                    <div
+                      className="rounded-2xl border px-4 py-3"
+                      style={{
+                        background: "color-mix(in srgb, var(--surface) 92%, var(--text) 4%)",
+                        borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+                      }}
+                    >
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">Resumo</p>
+                      <div className="mt-2 grid gap-1 text-xs md:text-sm text-[var(--text)]">
+                        <p>
+                          • {totalParcelas} parcela{totalParcelas === 1 ? "" : "s"} programada
+                          {totalParcelas === 1 ? "" : "s"}
+                        </p>
+                        <p>
+                          • Vencimento todo dia{" "}
+                          <span className="font-semibold tabular-nums">{safePad2(diaDSelecionado)}</span>
+                        </p>
+                        <p className="text-[var(--text-muted)]">
+                          • Mantenha esta página aberta até concluir a geração do carnê.
                         </p>
                       </div>
                     </div>
-                  ) : null}
 
-                  {/* Resumo */}
-                  <div
-                    className="rounded-2xl border px-4 py-3"
-                    style={{
-                      background: "color-mix(in srgb, var(--surface) 92%, var(--text) 4%)",
-                      borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-                    }}
-                  >
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">Resumo</p>
-                    <div className="mt-2 grid gap-1 text-xs md:text-sm text-[var(--text)]">
-                      <p>
-                        • {totalParcelas} parcela{totalParcelas === 1 ? "" : "s"} programada{totalParcelas === 1 ? "" : "s"}
-                      </p>
-                      <p>
-                        • Vencimento todo dia{" "}
-                        <span className="font-semibold tabular-nums">{safePad2(diaDSelecionado)}</span>
-                      </p>
-                      <p className="text-[var(--text-muted)]">• Mantenha esta página aberta até concluir a geração do carnê.</p>
-                    </div>
+                    {/* Espaço final para não “colar” no sticky footer */}
+                    <div
+                      className="h-20"
+                      aria-hidden="true"
+                      style={{ height: "max(80px, env(safe-area-inset-bottom))" }}
+                    />
                   </div>
                 </div>
 
-                <div className="mt-5 flex flex-col md:flex-row md:justify-between gap-3">
-                  <CTAButton
-                    type="button"
-                    variant="outline"
-                    className="h-11 px-5 rounded-2xl order-2 md:order-1"
-                    onClick={() => setConfirmOpen(false)}
-                  >
-                    Revisar
-                  </CTAButton>
+                {/* footer fixo (CTA sempre visível no mobile) */}
+                <div
+                  className="px-5 md:px-6 pb-5 md:pb-6 pt-3 border-t"
+                  style={{
+                    borderColor: "color-mix(in srgb, var(--text) 12%, transparent)",
+                    background: "color-mix(in srgb, var(--surface) 92%, var(--text) 6%)",
+                  }}
+                >
+                  <div className="flex flex-col md:flex-row md:justify-between gap-3">
+                    <CTAButton
+                      type="button"
+                      variant="outline"
+                      className="h-11 px-5 rounded-2xl order-2 md:order-1"
+                      onClick={() => setConfirmOpen(false)}
+                    >
+                      Revisar
+                    </CTAButton>
 
-                  <CTAButton
-                    type="button"
-                    className="h-11 px-6 rounded-2xl order-1 md:order-2"
-                    onClick={handleConfirmarEnvio}
-                  >
-                    Confirmar e gerar carnê
-                  </CTAButton>
+                    <CTAButton
+                      type="button"
+                      className="h-11 px-6 rounded-2xl order-1 md:order-2"
+                      onClick={handleConfirmarEnvio}
+                    >
+                      Confirmar e gerar carnê
+                    </CTAButton>
+                  </div>
                 </div>
               </div>
             </div>
@@ -652,9 +717,7 @@ const primeiraCobrancaReal = useMemo(() => {
             {/* Cabeçalho interno */}
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-xs md:text-sm font-semibold tracking-wide uppercase">
-                  Etapa 4 de 4 · Cobranças
-                </p>
+                <p className="text-xs md:text-sm font-semibold tracking-wide uppercase">Etapa 4 de 4 · Cobranças</p>
 
                 <span
                   className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] md:text-xs"
@@ -663,10 +726,7 @@ const primeiraCobrancaReal = useMemo(() => {
                     color: "var(--text-muted)",
                   }}
                 >
-                  <span
-                    className="inline-block h-1.5 w-1.5 rounded-full"
-                    style={{ background: "var(--primary)" }}
-                  />
+                  <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--primary)" }} />
                   Revisão
                 </span>
               </div>
@@ -677,10 +737,7 @@ const primeiraCobrancaReal = useMemo(() => {
                   background: "color-mix(in srgb, var(--surface-elevated) 80%, var(--text) 6%)",
                 }}
               >
-                <div
-                  className="h-full rounded-full transition-all duration-300"
-                  style={{ width: "100%", background: "var(--primary)" }}
-                />
+                <div className="h-full rounded-full transition-all duration-300" style={{ width: "100%", background: "var(--primary)" }} />
               </div>
 
               <p className="text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
@@ -760,9 +817,7 @@ const primeiraCobrancaReal = useMemo(() => {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold truncate text-[var(--text)]">{cupomDetalhes?.codigo}</p>
-                      <p className="text-[11px] mt-0.5 text-[var(--text-muted)] leading-relaxed">
-                        {cupomDetalhes?.descricao}
-                      </p>
+                      <p className="text-[11px] mt-0.5 text-[var(--text-muted)] leading-relaxed">{cupomDetalhes?.descricao}</p>
 
                       <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
                         {[
@@ -790,16 +845,12 @@ const primeiraCobrancaReal = useMemo(() => {
                         </p>
                       ) : null}
 
-                      <p className="mt-2 text-[11px] text-[var(--text-muted)]">
-                        O desconto não altera as parcelas não contempladas.
-                      </p>
+                      <p className="mt-2 text-[11px] text-[var(--text-muted)]">O desconto não altera as parcelas não contempladas.</p>
                     </div>
 
                     <div className="text-right">
                       <p className="text-[11px] text-[var(--text-muted)]">Economia total</p>
-                      <p className="text-sm font-semibold tabular-nums text-[var(--text)]">
-                        {temDesconto ? money(totalDesconto) : "—"}
-                      </p>
+                      <p className="text-sm font-semibold tabular-nums text-[var(--text)]">{temDesconto ? money(totalDesconto) : "—"}</p>
                     </div>
                   </div>
                 </div>
@@ -859,10 +910,7 @@ const primeiraCobrancaReal = useMemo(() => {
                     </p>
                     <p className="text-xs text-[var(--text-muted)]">Ver composição do valor por pessoa.</p>
                   </div>
-                  <span className="text-[11px] text-[var(--text-muted)] group-open:opacity-60">
-                    {`${""}`}
-                    Expandir
-                  </span>
+                  <span className="text-[11px] text-[var(--text-muted)] group-open:opacity-60">{`${""}`}Expandir</span>
                 </summary>
 
                 <div className="mt-4 space-y-2">
@@ -887,10 +935,7 @@ const primeiraCobrancaReal = useMemo(() => {
                         const isIsento = dep.isento && (dep.valorTotalPessoa || 0) === 0;
 
                         return (
-                          <div
-                            key={`${normalizeKeyFromDep(dep)}:${idx}`}
-                            className="flex items-center justify-between gap-3 text-[11px]"
-                          >
+                          <div key={`${normalizeKeyFromDep(dep)}:${idx}`} className="flex items-center justify-between gap-3 text-[11px]">
                             <div className="min-w-0">
                               <p className="font-medium truncate">{nome}</p>
                               <p className="text-[var(--text-muted)] truncate">
@@ -945,7 +990,7 @@ const primeiraCobrancaReal = useMemo(() => {
                 </div>
               </div>
 
-              {(!cobrancasPreview || cobrancasPreview.length === 0) ? (
+              {!cobrancasPreview || cobrancasPreview.length === 0 ? (
                 <p className="mt-3 text-sm text-[var(--text-muted)]">
                   As cobranças serão calculadas automaticamente conforme o plano.
                 </p>
@@ -998,17 +1043,11 @@ const primeiraCobrancaReal = useMemo(() => {
                               <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
                                 Mensalidades
                               </p>
-                              <p className="text-[11px] text-[var(--text-muted)] tabular-nums">
-                                {totalMensalidades}x
-                              </p>
+                              <p className="text-[11px] text-[var(--text-muted)] tabular-nums">{totalMensalidades}x</p>
                             </div>
 
                             {cobrancasAgrupadas.mensalidades.map((cob, idx) => (
-                              <CobrancaRow
-                                key={cob.id}
-                                cob={cob}
-                                index={(cobrancasAgrupadas.adesao ? 1 : 0) + idx}
-                              />
+                              <CobrancaRow key={cob.id} cob={cob} index={(cobrancasAgrupadas.adesao ? 1 : 0) + idx} />
                             ))}
                           </div>
                         ) : null}
@@ -1050,9 +1089,7 @@ const primeiraCobrancaReal = useMemo(() => {
                         borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
                       }}
                     >
-                      <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
-                        Plano ativo após o primeiro pagamento.
-                      </p>
+                      <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">Plano ativo após o primeiro pagamento.</p>
                     </div>
                   </div>
                 </>
@@ -1064,22 +1101,11 @@ const primeiraCobrancaReal = useMemo(() => {
 
             {/* Navegação tradicional (desktop / fallback) */}
             <div className="hidden md:flex justify-between gap-3 pt-1">
-              <CTAButton
-                type="button"
-                variant="outline"
-                className="h-12 px-5 rounded-2xl"
-                onClick={onBack}
-                disabled={saving}
-              >
+              <CTAButton type="button" variant="outline" className="h-12 px-5 rounded-2xl" onClick={onBack} disabled={saving}>
                 Voltar
               </CTAButton>
 
-              <CTAButton
-                type="button"
-                className="h-12 px-6 rounded-2xl"
-                onClick={() => setConfirmOpen(true)}
-                disabled={saving}
-              >
+              <CTAButton type="button" className="h-12 px-6 rounded-2xl" onClick={() => setConfirmOpen(true)} disabled={saving}>
                 Revisar e finalizar
               </CTAButton>
             </div>
@@ -1087,10 +1113,7 @@ const primeiraCobrancaReal = useMemo(() => {
 
           {/* Barra fixa (mobile e também útil em telas longas) */}
           <div className="md:hidden">
-            <div
-              className="fixed inset-x-0 bottom-0 z-[60] px-4 pb-4"
-              style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
-            >
+            <div className="fixed inset-x-0 bottom-0 z-[60] px-4 pb-4" style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
               <div
                 className="rounded-3xl border shadow-[0_22px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl px-4 py-3"
                 style={{
@@ -1100,15 +1123,11 @@ const primeiraCobrancaReal = useMemo(() => {
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--c-muted)]">
-                      Primeiro pagamento
-                    </p>
+                    <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--c-muted)]">Primeiro pagamento</p>
                     <p className="text-base font-semibold tabular-nums truncate">
                       {money(primeiraCobrancaReal?.valor || 0)}
                       <span className="ml-2 text-[11px] font-normal text-[var(--c-muted)] tabular-nums">
-                        {primeiraCobrancaReal
-                          ? formatDateBR(primeiraCobrancaReal.dataVencimentoISO)
-                          : formatDateBR(dataEfetivacaoISO)}
+                        {primeiraCobrancaReal ? formatDateBR(primeiraCobrancaReal.dataVencimentoISO) : formatDateBR(dataEfetivacaoISO)}
                       </span>
                     </p>
                     {temDesconto ? (
@@ -1121,22 +1140,11 @@ const primeiraCobrancaReal = useMemo(() => {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    <CTAButton
-                      type="button"
-                      variant="outline"
-                      className="h-11 px-4 rounded-2xl"
-                      onClick={onBack}
-                      disabled={saving}
-                    >
+                    <CTAButton type="button" variant="outline" className="h-11 px-4 rounded-2xl" onClick={onBack} disabled={saving}>
                       Voltar
                     </CTAButton>
 
-                    <CTAButton
-                      type="button"
-                      className="h-11 px-5 rounded-2xl"
-                      onClick={() => setConfirmOpen(true)}
-                      disabled={saving}
-                    >
+                    <CTAButton type="button" className="h-11 px-5 rounded-2xl" onClick={() => setConfirmOpen(true)} disabled={saving}>
                       Revisar
                     </CTAButton>
                   </div>
@@ -1174,18 +1182,14 @@ function CobrancaRow({ cob, index, isCompact = false }) {
               ? "color-mix(in srgb, var(--primary) 14%, white)"
               : "color-mix(in srgb, var(--surface) 94%, var(--text) 2%)",
             color: isAdesao ? "var(--primary)" : "var(--text-muted)",
-            border: isAdesao
-              ? "1px solid transparent"
-              : "1px solid color-mix(in srgb, var(--text) 14%, transparent)",
+            border: isAdesao ? "1px solid transparent" : "1px solid color-mix(in srgb, var(--text) 14%, transparent)",
           }}
         >
           {index + 1}
         </span>
 
         <div className="min-w-0">
-          <p className="text-xs font-medium truncate text-[var(--text)]">
-            {cob?.tipo || (isAdesao ? "Taxa de adesão" : "Mensalidade")}
-          </p>
+          <p className="text-xs font-medium truncate text-[var(--text)]">{cob?.tipo || (isAdesao ? "Taxa de adesão" : "Mensalidade")}</p>
           <p className="text-[11px] text-[var(--text-muted)]">
             Vencimento <span className="tabular-nums">{formatDateBR(cob?.dataVencimentoISO)}</span>
           </p>
@@ -1193,9 +1197,7 @@ function CobrancaRow({ cob, index, isCompact = false }) {
           {!isCompact && teveDesconto ? (
             <p className="text-[11px] text-[var(--text-muted)]">
               Desconto{" "}
-              <span className="font-semibold tabular-nums text-[var(--text)]">
-                {money(cob?._desconto)}
-              </span>
+              <span className="font-semibold tabular-nums text-[var(--text)]">{money(cob?._desconto)}</span>
             </p>
           ) : null}
         </div>
@@ -1205,9 +1207,7 @@ function CobrancaRow({ cob, index, isCompact = false }) {
         <p className="text-sm font-semibold tabular-nums text-[var(--text)]">{money(cob?.valor || 0)}</p>
 
         {teveDesconto ? (
-          <p className="text-[11px] text-[var(--text-muted)] tabular-nums line-through">
-            {money(cob?._valorOriginal || 0)}
-          </p>
+          <p className="text-[11px] text-[var(--text-muted)] tabular-nums line-through">{money(cob?._valorOriginal || 0)}</p>
         ) : (
           <p className="text-[11px] text-[var(--text-muted)]">
             Parcela {index + 1}
