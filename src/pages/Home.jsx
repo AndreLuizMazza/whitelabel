@@ -103,7 +103,6 @@ function FeatureCardPremium({ icon, title, desc, to, cta, mounted, delay = 0 }) 
         ].join(' ')}
         style={{
           transitionDelay: `${delay}ms`,
-          // micro-contrast “premium”
           boxShadow:
             '0 1px 0 rgba(0,0,0,.04), 0 10px 30px rgba(15,23,42,.06)',
         }}
@@ -294,8 +293,6 @@ function HomeHeroSlideLayer({ slide, isActive, prefersReduced }) {
   const [broken, setBroken] = useState(false)
   const img = slide?.image
 
-  // “estética memorial”: blur cover por trás + imagem principal por cima (sem perder impacto)
-  // No Home, mantemos o "cover" (fica premium e evita barras), mas com blur elegante.
   return (
     <div
       className={[
@@ -326,7 +323,7 @@ function HomeHeroSlideLayer({ slide, isActive, prefersReduced }) {
             loading={isActive ? 'eager' : 'lazy'}
             onError={() => setBroken(true)}
             style={{
-              objectFit: 'cover', // Home: mantém impacto e evita barras
+              objectFit: 'cover',
               objectPosition: slide?.focus || 'center',
               filter: 'saturate(1.03) contrast(1.02)',
               transform: prefersReduced ? 'none' : 'scale(1.03)',
@@ -345,7 +342,6 @@ function HomeHeroSlideLayer({ slide, isActive, prefersReduced }) {
         />
       )}
 
-      {/* Overlay editorial (igual memorial: leitura premium) */}
       <div
         className="absolute inset-0"
         style={{
@@ -354,7 +350,6 @@ function HomeHeroSlideLayer({ slide, isActive, prefersReduced }) {
         }}
       />
 
-      {/* Glow premium */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -396,7 +391,6 @@ function HeroSlider({ slides, mounted }) {
       hasSlides ? (i - 1 + safeSlides.length) % safeSlides.length : 0
     )
 
-  // autoplay (setTimeout, igual ao memorial)
   useEffect(() => {
     if (!hasSlides) return
     if (prefersReduced) return
@@ -411,7 +405,6 @@ function HeroSlider({ slides, mounted }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, hasSlides, prefersReduced, paused])
 
-  // preload do próximo slide
   useEffect(() => {
     if (!hasSlides) return
     const n = safeSlides[(index + 1) % safeSlides.length]
@@ -420,7 +413,6 @@ function HeroSlider({ slides, mounted }) {
     img.src = n.image
   }, [hasSlides, safeSlides, index])
 
-  // teclado (quando foco no slider)
   const rootRef = useRef(null)
   useEffect(() => {
     const el = rootRef.current
@@ -445,7 +437,6 @@ function HeroSlider({ slides, mounted }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasSlides])
 
-  // swipe (mobile)
   const onPointerDown = (e) => {
     if (!hasSlides || !isTouch) return
     startXRef.current = e.clientX ?? e.touches?.[0]?.clientX ?? null
@@ -501,7 +492,6 @@ function HeroSlider({ slides, mounted }) {
       aria-roledescription="carousel"
       aria-label="Destaques"
     >
-      {/* CAMADA FUNDO (z-0) */}
       <div
         className="absolute inset-0 z-0 pointer-events-none"
         onPointerDown={onPointerDown}
@@ -519,7 +509,6 @@ function HeroSlider({ slides, mounted }) {
         ))}
       </div>
 
-      {/* CONTEÚDO (z-10) */}
       <div className="relative z-10 px-6 py-10 md:px-10 md:py-16 lg:px-16 lg:py-20 text-white">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
@@ -576,7 +565,6 @@ function HeroSlider({ slides, mounted }) {
               )}
             </div>
 
-            {/* CONTROLES (premium, discretos) */}
             <div className="mt-8 flex items-center justify-between gap-4">
               <div
                 className="flex items-center gap-2"
@@ -622,14 +610,8 @@ function HeroSlider({ slides, mounted }) {
                   }}
                   aria-label={paused ? 'Reproduzir' : 'Pausar'}
                 >
-                  {paused ? (
-                    <Play className="h-4 w-4" />
-                  ) : (
-                    <Pause className="h-4 w-4" />
-                  )}
-                  <span className="text-xs font-semibold">
-                    {paused ? 'Play' : 'Pause'}
-                  </span>
+                  {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                  <span className="text-xs font-semibold">{paused ? 'Play' : 'Pause'}</span>
                 </button>
 
                 <HeroIconButton ariaLabel="Próximo slide" onClick={next}>
@@ -670,17 +652,15 @@ export default function Home() {
     return () => clearTimeout(t)
   }, [])
 
-  // Detecta se está dentro do app (Capacitor) — só front, sem precisar mexer no app.
+  // Detecta se está dentro do app (Capacitor)
   const inCapacitorApp = useMemo(() => isCapacitorRuntime(), [])
 
-  // Marca o <html> para permitir ajustes por CSS no futuro (opcional e inofensivo)
   useEffect(() => {
     if (typeof document === 'undefined') return
     if (inCapacitorApp) document.documentElement.dataset.embedded = 'capacitor'
     else delete document.documentElement.dataset.embedded
   }, [inCapacitorApp])
 
-  // Rolagem suave quando vier de "/#faq"
   useEffect(() => {
     if (location.hash === '#faq') {
       const el = document.getElementById('home-faq')
@@ -775,7 +755,6 @@ export default function Home() {
       <div className="container-max relative">
         <HeroSlider slides={slides} mounted={mounted} />
 
-        {/* PÍLULAS PREMIUM FORA DO SLIDER */}
         <div
           className={[
             'mt-6 mb-10 md:mb-12 transition-all duration-700',
@@ -798,15 +777,18 @@ export default function Home() {
             delay={200}
           />
 
-          <FeatureCardPremium
-            icon={<Receipt size={22} strokeWidth={2} />}
-            title="Segunda via de Boleto"
-            desc="Consulte boletos sem senha."
-            to="/contratos"
-            cta="Pesquisar"
-            mounted={mounted}
-            delay={230}
-          />
+          {/* Esconde no Capacitor: Segunda via */}
+          {!inCapacitorApp && (
+            <FeatureCardPremium
+              icon={<Receipt size={22} strokeWidth={2} />}
+              title="Segunda via de Boleto"
+              desc="Consulte boletos sem senha."
+              to="/contratos"
+              cta="Pesquisar"
+              mounted={mounted}
+              delay={230}
+            />
+          )}
 
           <FeatureCardPremium
             icon={<Layers size={22} strokeWidth={2} />}
@@ -818,15 +800,18 @@ export default function Home() {
             delay={260}
           />
 
-          <FeatureCardPremium
-            icon={<Gift size={22} strokeWidth={2} />}
-            title="Clube de Benefícios"
-            desc="Parceiros com descontos e vantagens."
-            to="/beneficios"
-            cta="Ver parceiros"
-            mounted={mounted}
-            delay={290}
-          />
+          {/* Esconde no Capacitor: Clube de benefícios */}
+          {!inCapacitorApp && (
+            <FeatureCardPremium
+              icon={<Gift size={22} strokeWidth={2} />}
+              title="Clube de Benefícios"
+              desc="Parceiros com descontos e vantagens."
+              to="/beneficios"
+              cta="Ver parceiros"
+              mounted={mounted}
+              delay={290}
+            />
+          )}
 
           <FeatureCardPremium
             icon={<HeartHandshake size={22} strokeWidth={2} />}
@@ -877,11 +862,7 @@ export default function Home() {
                     Baixar para Android
                   </AppStoreButton>
 
-                  <AppStoreButton
-                    href={IOS_URL}
-                    icon={<Apple size={16} />}
-                    delay={450}
-                  >
+                  <AppStoreButton href={IOS_URL} icon={<Apple size={16} />} delay={450}>
                     Baixar para iOS
                   </AppStoreButton>
                 </div>
@@ -917,13 +898,15 @@ export default function Home() {
           <MemorialCTA onVisitMemorial={() => (window.location.href = '/memorial')} />
         </div>
 
-        {/* CTA PARCEIROS */}
-        <div className="mt-12 md:mt-16">
-          <ParceirosCTA
-            onBecomePartner={() => (window.location.href = '/parceiros/inscrever')}
-            whatsappHref={whatsappParceiroHref}
-          />
-        </div>
+        {/* CTA PARCEIROS (esconde no Capacitor: parceiro premium) */}
+        {!inCapacitorApp && (
+          <div className="mt-12 md:mt-16">
+            <ParceirosCTA
+              onBecomePartner={() => (window.location.href = '/parceiros/inscrever')}
+              whatsappHref={whatsappParceiroHref}
+            />
+          </div>
+        )}
 
         {/* FAQ */}
         <div className="faq-dark mt-12 md:mt-16" id="home-faq">
