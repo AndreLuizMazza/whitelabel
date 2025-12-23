@@ -9,10 +9,7 @@ import ThemeToggle from './ThemeToggle.jsx'
 import HeaderNotificationsBell from '@/components/HeaderNotificationsBell.jsx'
 import { getAvatarBlobUrl } from '@/lib/profile'
 
-import {
-  MAIN_MENU_LINKS,
-  PRIVATE_MENU_LINKS,
-} from '@/layouts/GlobalShell.jsx'
+import { MAIN_MENU_LINKS, PRIVATE_MENU_LINKS } from '@/layouts/GlobalShell.jsx'
 import { getTenantInitials, resolveTenantLogoUrl } from '@/lib/tenantBranding'
 
 /* ===================== runtime (Capacitor) ===================== */
@@ -209,6 +206,10 @@ export default function Navbar() {
     }
   }
 
+  // ✅ Keys que DEVEM sumir dentro do app (Capacitor)
+  // No seu GlobalShell: 2ª via = "segunda-via", benefícios = "beneficios"
+  const HIDE_IN_CAPACITOR_KEYS = useMemo(() => ['segunda-via', 'beneficios'], [])
+
   // Links exibidos no DESKTOP: apenas Planos, Benefícios, Memorial
   // (no Capacitor: remove Benefícios)
   const DESKTOP_MENU = MAIN_MENU_LINKS
@@ -216,19 +217,17 @@ export default function Navbar() {
     .filter((item) => !(inCapacitorApp && item.key === 'beneficios'))
 
   // Menu completo usado no MOBILE (global)
-  // (no Capacitor: remove Segunda Via + Clube de benefícios)
   const fullMobileMenuBase = isLogged
     ? [...MAIN_MENU_LINKS, { divider: true }, ...PRIVATE_MENU_LINKS]
     : MAIN_MENU_LINKS
 
+  // ✅ no Capacitor: remove 2ª via + benefícios (mantém divider)
   const fullMobileMenu = useMemo(() => {
     if (!inCapacitorApp) return fullMobileMenuBase
     return fullMobileMenuBase.filter(
-      (item) =>
-        item?.divider ||
-        (item?.key !== 'contratos' && item?.key !== 'beneficios')
+      (item) => item?.divider || !HIDE_IN_CAPACITOR_KEYS.includes(item?.key)
     )
-  }, [inCapacitorApp, fullMobileMenuBase])
+  }, [inCapacitorApp, fullMobileMenuBase, HIDE_IN_CAPACITOR_KEYS])
 
   const isHashActive = (item) => {
     if (!item.to.startsWith('/#')) return false
@@ -264,12 +263,7 @@ export default function Navbar() {
             {DESKTOP_MENU.map((item) => {
               const Icon = item.icon
               return (
-                <NavLink
-                  key={item.key}
-                  to={item.to}
-                  className={linkClass}
-                  end={item.exact}
-                >
+                <NavLink key={item.key} to={item.to} className={linkClass} end={item.exact}>
                   {({ isActive }) => (
                     <>
                       <ActiveBar isActive={isActive} />
@@ -311,8 +305,7 @@ export default function Navbar() {
                 className="inline-flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
                 style={{
                   borderColor: 'var(--c-border)',
-                  background:
-                    'color-mix(in srgb, var(--surface) 92%, var(--primary) 8%)',
+                  background: 'color-mix(in srgb, var(--surface) 92%, var(--primary) 8%)',
                   color: 'var(--text)',
                 }}
                 aria-label="Entrar"
@@ -345,8 +338,7 @@ export default function Navbar() {
                     alt={nomeExibicao || 'Perfil'}
                     className="h-8 w-8 rounded-full object-cover"
                     style={{
-                      border:
-                        '1px solid color-mix(in srgb, var(--primary) 60%, transparent)',
+                      border: '1px solid color-mix(in srgb, var(--primary) 60%, transparent)',
                     }}
                     onError={() => setAvatarErro(true)}
                     referrerPolicy="no-referrer"
@@ -401,19 +393,11 @@ export default function Navbar() {
                   }}
                   role="menu"
                 >
-                  <div
-                    className="px-3 py-2 border-b"
-                    style={{ borderColor: 'var(--c-border)' }}
-                  >
-                    <p
-                      className="text-[11px] uppercase tracking-[0.16em]"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
+                  <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--c-border)' }}>
+                    <p className="text-[11px] uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
                       Minha conta
                     </p>
-                    <p className="text-sm font-semibold truncate">
-                      {nomeExibicao || 'Associado'}
-                    </p>
+                    <p className="text-sm font-semibold truncate">{nomeExibicao || 'Associado'}</p>
                   </div>
 
                   <Link
@@ -436,10 +420,7 @@ export default function Navbar() {
                     <span>Meu perfil</span>
                   </Link>
 
-                  <div
-                    className="h-px mx-3"
-                    style={{ background: 'var(--c-border)' }}
-                  />
+                  <div className="h-px mx-3" style={{ background: 'var(--c-border)' }} />
 
                   <button
                     type="button"
@@ -472,12 +453,7 @@ export default function Navbar() {
 
       {/* Drawer mobile – usa o mesmo menu global do GlobalShell */}
       {mobileOpen && (
-        <div
-          id="mobile-menu"
-          className="fixed inset-0 z-[1200] md:hidden"
-          aria-modal="true"
-          role="dialog"
-        >
+        <div id="mobile-menu" className="fixed inset-0 z-[1200] md:hidden" aria-modal="true" role="dialog">
           <button
             type="button"
             className="absolute inset-0 bg-black/30 backdrop-blur-sm"
@@ -490,30 +466,16 @@ export default function Navbar() {
             data-bottom-avoid="true"
           >
             {/* HEADER PREMIUM */}
-            <div
-              className="flex items-center gap-4 px-5 py-5 border-b"
-              style={{ borderColor: 'var(--c-border)' }}
-            >
+            <div className="flex items-center gap-4 px-5 py-5 border-b" style={{ borderColor: 'var(--c-border)' }}>
               <div
-                className={
-                  (elderMode ? 'h-20 w-20' : 'h-16 w-16') +
-                  ' rounded-full overflow-hidden border'
-                }
+                className={(elderMode ? 'h-20 w-20' : 'h-16 w-16') + ' rounded-full overflow-hidden border'}
                 style={{ borderColor: 'var(--c-border)' }}
               >
                 {isLogged && avatarUrl && !avatarErro ? (
-                  <img
-                    src={avatarUrl}
-                    alt={nomeExibicao || 'Perfil'}
-                    className="h-full w-full object-cover"
-                    onError={() => setAvatarErro(true)}
-                  />
+                  <img src={avatarUrl} alt={nomeExibicao || 'Perfil'} className="h-full w-full object-cover" onError={() => setAvatarErro(true)} />
                 ) : (
                   <span
-                    className={
-                      (elderMode ? 'text-2xl' : 'text-xl') +
-                      ' inline-flex h-full w-full items-center justify-center font-semibold'
-                    }
+                    className={(elderMode ? 'text-2xl' : 'text-xl') + ' inline-flex h-full w-full items-center justify-center font-semibold'}
                     style={{ background: 'var(--primary)', color: '#fff' }}
                   >
                     {isLogged ? avatarInitial : tenantInitials}
@@ -524,19 +486,11 @@ export default function Navbar() {
               <div className="flex flex-col min-w-0 flex-1">
                 {isLogged ? (
                   <>
-                    <p
-                      className={
-                        'font-semibold leading-tight truncate ' +
-                        (elderMode ? 'text-lg' : 'text-base')
-                      }
-                    >
+                    <p className={'font-semibold leading-tight truncate ' + (elderMode ? 'text-lg' : 'text-base')}>
                       {nomeExibicao || 'Associado'}
                     </p>
                     <p
-                      className={
-                        'mt-1 truncate uppercase tracking-[0.18em] ' +
-                        (elderMode ? 'text-[12px]' : 'text-[11px]')
-                      }
+                      className={'mt-1 truncate uppercase tracking-[0.18em] ' + (elderMode ? 'text-[12px]' : 'text-[11px]')}
                       style={{ color: 'var(--text-muted)' }}
                     >
                       {empresa?.nomeFantasia || 'Minha Empresa'}
@@ -544,16 +498,10 @@ export default function Navbar() {
                   </>
                 ) : (
                   <>
-                    <p
-                      className="text-sm font-semibold leading-tight truncate"
-                      style={{ color: 'var(--primary)' }}
-                    >
+                    <p className="text-sm font-semibold leading-tight truncate" style={{ color: 'var(--primary)' }}>
                       {empresa?.nomeFantasia || 'Minha Empresa'}
                     </p>
-                    <p
-                      className="text-xs truncate"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
+                    <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
                       Acesse planos e faça sua adesão
                     </p>
                   </>
@@ -571,10 +519,7 @@ export default function Navbar() {
 
             {/* CTA (não logado) – topo do drawer */}
             {!isLogged && (
-              <div
-                className="px-5 py-4 border-b"
-                style={{ borderColor: 'var(--c-border)' }}
-              >
+              <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--c-border)' }}>
                 <Link
                   to="/planos"
                   onClick={() => setMobileOpen(false)}
@@ -600,10 +545,7 @@ export default function Navbar() {
             <nav className="flex-1 overflow-y-auto text-sm py-2">
               {fullMobileMenu.map((item, i) =>
                 item.divider ? (
-                  <div
-                    key={'div-' + i}
-                    className="my-3 mx-5 border-t border-dashed border-[var(--c-border)]"
-                  />
+                  <div key={'div-' + i} className="my-3 mx-5 border-t border-dashed border-[var(--c-border)]" />
                 ) : item.to.startsWith('/#') ? (
                   <a
                     key={item.key}
@@ -640,22 +582,13 @@ export default function Navbar() {
             </nav>
 
             {/* Aparência (Tema + Modo idoso) */}
-            <div
-              className="border-t px-5 py-3 md:hidden"
-              style={{ borderColor: 'var(--c-border)' }}
-            >
-              <p
-                className="text-[11px] uppercase tracking-[0.16em] mb-2"
-                style={{ color: 'var(--text-muted)' }}
-              >
+            <div className="border-t px-5 py-3 md:hidden" style={{ borderColor: 'var(--c-border)' }}>
+              <p className="text-[11px] uppercase tracking-[0.16em] mb-2" style={{ color: 'var(--text-muted)' }}>
                 Aparência
               </p>
 
               <div className="space-y-2">
-                <div
-                  className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border"
-                  style={{ borderColor: 'var(--c-border)' }}
-                >
+                <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--c-border)' }}>
                   <div className="flex flex-col">
                     <span className="text-xs font-medium">Tema</span>
                     <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
