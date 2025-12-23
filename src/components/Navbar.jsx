@@ -15,6 +15,16 @@ import {
 } from '@/layouts/GlobalShell.jsx'
 import { getTenantInitials, resolveTenantLogoUrl } from '@/lib/tenantBranding'
 
+/* ===================== runtime (Capacitor) ===================== */
+function isCapacitorRuntime() {
+  if (typeof window === 'undefined') return false
+  const cap = window.Capacitor
+  if (!cap) return false
+  if (typeof cap.isNativePlatform === 'function') return !!cap.isNativePlatform()
+  if (typeof cap.getPlatform === 'function') return cap.getPlatform() !== 'web'
+  return true
+}
+
 export default function Navbar() {
   const { isAuthenticated, token, user, logout } = useAuth((s) => ({
     isAuthenticated: s.isAuthenticated,
@@ -38,6 +48,16 @@ export default function Navbar() {
     }
   })
   const location = useLocation()
+
+  // Detecta se está dentro do app (Capacitor)
+  const inCapacitorApp = useMemo(() => isCapacitorRuntime(), [])
+
+  // Marca o <html> (opcional, mas útil para CSS)
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    if (inCapacitorApp) document.documentElement.dataset.embedded = 'capacitor'
+    else delete document.documentElement.dataset.embedded
+  }, [inCapacitorApp])
 
   /* ===== Conta / Avatar ===== */
   const nomeExibicao = useMemo(() => user?.nome ?? user?.email ?? '', [user])
@@ -70,13 +90,11 @@ export default function Navbar() {
 
     apply()
 
-    // reage a resize / fontes / mudanças de layout
     let ro
     try {
       ro = new ResizeObserver(() => apply())
       ro.observe(headerRef.current)
     } catch {
-      // fallback
       window.addEventListener('resize', apply)
     }
 
@@ -192,14 +210,25 @@ export default function Navbar() {
   }
 
   // Links exibidos no DESKTOP: apenas Planos, Benefícios, Memorial
-  const DESKTOP_MENU = MAIN_MENU_LINKS.filter((item) =>
-    ['planos', 'beneficios', 'memorial'].includes(item.key)
-  )
+  // (no Capacitor: remove Benefícios)
+  const DESKTOP_MENU = MAIN_MENU_LINKS
+    .filter((item) => ['planos', 'beneficios', 'memorial'].includes(item.key))
+    .filter((item) => !(inCapacitorApp && item.key === 'beneficios'))
 
   // Menu completo usado no MOBILE (global)
-  const fullMobileMenu = isLogged
+  // (no Capacitor: remove Segunda Via + Clube de benefícios)
+  const fullMobileMenuBase = isLogged
     ? [...MAIN_MENU_LINKS, { divider: true }, ...PRIVATE_MENU_LINKS]
     : MAIN_MENU_LINKS
+
+  const fullMobileMenu = useMemo(() => {
+    if (!inCapacitorApp) return fullMobileMenuBase
+    return fullMobileMenuBase.filter(
+      (item) =>
+        item?.divider ||
+        (item?.key !== 'contratos' && item?.key !== 'beneficios')
+    )
+  }, [inCapacitorApp, fullMobileMenuBase])
 
   const isHashActive = (item) => {
     if (!item.to.startsWith('/#')) return false
@@ -229,7 +258,7 @@ export default function Navbar() {
           />
         </Link>
 
-        {/* Navegação desktop – enxuta (3 itens) */}
+        {/* Navegação desktop – enxuta */}
         <div className="hidden md:flex flex-1 justify-center min-w-0">
           <nav className="flex flex-wrap items-center justify-center gap-x-1 lg:gap-x-2 gap-y-1 text-[13px] lg:text-sm">
             {DESKTOP_MENU.map((item) => {
@@ -266,7 +295,6 @@ export default function Navbar() {
             <ThemeToggle />
           </div>
 
-          {/* NÃO LOGADO: CTA sempre visível (desktop) */}
           {!isLogged && (
             <div className="hidden md:flex items-center gap-2">
               <Link
@@ -429,18 +457,15 @@ export default function Navbar() {
               )}
             </div>
           ) : (
-            <>
-              {/* Mobile: botão que abre drawer (sempre visível) */}
-              <button
-                className="md:hidden inline-flex items-center justify-center rounded-lg border px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
-                aria-label="Abrir menu"
-                aria-controls="mobile-menu"
-                aria-expanded={mobileOpen}
-                onClick={() => setMobileOpen((v) => !v)}
-              >
-                {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </button>
-            </>
+            <button
+              className="md:hidden inline-flex items-center justify-center rounded-lg border px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
+              aria-label="Abrir menu"
+              aria-controls="mobile-menu"
+              aria-expanded={mobileOpen}
+              onClick={() => setMobileOpen((v) => !v)}
+            >
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           )}
         </div>
       </div>
@@ -453,7 +478,6 @@ export default function Navbar() {
           aria-modal="true"
           role="dialog"
         >
-          {/* Overlay */}
           <button
             type="button"
             className="absolute inset-0 bg-black/30 backdrop-blur-sm"
@@ -461,7 +485,6 @@ export default function Navbar() {
             aria-label="Fechar menu"
           />
 
-          {/* Drawer */}
           <div
             className="absolute inset-y-0 right-0 w-80 max-w-[85%] bg-[var(--surface)] flex flex-col shadow-2xl rounded-l-2xl overflow-hidden z-[1201]"
             data-bottom-avoid="true"
@@ -629,7 +652,6 @@ export default function Navbar() {
               </p>
 
               <div className="space-y-2">
-                {/* Tema */}
                 <div
                   className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border"
                   style={{ borderColor: 'var(--c-border)' }}
@@ -643,7 +665,6 @@ export default function Navbar() {
                   <ThemeToggle />
                 </div>
 
-                {/* Modo idoso */}
                 <button
                   type="button"
                   onClick={() => setElderMode((v) => !v)}
@@ -675,7 +696,6 @@ export default function Navbar() {
               </div>
             </div>
 
-            {/* Sticky CTA (não logado) – reforço de conversão */}
             {!isLogged && (
               <div
                 className="border-t px-5 py-4"
@@ -695,7 +715,6 @@ export default function Navbar() {
               </div>
             )}
 
-            {/* BOTÃO SAIR */}
             {isLogged && (
               <div className="border-t px-5 py-4" style={{ borderColor: 'var(--c-border)' }}>
                 <button
