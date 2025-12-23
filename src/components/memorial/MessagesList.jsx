@@ -1,5 +1,5 @@
 // src/components/MessagesList.jsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   MessageSquareText,
@@ -16,11 +16,7 @@ import {
 } from "lucide-react";
 
 const DEFAULT_TZ = "America/Sao_Paulo";
-
-// próximo nível: feed > paginação
 const PAGE_SIZE = 8;
-
-// “recente” (produto): mantém respeitoso e útil
 const RECENT_HOURS = 24;
 
 const UI_TYPES = {
@@ -29,6 +25,19 @@ const UI_TYPES = {
   VELA: { label: "Acendeu uma vela", icon: Flame, needsText: false },
   FLOR: { label: "Enviou uma flor", icon: Flower2, needsText: false },
 };
+
+/* =========================
+   Hooks
+========================= */
+
+function useDebouncedValue(value, delay = 160) {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return v;
+}
 
 /* =========================
    Utils
@@ -84,7 +93,7 @@ function ymdFromIsoSmart(iso) {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
-    }).format(d); // dd/mm/yyyy
+    }).format(d);
     const [dd, mm, yy] = txt.split("/");
     return `${yy}-${mm}-${dd}`;
   }
@@ -123,7 +132,6 @@ function groupLabelFromYmd(ymd) {
   if (ymd === hoje) return "Hoje";
   if (ymd === ontem) return "Ontem";
 
-  // “20 ago 2025”
   const [Y, M, D] = ymd.split("-");
   const months = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
   const mi = Math.max(0, Math.min(11, Number(M) - 1));
@@ -156,6 +164,7 @@ function normalizeTipo(v) {
     flor_digital: "FLOR",
     enviar_flor: "FLOR",
   };
+
   return map[t] || "MENSAGEM";
 }
 
@@ -168,15 +177,20 @@ function homenagensLabel(n) {
 function safeTimeMs(iso) {
   const raw = String(iso || "").trim();
   if (!raw) return NaN;
+
   if (hasExplicitTZ(raw)) {
     const d = new Date(raw);
     return isNaN(d) ? NaN : d.getTime();
   }
-  // Sem TZ: tenta “civil”, mas sem deslocar — assume ISO “YYYY-MM-DDTHH:mm”
+
   const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/);
   if (!m) return NaN;
-  const Y = Number(m[1]), Mo = Number(m[2]) - 1, D = Number(m[3]);
-  const hh = Number(m[4] || "0"), mi = Number(m[5] || "0");
+
+  const Y = Number(m[1]),
+    Mo = Number(m[2]) - 1,
+    D = Number(m[3]);
+  const hh = Number(m[4] || "0"),
+    mi = Number(m[5] || "0");
   const d = new Date(Y, Mo, D, hh, mi, 0, 0);
   return isNaN(d) ? NaN : d.getTime();
 }
@@ -195,9 +209,9 @@ function badgeTokens(tipo) {
 }
 
 function subtleRecentRing() {
-  // “recente” sem gritar
   return {
-    boxShadow: "0 0 0 1px color-mix(in srgb, var(--brand) 22%, transparent) inset, 0 14px 36px rgba(0,0,0,.06)",
+    boxShadow:
+      "0 0 0 1px color-mix(in srgb, var(--brand) 22%, transparent) inset, 0 14px 36px rgba(0,0,0,.06)",
   };
 }
 
@@ -261,7 +275,6 @@ function Segmented({ value, onChange }) {
         role="tab"
         aria-selected={value === "compact"}
       >
-        <List className="h-4 w-4" />
         Lista
       </button>
     </div>
@@ -294,30 +307,6 @@ function Select({ value, onChange, options = [] }) {
   );
 }
 
-function SkeletonRow({ compact = false }) {
-  return (
-    <div className="rounded-2xl p-4 bg-[var(--surface-alt)] ring-1 ring-[color:color-mix(in_srgb,var(--c-border)_65%,transparent)]">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex items-center gap-2">
-          <div className="h-9 w-9 rounded-2xl bg-[color:color-mix(in_srgb,var(--text)_10%,transparent)]" />
-          <div>
-            <div className="h-4 w-40 rounded-lg bg-[color:color-mix(in_srgb,var(--text)_10%,transparent)]" />
-            <div className="mt-2 h-3 w-28 rounded-lg bg-[color:color-mix(in_srgb,var(--text)_8%,transparent)]" />
-          </div>
-        </div>
-        <div className="h-6 w-28 rounded-full bg-[color:color-mix(in_srgb,var(--text)_9%,transparent)]" />
-      </div>
-
-      {!compact ? (
-        <>
-          <div className="mt-3 h-3 w-full rounded-lg bg-[color:color-mix(in_srgb,var(--text)_8%,transparent)]" />
-          <div className="mt-2 h-3 w-[88%] rounded-lg bg-[color:color-mix(in_srgb,var(--text)_7%,transparent)]" />
-        </>
-      ) : null}
-    </div>
-  );
-}
-
 function EmptyState({ onClear }) {
   return (
     <div className="rounded-2xl p-5 bg-[color:color-mix(in_srgb,var(--surface-alt)_80%,transparent)] ring-1 ring-[color:color-mix(in_srgb,var(--c-border)_65%,transparent)]">
@@ -346,12 +335,11 @@ function EmptyState({ onClear }) {
 }
 
 /* =========================
-   Main Component
+   Main
 ========================= */
 
 export default function MessagesList({
   items = [],
-  loading = false,
   highContrast = false,
   groupByDay = true,
   defaultView = "cards",
@@ -359,7 +347,6 @@ export default function MessagesList({
 }) {
   const reduceMotion = useReducedMotion();
 
-  // Sticky bar “shrink” ao rolar: premium e útil
   const [compactBar, setCompactBar] = useState(false);
   useEffect(() => {
     const onScroll = () => setCompactBar(window.scrollY > 24);
@@ -370,21 +357,15 @@ export default function MessagesList({
 
   const [view, setView] = useState(defaultView === "compact" ? "compact" : "cards");
   const [q, setQ] = useState("");
-  const query = String(q || "").trim().toLowerCase();
+  const qDebounced = useDebouncedValue(q, 160);
+  const query = String(qDebounced || "").trim().toLowerCase();
 
-  const [order, setOrder] = useState("recent"); // recent | old
+  const [order, setOrder] = useState("recent");
   const [visible, setVisible] = useState(PAGE_SIZE);
-
-  const topRef = useRef(null);
 
   const normalized = useMemo(() => {
     return (items || []).map((m) => {
-      const dt =
-        m?.dtInteracao ||
-        m?.data ||
-        m?.createdAt ||
-        m?.created_at ||
-        m?.dtCadastro;
+      const dt = m?.dtInteracao || m?.data || m?.createdAt || m?.created_at || m?.dtCadastro;
 
       let tipo = normalizeTipo(m?.tipo);
 
@@ -415,19 +396,14 @@ export default function MessagesList({
     arr.sort((a, b) => {
       const ta = a?._dt ? String(a._dt) : "";
       const tb = b?._dt ? String(b._dt) : "";
-
-      // se ambos têm TZ, ordena por time real
       const da = hasExplicitTZ(ta) ? new Date(ta).getTime() : NaN;
       const db = hasExplicitTZ(tb) ? new Date(tb).getTime() : NaN;
       if (!isNaN(da) && !isNaN(db)) return order === "recent" ? db - da : da - db;
-
-      // fallback string
       return order === "recent" ? tb.localeCompare(ta) : ta.localeCompare(tb);
     });
     return arr;
   }, [filtered, order]);
 
-  // reset do “load more” ao filtrar/ordenar
   useEffect(() => setVisible(PAGE_SIZE), [query, order]);
 
   const sliced = useMemo(() => sorted.slice(0, visible), [sorted, visible]);
@@ -461,24 +437,13 @@ export default function MessagesList({
     "radial-gradient(720px 280px at 92% 10%, color-mix(in srgb, var(--highlight) 11%, transparent), transparent 62%)";
 
   const subtitle = homenagensLabel(sorted.length);
-
-  const canLoadMore = visible < sorted.length;
-  const onLoadMore = () => {
-    setVisible((v) => Math.min(sorted.length, v + PAGE_SIZE));
-    if (!reduceMotion) {
-      requestAnimationFrame(() => {
-        // micro “auto-progress”: mantém o usuário no fluxo
-        // sem pular — só garante que a lista continue em view
-        topRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
-      });
-    }
-  };
+  const remaining = Math.max(0, sorted.length - visible);
+  const canLoadMore = remaining > 0;
 
   const motionFast = reduceMotion ? { duration: 0 } : { duration: 0.22, ease: [0.22, 1, 0.36, 1] };
 
   return (
     <section
-      ref={topRef}
       className={cx(
         "relative overflow-hidden rounded-3xl p-4 sm:p-6 ring-1",
         ring,
@@ -486,19 +451,9 @@ export default function MessagesList({
         "shadow-[0_18px_55px_rgba(0,0,0,.06)]"
       )}
     >
-      {/* fundo premium */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 opacity-90" style={{ background: heroBg }} />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full blur-3xl opacity-20"
-        style={{
-          background:
-            "radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--brand) 44%, transparent), transparent 60%)",
-        }}
-      />
 
       <div className="relative">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div className="min-w-0">
             <h3 className="text-[15px] sm:text-lg font-semibold text-[var(--text)] leading-tight">
@@ -511,29 +466,20 @@ export default function MessagesList({
           </div>
         </div>
 
-        {/* Command Bar sticky + shrink */}
+        {/* Command bar */}
         <div
           className={cx(
-            "sticky z-20 mt-4",
-            "top-2 sm:top-3",
-            "rounded-2xl ring-1",
+            "sticky z-20 mt-4 top-2 sm:top-3 rounded-2xl ring-1",
             "bg-[color:color-mix(in_srgb,var(--surface)_82%,transparent)] backdrop-blur",
             "ring-[color:color-mix(in_srgb,var(--c-border)_60%,transparent)]",
             "shadow-[0_14px_42px_rgba(0,0,0,.08)]"
           )}
         >
-          <div
-            className={cx(
-              "flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3",
-              compactBar ? "p-2.5" : "p-3"
-            )}
-          >
-            {/* Busca */}
-            <div className={cx("relative w-full sm:w-[380px]")}>
+          <div className={cx("flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3", compactBar ? "p-2.5" : "p-3")}>
+            <div className="relative w-full sm:w-[380px]">
               <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 opacity-70">
                 <Search className="h-[18px] w-[18px]" />
               </div>
-
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
@@ -549,12 +495,10 @@ export default function MessagesList({
                 )}
                 placeholder="Buscar por nome ou mensagem…"
                 name="messages_search"
-                aria-label="Buscar homenagens"
               />
             </div>
 
             <div className="flex flex-1 items-center justify-between sm:justify-end gap-2">
-              {/* Ordenação */}
               <div className="w-[170px]">
                 <Select
                   value={order}
@@ -566,21 +510,14 @@ export default function MessagesList({
                 />
               </div>
 
-              {/* View */}
               <Segmented value={view} onChange={setView} />
             </div>
           </div>
         </div>
 
-        {/* Lista */}
+        {/* Content */}
         <div className="mt-5 space-y-5">
-          {loading ? (
-            <>
-              <SkeletonRow compact={view === "compact"} />
-              <SkeletonRow compact={view === "compact"} />
-              <SkeletonRow compact={view === "compact"} />
-            </>
-          ) : !sliced.length ? (
+          {!sliced.length ? (
             <EmptyState onClear={query ? () => setQ("") : null} />
           ) : (
             <AnimatePresence initial={false} mode="popLayout">
@@ -593,7 +530,6 @@ export default function MessagesList({
                   exit={{ opacity: 0, y: reduceMotion ? 0 : -6, transition: motionFast }}
                   className="space-y-3"
                 >
-                  {/* Group header */}
                   {groupByDay ? (
                     <div className="flex items-center gap-2">
                       <span
@@ -609,13 +545,10 @@ export default function MessagesList({
                         </span>
                       </span>
 
-                      <span className="text-xs text-[var(--text)] opacity-60">
-                        • {g.items.length}
-                      </span>
+                      <span className="text-xs text-[var(--text)] opacity-60">• {g.items.length}</span>
                     </div>
                   ) : null}
 
-                  {/* Items */}
                   <motion.div layout className="space-y-3">
                     <AnimatePresence initial={false}>
                       {g.items.map((m, i) => (
@@ -629,7 +562,7 @@ export default function MessagesList({
                           {view === "compact" ? (
                             <MessageCompactRow m={m} />
                           ) : (
-                            <MessageCard m={m} />
+                            <MessageCard m={m} showRecent={order === "recent"} />
                           )}
                         </motion.div>
                       ))}
@@ -643,10 +576,10 @@ export default function MessagesList({
 
         {/* Load more */}
         {canLoadMore ? (
-          <div className="mt-6 flex justify-center">
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-2">
             <button
               type="button"
-              onClick={onLoadMore}
+              onClick={() => setVisible((v) => Math.min(sorted.length, v + PAGE_SIZE))}
               className={cx(
                 "inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold ring-1",
                 "bg-[color:color-mix(in_srgb,var(--surface-alt)_85%,transparent)]",
@@ -656,9 +589,19 @@ export default function MessagesList({
                 "hover:opacity-95"
               )}
             >
-              Carregar mais homenagens
+              Carregar mais ({Math.min(PAGE_SIZE, remaining)} de {remaining} restantes)
               <ChevronDown className="h-4 w-4 opacity-70" />
             </button>
+
+            {remaining > PAGE_SIZE * 2 ? (
+              <button
+                type="button"
+                onClick={() => setVisible(sorted.length)}
+                className={cx("inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-[var(--text)] opacity-85 hover:opacity-100")}
+              >
+                Ver todas
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -667,10 +610,10 @@ export default function MessagesList({
 }
 
 /* =========================
-   Card view (premium)
+   Card view — nome em cima, data/hora embaixo
 ========================= */
 
-function MessageCard({ m }) {
+function MessageCard({ m, showRecent = true }) {
   const reduceMotion = useReducedMotion();
 
   const tipo = m?._tipo || "MENSAGEM";
@@ -685,9 +628,9 @@ function MessageCard({ m }) {
 
   const long = body.length > 220;
   const [open, setOpen] = useState(false);
-
   const clip = long && !open ? body.slice(0, 220) + "…" : body;
-  const isRecent = Boolean(m?._recent);
+
+  const isRecent = showRecent && Boolean(m?._recent);
 
   return (
     <article
@@ -699,51 +642,55 @@ function MessageCard({ m }) {
       )}
       style={isRecent ? subtleRecentRing() : { boxShadow: "0 10px 26px rgba(0,0,0,.05)" }}
     >
-      {/* brilho premium (desktop) */}
+      {/* pressão */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-active:opacity-100 transition-opacity"
         style={{
           background:
-            "radial-gradient(700px 220px at 20% 0%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 60%)",
+            "radial-gradient(520px 180px at 20% 0%, color-mix(in srgb, var(--brand) 14%, transparent), transparent 60%)",
         }}
       />
 
-      <div className="relative flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <span
-              className={cx(
-                "inline-flex h-9 w-9 items-center justify-center rounded-2xl ring-1 shrink-0",
-                "bg-[color:color-mix(in_srgb,var(--surface)_70%,transparent)]",
-                "ring-[color:color-mix(in_srgb,var(--c-border)_60%,transparent)]"
-              )}
-            >
-              <Icon className="h-[18px] w-[18px] opacity-85" />
-            </span>
+      {/* Header responsivo:
+          - mobile: badge vai para baixo quando necessário
+          - nome e data/hora sempre em coluna */}
+      <div className="relative flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
+        <div className="min-w-0 flex items-start gap-2.5">
+          <span
+            className={cx(
+              "inline-flex h-9 w-9 items-center justify-center rounded-2xl ring-1 shrink-0",
+              "bg-[color:color-mix(in_srgb,var(--surface)_70%,transparent)]",
+              "ring-[color:color-mix(in_srgb,var(--c-border)_60%,transparent)]"
+            )}
+          >
+            <Icon className="h-[18px] w-[18px] opacity-85" />
+          </span>
 
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="text-sm font-semibold text-[var(--text)] truncate">{name}</div>
-                <span className="text-xs text-[var(--text)] opacity-55">•</span>
-                <div className="text-xs text-[var(--text)] opacity-70">{when}</div>
-              </div>
-
-              {isRecent ? (
-                <div className="mt-1 text-[11px] text-[var(--text)] opacity-70">
-                  Recente
-                </div>
-              ) : null}
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-[var(--text)] truncate">
+              {name}
             </div>
+            <div className="mt-1 text-xs text-[var(--text)] opacity-70">
+              {when}
+            </div>
+
+            {isRecent ? (
+              <div className="mt-1 text-[11px] text-[var(--text)] opacity-70">
+                Recente
+              </div>
+            ) : null}
           </div>
         </div>
 
-        <Pill style={badgeTokens(tipo)} title={tipo}>
-          <span className="opacity-90">{meta.label}</span>
-        </Pill>
+        <div className="sm:pt-0">
+          <Pill style={badgeTokens(tipo)} title={tipo}>
+            <span className="opacity-90">{meta.label}</span>
+          </Pill>
+        </div>
       </div>
 
-      {/* corpo animado */}
+      {/* Corpo */}
       <motion.div
         layout
         transition={reduceMotion ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
@@ -774,7 +721,7 @@ function MessageCard({ m }) {
 }
 
 /* =========================
-   Compact row view
+   Compact row — data/hora embaixo do nome
 ========================= */
 
 function MessageCompactRow({ m }) {
@@ -797,7 +744,7 @@ function MessageCompactRow({ m }) {
         "shadow-[0_10px_22px_rgba(0,0,0,.04)]"
       )}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
         <div className="min-w-0 flex items-start gap-2.5">
           <span
             className={cx(
@@ -810,21 +757,24 @@ function MessageCompactRow({ m }) {
           </span>
 
           <div className="min-w-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="text-sm font-semibold text-[var(--text)] truncate">{name}</div>
-              <span className="text-xs text-[var(--text)] opacity-55">•</span>
-              <div className="text-xs text-[var(--text)] opacity-70">{when}</div>
+            <div className="text-sm font-semibold text-[var(--text)] truncate">
+              {name}
+            </div>
+            <div className="mt-1 text-xs text-[var(--text)] opacity-70">
+              {when}
             </div>
 
-            <div className="mt-1 text-sm text-[var(--text)] opacity-90 leading-relaxed line-clamp-2">
+            <div className="mt-2 text-sm text-[var(--text)] opacity-90 leading-relaxed line-clamp-2">
               {body}
             </div>
           </div>
         </div>
 
-        <Pill style={badgeTokens(tipo)} title={tipo}>
-          <span className="opacity-90">{meta.label}</span>
-        </Pill>
+        <div className="sm:pt-0">
+          <Pill style={badgeTokens(tipo)} title={tipo}>
+            <span className="opacity-90">{meta.label}</span>
+          </Pill>
+        </div>
       </div>
     </div>
   );
