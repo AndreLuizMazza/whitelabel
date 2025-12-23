@@ -116,7 +116,7 @@ export default function App() {
 
   // ✅ Dock NÃO deve existir no fluxo de contratação.
   const hideContactDock =
-    location.pathname === '/cadastro' || location.pathname === '/confirmacao' || location.pathname === '/criar-conta' || location.pathname === '/area'|| location.pathname === '/memorial'
+    location.pathname === '/cadastro' || location.pathname === '/confirmacao' || location.pathname === '/criar-conta' || location.pathname === '/area'|| location.pathname === '/memorial'|| location.pathname === '/login'
 
   // ✅ Footer NÃO deve aparecer na Área do Associado, no fluxo de contratação, e no PlanoDetalhe (/planos/:id).
   const hideFooter =
@@ -127,7 +127,8 @@ export default function App() {
     location.pathname === '/servicos-digitais' ||
     location.pathname === '/cadastro' ||
     location.pathname === '/confirmacao' ||
-     location.pathname === '/criar-conta' ||
+    location.pathname === '/criar-conta' ||
+    location.pathname === '/login' ||
     location.pathname.startsWith('/planos/') // ✅ novo: esconde no detalhe do plano
 
   return (
