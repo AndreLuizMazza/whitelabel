@@ -1,5 +1,9 @@
 sudo wo site create new.grupopatense.com.br --html  --le --dns=dns_cf
 
+# Testar aplicação
+$env:TENANT="rosapax"; npm run dev
+
+
 #### build  da aplicação
 # Ir para o diretório do projeto
 cd /var/www/new.grupopatense.com.br/htdocs

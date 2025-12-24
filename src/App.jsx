@@ -124,6 +124,7 @@ export default function App() {
     location.pathname.startsWith('/area/') ||
     location.pathname === '/perfil' ||
     location.pathname === '/carteirinha' ||
+    location.pathname === '/carteirinha/print' ||
     location.pathname === '/servicos-digitais' ||
     location.pathname === '/cadastro' ||
     location.pathname === '/confirmacao' ||
