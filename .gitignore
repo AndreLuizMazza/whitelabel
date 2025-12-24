@@ -1,3 +1,5 @@
+.env.vercel
+
 # Dependências
 node_modules/
 pnpm-lock.yaml

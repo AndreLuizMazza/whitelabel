@@ -1,0 +1,126 @@
+{
+  "slug": "santacruz",
+  "v": 1,
+
+  "vars": {
+    "--primary": "#0D6B63",
+    "--primary-dark": "#084B46",
+    "--primary-light": "#2C8E85",
+    "--secondary": "#F28C1B",
+    "--on-primary": "#ffffff",
+
+    "--surface": "#ffffff",
+    "--surface-alt": "#F4F7F7",
+    "--text": "#0B1220",
+    "--text-muted": "#556274",
+    "--c-border": "rgba(0,0,0,0.10)",
+
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 12%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 22%, transparent)",
+    "--nav-active-color": "#084B46",
+
+    "--highlight": "#F28C1B",
+    "--button-hover": "color-mix(in srgb, var(--primary) 28%, #000000)",
+
+    "--sidebar-icon": "#084B46",
+    "--sidebar-icon-muted": "#64748B",
+    "--sidebar-icon-active": "#F28C1B",
+    "--sidebar-text": "#0B1220",
+    "--sidebar-text-muted": "#556274",
+    "--headline": "#084B46",
+
+    "--accent-navy": "#1F2D5A"
+  },
+
+  "varsDark": {
+    "--surface": "#0B1220",
+    "--surface-alt": "#101A2B",
+
+    "--text": "#F9FAFB",
+    "--text-muted": "#A5B4CF",
+
+    "--primary": "#2C8E85",
+    "--primary-dark": "#0D6B63",
+    "--primary-light": "#5BB7AE",
+    "--secondary": "#F5A23A",
+
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 18%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 32%, transparent)",
+    "--nav-active-color": "#F9FAFB",
+
+    "--highlight": "#F5A23A",
+    "--button-hover": "color-mix(in srgb, var(--primary) 35%, #000000)",
+
+    "--sidebar-icon": "#F9FAFB",
+    "--sidebar-icon-muted": "#7C8CAB",
+    "--sidebar-icon-active": "#F5A23A",
+    "--sidebar-text": "#E5E7EB",
+    "--sidebar-text-muted": "#A5B4CF",
+    "--headline": "#FFFFFF",
+
+    "--c-border": "rgba(255,255,255,0.22)",
+
+    "--accent-navy": "#1F2D5A"
+  },
+
+  "logo": "https://sandbox.progem.com.br/progem/api/downloads/empresa/197/arquivo?nome=a6fcf62d-9825-490f-b9f8-805e5ce1f23c_logo_santa_ccruzremovebgpreview_1.png",
+
+  "heroTitle": "Acolhimento, cuidado e respeito em cada detalhe",
+  "heroSubtitle": "Uma assistência completa, com atendimento humanizado e suporte à sua família em todos os momentos.",
+  "heroImage": "https://seu-dominio-de-arquivos.com/paxsantacruz/hero-paxsantacruz.jpg",
+
+  "heroSlides": [
+    {
+      "id": "assistencia",
+      "tag": "Planos & Assistência",
+      "title": "Tranquilidade para sua família, com proteção de verdade",
+      "subtitle": "Planos pensados para oferecer apoio, estrutura e orientação com respeito e dignidade.",
+      "image": "https://seu-dominio-de-arquivos.com/paxsantacruz/hero-assistencia.jpg",
+      "primary": {
+        "label": "Ver planos",
+        "to": "/planos",
+        "variant": "primary"
+      },
+      "secondary": {
+        "label": "Área do associado",
+        "to": "/login",
+        "variant": "outline-light"
+      },
+      "showValuePills": true
+    },
+    {
+      "id": "cerimonial",
+      "tag": "Cerimonial & Estrutura",
+      "title": "Organização e cuidado nos momentos mais delicados",
+      "subtitle": "Equipe preparada, estrutura completa e atendimento humanizado para acolher sua família.",
+      "image": "https://seu-dominio-de-arquivos.com/paxsantacruz/hero-cerimonial.jpg",
+      "primary": {
+        "label": "Produtos e serviços",
+        "to": "/servicos",
+        "variant": "primary"
+      },
+      "secondary": null,
+      "showValuePills": false
+    },
+    {
+      "id": "memorial",
+      "tag": "Memorial Digital",
+      "title": "Um espaço para homenagens e lembranças",
+      "subtitle": "Mensagens, informações das cerimônias e memórias reunidas com carinho e respeito.",
+      "image": "https://seu-dominio-de-arquivos.com/paxsantacruz/hero-memorial.jpg",
+      "primary": {
+        "label": "Acessar memorial",
+        "to": "/memorial",
+        "variant": "primary"
+      },
+      "secondary": {
+        "label": "Falar no WhatsApp",
+        "to": "https://wa.me/?text=Olá! Gostaria de informações sobre os planos da Pax Santa Cruz.",
+        "variant": "outline-light"
+      },
+      "showValuePills": false
+    }
+  ],
+
+  "domain": "paxsantacruz.com.br"
+}

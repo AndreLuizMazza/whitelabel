@@ -1,43 +1,127 @@
-// src/hooks/useAvoidOverlap.js
-import { useEffect, useState } from "react";
+// src/hooks/useSpeechToText.js
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+function getSR() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  return SR ? { SR, supported: true } : { SR: null, supported: false };
+}
 
 /**
- * Mede dinamicamente a altura total de elementos fixos a evitar
- * (ex.: banners de cookie) e retorna essa altura (px).
+ * Hook robusto para ditado (Web Speech API).
+ * - Chrome/Edge: ok
+ * - Safari/iOS: pode não suportar
  */
-export default function useAvoidOverlap(selectors = "[data-cookie-banner]") {
-  const [offset, setOffset] = useState(0);
+export default function useSpeechToText({
+  lang = "pt-BR",
+  continuous = true,
+  interimResults = true,
+  maxAlternatives = 1,
+  autoStopAfterMs = 120000,
+} = {}) {
+  const { SR, supported } = useMemo(getSR, []);
+  const recRef = useRef(null);
+  const timerRef = useRef(null);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+  const [listening, setListening] = useState(false);
+  const [finalText, setFinalText] = useState("");
+  const [interimText, setInterimText] = useState("");
+  const [error, setError] = useState("");
 
-    const q = Array.from(document.querySelectorAll(selectors));
-    if (!q.length) {
-      setOffset(0);
+  const stop = useCallback(() => {
+    try {
+      recRef.current?.stop?.();
+    } catch {}
+    setListening(false);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+  }, []);
+
+  const reset = useCallback(() => {
+    setFinalText("");
+    setInterimText("");
+    setError("");
+  }, []);
+
+  const start = useCallback(() => {
+    setError("");
+
+    if (!supported) {
+      setError("Ditado por voz não é suportado neste navegador.");
       return;
     }
 
-    const calc = () => {
-      const total = q.reduce((sum, el) => {
-        const rect = el.getBoundingClientRect();
-        const visible = rect.height > 0 && rect.bottom > 0;
-        return visible ? sum + rect.height : sum;
-      }, 0);
-      setOffset(total);
+    const rec = new SR();
+    recRef.current = rec;
+
+    rec.lang = lang;
+    rec.continuous = continuous;
+    rec.interimResults = interimResults;
+    rec.maxAlternatives = maxAlternatives;
+
+    rec.onstart = () => {
+      setListening(true);
+      setInterimText("");
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => stop(), autoStopAfterMs);
     };
 
-    const ro = new ResizeObserver(calc);
-    q.forEach((n) => ro.observe(n));
-    window.addEventListener("scroll", calc, { passive: true });
-    window.addEventListener("resize", calc);
-    calc();
+    rec.onresult = (event) => {
+      let interim = "";
+      let final = "";
 
-    return () => {
-      try { ro.disconnect(); } catch {}
-      window.removeEventListener("scroll", calc);
-      window.removeEventListener("resize", calc);
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const res = event.results[i];
+        const text = (res?.[0]?.transcript || "").trim();
+        if (!text) continue;
+
+        if (res.isFinal) final += (final ? " " : "") + text;
+        else interim += (interim ? " " : "") + text;
+      }
+
+      if (final) setFinalText((prev) => (prev ? prev + " " : "") + final);
+      setInterimText(interim);
     };
-  }, [selectors]);
 
-  return offset;
+    rec.onerror = (e) => {
+      const code = e?.error || "erro";
+      setError(code);
+      stop();
+    };
+
+    rec.onend = () => {
+      setListening(false);
+      setInterimText("");
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = null;
+    };
+
+    try {
+      rec.start();
+    } catch {
+      setError("Não foi possível iniciar o ditado. Tente novamente.");
+      stop();
+    }
+  }, [
+    SR,
+    supported,
+    lang,
+    continuous,
+    interimResults,
+    maxAlternatives,
+    autoStopAfterMs,
+    stop,
+  ]);
+
+  useEffect(() => () => stop(), [stop]);
+
+  return {
+    supported,
+    listening,
+    finalText,
+    interimText,
+    error,
+    start,
+    stop,
+    reset,
+  };
 }

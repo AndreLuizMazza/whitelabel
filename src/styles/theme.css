@@ -71,3 +71,41 @@ html.theme-dark .text-muted, body.theme-dark .text-muted{
 
 /* Safe area */
 body, main { padding-bottom: var(--app-bottom-safe, 0px); }
+
+
+
+/* estado padrão */
+.app-sidebar .nav-item {
+  color: var(--sidebar-text-muted);
+}
+
+.app-sidebar .nav-item svg {
+  color: var(--sidebar-icon-muted);
+}
+
+/* hover */
+.app-sidebar .nav-item:hover {
+  color: var(--sidebar-text);
+}
+
+.app-sidebar .nav-item:hover svg {
+  color: var(--sidebar-icon);
+}
+
+/* ativo – light e dark */
+.app-sidebar .nav-item.active {
+  background: var(--nav-active-bg);
+  color: var(--nav-active-color);
+}
+
+/* força todo texto do item ativo a ficar com a cor correta */
+.app-sidebar .nav-item.active span,
+.app-sidebar .nav-item.active .nav-label,
+.app-sidebar .nav-item.active .text-muted {
+  color: var(--nav-active-color) !important;
+}
+
+/* ícone ativo usa a cor de destaque da marca */
+.app-sidebar .nav-item.active svg {
+  color: var(--sidebar-icon-active) !important;
+}

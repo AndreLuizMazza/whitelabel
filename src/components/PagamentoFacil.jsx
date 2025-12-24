@@ -29,12 +29,53 @@ const parseDate = (s) => {
   return (Y && M && D) ? new Date(+Y, +M - 1, +D) : new Date(8640000000000000)
 }
 
+function startOfToday() {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+}
+
+function isSameDay(a, b) {
+  const da = parseDate(a)
+  const db = b instanceof Date ? b : parseDate(b)
+  da.setHours(0, 0, 0, 0)
+  db.setHours(0, 0, 0, 0)
+  return da.getTime() === db.getTime()
+}
+
+/**
+ * ✅ Regra: vencimento deve ser menor que hoje (comparando pelo início do dia, sem horário).
+ * Ou seja: só considera "em atraso" quando o vencimento já ficou para trás.
+ */
+function isAtrasoPorData(dup) {
+  const due = parseDate(dup?.dataVencimento)
+  return due < startOfToday()
+}
+
+/** ✅ Situação "vence hoje" (somente se não estiver em atraso) */
+function venceHojePorData(dup) {
+  if (!dup?.dataVencimento) return false
+  if (isAtrasoPorData(dup)) return false
+  return isSameDay(dup.dataVencimento, startOfToday())
+}
+
 function daysUntilDue(d) {
   try {
     const dt = parseDate(d)
     const now = new Date()
     return Math.ceil((dt - now) / (1000 * 60 * 60 * 24))
   } catch { return 99 }
+}
+
+function venceLabel(dup) {
+  if (!dup?.dataVencimento) return 'Vencimento'
+  if (venceHojePorData(dup)) return 'Vence hoje'
+  return isAtrasoPorData(dup) ? 'Venceu em' : 'Vencimento'
+}
+
+function venceEmLabel(dup) {
+  if (!dup?.dataVencimento) return 'Vence em'
+  if (venceHojePorData(dup)) return 'Vence hoje'
+  return isAtrasoPorData(dup) ? 'Venceu em' : 'Vence em'
 }
 
 function Badge({ children, kind = 'neutral' }) {
@@ -64,6 +105,11 @@ function Badge({ children, kind = 'neutral' }) {
       color: 'var(--primary)',
       ring: 'var(--primary-20, var(--c-border))'
     },
+    dueToday: {
+      bg: 'color-mix(in srgb, #fbbf24 22%, transparent)',
+      color: 'color-mix(in srgb, var(--text) 88%, #000 12%)',
+      ring: 'color-mix(in srgb, #fbbf24 40%, var(--c-border))'
+    }
   }
   const s = styles[kind] || styles.neutral
   return (
@@ -101,8 +147,18 @@ export default function PagamentoFacil({
 
   const foco = parcelaFoco
   const temFoco = Boolean(foco)
-  const focoAtraso = temFoco && isAtraso(foco)
-  const urgente = temFoco && !focoAtraso && daysUntilDue(foco?.dataVencimento) <= 3
+
+  // ✅ "atraso" só quando vencimento < hoje
+  const focoAtraso = temFoco && isAtraso(foco) && isAtrasoPorData(foco)
+
+  // ✅ "vence hoje" (não é atraso, mas merece destaque)
+  const focoVenceHoje = temFoco && !focoAtraso && venceHojePorData(foco)
+
+  const urgente =
+    temFoco &&
+    !focoAtraso &&
+    !focoVenceHoje &&
+    daysUntilDue(foco?.dataVencimento) <= 3
 
   const proximasOrdenadas = useMemo(() => {
     const arr = Array.isArray(proximas) ? [...proximas] : []
@@ -114,13 +170,13 @@ export default function PagamentoFacil({
     [showAllNext, proximasOrdenadas]
   )
 
-  // total apenas do que estiver em atraso (foco + próximas)
+  // total apenas do que estiver em atraso (foco + próximas) respeitando regra do vencimento < hoje
   const totalEmAtraso = useMemo(() => {
     const all = [foco, ...proximasOrdenadas]
       .filter(Boolean)
       .filter(p => {
         const status = String(p.status || '').toUpperCase()
-        return status !== 'PAGA' && isAtraso(p)
+        return status !== 'PAGA' && isAtraso(p) && isAtrasoPorData(p)
       })
     return all.reduce((sum, it) => sum + Number(it?.valorParcela || 0), 0)
   }, [foco, proximasOrdenadas, isAtraso])
@@ -151,6 +207,9 @@ export default function PagamentoFacil({
     if (focoAtraso) {
       return 'Mensalidade em atraso'
     }
+    if (focoVenceHoje) {
+      return 'Mensalidade vencendo hoje'
+    }
     if (urgente) {
       return 'Mensalidade com vencimento próximo'
     }
@@ -166,6 +225,9 @@ export default function PagamentoFacil({
     }
     if (focoAtraso) {
       return 'Organize o pagamento desta parcela para manter seus benefícios ativos e evitar novos encargos.'
+    }
+    if (focoVenceHoje) {
+      return 'Esta mensalidade vence hoje. Pagando agora, você evita juros e mantém seus benefícios ativos.'
     }
     if (urgente) {
       return 'Antecipe o pagamento para evitar juros e manter suas mensalidades sempre em dia.'
@@ -272,6 +334,8 @@ export default function PagamentoFacil({
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {focoAtraso ? (
                 <Badge kind="danger">Parcela em atraso</Badge>
+              ) : focoVenceHoje ? (
+                <Badge kind="dueToday">Vence hoje</Badge>
               ) : urgente ? (
                 <Badge kind="danger">Vencimento próximo</Badge>
               ) : (
@@ -330,7 +394,7 @@ export default function PagamentoFacil({
                     {fmtBRL(foco?.valorParcela)}
                   </p>
                   <p className="mt-0.5 text-[13px]" style={{ color: 'var(--text-muted)' }}>
-                    Vencimento{' '}
+                    {venceLabel(foco)}{' '}
                     <span className="font-medium" style={{ color: 'var(--text)' }}>
                       {fmtData(foco?.dataVencimento)}
                     </span>
@@ -368,6 +432,13 @@ export default function PagamentoFacil({
                   )
                 )}
               </div>
+
+              {/* reforço leve quando vence hoje */}
+              {focoVenceHoje && !focoAtraso && (
+                <p className="text-[12px] mt-3" style={{ color: 'var(--text-muted)' }}>
+                  Esta parcela vence hoje. Pagando agora, você evita juros e mantém o plano sempre em dia.
+                </p>
+              )}
 
               {/* renegociação (atraso) */}
               {focoAtraso && (
@@ -466,12 +537,18 @@ export default function PagamentoFacil({
             }}
           >
             {proximasVisiveis.map((dup, idx) => {
-              const atrasada = isAtraso(dup)
+              // ✅ atraso só quando (isAtraso prop) E vencimento < hoje
+              const atrasada = isAtraso(dup) && isAtrasoPorData(dup)
+              const venceHoje = !atrasada && venceHojePorData(dup)
+
               const dupKey =
                 dup?.id ?? dup?.numero ?? dup?.numeroDuplicata ?? `${idx}-${dup?.dataVencimento}`
+
               const leftBorder = atrasada
                 ? '#b42318'
-                : 'color-mix(in srgb, var(--primary) 60%, transparent)'
+                : venceHoje
+                  ? '#fbbf24'
+                  : 'color-mix(in srgb, var(--primary) 60%, transparent)'
 
               return (
                 <li
@@ -493,7 +570,7 @@ export default function PagamentoFacil({
                       className="text-[12px] mt-0.5"
                       style={{ color: 'var(--text-muted)' }}
                     >
-                      Vence em{' '}
+                      {venceEmLabel(dup)}{' '}
                       <span
                         className="font-medium"
                         style={{ color: 'var(--text)' }}
@@ -542,7 +619,7 @@ export default function PagamentoFacil({
           >
             <span>Histórico de pagamentos ({historicoAno.length})</span>
             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-             Toque para ver detalhes
+              Toque para ver detalhes
             </span>
           </summary>
           <ul
@@ -556,6 +633,7 @@ export default function PagamentoFacil({
               const dupKey =
                 dup?.id ?? dup?.numero ?? dup?.numeroDuplicata ?? `hist-${i}`
               const status = String(dup?.status || '').toUpperCase()
+              const pago = status === 'PAGA'
               return (
                 <li
                   key={dupKey}
@@ -577,7 +655,7 @@ export default function PagamentoFacil({
                       {dup?.dataRecebimento ? ` • Pago em ${fmtData(dup.dataRecebimento)}` : ''}
                     </div>
                   </div>
-                  <Badge kind={status === 'PAGA' ? 'success' : 'info'}>
+                  <Badge kind={pago ? 'success' : 'info'}>
                     {status || '—'}
                   </Badge>
                 </li>

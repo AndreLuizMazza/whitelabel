@@ -3,29 +3,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "@/lib/api.js";
 import CTAButton from "@/components/ui/CTAButton";
-import { money } from "@/lib/planUtils.js";
 import useTenant from "@/store/tenant";
-import { resolveTenantPhone, resolveGlobalFallback, buildWaHref } from "@/lib/whats";
-import {
-  CheckCircle2,
-  ChevronLeft,
-  AlertTriangle,
-  MessageCircle,
-  Plus,
-  Trash2,
-  Info,
-  Loader2,
-} from "lucide-react";
+import { celcashCriarClienteContrato, celcashGerarCarneManual } from "@/lib/celcashApi";
 
-import DateSelectBR from "@/components/DateSelectBR";
+import { CheckCircle2, ChevronLeft, Info, Loader2, X } from "lucide-react";
 
 import {
   onlyDigits,
   cpfIsValid,
   formatCPF,
-  maskCPF,
-  formatCEP,
-  maskCEP,
   formatPhoneBR,
   phoneIsValid,
   sanitizeUF,
@@ -33,30 +19,40 @@ import {
   normalizeISODate,
 } from "@/lib/br";
 
-import {
-  PARENTESCOS_FALLBACK,
-  PARENTESCO_LABELS,
-  labelParentesco,
-  ESTADO_CIVIL_OPTIONS,
-  ESTADO_CIVIL_LABEL,
-  SEXO_OPTIONS,
-  DIA_D_OPTIONS,
-} from "@/lib/constants";
-
 import { efetivacaoProxMesPorDiaD, ageFromDate } from "@/lib/dates";
 import { useDebouncedCallback } from "@/lib/hooks";
 import { useViaCep } from "@/lib/useViaCep";
 
+// Etapas (componentes)
+import StepTitularIntro from "./cadastro/StepTitularIntro";
+import StepEndereco from "./cadastro/StepEndereco";
+import StepDependentes from "./cadastro/StepDependentes";
+import StepCarne from "./cadastro/StepCarne";
+
+import { detalharValorMensalidadePlano, gerarCobrancasPlano } from "@/lib/planPricing";
+
 const isEmpty = (v) => !String(v || "").trim();
-const requiredRing = (cond) => (cond ? "ring-1 ring-red-500" : "");
-const requiredStar = <span aria-hidden="true" className="text-red-600">*</span>;
 const AREA_ASSOCIADO_PATH = (import.meta?.env?.VITE_ASSOC_AREA_PATH || "/area").toString();
+
+function moneyBRL(v) {
+  const n = Number(v || 0);
+  try {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  } catch {
+    return `R$ ${n.toFixed(2)}`.replace(".", ",");
+  }
+}
 
 function FieldRead({ label, value, mono = false }) {
   return (
-    <div className="rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] px-3 py-2 shadow-sm">
+    <div className="rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] px-3 py-1.5 shadow-sm">
       <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--c-muted)]">{label}</p>
-      <p className={`mt-1 font-medium ${mono ? "tabular-nums" : ""} break-words text-[13px]`}>
+      <p className={`mt-0.5 font-medium ${mono ? "tabular-nums" : ""} break-words text-[13px]`}>
         {value || "—"}
       </p>
     </div>
@@ -66,7 +62,7 @@ function FieldRead({ label, value, mono = false }) {
 function SectionTitle({ children, right = null }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <h2 className="text-base md:text-lg font-semibold tracking-tight">{children}</h2>
+      <h2 className="text-sm md:text-base font-semibold tracking-tight">{children}</h2>
       {right}
     </div>
   );
@@ -94,18 +90,126 @@ function decodePayloadParam(p) {
   }
 }
 
+function encodePayloadParam(obj) {
+  try {
+    const json = JSON.stringify(obj || {});
+    return btoa(encodeURIComponent(json));
+  } catch {
+    try {
+      return btoa(JSON.stringify(obj || {}));
+    } catch {
+      return "";
+    }
+  }
+}
+
+/**
+ * Camada de “ambiente” premium (halo) para dar consistência visual com Login
+ * sem alterar a estrutura dos Steps.
+ */
+function StepAmbient({ children }) {
+  return (
+    <div className="relative">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-[60px] mx-auto h-36 max-w-2xl rounded-[48px] opacity-70"
+        style={{
+          background:
+            "radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)",
+          zIndex: 0,
+        }}
+      />
+      <div className="relative z-[1]">{children}</div>
+    </div>
+  );
+}
+
+/* -------------------- Modal (sem dependência) -------------------- */
+function Modal({ open, title, children, onClose }) {
+  useEffect(() => {
+    if (!open) return;
+
+    const prevOverflow = document?.body?.style?.overflow;
+    document.body.style.overflow = "hidden";
+
+    const onKeyDown = (ev) => {
+      if (ev.key === "Escape") onClose?.();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = prevOverflow || "";
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[80]" role="presentation">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} aria-hidden="true" />
+      <div className="absolute inset-x-0 top-6 mx-auto w-[92vw] max-w-3xl">
+        <div
+          className="rounded-[28px] border shadow-[0_30px_120px_rgba(0,0,0,0.45)]"
+          style={{
+            background: "color-mix(in srgb, var(--c-surface) 88%, transparent)",
+            borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
+            backdropFilter: "blur(18px)",
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+        >
+          <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-[var(--c-border)]/60">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--c-muted)]">Seleção</p>
+              <h3 className="text-base md:text-lg font-semibold tracking-tight truncate">{title}</h3>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--c-border)] bg-[var(--c-surface)]/80 hover:bg-[var(--c-surface)] transition"
+              aria-label="Fechar"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="px-5 py-5 max-h-[75vh] overflow-auto">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Cadastro() {
   const q = useQuery();
+  const location = useLocation();
   const navigate = useNavigate();
   const empresa = useTenant((s) => s.empresa);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [submitAttempted, setSubmitAttempted] = useState(false);
+
+  // Etapas:
+  // 1 - Titular + dados complementares
+  // 2 - Endereço
+  // 3 - Dependentes (pode ser ocultada se plano for "individual")
+  // 4 - Cobrança (final)
   const [currentStep, setCurrentStep] = useState(1);
-  const [stepAttempted, setStepAttempted] = useState({ 1: false, 2: false, 3: false });
+
+  const [stepAttempted, setStepAttempted] = useState({
+    complementares: false,
+    endereco: false,
+    dependentes: false,
+  });
 
   const alertRef = useRef(null);
+
+  const contentAnchorRef = useRef(null);
+  const [pendingScroll, setPendingScroll] = useState(false);
+
   const sexoRef = useRef(null);
   const ecRef = useRef(null);
   const cepRef = useRef(null);
@@ -116,9 +220,127 @@ export default function Cadastro() {
   const ufRef = useRef(null);
 
   const payload = useMemo(() => decodePayloadParam(q.get("p")), [q]);
-  const planoId = payload?.plano;
-  const cupom = payload?.cupom || "";
-  const plano = payload?.planSnapshot || null;
+
+  const [planoIdState, setPlanoIdState] = useState(payload?.plano || null);
+
+  // >>> Cupom agora é estado real (sincronizado com URL/payload)
+  const [cupomCodigo, setCupomCodigo] = useState(String(payload?.cupom || "").trim().toUpperCase());
+
+  const [plano, setPlano] = useState(payload?.planSnapshot || null);
+
+  const [planModalOpen, setPlanModalOpen] = useState(false);
+  const [planSearch, setPlanSearch] = useState("");
+  const [planListState, setPlanListState] = useState({ loading: false, items: [], error: "" });
+
+  function syncPayloadPatch(patch) {
+    const nextPayload = {
+      ...(payload || {}),
+      ...(patch || {}),
+    };
+    const encoded = encodePayloadParam(nextPayload);
+    const nextUrl = encoded ? `${location.pathname}?p=${encodeURIComponent(encoded)}` : location.pathname;
+    navigate(nextUrl, { replace: true });
+  }
+
+  function applySelectedPlano(nextPlano) {
+    const nextId = nextPlano?.id ?? nextPlano?.planoId ?? null;
+    if (!nextId) return;
+
+    setPlanoIdState(Number(nextId));
+    setPlano(nextPlano || null);
+
+    syncPayloadPatch({
+      plano: Number(nextId),
+      planSnapshot: nextPlano || null,
+      cupom: cupomCodigo || "",
+    });
+
+    setPlanModalOpen(false);
+    setError("");
+  }
+
+  useEffect(() => {
+    if (!planModalOpen) return;
+
+    let alive = true;
+    (async () => {
+      try {
+        setPlanListState((s) => ({ ...s, loading: true, error: "" }));
+        const resp = await api.get(`/api/v1/planos`);
+        if (!alive) return;
+
+        const data = resp?.data;
+        const items = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+        setPlanListState({ loading: false, items, error: "" });
+      } catch (e) {
+        if (!alive) return;
+        setPlanListState({
+          loading: false,
+          items: [],
+          error: e?.response?.data?.message || e?.message || "Não foi possível carregar os planos agora.",
+        });
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [planModalOpen]);
+
+  useEffect(() => {
+    const id = "cadastro-hide-contact-cta";
+    if (document.getElementById(id)) return;
+
+    const style = document.createElement("style");
+    style.id = id;
+    style.innerHTML = `
+      .sticky-contact-dock,
+      #sticky-contact-dock,
+      [data-sticky-contact-dock],
+      [data-contact-dock],
+      [data-contact-cta],
+      .ContactDock,
+      .StickyContactDock,
+      .contact-dock,
+      .whatsapp-cta,
+      .cta-contato {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
+      body { padding-bottom: 0px !important; }
+    `;
+    document.head.appendChild(style);
+
+    return () => {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!planoIdState) return;
+
+    let alive = true;
+    (async () => {
+      try {
+        const resp = await api.get(`/api/v1/planos/${planoIdState}`);
+        if (!alive) return;
+        const planoApi = resp?.data || {};
+        setPlano((prev) => ({
+          ...(prev || {}),
+          ...planoApi,
+        }));
+      } catch (e) {
+        console.error("[Cadastro] Falha ao buscar plano por ID", e);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [planoIdState]);
 
   const UF_PADRAO = (import.meta?.env?.VITE_UF_PADRAO || window.__UF_PADRAO__ || "")
     .toString()
@@ -195,7 +417,15 @@ export default function Cadastro() {
             cidade: p?.endereco?.cidade || p?.cidade || "",
             uf: (p?.endereco?.uf || p?.uf || "").toUpperCase().slice(0, 2),
           }
-        : { cep: "", logradouro: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "" };
+        : {
+            cep: "",
+            logradouro: "",
+            numero: "",
+            complemento: "",
+            bairro: "",
+            cidade: "",
+            uf: "",
+          };
 
     const contatos = p?.contatos || {};
     const celular = contatos?.celular || p?.celular || "";
@@ -220,9 +450,7 @@ export default function Cadastro() {
 
   async function buscarDependentesPorPessoaId(pessoaId) {
     if (!pessoaId) return [];
-    const data = await tryGet(() =>
-      api.get(`/api/v1/dependentes/pessoa/${encodeURIComponent(pessoaId)}`)
-    );
+    const data = await tryGet(() => api.get(`/api/v1/dependentes/pessoa/${encodeURIComponent(pessoaId)}`));
     if (!Array.isArray(data)) return [];
     return data;
   }
@@ -242,10 +470,7 @@ export default function Cadastro() {
     return true;
   }
 
-  async function runLookupByCpf(
-    cpfMasked,
-    { prefillFromPessoa = true, suppressNoCadastroMessage = false } = {}
-  ) {
+  async function runLookupByCpf(cpfMasked, { prefillFromPessoa = true, suppressNoCadastroMessage = false } = {}) {
     const cpfFmt = formatCPF(cpfMasked || "");
     if (!cpfIsValid(cpfFmt)) {
       setLookupState({
@@ -277,17 +502,31 @@ export default function Cadastro() {
           cpf: pessoaNorm.cpf || cpfFmt,
         }));
 
-        const deps = await buscarDependentesPorPessoaId(pessoaNorm.id);
-        setDepsExistentes(
-          deps.map((d) => ({
-            id: d.id,
-            nome: d.nome,
-            cpf: d.cpf || "",
-            sexo: d.sexo || "",
-            parentesco: d.parentesco || "",
-            data_nascimento: normalizeISODate(d.dataNascimento || ""),
-          }))
-        );
+      const deps = await buscarDependentesPorPessoaId(pessoaNorm.id);
+
+      // PATCH: remover “titular duplicado” vindo como dependente (por CPF ou parentesco)
+      const titularCpfDigits = onlyDigits(pessoaNorm.cpf || cpfFmt || "");
+      const depsFiltrados = (Array.isArray(deps) ? deps : []).filter((d) => {
+        const depCpfDigits = onlyDigits(d?.cpf || "");
+        const parentesco = String(d?.parentesco || "").trim().toUpperCase();
+
+        if (parentesco === "TITULAR") return false;
+        if (titularCpfDigits && depCpfDigits && depCpfDigits === titularCpfDigits) return false;
+
+        return true;
+      });
+
+      setDepsExistentes(
+        depsFiltrados.map((d) => ({
+          id: d.id,
+          nome: d.nome,
+          cpf: d.cpf || "",
+          sexo: d.sexo || "",
+          parentesco: d.parentesco || "",
+          data_nascimento: normalizeISODate(d.dataNascimento || ""),
+        }))
+      );
+
       } else {
         setTitular((prev) => ({ ...prev, id: null, cpf: cpfFmt }));
         setDepsExistentes([]);
@@ -303,11 +542,7 @@ export default function Cadastro() {
         pessoaEncontrada: temPessoa ? normalizePessoaToTitular(pessoaRaw) : null,
         temContratoAtivo: ativos.length > 0,
         contratosResumo: contratos,
-        mensagem: temPessoa
-          ? ativos.length > 0
-            ? "Encontramos um contrato ativo vinculado ao seu CPF."
-            : "Dados carregados a partir do CPF informado."
-          : "",
+        mensagem: temPessoa ? (ativos.length > 0 ? "Encontramos um contrato ativo neste CPF." : "") : suppressNoCadastroMessage ? "" : "",
         erro: "",
       });
     } catch (e) {
@@ -326,10 +561,7 @@ export default function Cadastro() {
     let alive = true;
     (async () => {
       try {
-        const me = await api
-          .get("/api/v1/app/me")
-          .then((r) => r?.data)
-          .catch(() => null);
+        const me = await api.get("/api/v1/app/me").then((r) => r?.data).catch(() => null);
         if (!alive || !me) return;
 
         const cpfFromMe = me?.cpf || "";
@@ -343,10 +575,7 @@ export default function Cadastro() {
         }));
 
         if (cpfIsValid(cpfFromMe)) {
-          await runLookupByCpf(cpfFromMe, {
-            prefillFromPessoa: true,
-            suppressNoCadastroMessage: true,
-          });
+          await runLookupByCpf(cpfFromMe, { prefillFromPessoa: true, suppressNoCadastroMessage: true });
         }
       } catch {}
     })();
@@ -370,16 +599,10 @@ export default function Cadastro() {
       ...t,
       endereco: {
         ...t.endereco,
-        logradouro: addressTouched.logradouro
-          ? t.endereco.logradouro
-          : data.logradouro || t.endereco.logradouro,
+        logradouro: addressTouched.logradouro ? t.endereco.logradouro : data.logradouro || t.endereco.logradouro,
         bairro: addressTouched.bairro ? t.endereco.bairro : data.bairro || t.endereco.bairro,
-        cidade: addressTouched.cidade
-          ? t.endereco.cidade
-          : data.localidade || t.endereco.cidade,
-        uf: addressTouched.uf
-          ? sanitizeUF(t.endereco.uf)
-          : sanitizeUF(data.uf || t.endereco.uf || UF_PADRAO || ""),
+        cidade: addressTouched.cidade ? t.endereco.cidade : data.localidade || t.endereco.cidade,
+        uf: addressTouched.uf ? sanitizeUF(t.endereco.uf) : sanitizeUF(data.uf || t.endereco.uf || UF_PADRAO || ""),
       },
     }));
   };
@@ -388,30 +611,17 @@ export default function Cadastro() {
     fetchCEP(cepRaw, applyViaCepData);
   }, 500);
 
-  const baseMensal = Number(plano?.mensal || 0);
-  const numDepsIncl = Number(plano?.numeroDependentes || 0);
-  const valorIncAnual = Number(plano?.valorIncremental || 0);
-  const valorIncMensal = valorIncAnual / 12;
-  const excedentes = Math.max(0, depsExistentes.length + depsNovos.length - numDepsIncl);
-  const totalMensal = (baseMensal || 0) + excedentes * valorIncMensal;
-
   const valorAdesaoPlano = Number(plano?.valorAdesao ?? plano?.valor_adesao ?? 0);
-  const valorMensalidadePlano = Number(totalMensal);
   const dataEfetivacaoISO = efetivacaoProxMesPorDiaD(diaDSelecionado);
 
-  const idadeMinDep = Number.isFinite(plano?.idadeMinimaDependente)
-    ? Number(plano.idadeMinimaDependente)
-    : undefined;
-  const idadeMaxDep = Number.isFinite(plano?.idadeMaximaDependente)
-    ? Number(plano.idadeMaximaDependente)
-    : undefined;
+  const idadeMinDep = Number.isFinite(plano?.idadeMinimaDependente) ? Number(plano.idadeMinimaDependente) : undefined;
+  const idadeMaxDep = Number.isFinite(plano?.idadeMaximaDependente) ? Number(plano.idadeMaximaDependente) : undefined;
 
   const depsIssuesNovos = depsNovos.map((d) => {
     const age = ageFromDate(d.data_nascimento);
     const fora =
       d.data_nascimento &&
-      ((Number.isFinite(idadeMinDep) && age < idadeMinDep) ||
-        (Number.isFinite(idadeMaxDep) && age > idadeMaxDep));
+      ((Number.isFinite(idadeMinDep) && age < idadeMinDep) || (Number.isFinite(idadeMaxDep) && age > idadeMaxDep));
     const parentescoVazio = Boolean((d.nome || "").trim()) && !d.parentesco;
     const cpfInvalido = Boolean((d.cpf || "").trim()) && !cpfIsValid(d.cpf);
     return { fora, age, parentescoVazio, cpfInvalido };
@@ -419,86 +629,204 @@ export default function Cadastro() {
   const countDepsFora = depsIssuesNovos.filter((x) => x.fora).length;
 
   const updTit = (patch) => setTitular((t) => ({ ...t, ...patch }));
-  const updTitEndereco = (patch) =>
-    setTitular((t) => ({ ...t, endereco: { ...t.endereco, ...patch } }));
+  const updTitEndereco = (patch) => setTitular((t) => ({ ...t, endereco: { ...t.endereco, ...patch } }));
 
-  const updDepNovo = (i, patch) =>
-    setDepsNovos((prev) => prev.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
-  const addDepNovo = () =>
-    setDepsNovos((prev) => [
-      ...prev,
-      { nome: "", cpf: "", sexo: "", parentesco: "", data_nascimento: "" },
-    ]);
+  const updDepNovo = (i, patch) => setDepsNovos((prev) => prev.map((d, idx) => (idx === i ? { ...d, ...patch } : d)));
+  const addDepNovo = (initial = {}) =>
+    setDepsNovos((prev) => [...prev, { nome: "", cpf: "", sexo: "", parentesco: "", data_nascimento: "", ...initial }]);
   const delDepNovo = (i) => setDepsNovos((prev) => prev.filter((_, idx) => idx !== i));
 
   const e = titular.endereco || {};
   const cepDigits = onlyDigits(e.cep || "");
   const ufClean = (e.uf || "").toUpperCase().slice(0, 2);
 
+  // === Regra: se o nome do plano tiver "individual", oculta etapa de dependentes ===
+  const isPlanoIndividual = useMemo(() => {
+    const nome = String(plano?.nome || "").toLowerCase();
+    return nome.includes("individual");
+  }, [plano?.nome]);
+
+  // Steps visíveis (remove Dependentes se plano for "individual")
+  const stepsAll = useMemo(
+    () => [
+      { id: 1, label: "Titular" },
+      { id: 2, label: "Endereço" },
+      { id: 3, label: "Dependentes" },
+      { id: 4, label: "Cobranças" },
+    ],
+    []
+  );
+
+  const visibleSteps = useMemo(() => {
+    if (isPlanoIndividual) return stepsAll.filter((s) => s.id !== 3);
+    return stepsAll;
+  }, [stepsAll, isPlanoIndividual]);
+
+  const currentIndex = Math.max(0, visibleSteps.findIndex((s) => s.id === currentStep));
+  const totalSteps = visibleSteps.length || 1;
+
+  // Mapeia um "próximo step" pedido pelos componentes para o step real quando Dependentes é ocultado
+  const mapStep = (requestedStep) => {
+    const s = Number(requestedStep);
+    if (isPlanoIndividual && s === 3) return 4;
+    return s;
+  };
+
+  const goToStep = (step) => {
+    const next = mapStep(step);
+    setCurrentStep(next);
+    setPendingScroll(true);
+  };
+
+  // Se estiver na etapa 3 e o plano virar "individual", pula para Cobranças
+  useEffect(() => {
+    if (isPlanoIndividual && currentStep === 3) goToStep(4);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlanoIndividual]);
+
+  /* =======================================================================
+   *  VENDEDOR (resolve por e-mail via BFF)
+   * ======================================================================= */
+  const [vendedorState, setVendedorState] = useState({
+    loading: false,
+    email: "",
+    id: null,
+    nome: "",
+    error: "",
+  });
+
+  const vendedorIdFromPayload = useMemo(() => {
+    const v = payload?.vendedorId ?? payload?.vendedorID ?? payload?.vendedor ?? null;
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [payload]);
+
+  const vendedorEmailCandidate = useMemo(() => {
+    const pEmail = String(payload?.vendedorEmail || payload?.emailVendedor || "").trim();
+    const empEmail = String(
+      empresa?.vendedorEmail || empresa?.emailVendedor || empresa?.contatos?.emailVendedor || ""
+    ).trim();
+
+    return pEmail || empEmail || "";
+  }, [payload, empresa]);
+
+  function normalizeVendedorResp(data, fallbackEmail = "") {
+    const raw = Array.isArray(data) ? data[0] : data?.data ? data.data : data;
+    const id = raw?.id ?? raw?.vendedorId ?? raw?.vendedorID ?? null;
+    const n = Number(id);
+    if (!Number.isFinite(n) || n <= 0) return null;
+
+    return {
+      id: n,
+      nome: String(raw?.nome || "").trim(),
+      email: String(raw?.email || fallbackEmail || "").trim(),
+    };
+  }
+
+  async function resolverVendedorPorEmail(email) {
+    const ee = String(email || "").trim();
+    if (!ee) return null;
+
+    try {
+      const resp = await api.get(`/api/v1/vendedores/email/${encodeURIComponent(ee)}`);
+      return normalizeVendedorResp(resp?.data, ee);
+    } catch {
+      return null;
+    }
+  }
+
+  async function resolverVendedorPadrao() {
+    try {
+      const resp = await api.get(`/api/v1/vendedores/padrao`);
+      return normalizeVendedorResp(resp?.data, "");
+    } catch {
+      return null;
+    }
+  }
+
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      if (vendedorIdFromPayload) {
+        setVendedorState({ loading: false, email: "", id: vendedorIdFromPayload, nome: "", error: "" });
+        return;
+      }
+
+      // evita reprocessamento
+      if (vendedorState.id) return;
+
+      setVendedorState((s) => ({ ...s, loading: true, error: "" }));
+
+      // 1) tenta email do payload/tenant
+      if (vendedorEmailCandidate) {
+        const v1 = await resolverVendedorPorEmail(vendedorEmailCandidate);
+        if (!alive) return;
+        if (v1?.id) {
+          setVendedorState({
+            loading: false,
+            email: v1.email || vendedorEmailCandidate,
+            id: v1.id,
+            nome: v1.nome || "",
+            error: "",
+          });
+          return;
+        }
+      }
+
+      // 2) tenta vendedor padrão do BFF (ENV do servidor)
+      const v2 = await resolverVendedorPadrao();
+      if (!alive) return;
+
+      if (v2?.id) {
+        setVendedorState({ loading: false, email: v2.email || "", id: v2.id, nome: v2.nome || "", error: "" });
+        return;
+      }
+
+      setVendedorState({ loading: false, email: vendedorEmailCandidate || "", id: null, nome: "", error: "" });
+    })();
+
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vendedorIdFromPayload, vendedorEmailCandidate]);
+
   function buildErrorList() {
     const items = [];
 
-    if (!(titular.nome && titular.nome.trim().length >= 3))
-      items.push({ field: "fixo", label: "Titular: nome ausente." });
-    if (!cpfIsValid(titular.cpf))
-      items.push({ field: "fixo", label: "Titular: CPF inválido ou ausente." });
-    if (!titular.data_nascimento)
-      items.push({ field: "fixo", label: "Titular: data de nascimento ausente." });
-    if (!phoneIsValid(titular.celular))
-      items.push({ field: "fixo", label: "Titular: celular ausente ou inválido." });
+    if (!(titular.nome && titular.nome.trim().length >= 3)) items.push({ field: "fixo", label: "Titular: nome ausente." });
+    if (!cpfIsValid(titular.cpf)) items.push({ field: "fixo", label: "Titular: CPF inválido ou ausente." });
+    if (!titular.data_nascimento) items.push({ field: "fixo", label: "Titular: data de nascimento ausente." });
+    if (!phoneIsValid(titular.celular)) items.push({ field: "fixo", label: "Titular: celular ausente ou inválido." });
 
     if (!titular.sexo) items.push({ field: "sexo", label: "Titular: selecione o sexo." });
-    if (!titular.estado_civil)
-      items.push({ field: "estado_civil", label: "Titular: selecione o estado civil." });
+    if (!titular.estado_civil) items.push({ field: "estado_civil", label: "Titular: selecione o estado civil." });
 
-    if (!(cepDigits.length === 8))
-      items.push({ field: "cep", label: "Endereço: CEP deve ter 8 dígitos." });
-    if (!e.logradouro?.trim())
-      items.push({ field: "logradouro", label: "Endereço: informe o logradouro." });
-    if (!e.numero?.trim())
-      items.push({ field: "numero", label: "Endereço: informe o número." });
-    if (!e.bairro?.trim())
-      items.push({ field: "bairro", label: "Endereço: informe o bairro." });
-    if (!e.cidade?.trim())
-      items.push({ field: "cidade", label: "Endereço: informe a cidade." });
-    if (!(ufClean && ufClean.length === 2))
-      items.push({ field: "uf", label: "Endereço: informe a UF (2 letras)." });
+    if (!(cepDigits.length === 8)) items.push({ field: "cep", label: "Endereço: CEP deve ter 8 dígitos." });
+    if (!e.logradouro?.trim()) items.push({ field: "logradouro", label: "Endereço: informe o logradouro." });
+    if (!e.numero?.trim()) items.push({ field: "numero", label: "Endereço: informe o número." });
+    if (!e.bairro?.trim()) items.push({ field: "bairro", label: "Endereço: informe o bairro." });
+    if (!e.cidade?.trim()) items.push({ field: "cidade", label: "Endereço: informe a cidade." });
+    if (!(ufClean && ufClean.length === 2)) items.push({ field: "uf", label: "Endereço: informe a UF (2 letras)." });
     if (cepState.error) items.push({ field: "cep", label: `Endereço: ${cepState.error}` });
 
-    depsNovos.forEach((d, i) => {
-      const issue = depsIssuesNovos[i];
-      if (!((d.nome || "").trim().length >= 3))
-        items.push({
-          field: `depN-${i}-nome`,
-          label: `Dependente novo ${i + 1}: informe o nome (mín. 3 caracteres).`,
-        });
-      if (!d.parentesco)
-        items.push({
-          field: `depN-${i}-parentesco`,
-          label: `Dependente novo ${i + 1}: selecione o parentesco.`,
-        });
-      if (!d.sexo)
-        items.push({
-          field: `depN-${i}-sexo`,
-          label: `Dependente novo ${i + 1}: selecione o sexo.`,
-        });
-      if (!d.data_nascimento) {
-        items.push({
-          field: `depN-${i}-nasc`,
-          label: `Dependente novo ${i + 1}: informe a data de nascimento.`,
-        });
-      } else if (issue?.fora) {
-        items.push({
-          field: `depN-${i}-nasc`,
-          label: `Dependente novo ${i + 1}: data fora do limite etário do plano.`,
-        });
-      }
-      if (d.cpf && issue?.cpfInvalido)
-        items.push({
-          field: `depN-${i}-cpf`,
-          label: `Dependente novo ${i + 1}: CPF inválido.`,
-        });
-    });
+    if (!isPlanoIndividual) {
+      depsNovos.forEach((d, i) => {
+        const issue = depsIssuesNovos[i];
+        if (!((d.nome || "").trim().length >= 3))
+          items.push({ field: `depN-${i}-nome`, label: `Dependente novo ${i + 1}: informe o nome (mín. 3 caracteres).` });
+        if (!d.parentesco)
+          items.push({ field: `depN-${i}-parentesco`, label: `Dependente novo ${i + 1}: selecione o parentesco.` });
+        if (!d.sexo) items.push({ field: `depN-${i}-sexo`, label: `Dependente novo ${i + 1}: selecione o sexo.` });
+        if (!d.data_nascimento) {
+          items.push({ field: `depN-${i}-nasc`, label: `Dependente novo ${i + 1}: informe a data de nascimento.` });
+        } else if (issue?.fora) {
+          items.push({ field: `depN-${i}-nasc`, label: `Dependente novo ${i + 1}: data fora do limite etário do plano.` });
+        }
+        if (d.cpf && issue?.cpfInvalido) items.push({ field: `depN-${i}-cpf`, label: `Dependente novo ${i + 1}: CPF inválido.` });
+      });
+    }
 
     return items;
   }
@@ -524,7 +852,7 @@ export default function Cadastro() {
     }
   }
 
-  function validateStep1() {
+  function validateDadosComplementares() {
     const okEstadoCivil = !isEmpty(titular.estado_civil);
     const okSexo = !isEmpty(titular.sexo);
     if (!okEstadoCivil) {
@@ -538,15 +866,17 @@ export default function Cadastro() {
     return true;
   }
 
-  function validateStep2() {
+  function validateEndereco() {
     const addr = titular.endereco || {};
     const errors = [];
-    if (!(cepDigits.length === 8) || cepState.error) errors.push("cep");
+    const _cepDigits = onlyDigits(addr.cep || "");
+    if (!(_cepDigits.length === 8) || cepState.error) errors.push("cep");
     if (!addr.logradouro?.trim()) errors.push("logradouro");
     if (!addr.numero?.trim()) errors.push("numero");
     if (!addr.bairro?.trim()) errors.push("bairro");
     if (!addr.cidade?.trim()) errors.push("cidade");
-    if (!(ufClean && ufClean.length === 2)) errors.push("uf");
+    const uf = (addr.uf || "").toUpperCase().slice(0, 2);
+    if (!(uf && uf.length === 2)) errors.push("uf");
     if (errors.length > 0) {
       focusByField(errors[0]);
       return false;
@@ -554,7 +884,8 @@ export default function Cadastro() {
     return true;
   }
 
-  function validateStep3() {
+  function validateDependentes() {
+    if (isPlanoIndividual) return true;
     if (!depsNovos.length) return true;
     const localErrors = [];
     depsNovos.forEach((d, i) => {
@@ -589,9 +920,43 @@ export default function Cadastro() {
   useEffect(() => {
     if (!titular?.cpf) return;
     debouncedCpfLookup(titular.cpf);
-  }, [titular?.cpf]);
+  }, [titular?.cpf]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleSalvarEnviar() {
+  // === CÁLCULO DETALHADO DA MENSALIDADE ===
+  const composicaoMensalidade = useMemo(() => {
+    if (!plano) return null;
+    return detalharValorMensalidadePlano(plano, titular, depsExistentes, depsNovos);
+  }, [plano, titular, depsExistentes, depsNovos]);
+
+  const valorMensalidadePlano = composicaoMensalidade?.total ?? 0;
+
+  const planoResumo = useMemo(() => {
+    const p = plano || {};
+    const carenciaNum = Number(p?.periodoCarencia ?? p?.carencia ?? p?.carenciaEmDias ?? 0) || 0;
+    const carenciaUn = (p?.unidadeCarencia || p?.unidade_carencia || "DIAS").toString().toUpperCase();
+    const carenciaTxt =
+      carenciaNum > 0 ? `${carenciaNum} ${carenciaUn === "MES" || carenciaUn === "MESES" ? "meses" : "dias"}` : "Sem carência";
+
+    const depMax = Number.isFinite(p?.numeroDependentes) ? Number(p.numeroDependentes) : null;
+    const depTxt = depMax === null ? "—" : depMax === 0 ? "Apenas titular" : `Até ${depMax} dependente(s)`;
+
+    const idadeMin = Number.isFinite(p?.idadeMinimaDependente) ? Number(p.idadeMinimaDependente) : null;
+    const idadeMax = Number.isFinite(p?.idadeMaximaDependente) ? Number(p.idadeMaximaDependente) : null;
+    const idadeTxt = idadeMin === null && idadeMax === null ? "—" : `${idadeMin ?? 0} a ${idadeMax ?? 100}`;
+
+    const formas = [];
+    if (p?.pagamentoPix) formas.push("Pix");
+    if (p?.pagamentoBoleto) formas.push("Boleto");
+    if (p?.pagamentoCartao) formas.push("Cartão");
+    const formasTxt = formas.length ? formas.join(" • ") : "—";
+
+    const telTxt = p?.telemedicina === true ? "Inclusa" : p?.telemedicina === false ? "Não inclusa" : "—";
+
+    return { carenciaTxt, depTxt, idadeTxt, formasTxt, telTxt };
+  }, [plano]);
+
+  // >>> Agora aceita { cobrancas } vindo do StepCarne (com desconto e filtro > 5)
+  async function handleSalvarEnviar({ cobrancas } = {}) {
     setSubmitAttempted(true);
     setError("");
     const list = buildErrorList();
@@ -624,11 +989,7 @@ export default function Cadastro() {
         },
       };
 
-      let titularId =
-        titular?.id ||
-        lookupState?.pessoaEncontrada?.id ||
-        lookupState?.pessoaEncontrada?.pessoaId ||
-        null;
+      let titularId = titular?.id || lookupState?.pessoaEncontrada?.id || lookupState?.pessoaEncontrada?.pessoaId || null;
 
       if (!titularId) {
         const pessoaRes = await api.post("/api/v1/pessoas", payloadPessoa);
@@ -636,7 +997,7 @@ export default function Cadastro() {
         if (!titularId) throw new Error("Não foi possível obter o ID do titular (etapa pessoa).");
       }
 
-      if (depsNovos.length > 0) {
+      if (!isPlanoIndividual && depsNovos.length > 0) {
         const depsToCreate = depsNovos.map((d) => ({
           cpf: d.cpf ? onlyDigits(d.cpf) : null,
           nome: (d.nome || "").trim(),
@@ -650,25 +1011,84 @@ export default function Cadastro() {
           apelido: null,
           estadoCivil: null,
         }));
-        for (const depPayload of depsToCreate) await api.post("/api/v1/dependentes", depPayload);
+        for (const depPayload of depsToCreate) {
+          await api.post("/api/v1/dependentes", depPayload);
+        }
       }
+
+      // Resolve vendedor: 1) payload vendedorId 2) vendedorState.id 3) fallback 717
+      const vendedorIdFinal = Number(vendedorIdFromPayload || vendedorState?.id || 717);
 
       const todayISO = new Date().toISOString().slice(0, 10);
       const payloadContrato = {
         titularId: Number(titularId),
-        planoId: Number(planoId),
-        vendedorId: 717,
+        planoId: Number(planoIdState),
+        vendedorId: vendedorIdFinal,
         dataContrato: todayISO,
         diaD: Number(diaDSelecionado),
-        valorAdesao: valorAdesaoPlano,
-        valorMensalidade: valorMensalidadePlano,
+        valorAdesao: Number(valorAdesaoPlano || 0),
+        valorMensalidade: Number(valorMensalidadePlano || 0),
         dataEfetivacao: dataEfetivacaoISO,
-        cupomDesconto: cupom || null,
+        cupomDesconto: cupomCodigo || null,
       };
 
       const contratoRes = await api.post("/api/v1/contratos", payloadContrato);
-      const contratoId =
-        contratoRes?.data?.id || contratoRes?.data?.contratoId || contratoRes?.data?.uuid;
+      const contratoId = contratoRes?.data?.id || contratoRes?.data?.contratoId || contratoRes?.data?.uuid;
+      if (!contratoId) throw new Error("Não foi possível obter o ID do contrato recém-criado.");
+
+      try {
+        await celcashCriarClienteContrato(contratoId, {});
+      } catch (err) {
+        console.error("[Cadastro] Falha ao criar cliente/contrato na CelCash", err);
+      }
+
+      try {
+        // Se StepCarne forneceu cobranças finais (com desconto), usa isso.
+        // Senão, mantém o comportamento anterior.
+        let cobrancasForCelCash = [];
+
+        if (Array.isArray(cobrancas) && cobrancas.length > 0) {
+          cobrancasForCelCash = cobrancas.map((c, idx) => ({
+            numeroParcela: idx + 1,
+            valor: Number(c?.valor || 0),
+            dataVencimento: c?.dataVencimentoISO || c?.dataVencimento || "",
+          }));
+        } else {
+          const mensalidades = gerarCobrancasPlano(plano, dataEfetivacaoISO, valorMensalidadePlano);
+
+          if (valorAdesaoPlano > 0) {
+            cobrancasForCelCash.push({
+              numeroParcela: 1,
+              valor: valorAdesaoPlano,
+              dataVencimento: todayISO,
+            });
+          }
+
+          mensalidades.forEach((cob) => {
+            cobrancasForCelCash.push({
+              numeroParcela: cobrancasForCelCash.length + 1,
+              valor: Number(cob.valor || 0),
+              dataVencimento: cob.dataVencimentoISO,
+            });
+          });
+        }
+
+       
+       // Segurança adicional: não enviar < 5 (e 0 cai fora automaticamente)
+        cobrancasForCelCash = cobrancasForCelCash.filter((c) => Number(c?.valor || 0) >= 5);
+
+
+        if (cobrancasForCelCash.length > 0) {
+          const carnePayload = { mainPaymentMethodId: "boleto", cobrancas: cobrancasForCelCash };
+          await celcashGerarCarneManual(contratoId, carnePayload);
+        }
+      } catch (err) {
+        console.error("[Cadastro] Falha ao gerar carnê manual na CelCash", err);
+        setError(
+          "Seu contrato foi criado, mas não conseguimos gerar o carnê automático agora. " +
+            "A empresa será avisada para concluir essa etapa manualmente."
+        );
+      }
 
       navigate(`/confirmacao?contrato=${contratoId || ""}&titular=${titularId}`);
     } catch (e) {
@@ -681,130 +1101,94 @@ export default function Cadastro() {
       setError(
         msg
           ? `Não conseguimos concluir o envio: ${msg}`
-          : "Não conseguimos concluir o envio pelo site. Você pode enviar por WhatsApp."
+          : "Não conseguimos concluir o envio pelo site. Por favor, entre em contato com a empresa."
       );
     } finally {
       setSaving(false);
     }
   }
 
-  function sexoLabelFromValue(v) {
-    return SEXO_OPTIONS.find(([val]) => val === v)?.[1] || "";
-  }
-
-  function normalizeWaText(str) {
-    let s = (str ?? "").toString();
-    s = s
-      .normalize("NFKC")
-      .replace(/\r\n?/g, "\n")
-      .replace(/\u00A0/g, " ");
-    const rawLines = s.split("\n").map((l) => l.replace(/\s+/g, " ").trim());
-    const lines = [];
-    for (const l of rawLines) {
-      if (l === "" && lines[lines.length - 1] === "") continue;
-      lines.push(l);
-    }
-    return lines.join("\n").trim();
-  }
-
-  function sendWhatsFallback() {
-    let number =
-      resolveTenantPhone(empresa) ||
-      resolveGlobalFallback() ||
-      import.meta?.env?.VITE_WHATSAPP ||
-      window.__WHATSAPP__ ||
-      "";
-
-    number = onlyDigits(number);
-    if (number && !number.startsWith("55")) number = `55${number}`;
-
-    const L = [];
-    L.push("*Solicitação de Contratação*\n");
-    L.push(`Plano: ${plano?.nome || planoId}`);
-    L.push(`Valor base: ${money(baseMensal)} | Total mensal: ${money(totalMensal)}`);
-    L.push(`Adesão (única): ${money(valorAdesaoPlano)}`);
-    L.push(`Mensalidade: ${money(valorMensalidadePlano)}`);
-    L.push(`Dia D: ${diaDSelecionado}`);
-    L.push(`Efetivação: ${formatDateBR(dataEfetivacaoISO)}`);
-    if (cupom) L.push(`Cupom de desconto: ${cupom}`);
-
-    L.push("\n*Titular*:");
-    L.push(`Nome: ${titular.nome || ""}`);
-    L.push(`CPF: ${formatCPF(titular.cpf || "")}`);
-    L.push(`Sexo: ${sexoLabelFromValue(titular.sexo)}`);
-    L.push(`Celular: ${formatPhoneBR(titular.celular || "")}`);
-    L.push(`E-mail: ${titular.email || "(não informado)"}`);
-    L.push(
-      `Estado civil: ${ESTADO_CIVIL_LABEL[titular.estado_civil] || titular.estado_civil || ""}`
-    );
-    L.push(`Nascimento: ${formatDateBR(titular.data_nascimento) || ""}`);
-    const eAddr = titular.endereco || {};
-    L.push(
-      `End.: ${eAddr.logradouro || ""}, ${eAddr.numero || ""} ${eAddr.complemento || ""} - ${
-        eAddr.bairro || ""
-      }`
-    );
-    L.push(`${eAddr.cidade || ""}/${eAddr.uf || ""} - CEP ${eAddr.cep || ""}`);
-
-    L.push("\n*Dependentes existentes*:");
-    if (!depsExistentes.length) L.push("(Nenhum)");
-    depsExistentes.forEach((d, i) =>
-      L.push(
-        `${i + 1}. ${d.nome} - ${labelParentesco(d.parentesco)} - ${sexoLabelFromValue(
-          d.sexo
-        )} - CPF: ${formatCPF(d.cpf || "") || "(não informado)"} - nasc.: ${
-          d.data_nascimento || ""
-        }`
-      )
-    );
-
-    L.push("\n*Dependentes novos*:");
-    if (!depsNovos.length) L.push("(Nenhum)");
-    depsNovos.forEach((d, i) =>
-      L.push(
-        `${i + 1}. ${d.nome || "(sem nome)"} - ${labelParentesco(
-          d.parentesco
-        )} - ${sexoLabelFromValue(d.sexo)} - CPF: ${
-          formatCPF(d.cpf || "") || "(não informado)"
-        } - nasc.: ${d.data_nascimento || ""}`
-      )
-    );
-
-    const message = normalizeWaText(L.join("\n"));
-    const href = buildWaHref({ number, message });
-    window.open(href, "_blank", "noopener,noreferrer");
-  }
-
-  const onCepChange = (v) => {
-    setCepState((s) => ({ ...s, error: "", found: false }));
-    updTitEndereco({ cep: v });
-    debouncedBuscaCEP(v);
-  };
-  const onCepBlur = (v) => fetchCEP(v, applyViaCepData);
-
-  const errorCount = errorList.length;
   const bloquearCadastro = lookupState.temContratoAtivo === true;
 
   const glassCardStyle = {
-    background: "color-mix(in srgb, var(--c-surface) 78%, transparent)",
-    borderColor: "color-mix(in srgb, var(--c-border) 72%, transparent)",
-    boxShadow: "0 24px 80px rgba(15,23,42,0.45)",
+    background: "color-mix(in srgb, var(--c-surface) 84%, transparent)",
+    borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
+    boxShadow: "0 22px 70px rgba(15,23,42,0.35)",
     backdropFilter: "blur(18px)",
   };
 
-  const steps = [
-    { id: 1, label: "Dados complementares" },
-    { id: 2, label: "Endereço" },
-    { id: 3, label: "Dependentes" },
-    { id: 4, label: "Finalização" },
-  ];
+  const todayISO = new Date().toISOString().slice(0, 10);
 
-  const totalSteps = steps.length || 1;
-  const progressPercent = Math.round((currentStep / totalSteps) * 100);
+  const cobrancasPreview = useMemo(() => {
+    if (!dataEfetivacaoISO || !plano) return [];
+    const lista = [];
+    if (valorAdesaoPlano > 0) {
+      lista.push({ id: "adesao", tipo: "Taxa de adesão", valor: valorAdesaoPlano, dataVencimentoISO: todayISO });
+    }
+    const mensalidades = gerarCobrancasPlano(plano, dataEfetivacaoISO, valorMensalidadePlano);
+    mensalidades.forEach((cob) => {
+      lista.push({
+        id: `mensal-${cob.numeroParcela}`,
+        tipo: `${cob.numeroParcela}ª mensalidade`,
+        valor: cob.valor,
+        dataVencimentoISO: cob.dataVencimentoISO,
+      });
+    });
+    return lista;
+  }, [plano, valorAdesaoPlano, valorMensalidadePlano, dataEfetivacaoISO, todayISO]);
 
-  const canGoBack = currentStep > 1;
-  const goNext = () => setCurrentStep((s) => Math.min(4, s + 1));
-  const goPrev = () => setCurrentStep((s) => Math.max(1, s - 1));
+  // Rolagem inteligente (mais estável no mobile)
+  useEffect(() => {
+    if (!pendingScroll) return;
+
+    const el = contentAnchorRef.current;
+    if (!el) {
+      setPendingScroll(false);
+      return;
+    }
+
+    const prefersReduced =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const behavior = prefersReduced ? "auto" : "smooth";
+
+    const raf1 = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        try {
+          el.scrollIntoView({ behavior, block: "start" });
+        } catch {
+          const rect = el.getBoundingClientRect();
+          const top = window.scrollY + rect.top - 88;
+          window.scrollTo({ top: Math.max(0, top), behavior });
+        } finally {
+          setPendingScroll(false);
+        }
+      });
+    });
+
+    return () => cancelAnimationFrame(raf1);
+  }, [pendingScroll, currentStep]);
+
+  const stickyTop = "calc(var(--app-header-h, 72px) + 10px)";
+
+  const planosFiltrados = useMemo(() => {
+    const term = (planSearch || "").trim().toLowerCase();
+    const arr = planListState.items || [];
+    if (!term) return arr;
+    return arr.filter((p) => {
+      const nome = String(p?.nome || "").toLowerCase();
+      const id = String(p?.id ?? "");
+      return nome.includes(term) || id.includes(term);
+    });
+  }, [planSearch, planListState.items]);
+
+  const onBackFromCarne = () => {
+    const idx = visibleSteps.findIndex((s) => s.id === currentStep);
+    const prev = idx > 0 ? visibleSteps[idx - 1]?.id : 1;
+    goToStep(prev || 1);
+  };
 
   return (
     <section className="section">
@@ -812,12 +1196,22 @@ export default function Cadastro() {
         <div className="mb-4 flex items-center gap-2">
           <button
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--c-border)] bg-[var(--c-surface)]/90 px-4 py-2 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-[var(--c-surface)] transition-all"
+            disabled={saving}
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--c-border)] bg-[var(--c-surface)]/90 px-4 py-2 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-[var(--c-surface)] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             aria-label="Voltar para a página anterior"
           >
             <ChevronLeft size={16} /> Voltar
           </button>
         </div>
+
+        {currentStep === 1 && (
+          <header className="mb-4">
+            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Cadastre-se em poucos passos</h1>
+            <p className="mt-1 text-sm md:text-base leading-relaxed text-[var(--c-muted)]">
+              Informe seus dados e escolha a forma de cobrança.
+            </p>
+          </header>
+        )}
 
         {(lookupState.running || lookupState.mensagem || lookupState.erro) && (
           <div
@@ -831,21 +1225,14 @@ export default function Cadastro() {
             aria-live="polite"
           >
             <div className="flex items-start gap-3">
-              <div
-                className="rounded-full p-2 text-white"
-                style={{ background: "color-mix(in srgb, var(--primary) 90%, black)" }}
-              >
+              <div className="rounded-full p-2 text-white" style={{ background: "color-mix(in srgb, var(--primary) 90%, black)" }}>
                 {lookupState.running ? <Loader2 className="animate-spin" size={16} /> : <Info size={16} />}
               </div>
               <div className="flex-1 space-y-1">
                 {lookupState.running && <p className="text-sm">Verificando CPF e contratos…</p>}
-                {!lookupState.running && lookupState.mensagem && (
-                  <p className="text-sm font-medium">{lookupState.mensagem}</p>
-                )}
+                {!lookupState.running && lookupState.mensagem && <p className="text-sm font-medium">{lookupState.mensagem}</p>}
                 {!lookupState.running && lookupState.erro && (
-                  <p className="text-sm text-red-700">
-                    Falha na verificação automática: {lookupState.erro}
-                  </p>
+                  <p className="text-sm text-red-700">Falha na verificação automática: {lookupState.erro}</p>
                 )}
                 {!lookupState.running && lookupState.temContratoAtivo && (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -880,32 +1267,193 @@ export default function Cadastro() {
           </div>
         )}
 
-        {!bloquearCadastro && (
-          <div className="mb-5">
-            <ol
-              className="flex flex-wrap gap-2 rounded-3xl border px-2 py-2 shadow-[0_22px_80px_rgba(15,23,42,0.55)] backdrop-blur-xl"
-              style={{
-                background: "color-mix(in srgb, var(--c-surface) 78%, transparent)",
-                borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
-              }}
+        <div className="rounded-3xl p-5 md:p-6 space-y-4" style={glassCardStyle}>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base md:text-lg font-semibold tracking-tight">Dados para contratação</h2>
+
+              <div className="flex items-center gap-2">
+                {plano?.nome ? (
+                  <span className="inline-flex items-center rounded-full border border-[var(--c-border)] px-3 py-1 text-[11px] md:text-xs text-[var(--c-muted)] bg-[var(--c-surface)]/80">
+                    Plano&nbsp;<span className="font-semibold text-[var(--text)]">{plano.nome}</span>
+                  </span>
+                ) : null}
+
+                <button
+                  type="button"
+                  onClick={() => setPlanModalOpen(true)}
+                  className="inline-flex items-center justify-center rounded-full border border-[var(--c-border)] bg-[var(--c-surface)]/90 px-3 py-1 text-[11px] md:text-xs font-semibold hover:bg-[var(--c-surface)] transition"
+                  aria-label="Trocar plano"
+                >
+                  Trocar plano
+                </button>
+              </div>
+            </div>
+
+            <p className="text-xs md:text-sm text-[var(--c-muted)]">
+              Revise o titular e confirme as condições do plano antes de avançar.
+            </p>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-7">
+            <div className="md:col-span-2">
+              <details className="group rounded-3xl border border-[var(--c-border)] bg-[var(--c-surface)]/55 p-4 md:p-5">
+                <summary className="cursor-pointer list-none">
+                  <SectionTitle
+                    right={
+                      <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)] group-open:opacity-60">
+                        Ver detalhes
+                      </span>
+                    }
+                  >
+                    Titular
+                  </SectionTitle>
+
+                  <div className="mt-3 space-y-2">
+                    <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm">
+                      <span className="inline-flex items-center rounded-full bg-[var(--c-surface)]/90 border border-[var(--c-border)] px-3 py-1 max-w-full">
+                        <span className="font-medium truncate">{titular.nome || "Nome não informado"}</span>
+                      </span>
+                      <span className="inline-flex items-center rounded-full bg-[var(--c-surface)]/90 border border-[var(--c-border)] px-3 py-1">
+                        {formatCPF(titular.cpf || "") || "CPF não informado"}
+                      </span>
+                      {titular.celular && (
+                        <span className="inline-flex items-center rounded-full bg-[var(--c-surface)]/90 border border-[var(--c-border)] px-3 py-1">
+                          {formatPhoneBR(titular.celular)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </summary>
+
+                <div className="mt-4 grid gap-2 grid-cols-2">
+                  <FieldRead label="Nascimento" value={formatDateBR(titular.data_nascimento) || "—"} mono />
+                  <div className="col-span-2">
+                    <FieldRead label="E-mail" value={titular.email || "—"} />
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            <div className="md:col-span-5">
+              <details className="group rounded-3xl border border-[var(--c-border)] bg-[var(--c-surface)]/55 p-4 md:p-5">
+                <summary className="cursor-pointer list-none">
+                  <SectionTitle
+                    right={
+                      <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)] group-open:opacity-60">
+                        Ver detalhes
+                      </span>
+                    }
+                  >
+                    Plano
+                  </SectionTitle>
+
+                  <div className="mt-3 grid gap-2 grid-cols-2">
+                    <FieldRead label="Mensalidade estimada" value={moneyBRL(valorMensalidadePlano)} mono />
+                    <FieldRead label="Taxa de adesão" value={moneyBRL(valorAdesaoPlano)} mono />
+                    <div className="col-span-2">
+                      <FieldRead label="Pagamento" value={planoResumo?.formasTxt || "—"} />
+                    </div>
+                  </div>
+                </summary>
+
+                <div className="mt-4 grid gap-2 grid-cols-2">
+                  <FieldRead label="Carência" value={planoResumo?.carenciaTxt || "—"} />
+                  <FieldRead label="Dependentes" value={planoResumo?.depTxt || "—"} />
+                  <div className="col-span-2">
+                    <FieldRead label="Idade (dependentes)" value={planoResumo?.idadeTxt || "—"} />
+                  </div>
+                </div>
+
+                {cupomCodigo ? (
+                  <div className="mt-3 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/70 px-3 py-2">
+                    <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--c-muted)]">Cupom</p>
+                    <p className="mt-0.5 text-sm font-semibold break-words">{cupomCodigo}</p>
+                  </div>
+                ) : null}
+              </details>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 mb-5 sticky z-[35]" style={{ top: stickyTop }}>
+          <div
+            className="rounded-3xl border px-2 py-2 shadow-[0_22px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl"
+            style={{
+              background: "color-mix(in srgb, var(--c-surface) 82%, transparent)",
+              borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
+            }}
+          >
+            <div
+              className={`grid gap-2 md:hidden ${bloquearCadastro ? "opacity-70" : ""}`}
+              style={{ gridTemplateColumns: `repeat(${visibleSteps.length}, minmax(0, 1fr))` }}
+              role="navigation"
+              aria-label="Etapas do cadastro"
             >
-              {steps.map((step) => {
+              {visibleSteps.map((step, idx) => {
                 const active = currentStep === step.id;
-                const completed = currentStep > step.id;
+                const completed = idx < currentIndex;
+                const disabled = bloquearCadastro || idx > currentIndex;
+
                 return (
-                  <li key={step.id} className="flex-1 min-w-[150px]">
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => {
+                      if (disabled) return;
+                      goToStep(step.id);
+                    }}
+                    disabled={disabled}
+                    className={`flex flex-col items-center justify-center rounded-2xl px-2 py-2 transition-all ${
+                      active
+                        ? "bg-[var(--primary)] text-white shadow-md"
+                        : completed
+                        ? "bg-[var(--c-surface)]/96 text-[var(--c-muted)] border border-[var(--c-border)]"
+                        : "bg-transparent text-[var(--c-muted)]/85 border border-transparent"
+                    } ${disabled ? "cursor-not-allowed" : "hover:shadow-sm"}`}
+                    aria-current={active ? "step" : undefined}
+                  >
+                    <span
+                      className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold ${
+                        active
+                          ? "bg-white/20"
+                          : completed
+                          ? "bg-[var(--primary)]/10 text-[var(--primary)]"
+                          : "bg-[var(--c-surface)]/90 border border-[var(--c-border)] text-[var(--c-muted)]"
+                      }`}
+                    >
+                      {completed ? <CheckCircle2 size={14} /> : idx + 1}
+                    </span>
+                    <span className="mt-1 text-[11px] font-semibold leading-tight text-center">{step.label}</span>
+                    <span className="mt-0.5 text-[9px] uppercase tracking-[0.18em] opacity-70">Etapa {idx + 1}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <ul className={`hidden md:flex flex-wrap gap-2 ${bloquearCadastro ? "opacity-70" : ""}`} role="navigation" aria-label="Etapas do cadastro">
+              {visibleSteps.map((step, idx) => {
+                const active = currentStep === step.id;
+                const completed = idx < currentIndex;
+                const disabled = bloquearCadastro || idx > currentIndex;
+
+                return (
+                  <li key={step.id} className="flex-1 min-w-[150px] list-none">
                     <button
                       type="button"
                       onClick={() => {
-                        if (completed || active) setCurrentStep(step.id);
+                        if (disabled) return;
+                        goToStep(step.id);
                       }}
+                      disabled={disabled}
                       className={`flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-xs md:text-sm transition-all ${
                         active
                           ? "bg-[var(--primary)] text-white shadow-md"
                           : completed
                           ? "bg-[var(--c-surface)]/96 text-[var(--c-muted)] border border-[var(--c-border)]"
                           : "bg-transparent text-[var(--c-muted)]/85 border border-transparent"
-                      }`}
+                      } ${disabled ? "cursor-not-allowed" : "hover:shadow-sm"}`}
+                      aria-current={active ? "step" : undefined}
                     >
                       <span
                         className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ${
@@ -916,906 +1464,211 @@ export default function Cadastro() {
                             : "bg-[var(--c-surface)]/90 border border-[var(--c-border)] text-[var(--c-muted)]"
                         }`}
                       >
-                        {completed ? <CheckCircle2 size={14} /> : step.id}
+                        {completed ? <CheckCircle2 size={14} /> : idx + 1}
                       </span>
                       <span className="flex flex-col">
                         <span className="font-medium">{step.label}</span>
                         <span className="text-[10px] uppercase tracking-[0.16em] opacity-70">
-                          Etapa {step.id} de {totalSteps}
+                          Etapa {idx + 1} de {totalSteps}
                         </span>
                       </span>
                     </button>
                   </li>
                 );
               })}
-            </ol>
-
-            <div className="mt-3 md:hidden">
-              <div className="mb-1 flex items-center justify-between">
-                <span className="text-[11px] font-medium text-[var(--c-muted)]">
-                  Etapa {currentStep} de {totalSteps}
-                </span>
-                <span className="text-[11px] text-[var(--c-muted)]">
-                  {progressPercent}
-                  %
-                </span>
-              </div>
-              <div className="h-1.5 w-full rounded-full bg-[var(--c-border)]/40 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-[var(--primary)] transition-all"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-            </div>
+            </ul>
           </div>
-        )}
-
-        <div className="rounded-3xl p-6 md:p-7 space-y-6" style={glassCardStyle}>
-          <div className="flex flex-col gap-2">
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight leading-tight">
-              Cadastro do plano
-            </h1>
-            <p className="text-sm md:text-[15px] text-[var(--c-muted)] flex flex-wrap gap-1">
-              Plano{" "}
-              <b className="font-semibold">
-                {plano?.nome || ""}
-              </b>
-              <span className="opacity-60">•</span>
-              Base mensal
-              <span className="font-semibold">{money(baseMensal)}</span>
-            </p>
-          </div>
-
-          <details className="group open:pb-2" open>
-            <summary className="cursor-pointer list-none">
-              <SectionTitle
-                right={
-                  <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)] group-open:opacity-60">
-                    Seus dados como usuário
-                  </span>
-                }
-              >
-                Dados do titular
-              </SectionTitle>
-            </summary>
-
-            <div className="mt-3 grid gap-2 grid-cols-2 md:grid-cols-4">
-              <div className="col-span-2 md:col-span-2">
-                <FieldRead label="Nome" value={titular.nome} />
-              </div>
-              <FieldRead label="CPF" value={formatCPF(titular.cpf || "")} mono />
-              <FieldRead label="Nascimento" value={formatDateBR(titular.data_nascimento) || "—"} mono />
-              <FieldRead label="Celular" value={formatPhoneBR(titular.celular || "") || "—"} mono />
-              <div className="col-span-2 md:col-span-4">
-                <FieldRead label="E-mail" value={titular.email} />
-              </div>
-            </div>
-          </details>
-
-          {!bloquearCadastro && currentStep === 1 && (
-            <div className="border-t border-[color-mix(in srgb,var(--c-border) 65%,transparent)] pt-5">
-              <SectionTitle>Dados complementares</SectionTitle>
-
-              <div className="mt-3 grid gap-3 grid-cols-2 md:grid-cols-12">
-                <div className="md:col-span-6">
-                  <label className="label text-xs font-medium" htmlFor="titular-ec">
-                    Estado civil {requiredStar}
-                  </label>
-                  <select
-                    id="titular-ec"
-                    ref={ecRef}
-                    className={`input h-11 w-full text-sm ${requiredRing(
-                      (stepAttempted[1] || submitAttempted) && isEmpty(titular.estado_civil)
-                    )}`}
-                    value={titular.estado_civil}
-                    onChange={(e) => updTit({ estado_civil: e.target.value })}
-                    aria-required="true"
-                    aria-invalid={
-                      (stepAttempted[1] || submitAttempted) && isEmpty(titular.estado_civil)
-                        ? "true"
-                        : "false"
-                    }
-                  >
-                    <option value="">Selecione…</option>
-                    {ESTADO_CIVIL_OPTIONS.map(([v, l]) => (
-                      <option key={v} value={v}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
-                  {(stepAttempted[1] || submitAttempted) && isEmpty(titular.estado_civil) && (
-                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                      Selecione o estado civil.
-                    </p>
-                  )}
-                </div>
-
-                <div className="md:col-span-6">
-                  <label className="label text-xs font-medium" htmlFor="titular-sexo">
-                    Sexo {requiredStar}
-                  </label>
-                  <select
-                    id="titular-sexo"
-                    ref={sexoRef}
-                    className={`input h-11 w-full text-sm ${requiredRing(
-                      (stepAttempted[1] || submitAttempted) && isEmpty(titular.sexo)
-                    )}`}
-                    value={titular.sexo}
-                    onChange={(e) => updTit({ sexo: e.target.value })}
-                    aria-required="true"
-                    aria-invalid={
-                      (stepAttempted[1] || submitAttempted) && isEmpty(titular.sexo)
-                        ? "true"
-                        : "false"
-                    }
-                  >
-                    <option value="">Selecione…</option>
-                    {SEXO_OPTIONS.map(([v, l]) => (
-                      <option key={v} value={v}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
-                  {(stepAttempted[1] || submitAttempted) && isEmpty(titular.sexo) && (
-                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                      Selecione o sexo.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-5 flex justify-end">
-                <CTAButton
-                  type="button"
-                  className="h-11 px-6"
-                  onClick={() => {
-                    setStepAttempted((prev) => ({ ...prev, 1: true }));
-                    if (validateStep1()) {
-                      setCurrentStep(2);
-                    }
-                  }}
-                >
-                  Continuar
-                </CTAButton>
-              </div>
-            </div>
-          )}
         </div>
 
-        {!bloquearCadastro && currentStep === 2 && (
-          <div className="mt-6 rounded-3xl p-6 md:p-7 space-y-4" style={glassCardStyle}>
-            <SectionTitle>Endereço</SectionTitle>
+        <div
+          ref={contentAnchorRef}
+          style={{
+            scrollMarginTop: "calc(var(--app-header-h, 72px) + 18px)",
+          }}
+        />
 
-            <div className="mt-3 space-y-3">
-              <div>
-                <div className="flex items-center justify-between gap-3">
-                  <label className="label text-xs font-medium" htmlFor="end-cep">
-                    CEP {requiredStar}
-                  </label>
-                  <button
-                    type="button"
-                    className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)] hover:opacity-80 disabled:opacity-40"
-                    onClick={() => fetchCEP(titular.endereco.cep, applyViaCepData)}
-                    disabled={cepState.loading || onlyDigits(titular.endereco.cep).length !== 8}
-                    aria-label="Buscar endereço pelo CEP"
-                  >
-                    {cepState.loading ? "Buscando…" : "Buscar CEP"}
-                  </button>
-                </div>
-                <input
-                  id="end-cep"
-                  ref={cepRef}
-                  className={`input h-11 text-sm ${
-                    requiredRing(
-                      (stepAttempted[2] || submitAttempted) &&
-                        onlyDigits(titular.endereco.cep || "").length !== 8
-                    ) || (cepState.error ? " ring-1 ring-red-500" : "")
-                  }`}
-                  inputMode="numeric"
-                  maxLength={9}
-                  value={formatCEP(titular.endereco.cep)}
-                  onChange={(e) => {
-                    const v = maskCEP(e.target.value);
-                    onCepChange(v);
-                  }}
-                  onBlur={(e) => onCepBlur(e.target.value)}
-                  placeholder="00000-000"
-                  autoComplete="postal-code"
-                  aria-required="true"
-                  aria-invalid={
-                    ((stepAttempted[2] || submitAttempted) &&
-                      onlyDigits(titular.endereco.cep || "").length !== 8) ||
-                    !!cepState.error
-                      ? "true"
-                      : "false"
-                  }
-                  aria-describedby={cepState.error ? "cep-error" : undefined}
-                />
-                {(stepAttempted[2] || submitAttempted) &&
-                  onlyDigits(titular.endereco.cep || "").length !== 8 &&
-                  !cepState.error && (
-                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                      CEP deve ter 8 dígitos.
-                    </p>
-                  )}
-                {cepState.error && (
-                  <p
-                    id="cep-error"
-                    className="text-xs text-red-600 mt-1"
-                    role="alert"
-                    aria-live="polite"
-                  >
-                    {cepState.error}
-                  </p>
-                )}
-                {!cepState.error && cepState.found && (
-                  <p className="text-xs text-green-700 mt-1" aria-live="polite">
-                    Endereço preenchido pelo CEP.
-                  </p>
-                )}
-              </div>
-
-              <div className="grid gap-3 grid-cols-[minmax(0,2.2fr),minmax(0,1fr)] md:grid-cols-[minmax(0,3fr),minmax(0,1fr)]">
-                <div>
-                  <label className="label text-xs font-medium" htmlFor="end-log">
-                    Logradouro {requiredStar}
-                  </label>
-                  <input
-                    id="end-log"
-                    ref={logRef}
-                    className={`input h-11 text-sm ${requiredRing(
-                      (stepAttempted[2] || submitAttempted) &&
-                        isEmpty(titular.endereco.logradouro)
-                    )}`}
-                    value={titular.endereco.logradouro}
-                    onChange={(e) => {
-                      setAddrTouched({ logradouro: true });
-                      updTitEndereco({ logradouro: e.target.value });
-                    }}
-                    autoComplete="address-line1"
-                    aria-required="true"
-                    aria-invalid={
-                      (stepAttempted[2] || submitAttempted) &&
-                      isEmpty(titular.endereco.logradouro)
-                        ? "true"
-                        : "false"
-                    }
-                    disabled={cepState.loading}
-                  />
-                  {(stepAttempted[2] || submitAttempted) &&
-                    isEmpty(titular.endereco.logradouro) && (
-                      <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                        Informe o logradouro.
-                      </p>
-                    )}
-                </div>
-                <div>
-                  <label className="label text-xs font-medium" htmlFor="end-num">
-                    Número {requiredStar}
-                  </label>
-                  <input
-                    id="end-num"
-                    ref={numRef}
-                    className={`input h-11 text-sm ${requiredRing(
-                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.numero)
-                    )}`}
-                    value={titular.endereco.numero}
-                    onChange={(e) => updTitEndereco({ numero: e.target.value })}
-                    autoComplete="address-line2"
-                    aria-required="true"
-                    aria-invalid={
-                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.numero)
-                        ? "true"
-                        : "false"
-                    }
-                    disabled={cepState.loading}
-                  />
-                  {(stepAttempted[2] || submitAttempted) &&
-                    isEmpty(titular.endereco.numero) && (
-                      <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                        Informe o número.
-                      </p>
-                    )}
-                </div>
-              </div>
-
-              <div>
-                <label className="label text-xs font-medium" htmlFor="end-comp">
-                  Complemento
-                </label>
-                <input
-                  id="end-comp"
-                  className="input h-11 text-sm"
-                  value={titular.endereco.complemento}
-                  onChange={(e) => updTitEndereco({ complemento: e.target.value })}
-                  disabled={cepState.loading}
-                />
-              </div>
-
-              <div>
-                <label className="label text-xs font-medium" htmlFor="end-bairro">
-                  Bairro {requiredStar}
-                </label>
-                <input
-                  id="end-bairro"
-                  ref={bairroRef}
-                  className={`input h-11 text-sm ${requiredRing(
-                    (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.bairro)
-                  )}`}
-                  value={titular.endereco.bairro}
-                  onChange={(e) => {
-                    setAddrTouched({ bairro: true });
-                    updTitEndereco({ bairro: e.target.value });
-                  }}
-                  aria-required="true"
-                  aria-invalid={
-                    (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.bairro)
-                      ? "true"
-                      : "false"
-                  }
-                  disabled={cepState.loading}
-                />
-                {(stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.bairro) && (
-                  <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                    Informe o bairro.
-                  </p>
-                )}
-              </div>
-
-              <div className="grid gap-3 grid-cols-[minmax(0,3fr),80px] md:grid-cols-[minmax(0,3fr),120px]">
-                <div>
-                  <label className="label text-xs font-medium" htmlFor="end-cidade">
-                    Cidade {requiredStar}
-                  </label>
-                  <input
-                    id="end-cidade"
-                    ref={cidadeRef}
-                    className={`input h-11 text-sm ${requiredRing(
-                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.cidade)
-                    )}`}
-                    value={titular.endereco.cidade}
-                    onChange={(e) => {
-                      setAddrTouched({ cidade: true });
-                      const cidade = e.target.value;
-                      const uf = titular.endereco.uf || UF_PADRAO || "";
-                      updTitEndereco({ cidade, uf });
-                    }}
-                    autoComplete="address-level2"
-                    aria-required="true"
-                    aria-invalid={
-                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.cidade)
-                        ? "true"
-                        : "false"
-                    }
-                    disabled={cepState.loading}
-                  />
-                  {(stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.cidade) && (
-                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                      Informe a cidade.
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="label text-xs font-medium" htmlFor="end-uf">
-                    UF {requiredStar}
-                  </label>
-                  <input
-                    id="end-uf"
-                    ref={ufRef}
-                    className={`input h-11 text-sm ${requiredRing(
-                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.uf)
-                    )}`}
-                    value={titular.endereco.uf}
-                    onChange={(e) => {
-                      setAddrTouched({ uf: true });
-                      const v = sanitizeUF(e.target.value);
-                      updTitEndereco({ uf: v });
-                    }}
-                    maxLength={2}
-                    autoComplete="address-level1"
-                    aria-required="true"
-                    aria-invalid={
-                      (stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.uf)
-                        ? "true"
-                        : "false"
-                    }
-                    disabled={cepState.loading}
-                  />
-                  {(stepAttempted[2] || submitAttempted) && isEmpty(titular.endereco.uf) && (
-                    <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                      Informe a UF.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-5 flex justify-between gap-3">
-              <CTAButton type="button" variant="outline" className="h-11 px-5" onClick={goPrev}>
-                Voltar
-              </CTAButton>
-              <CTAButton
-                type="button"
-                className="h-11 px-6"
-                onClick={() => {
-                  setStepAttempted((prev) => ({ ...prev, 2: true }));
-                  if (validateStep2()) {
-                    setCurrentStep(3);
-                  }
-                }}
-              >
-                Continuar
-              </CTAButton>
-            </div>
-          </div>
-        )}
-
-        {!bloquearCadastro && currentStep === 3 && (
-          <>
-            {depsExistentes.length > 0 && (
-              <details
-                className="mt-6 rounded-3xl border px-6 py-5 md:px-7 md:py-6 backdrop-blur-xl"
-                style={glassCardStyle}
-                open
-              >
-                <summary className="cursor-pointer list-none">
-                  <SectionTitle>Dependentes existentes (somente leitura)</SectionTitle>
-                </summary>
-                <div className="mt-4 grid gap-3">
-                  {depsExistentes.map((d, i) => (
-                    <div
-                      key={d.id || i}
-                      className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/90 p-3 grid md:grid-cols-12 gap-3 shadow-sm"
-                    >
-                      <div className="md:col-span-4">
-                        <p className="text-[11px] text-[var(--c-muted)]">Nome</p>
-                        <p className="font-medium break-words text-[13px]">{d.nome}</p>
-                      </div>
-                      <div className="md:col-span-2">
-                        <p className="text-[11px] text-[var(--c-muted)]">CPF</p>
-                        <p className="font-medium text-[13px]">{formatCPF(d.cpf || "") || "—"}</p>
-                      </div>
-                      <div className="md:col-span-2">
-                        <p className="text-[11px] text-[var(--c-muted)]">Parentesco</p>
-                        <p className="font-medium text-[13px]">
-                          {PARENTESCO_LABELS[d.parentesco] || d.parentesco || "—"}
-                        </p>
-                      </div>
-                      <div className="md:col-span-2">
-                        <p className="text-[11px] text-[var(--c-muted)]">Sexo</p>
-                        <p className="font-medium text-[13px]">
-                          {sexoLabelFromValue(d.sexo) || "—"}
-                        </p>
-                      </div>
-                      <div className="md:col-span-2">
-                        <p className="text-[11px] text-[var(--c-muted)]">Nascimento</p>
-                        <p className="font-medium text-[13px]">
-                          {formatDateBR(d.data_nascimento) || "—"}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </details>
+        {!bloquearCadastro && (
+          <StepAmbient>
+            {currentStep === 1 && (
+              <StepTitularIntro
+                glassCardStyle={glassCardStyle}
+                titular={titular}
+                updTit={updTit}
+                stepAttempted={stepAttempted}
+                submitAttempted={submitAttempted}
+                setStepAttempted={setStepAttempted}
+                validateDadosComplementares={validateDadosComplementares}
+                setCurrentStep={goToStep}
+                ecRef={ecRef}
+                sexoRef={sexoRef}
+              />
             )}
 
-            <div className="mt-6 rounded-3xl p-6 md:p-7" style={glassCardStyle}>
-              <SectionTitle
-                right={
-                  <CTAButton onClick={addDepNovo} className="h-10">
-                    <Plus size={16} className="mr-2" />
-                    Adicionar dependente
-                  </CTAButton>
-                }
-              >
-                Novos dependentes ({depsNovos.length})
-              </SectionTitle>
+            {currentStep === 2 && (
+              <StepEndereco
+                glassCardStyle={glassCardStyle}
+                titular={titular}
+                updTitEndereco={updTitEndereco}
+                addressTouched={addressTouched}
+                setAddrTouched={setAddrTouched}
+                cepState={cepState}
+                onCepChange={(v) => {
+                  setCepState((s) => ({ ...s, error: "", found: false }));
+                  updTitEndereco({ cep: v });
+                  debouncedBuscaCEP(v);
+                }}
+                onCepBlur={(v) => fetchCEP(v, applyViaCepData)}
+                stepAttempted={stepAttempted}
+                submitAttempted={submitAttempted}
+                setStepAttempted={setStepAttempted}
+                validateEndereco={validateEndereco}
+                setCurrentStep={(s) => goToStep(s)}
+                cepRef={cepRef}
+                logRef={logRef}
+                numRef={numRef}
+                bairroRef={bairroRef}
+                cidadeRef={cidadeRef}
+                ufRef={ufRef}
+                UF_PADRAO={UF_PADRAO}
+              />
+            )}
 
-              <div className="mt-4 grid gap-4">
-                {depsNovos.map((d, i) => {
-                  const issue = depsIssuesNovos[i];
-                  return (
-                    <div
-                      key={i}
-                      className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/95 p-4 shadow-md"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="inline-flex items-center gap-2 text-sm font-semibold">
-                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[var(--c-border)] text-[11px]">
-                            {i + 1}
-                          </span>
-                          Dependente novo
-                        </span>
-                        <CTAButton
-                          variant="ghost"
-                          onClick={() => delDepNovo(i)}
-                          className="h-9 px-3"
-                          aria-label={`Remover dependente novo ${i + 1}`}
-                        >
-                          <Trash2 size={16} className="mr-2" /> Remover
-                        </CTAButton>
-                      </div>
+            {!isPlanoIndividual && currentStep === 3 && (
+              <StepDependentes
+                glassCardStyle={glassCardStyle}
+                depsExistentes={depsExistentes}
+                depsNovos={depsNovos}
+                depsIssuesNovos={depsIssuesNovos}
+                addDepNovo={addDepNovo}
+                delDepNovo={delDepNovo}
+                updDepNovo={updDepNovo}
+                countDepsFora={countDepsFora}
+                idadeMinDep={idadeMinDep}
+                idadeMaxDep={idadeMaxDep}
+                plano={plano}
+                stepAttempted={stepAttempted}
+                submitAttempted={submitAttempted}
+                setStepAttempted={setStepAttempted}
+                validateDependentes={validateDependentes}
+                setCurrentStep={goToStep}
+              />
+            )}
 
-                      <div className="grid gap-3 md:grid-cols-12">
-                        <div className="md:col-span-6">
-                          <label className="label text-xs font-medium" htmlFor={`depN-${i}-nome`}>
-                            Nome completo {requiredStar}
-                          </label>
-                          <input
-                            id={`depN-${i}-nome`}
-                            className={`input h-11 w-full text-sm ${requiredRing(
-                              (stepAttempted[3] || submitAttempted) &&
-                                !((d.nome || "").trim().length >= 3)
-                            )}`}
-                            placeholder="Nome do dependente"
-                            value={d.nome}
-                            onChange={(e) => updDepNovo(i, { nome: e.target.value })}
-                            aria-required="true"
-                            aria-invalid={
-                              (stepAttempted[3] || submitAttempted) &&
-                              !((d.nome || "").trim().length >= 3)
-                                ? "true"
-                                : "false"
-                            }
-                          />
-                          {(stepAttempted[3] || submitAttempted) &&
-                            !((d.nome || "").trim().length >= 3) && (
-                              <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                                Informe o nome (mín. 3 caracteres).
-                              </p>
-                            )}
-                        </div>
-                        <div className="md:col-span-3">
-                          <label
-                            className="label text-xs font-medium"
-                            htmlFor={`depN-${i}-parentesco`}
-                          >
-                            Parentesco {requiredStar}
-                          </label>
-                          <select
-                            id={`depN-${i}-parentesco`}
-                            className={`input h-11 w-full text-sm ${requiredRing(
-                              (stepAttempted[3] || submitAttempted) && isEmpty(d.parentesco)
-                            )}`}
-                            value={d.parentesco}
-                            onChange={(e) => updDepNovo(i, { parentesco: e.target.value })}
-                            aria-required="true"
-                            aria-invalid={
-                              (stepAttempted[3] || submitAttempted) && isEmpty(d.parentesco)
-                                ? "true"
-                                : "false"
-                            }
-                          >
-                            <option value="">Selecione…</option>
-                            {(plano?.parentescos?.length
-                              ? plano.parentescos
-                              : PARENTESCOS_FALLBACK.map(([v]) => v)
-                            ).map((v) => (
-                              <option key={v} value={v}>
-                                {PARENTESCO_LABELS[v] || v}
-                              </option>
-                            ))}
-                          </select>
-                          {(stepAttempted[3] || submitAttempted) && isEmpty(d.parentesco) && (
-                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                              Selecione o parentesco.
-                            </p>
-                          )}
-                        </div>
-                        <div className="md:col-span-3">
-                          <label className="label text-xs font-medium" htmlFor={`depN-${i}-sexo`}>
-                            Sexo {requiredStar}
-                          </label>
-                          <select
-                            id={`depN-${i}-sexo`}
-                            className={`input h-11 w-full text-sm ${requiredRing(
-                              (stepAttempted[3] || submitAttempted) && isEmpty(d.sexo)
-                            )}`}
-                            value={d.sexo || ""}
-                            onChange={(e) => updDepNovo(i, { sexo: e.target.value })}
-                            aria-required="true"
-                            aria-invalid={
-                              (stepAttempted[3] || submitAttempted) && isEmpty(d.sexo)
-                                ? "true"
-                                : "false"
-                            }
-                          >
-                            <option value="">Selecione…</option>
-                            {SEXO_OPTIONS.map(([v, l]) => (
-                              <option key={v} value={v}>
-                                {l}
-                              </option>
-                            ))}
-                          </select>
-                          {(stepAttempted[3] || submitAttempted) && isEmpty(d.sexo) && (
-                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                              Selecione o sexo.
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="grid gap-3 md:grid-cols-12 mt-2">
-                        <div className="md:col-span-6">
-                          <label className="label text-xs font-medium" htmlFor={`depN-${i}-cpf`}>
-                            CPF (opcional)
-                          </label>
-                          <input
-                            id={`depN-${i}-cpf`}
-                            className={`input h-11 w-full text-sm ${
-                              d.cpf && !cpfIsValid(d.cpf) ? "ring-1 ring-red-500" : ""
-                            }`}
-                            inputMode="numeric"
-                            maxLength={14}
-                            placeholder="000.000.000-00"
-                            value={formatCPF(d.cpf || "")}
-                            onChange={(e) => updDepNovo(i, { cpf: maskCPF(e.target.value) })}
-                            aria-invalid={d.cpf && !cpfIsValid(d.cpf) ? "true" : "false"}
-                          />
-                          {d.cpf && !cpfIsValid(d.cpf) && (
-                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                              CPF inválido.
-                            </p>
-                          )}
-                        </div>
-                        <div className="md:col-span-6">
-                          <label className="label text-xs font-medium">
-                            Data de nascimento {requiredStar}
-                          </label>
-                          <DateSelectBR
-                            className="w-full"
-                            idPrefix={`depN-${i}-nasc`}
-                            valueISO={d.data_nascimento}
-                            onChangeISO={(iso) => updDepNovo(i, { data_nascimento: iso })}
-                            invalid={Boolean(
-                              (stepAttempted[3] || submitAttempted) &&
-                                (!d.data_nascimento || issue?.fora)
-                            )}
-                            minAge={
-                              Number.isFinite(idadeMinDep) ? Number(idadeMinDep) : undefined
-                            }
-                            maxAge={
-                              Number.isFinite(idadeMaxDep) ? Number(idadeMaxDep) : undefined
-                            }
-                          />
-                          {(stepAttempted[3] || submitAttempted) && !d.data_nascimento && (
-                            <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                              Informe a data de nascimento.
-                            </p>
-                          )}
-                          {(stepAttempted[3] || submitAttempted) &&
-                            d.data_nascimento &&
-                            issue?.fora && (
-                              <p className="text-xs text-red-600 mt-1" role="alert" aria-live="polite">
-                                Data fora do limite etário do plano.
-                              </p>
-                            )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {countDepsFora > 0 && (
-                <p
-                  className="mt-2 text-xs inline-flex items-center gap-1 text-red-600"
-                  role="alert"
-                  aria-live="polite"
-                >
-                  <AlertTriangle size={14} /> {countDepsFora} dependente(s) fora do limite etário do
-                  plano.
-                </p>
-              )}
-
-              <div className="mt-6 flex justify-between gap-3">
-                <CTAButton type="button" variant="outline" className="h-11 px-5" onClick={goPrev}>
-                  Voltar
-                </CTAButton>
-                <CTAButton
-                  type="button"
-                  className="h-11 px-6"
-                  onClick={() => {
-                    setStepAttempted((prev) => ({ ...prev, 3: true }));
-                    if (validateStep3()) {
-                      setCurrentStep(4);
-                    }
-                  }}
-                >
-                  Continuar
-                </CTAButton>
-              </div>
-            </div>
-          </>
+            {currentStep === 4 && (
+              <StepCarne
+                glassCardStyle={glassCardStyle}
+                diaDSelecionado={diaDSelecionado}
+                setDiaDSelecionado={setDiaDSelecionado}
+                dataEfetivacaoISO={dataEfetivacaoISO}
+                valorMensalidadePlano={valorMensalidadePlano}
+                composicaoMensalidade={composicaoMensalidade}
+                cobrancasPreview={cobrancasPreview}
+                onBack={onBackFromCarne}
+                onFinalizar={handleSalvarEnviar}
+                saving={saving}
+                initialCupomCodigo={cupomCodigo}
+                onCupomApplied={(cupomData) => {
+                  const codigo = String(cupomData?.codigo || "").trim().toUpperCase();
+                  setCupomCodigo(codigo);
+                  syncPayloadPatch({ cupom: codigo });
+                }}
+                onCupomRemoved={() => {
+                  setCupomCodigo("");
+                  syncPayloadPatch({ cupom: "" });
+                }}
+              />
+            )}
+          </StepAmbient>
         )}
 
-        {!bloquearCadastro && currentStep === 4 && (
-          <>
-            <div className="mt-6 rounded-3xl p-6 md:p-7" style={glassCardStyle}>
-              <SectionTitle>Cobrança</SectionTitle>
-              <div className="mt-3 grid gap-3 md:grid-cols-3 items-stretch">
-                <div className="md:col-span-1">
-                  <label className="label text-xs font-medium" htmlFor="diaD">
-                    Dia D (vencimento)
-                  </label>
-                  <select
-                    id="diaD"
-                    className="input h-11 w-full text-sm"
-                    value={diaDSelecionado}
-                    onChange={(e) => setDiaDSelecionado(Number(e.target.value))}
-                  >
-                    {DIA_D_OPTIONS.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-[var(--c-muted)] mt-1">
-                    A primeira cobrança ocorre na <b>data de efetivação</b> abaixo (próximo mês).
-                  </p>
-                </div>
-                <div className="md:col-span-2 grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/95 p-3 shadow-sm">
-                    <p className="text-[11px] text-[var(--c-muted)]">Data de efetivação</p>
-                    <p className="font-medium text-[14px] mt-1">{formatDateBR(dataEfetivacaoISO)}</p>
-                  </div>
-                  <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/95 p-3 shadow-sm">
-                    <p className="text-[11px] text-[var(--c-muted)]">Mensalidade</p>
-                    <p className="font-medium text-[14px] mt-1">
-                      {money(valorMensalidadePlano)}
-                    </p>
-                  </div>
-                </div>
+        <Modal open={planModalOpen} title="Trocar plano" onClose={() => setPlanModalOpen(false)}>
+          <div className="space-y-4">
+            <div className="grid gap-2 md:grid-cols-3">
+              <div className="md:col-span-2">
+                <p className="text-xs text-[var(--c-muted)]">
+                  Selecione um plano. O cálculo de mensalidade e cobranças será atualizado automaticamente.
+                </p>
+              </div>
+              <div className="md:col-span-1">
+                <input
+                  value={planSearch}
+                  onChange={(ev) => setPlanSearch(ev.target.value)}
+                  placeholder="Buscar por nome ou ID"
+                  className="w-full rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/80 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
+                />
               </div>
             </div>
 
-            <div
-              className="mt-6 p-6 md:p-7 rounded-3xl border backdrop-blur-xl shadow-[0_26px_90px_rgba(15,23,42,0.5)]"
-              style={{
-                background: "color-mix(in srgb, var(--c-surface) 80%, transparent)",
-                borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
-              }}
-            >
-              <SectionTitle>Resumo financeiro</SectionTitle>
-              <div className="mt-3 space-y-2 text-sm">
-                <div className="flex justify-between gap-3">
-                  <span className="text-[var(--c-muted)]">Plano</span>
-                  <span className="font-medium text-right">{plano?.nome}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-[var(--c-muted)]">Base mensal</span>
-                  <span>{money(baseMensal)}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-[var(--c-muted)]">
-                    Dependentes incluídos no plano
-                  </span>
-                  <span>{numDepsIncl}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-[var(--c-muted)]">
-                    Dependentes adicionais (
-                    {Math.max(0, depsExistentes.length + depsNovos.length - numDepsIncl)}) ×{" "}
-                    {money(valorIncMensal)}
-                  </span>
-                  <span>
-                    {money(
-                      Math.max(
-                        0,
-                        depsExistentes.length + depsNovos.length - numDepsIncl
-                      ) * valorIncMensal
-                    )}
-                  </span>
-                </div>
-
-                <div className="flex justify-between gap-3">
-                  <span className="text-[var(--c-muted)]">Adesão (única)</span>
-                  <span>{money(valorAdesaoPlano)}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-[var(--c-muted)]">Dia D</span>
-                  <span>{diaDSelecionado}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-[var(--c-muted)]">Efetivação</span>
-                  <span className="font-medium">{formatDateBR(dataEfetivacaoISO)}</span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-[var(--c-muted)]">Mensalidade</span>
-                  <span>{money(valorMensalidadePlano)}</span>
-                </div>
-
-                <hr className="my-2 border-[color-mix(in srgb,var(--c-border) 70%,transparent)]" />
-
-                <div className="flex justify-between items-baseline gap-3">
-                  <span className="font-semibold text-[15px]">Total mensal</span>
-                  <span className="text-[color:var(--primary)] font-extrabold text-lg md:text-xl">
-                    {money(totalMensal)}
-                  </span>
-                </div>
-                {cupom ? (
-                  <div className="flex justify-between gap-3">
-                    <span className="text-[var(--c-muted)]">Cupom aplicado</span>
-                    <span className="font-medium">{cupom}</span>
-                  </div>
-                ) : null}
+            {planListState.loading && (
+              <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/70 p-4 text-sm text-[var(--c-muted)]">
+                Carregando planos…
               </div>
-            </div>
+            )}
 
-            <div className="mt-6 mb-6 rounded-3xl p-6 md:p-7" style={glassCardStyle}>
-              {submitAttempted && errorList.length > 0 && (
-                <div
-                  className="rounded-2xl px-4 py-3 text-sm mb-4 backdrop-blur-md"
-                  style={{
-                    border: "1px solid color-mix(in srgb, var(--primary) 40%, transparent)",
-                    background: "color-mix(in srgb, var(--c-surface) 80%, transparent)",
-                    color: "var(--text)",
-                  }}
-                  role="alert"
-                  aria-live="assertive"
-                  ref={alertRef}
-                  tabIndex={-1}
-                >
-                  <p className="font-semibold mb-1">
-                    Revise os campos antes de continuar ({errorCount}):
-                  </p>
-                  <ul className="list-disc ml-5 space-y-1">
-                    {errorList.map((it, idx) => (
-                      <li key={idx}>
-                        <button
-                          type="button"
-                          className="underline hover:opacity-80"
-                          onClick={() => focusByField(it.field)}
-                        >
-                          {it.label}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+            {planListState.error && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {planListState.error}
+              </div>
+            )}
+
+            {!planListState.loading && !planListState.error && (
+              <div className="pr-1">
+                <div className="grid gap-3 md:grid-cols-2">
+                  {planosFiltrados.map((p) => {
+                    const id = p?.id ?? p?.planoId;
+                    const active = Number(id) === Number(planoIdState);
+                    const valorAdesao = Number(p?.valorAdesao ?? p?.valor_adesao ?? 0);
+                    const aceita = [p?.pagamentoPix ? "Pix" : null, p?.pagamentoBoleto ? "Boleto" : null, p?.pagamentoCartao ? "Cartão" : null].filter(Boolean);
+
+                    return (
+                      <button
+                        key={String(id)}
+                        type="button"
+                        onClick={() => applySelectedPlano(p)}
+                        className={`text-left rounded-3xl border p-4 transition ${
+                          active ? "border-[var(--primary)] bg-[var(--primary)]/10" : "border-[var(--c-border)] bg-[var(--c-surface)]/75 hover:bg-[var(--c-surface)]"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--c-muted)]">Plano #{id}</p>
+                            <p className="mt-0.5 text-sm font-semibold truncate">{p?.nome || "Plano"}</p>
+                          </div>
+                          {active ? (
+                            <span className="inline-flex items-center rounded-full bg-[var(--primary)] text-white px-3 py-1 text-[11px] font-semibold">
+                              Atual
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <FieldRead label="Taxa de adesão" value={moneyBRL(valorAdesao)} mono />
+                          <FieldRead label="Pagamento" value={aceita.length ? aceita.join(" • ") : "—"} />
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
 
-              <div className="mb-4 flex justify-start">
-                {canGoBack && (
-                  <button
-                    type="button"
-                    onClick={goPrev}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-[var(--c-muted)] hover:text-[var(--text)]"
-                  >
-                    <ChevronLeft size={14} />
-                    Voltar para dependentes
-                  </button>
+                {(!planosFiltrados || planosFiltrados.length === 0) && (
+                  <div className="mt-3 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/70 p-4 text-sm text-[var(--c-muted)]">
+                    Nenhum plano encontrado com este filtro.
+                  </div>
                 )}
               </div>
+            )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <CTAButton
-                  type="button"
-                  onClick={handleSalvarEnviar}
-                  disabled={saving}
-                  className="h-12 w-full text-[15px] font-semibold"
-                  aria-disabled={saving ? "true" : "false"}
-                  title="Concluir contratação"
-                >
-                  {saving ? "Enviando…" : "Concluir contratação"}
-                </CTAButton>
-
-                <CTAButton
-                  variant="outline"
-                  onClick={sendWhatsFallback}
-                  className="h-12 w-full text-[15px] font-semibold"
-                  title="Enviar cadastro por WhatsApp"
-                >
-                  <MessageCircle size={16} className="mr-2" /> Enviar por WhatsApp
-                </CTAButton>
-              </div>
-
-              <p className="mt-3 text-[11px] text-[var(--c-muted)] inline-flex items-center gap-1">
-                <CheckCircle2 size={14} /> Seus dados não são gravados neste dispositivo.
-              </p>
+            <div className="pt-2 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPlanModalOpen(false)}
+                className="inline-flex items-center justify-center rounded-full border border-[var(--c-border)] bg-[var(--c-surface)]/80 px-5 py-2.5 text-sm font-semibold hover:bg-[var(--c-surface)] transition"
+              >
+                Cancelar
+              </button>
             </div>
-          </>
-        )}
+          </div>
+        </Modal>
       </div>
     </section>
   );

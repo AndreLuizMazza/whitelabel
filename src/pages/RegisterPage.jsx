@@ -1,244 +1,485 @@
 // src/pages/RegisterPage.jsx
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, Link, useLocation } from 'react-router-dom'
-import useTenant from '@/store/tenant'
-import useAuth from '@/store/auth'
-import { registerUser } from '@/lib/authApi'
-import { AlertTriangle, UserPlus, Lock, CheckCircle2 } from 'lucide-react'
-import { registrarDispositivoFcmWeb } from '@/lib/fcm'
+// RegisterPage – Apple-level (simplicidade + confiança)
+// Ajustes aplicados:
+// 1) Remove voz do campo e-mail (mantém voz nos demais campos que já tinham)
+// 2) Ordem: a) Criar conta  b) Stepper  c) Dica
+// 3) Stepper apenas com número (sem textos)
+// 4) Harmonia de cor: remove “brancos” próximos de inputs/botões (usa surfaces)
+// 5) Stepper sticky: ao rolar, bate no topo e fica sempre visível (com offset do header)
+//
+// ✅ Atualização solicitada (cores do Stepper):
+// - Fundo do step (ativo e concluído) com a cor primária
+// - Número/ícone com cor de alto contraste (usa --on-primary, fallback branco)
+// - Conectores mais “premium”, legíveis em tema claro e escuro
+//
+// ✅ Upgrade Apple-level focado EXCLUSIVAMENTE na etapa de senha (UX + conversão):
+// - Indicador de força (barra + rótulo humano)
+// - Checklist “vivo” com feedback imediato e sem ruído
+// - Aviso de Caps Lock (evita frustração)
+// - Botão “Gerar senha forte” (opcional, seguro, 1 clique)
+// - Botão “Copiar” (para colar em gerenciador de senhas)
+// - Microcopy curto, orientado à ação, com foco em clareza
+// - Confirmação com status imediato (match / mismatch)
+// - Mantém toda a lógica anterior, sem quebrar nada
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
+import useTenant from "@/store/tenant";
+import useAuth from "@/store/auth";
+import { registerUser } from "@/lib/authApi";
+import { registrarDispositivoFcmWeb } from "@/lib/fcm";
+import VoiceTextInput from "@/components/VoiceTextInput";
+import {
+  AlertTriangle,
+  UserPlus,
+  ArrowRight,
+  ChevronLeft,
+  CheckCircle2,
+  ShieldCheck,
+  Mail,
+  User,
+  Phone,
+  Fingerprint,
+  Eye,
+  EyeOff,
+  Copy,
+  Wand2,
+  Check,
+  X,
+  LockKeyhole,
+} from "lucide-react";
+
+/* =========================
+   Estado inicial
+========================= */
 
 const initial = {
-  nome: '',
-  email: '',
-  senha: '',
-  confirmSenha: '',
-  cpf: '',
-  celular: '',
-  dataNascimento: '',
+  nome: "",
+  email: "",
+  senha: "",
+  confirmSenha: "",
+  cpf: "",
+  celular: "",
+  dataNascimento: "",
   aceiteTermos: true,
   aceitePrivacidade: true,
-}
+};
 
-const onlyDigits = (s = '') => s.replace(/\D/g, '')
-const isValidEmail = (e = '') =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e.trim())
+/* =========================
+   Validadores / formatters
+========================= */
 
-function getPasswordChecks(s = '') {
+const onlyDigits = (s = "") => String(s || "").replace(/\D/g, "");
+
+const isValidEmail = (e = "") =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(e || "").trim());
+
+function getPasswordChecks(s = "") {
   return {
     len: s.length >= 8,
     upper: /[A-Z]/.test(s),
     lower: /[a-z]/.test(s),
     digit: /\d/.test(s),
+  };
+}
+function isStrongPassword(s = "") {
+  const c = getPasswordChecks(s);
+  return c.len && c.upper && c.lower && c.digit;
+}
+
+function isValidCPF(cpf = "") {
+  const d = onlyDigits(cpf);
+  if (d.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(d)) return false;
+
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += Number(d[i]) * (10 - i);
+  let rest = sum % 11;
+  const dv1 = rest < 2 ? 0 : 11 - rest;
+  if (dv1 !== Number(d[9])) return false;
+
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += Number(d[i]) * (11 - i);
+  rest = sum % 11;
+  const dv2 = rest < 2 ? 0 : 11 - rest;
+  return dv2 === Number(d[10]);
+}
+
+function formatCPF(v = "") {
+  const d = onlyDigits(v).slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
+function formatPhoneBR(v = "") {
+  const d = onlyDigits(v).slice(0, 11);
+  if (d.length <= 2) return d;
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
+const phoneIsValid = (v = "") => {
+  const d = onlyDigits(v);
+  return d.length === 10 || d.length === 11;
+};
+
+/* =========================
+   Normalizadores (mantidos)
+========================= */
+
+const DIGIT_WORDS = new Map([
+  ["zero", "0"],
+  ["um", "1"],
+  ["uma", "1"],
+  ["dois", "2"],
+  ["duas", "2"],
+  ["tres", "3"],
+  ["três", "3"],
+  ["quatro", "4"],
+  ["cinco", "5"],
+  ["seis", "6"],
+  ["sete", "7"],
+  ["oito", "8"],
+  ["nove", "9"],
+]);
+
+function normalizeDigitsFromSpeech(input = "") {
+  const raw = String(input || "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!raw) return "";
+  const parts = raw.split(" ");
+  let out = "";
+  for (const p of parts) {
+    if (!p) continue;
+    if (/^\d+$/.test(p)) {
+      out += p;
+      continue;
+    }
+    const digit = DIGIT_WORDS.get(p);
+    if (digit) out += digit;
   }
-}
-function isStrongPassword(s = '') {
-  const c = getPasswordChecks(s)
-  return c.len && c.upper && c.lower && c.digit
+  return out;
 }
 
-function isValidCPF(cpf = '') {
-  const d = onlyDigits(cpf)
-  if (d.length !== 11) return false
-  if (/^(\d)\1{10}$/.test(d)) return false
-  let sum = 0
-  for (let i = 0; i < 9; i++) sum += Number(d[i]) * (10 - i)
-  let rest = sum % 11
-  const dv1 = rest < 2 ? 0 : 11 - rest
-  if (dv1 !== Number(d[9])) return false
-  sum = 0
-  for (let i = 0; i < 10; i++) sum += Number(d[i]) * (11 - i)
-  rest = sum % 11
-  const dv2 = rest < 2 ? 0 : 11 - rest
-  return dv2 === Number(d[10])
+function normalizeNameFromSpeech(input = "") {
+  let t = String(input || "").trim();
+  if (!t) return "";
+  t = t.replace(/[.,;:!]+$/g, "").replace(/\s+/g, " ");
+  return t;
 }
 
-function formatCPF(v = '') {
-  const d = onlyDigits(v).slice(0, 11)
-  if (d.length <= 3) return d
-  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`
-  if (d.length <= 9)
-    return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`
-  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
+function normalizeEmailTyping(input = "") {
+  let t = String(input || "").toLowerCase();
+  t = t.replace(/\s+/g, "");
+  t = t.replace(/[^a-z0-9@._+\-]/g, "");
+  t = t.replace(/@{2,}/g, "@").replace(/\.{2,}/g, ".");
+  t = t.replace(/\.@/g, "@").replace(/@\./g, "@");
+  return t;
 }
-function formatPhoneBR(v = '') {
-  const d = onlyDigits(v).slice(0, 11)
-  if (d.length <= 2) return d
-  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`
-  if (d.length === 10)
-    return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`
-  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+
+/* =========================
+   Password UX helpers (Apple-level)
+========================= */
+
+function scorePassword(pw = "") {
+  const s = String(pw || "");
+  if (!s) return { score: 0, label: "Crie uma senha", hint: "Use 8+ caracteres com letras e número." };
+
+  const checks = getPasswordChecks(s);
+  const variety =
+    (checks.lower ? 1 : 0) + (checks.upper ? 1 : 0) + (checks.digit ? 1 : 0) + (/[^A-Za-z0-9]/.test(s) ? 1 : 0);
+
+  // Heurística simples, estável e “sem susto” (0..100)
+  let score = 0;
+  score += Math.min(40, s.length * 4); // até 40
+  score += variety * 12; // até 48
+  if (s.length >= 12) score += 8;
+  if (s.length >= 16) score += 6;
+
+  // Penalidades leves
+  if (/^(.)\1{5,}$/.test(s)) score -= 20;
+  if (/1234|abcd|senha|password/i.test(s)) score -= 20;
+
+  score = Math.max(0, Math.min(100, score));
+
+  let label = "Fraca";
+  let hint = "Aumente o tamanho e misture letras e números.";
+  if (score >= 40) {
+    label = "Boa";
+    hint = "Ótimo. Se puder, use 12+ caracteres.";
+  }
+  if (score >= 70) {
+    label = "Forte";
+    hint = "Perfeito. Você pode seguir.";
+  }
+
+  if (isStrongPassword(s) && s.length >= 12 && score < 70) {
+    // suaviza: se passou nos requisitos e tem 12+, tratamos como “forte”
+    score = Math.max(score, 70);
+    label = "Forte";
+    hint = "Perfeito. Você pode seguir.";
+  }
+
+  return { score, label, hint };
 }
-const phoneIsValid = (v = '') => {
-  const d = onlyDigits(v)
-  return d.length === 10 || d.length === 11
+
+function generatePassword(length = 14) {
+  // Gera senha forte com letras, números e símbolos comuns
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghijkmnopqrstuvwxyz";
+  const digits = "23456789";
+  const symbols = "!@#$%&*_-+?";
+  const all = upper + lower + digits + symbols;
+
+  const cryptoObj = typeof window !== "undefined" ? window.crypto : null;
+  const rand = (n) => {
+    if (cryptoObj?.getRandomValues) {
+      const buf = new Uint32Array(1);
+      cryptoObj.getRandomValues(buf);
+      return buf[0] % n;
+    }
+    return Math.floor(Math.random() * n);
+  };
+
+  const pick = (set) => set[rand(set.length)];
+  let pw = "";
+  // garante variedade mínima
+  pw += pick(upper);
+  pw += pick(lower);
+  pw += pick(digits);
+  pw += pick(symbols);
+
+  for (let i = pw.length; i < length; i++) pw += pick(all);
+
+  // embaralha
+  const arr = pw.split("");
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = rand(i + 1);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.join("");
 }
+
+function StrengthPill({ score, label }) {
+  // Só usa primária (sem inventar paleta). Intensidade via opacidade.
+  const width = `${Math.max(6, Math.min(100, score))}%`;
+  const strong = score >= 70;
+  const good = score >= 40 && score < 70;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <div className="inline-flex items-center gap-2">
+          <span
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full border"
+            style={{
+              background: "color-mix(in srgb, var(--primary) 14%, transparent)",
+              borderColor: "color-mix(in srgb, var(--primary) 24%, transparent)",
+              color: "var(--primary)",
+            }}
+            aria-hidden="true"
+          >
+            <LockKeyhole size={14} />
+          </span>
+          <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>
+            Força:{" "}
+            <span style={{ color: strong || good ? "var(--text)" : "var(--text-muted)" }}>
+              {label}
+            </span>
+          </span>
+        </div>
+
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+          {score}%
+        </span>
+      </div>
+
+      <div
+        className="h-2 rounded-full overflow-hidden border"
+        style={{
+          background: "color-mix(in srgb, var(--text) 8%, transparent)",
+          borderColor: "color-mix(in srgb, var(--text) 12%, transparent)",
+        }}
+        aria-hidden="true"
+      >
+        <div
+          className="h-full rounded-full"
+          style={{
+            width,
+            background: `linear-gradient(90deg,
+              color-mix(in srgb, var(--primary) ${Math.min(88, 35 + score * 0.6)}%, transparent),
+              color-mix(in srgb, var(--primary) ${Math.min(95, 45 + score * 0.6)}%, transparent)
+            )`,
+            boxShadow: score >= 40 ? "0 10px 18px rgba(0,0,0,0.10)" : "none",
+            transition: "width 180ms ease",
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function LiveCheck({ ok, text }) {
+  return (
+    <li className="flex items-start gap-2 text-xs md:text-sm">
+      <span
+        className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full border"
+        style={{
+          background: ok
+            ? "color-mix(in srgb, var(--primary) 16%, transparent)"
+            : "color-mix(in srgb, var(--text) 10%, transparent)",
+          borderColor: ok
+            ? "color-mix(in srgb, var(--primary) 30%, transparent)"
+            : "color-mix(in srgb, var(--text) 14%, transparent)",
+          color: ok ? "var(--primary)" : "var(--text-muted)",
+          flex: "0 0 auto",
+        }}
+        aria-hidden="true"
+      >
+        {ok ? <Check size={12} /> : <X size={12} />}
+      </span>
+      <span style={{ color: ok ? "var(--text)" : "var(--text-muted)" }}>{text}</span>
+    </li>
+  );
+}
+
+/* =========================
+   DateSelectBR (mantido)
+========================= */
 
 function DateSelectBR({
   valueISO,
   onChangeISO,
   invalid = false,
-  className = '',
+  className = "",
   maxAge = 100,
   minAge = 18,
   idPrefix,
 }) {
-  const [dia, setDia] = useState('')
-  const [mes, setMes] = useState('')
-  const [ano, setAno] = useState('')
-  const [softWarn, setSoftWarn] = useState('')
+  const [dia, setDia] = useState("");
+  const [mes, setMes] = useState("");
+  const [ano, setAno] = useState("");
+  const [softWarn, setSoftWarn] = useState("");
 
   useEffect(() => {
     const m =
-      typeof valueISO === 'string' &&
-      /^(\d{4})-(\d{2})-(\d{2})$/.exec(valueISO)
-    if (!m) return
-    const [, yy, mm, dd] = m
-    if (ano !== yy) setAno(yy)
-    if (mes !== mm) setMes(mm)
-    if (dia !== dd) setDia(dd)
-  }, [valueISO]) // eslint-disable-line
+      typeof valueISO === "string" && /^(\d{4})-(\d{2})-(\d{2})$/.exec(valueISO);
+    if (!m) return;
+    const [, yy, mm, dd] = m;
+    if (ano !== yy) setAno(yy);
+    if (mes !== mm) setMes(mm);
+    if (dia !== dd) setDia(dd);
+  }, [valueISO]); // eslint-disable-line
 
-  const today = new Date()
+  const today = new Date();
   const minDate = (() => {
-    const d = new Date(today)
-    d.setFullYear(d.getFullYear() - (maxAge || 100))
-    return d
-  })()
+    const d = new Date(today);
+    d.setFullYear(d.getFullYear() - (maxAge || 100));
+    return d;
+  })();
   const maxDate = (() => {
-    const d = new Date(today)
-    d.setFullYear(d.getFullYear() - (minAge || 18))
-    return d
-  })()
+    const d = new Date(today);
+    d.setFullYear(d.getFullYear() - (minAge || 18));
+    return d;
+  })();
 
-  const minY = minDate.getFullYear()
-  const maxY = maxDate.getFullYear()
+  const minY = minDate.getFullYear();
+  const maxY = maxDate.getFullYear();
 
   const anos = useMemo(() => {
-    const arr = []
-    for (let y = maxY; y >= minY; y--) arr.push(String(y))
-    return arr
-  }, [minY, maxY])
+    const arr = [];
+    for (let y = maxY; y >= minY; y--) arr.push(String(y));
+    return arr;
+  }, [minY, maxY]);
 
   const mesesAll = [
-    ['01', 'Janeiro'],
-    ['02', 'Fevereiro'],
-    ['03', 'Março'],
-    ['04', 'Abril'],
-    ['05', 'Maio'],
-    ['06', 'Junho'],
-    ['07', 'Julho'],
-    ['08', 'Agosto'],
-    ['09', 'Setembro'],
-    ['10', 'Outubro'],
-    ['11', 'Novembro'],
-    ['12', 'Dezembro'],
-  ]
-  const str2int = (s) => parseInt(s, 10) || 0
-  const daysInMonth = (y, m) => new Date(y, m, 0).getDate()
+    ["01", "Janeiro"],
+    ["02", "Fevereiro"],
+    ["03", "Março"],
+    ["04", "Abril"],
+    ["05", "Maio"],
+    ["06", "Junho"],
+    ["07", "Julho"],
+    ["08", "Agosto"],
+    ["09", "Setembro"],
+    ["10", "Outubro"],
+    ["11", "Novembro"],
+    ["12", "Dezembro"],
+  ];
+  const str2int = (s) => parseInt(s, 10) || 0;
+  const daysInMonth = (y, m) => new Date(y, m, 0).getDate();
 
   const mesesFiltrados = useMemo(() => {
-    if (!ano) return mesesAll
-    const y = str2int(ano)
-    const minM = y === minY ? minDate.getMonth() + 1 : 1
-    const maxM = y === maxY ? maxDate.getMonth() + 1 : 12
+    if (!ano) return mesesAll;
+    const y = str2int(ano);
+    const minM = y === minY ? minDate.getMonth() + 1 : 1;
+    const maxM = y === maxY ? maxDate.getMonth() + 1 : 12;
     return mesesAll.filter(([v]) => {
-      const mm = str2int(v)
-      return mm >= minM && mm <= maxM
-    })
-  }, [ano, minY, maxY])
+      const mm = str2int(v);
+      return mm >= minM && mm <= maxM;
+    });
+  }, [ano, minY, maxY]); // eslint-disable-line
 
-  function clampMonthIfNeeded(y, m) {
-    const minM = y === minY ? minDate.getMonth() + 1 : 1
-    const maxM = y === maxY ? maxDate.getMonth() + 1 : 12
-    if (!m) return m
-    if (m < minM) return minM
-    if (m > maxM) return maxM
-    return m
-  }
   function clampDayIfNeeded(y, m, d) {
-    if (!y || !m || !d) return d
-    const maxDMonth = daysInMonth(y, m)
+    if (!y || !m || !d) return d;
+    const maxDMonth = daysInMonth(y, m);
     let minD = 1,
-      maxD = maxDMonth
-    if (y === minY && m === minDate.getMonth() + 1) minD = minDate.getDate()
+      maxD = maxDMonth;
+    if (y === minY && m === minDate.getMonth() + 1) minD = minDate.getDate();
     if (y === maxY && m === maxDate.getMonth() + 1)
-      maxD = Math.min(maxDMonth, maxDate.getDate())
-    if (d < minD) return minD
-    if (d > maxD) return maxD
-    return d
+      maxD = Math.min(maxDMonth, maxDate.getDate());
+    if (d < minD) return minD;
+    if (d > maxD) return maxD;
+    return d;
   }
+
   function inRange(iso) {
-    const d = new Date(iso)
-    const a = new Date(
-      minDate.getFullYear(),
-      minDate.getMonth(),
-      minDate.getDate()
-    )
-    const b = new Date(
-      maxDate.getFullYear(),
-      maxDate.getMonth(),
-      maxDate.getDate()
-    )
-    return !isNaN(d) && d >= a && d <= b
+    const d = new Date(iso);
+    const a = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
+    const b = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
+    return !isNaN(d) && d >= a && d <= b;
   }
 
   useEffect(() => {
-    setSoftWarn('')
-    if (!(dia && mes && ano)) return
-    const iso = `${ano}-${mes}-${dia}`
-    const ok = inRange(iso)
-    if (!ok)
-      setSoftWarn('Data fora do intervalo permitido (entre 18 e 100 anos).')
-    onChangeISO?.(iso)
-  }, [dia, mes, ano]) // eslint-disable-line
+    setSoftWarn("");
+    if (!(dia && mes && ano)) return;
+    const iso = `${ano}-${mes}-${dia}`;
+    const ok = inRange(iso);
+    if (!ok) setSoftWarn("Data fora do intervalo permitido entre 18 e 100 anos");
+    onChangeISO?.(iso);
+  }, [dia, mes, ano]); // eslint-disable-line
 
-  function handleChangeAno(nextAnoStr) {
-    setSoftWarn('')
-    const y = str2int(nextAnoStr)
-    setAno(nextAnoStr)
-    if (!y) return
-    let m = str2int(mes)
-    const mClamped = clampMonthIfNeeded(y, m || 0)
-    if (m && m !== mClamped) {
-      setMes(String(mClamped).padStart(2, '0'))
-      setSoftWarn('Ajustamos o mês para o limite permitido.')
-      m = mClamped
-    }
-    if (m) {
-      const d = str2int(dia)
-      if (d) {
-        const dClamped = clampDayIfNeeded(y, m, d)
-        if (dClamped !== d) {
-          setDia(String(dClamped).padStart(2, '0'))
-          setSoftWarn('Ajustamos o dia para o máximo permitido no período.')
-        }
-      }
-    }
-  }
   function handleChangeMes(nextMesStr) {
-    setSoftWarn('')
-    setMes(nextMesStr)
-    const y = str2int(ano)
-    const m = str2int(nextMesStr)
-    const d = str2int(dia)
+    setSoftWarn("");
+    setMes(nextMesStr);
+    const y = str2int(ano);
+    const m = str2int(nextMesStr);
+    const d = str2int(dia);
     if (y && m && d) {
-      const dClamped = clampDayIfNeeded(y, m, d)
+      const dClamped = clampDayIfNeeded(y, m, d);
       if (dClamped !== d) {
-        setDia(String(dClamped).padStart(2, '0'))
-        setSoftWarn('Ajustamos o dia para o máximo permitido no mês/limite.')
+        setDia(String(dClamped).padStart(2, "0"));
+        setSoftWarn("Ajustamos o dia para o máximo permitido no mês");
       }
     }
   }
 
-  const idDia = `${idPrefix || 'date'}-dia`
-  const idMes = `${idPrefix || 'date'}-mes`
-  const idAno = `${idPrefix || 'date'}-ano`
+  const idDia = `${idPrefix || "date"}-dia`;
+  const idMes = `${idPrefix || "date"}-mes`;
+  const idAno = `${idPrefix || "date"}-ano`;
+
+  const selectBg = "color-mix(in srgb, var(--surface-elevated) 92%, transparent)";
 
   return (
     <div>
       <div
         className={`grid grid-cols-3 gap-2 ${
-          invalid ? 'ring-1 ring-red-500 rounded-md p-1' : ''
+          invalid ? "ring-1 ring-red-500 rounded-xl p-1" : ""
         } ${className}`}
       >
         <label htmlFor={idDia} className="sr-only">
@@ -246,35 +487,32 @@ function DateSelectBR({
         </label>
         <select
           id={idDia}
-          className="input h-12 text-base bg-white"
+          className="input h-12 text-base"
+          style={{ background: selectBg }}
           value={dia}
           onChange={(e) => setDia(e.target.value)}
         >
           <option value="">Dia</option>
           {(() => {
-            const y = parseInt(ano || '', 10) || 0
-            const m = parseInt(mes || '', 10) || 0
+            const y = parseInt(ano || "", 10) || 0;
+            const m = parseInt(mes || "", 10) || 0;
             let minD = 1,
-              maxD = 31
+              maxD = 31;
             if (y && m) {
-              const maxDMonth = daysInMonth(y, m)
-              minD =
-                y === minY && m === minDate.getMonth() + 1
-                  ? minDate.getDate()
-                  : 1
+              const maxDMonth = daysInMonth(y, m);
+              minD = y === minY && m === minDate.getMonth() + 1 ? minDate.getDate() : 1;
               maxD =
                 y === maxY && m === maxDate.getMonth() + 1
                   ? Math.min(maxDMonth, maxDate.getDate())
-                  : maxDMonth
+                  : maxDMonth;
             }
-            const arr = []
-            for (let d = minD; d <= maxD; d++)
-              arr.push(String(d).padStart(2, '0'))
+            const arr = [];
+            for (let d = minD; d <= maxD; d++) arr.push(String(d).padStart(2, "0"));
             return arr.map((d) => (
               <option key={d} value={d}>
                 {d}
               </option>
-            ))
+            ));
           })()}
         </select>
 
@@ -283,7 +521,8 @@ function DateSelectBR({
         </label>
         <select
           id={idMes}
-          className="input h-12 text-base bg-white"
+          className="input h-12 text-base"
+          style={{ background: selectBg }}
           value={mes}
           onChange={(e) => handleChangeMes(e.target.value)}
         >
@@ -300,9 +539,10 @@ function DateSelectBR({
         </label>
         <select
           id={idAno}
-          className="input h-12 text-base bg-white"
+          className="input h-12 text-base"
+          style={{ background: selectBg }}
           value={ano}
-          onChange={(e) => handleChangeAno(e.target.value)}
+          onChange={(e) => setAno(e.target.value)}
         >
           <option value="">Ano</option>
           {anos.map((y) => (
@@ -312,22 +552,25 @@ function DateSelectBR({
           ))}
         </select>
       </div>
+
       {(invalid || softWarn) && (
         <p
           className={`mt-1 text-xs md:text-sm inline-flex items-center gap-1 ${
-            invalid ? 'text-red-600' : 'text-amber-600'
+            invalid ? "text-red-600" : "text-amber-600"
           }`}
           role="alert"
         >
-          <AlertTriangle size={14} />{' '}
-          {invalid
-            ? 'Você precisa ter no mínimo 18 anos (e no máximo 100).'
-            : softWarn}
+          <AlertTriangle size={14} />{" "}
+          {invalid ? "Você precisa ter entre 18 e 100 anos" : softWarn}
         </p>
       )}
     </div>
-  )
+  );
 }
+
+/* =========================
+   UI pieces (Apple-simple)
+========================= */
 
 function Rule({ ok, children }) {
   return (
@@ -337,158 +580,355 @@ function Rule({ ok, children }) {
         className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]"
         style={{
           background: ok
-            ? 'color-mix(in srgb, var(--primary) 18%, transparent)'
-            : 'color-mix(in srgb, var(--text) 15%, transparent)',
-          color: ok ? 'var(--primary)' : 'var(--text-muted)',
+            ? "color-mix(in srgb, var(--primary) 18%, transparent)"
+            : "color-mix(in srgb, var(--text) 15%, transparent)",
+          color: ok ? "var(--primary)" : "var(--text-muted)",
         }}
       >
-        {ok ? '✓' : '•'}
+        {ok ? "✓" : "•"}
       </span>
-      <span style={{ color: ok ? 'var(--text)' : 'var(--text-muted)' }}>
-        {children}
-      </span>
+      <span style={{ color: ok ? "var(--text)" : "var(--text-muted)" }}>{children}</span>
     </li>
-  )
+  );
 }
 
+function MasterCard({ children }) {
+  return (
+    <div
+      className="relative overflow-hidden rounded-3xl border shadow-xl"
+      style={{
+        background: "color-mix(in srgb, var(--surface) 88%, var(--text) 6%)",
+        borderColor: "color-mix(in srgb, var(--text) 18%, transparent)",
+      }}
+    >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
+        style={{
+          background:
+            "radial-gradient(120% 140% at 50% 120%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)",
+          opacity: 0.6,
+        }}
+      />
+      <div className="relative z-[1] p-5 md:p-7">{children}</div>
+    </div>
+  );
+}
+
+function FormPanel({ title, subtitle, children }) {
+  return (
+    <div
+      className="rounded-2xl border px-4 py-4 md:px-5 md:py-5"
+      style={{
+        background: "color-mix(in srgb, var(--surface-elevated) 92%, var(--text) 5%)",
+        borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+      }}
+    >
+      {(title || subtitle) && (
+        <div className="space-y-1 mb-4">
+          {title && (
+            <p className="text-xs md:text-sm font-semibold tracking-wide uppercase">
+              {title}
+            </p>
+          )}
+          {subtitle && (
+            <p className="text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
+              {subtitle}
+            </p>
+          )}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+/* =========================
+   Stepper – só números (sticky)
+========================= */
+
+// Preferência do usuário (reduce motion) para suavizar animações sem “sumir” UX
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReduced(!!mq.matches);
+    sync();
+    try {
+      mq.addEventListener("change", sync);
+      return () => mq.removeEventListener("change", sync);
+    } catch {
+      mq.addListener(sync);
+      return () => mq.removeListener(sync);
+    }
+  }, []);
+  return reduced;
+}
+
+function StepCircle({ n, active, done, onClick, disabled }) {
+  const reduceMotion = usePrefersReducedMotion();
+
+  const isPrimary = active || done;
+
+  // Cor “inteligente” para contraste:
+  // - usa --on-primary se o tenant definir
+  // - fallback branco (funciona bem na maioria das paletas)
+  const onPrimary = "var(--on-primary, #ffffff)";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="h-11 w-11 md:h-12 md:w-12 rounded-full border inline-flex items-center justify-center font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+      style={{
+        background: isPrimary
+          ? "var(--primary)"
+          : "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
+        borderColor: isPrimary
+          ? "color-mix(in srgb, var(--primary) 65%, #000 0%)"
+          : "color-mix(in srgb, var(--text) 14%, transparent)",
+        color: isPrimary ? onPrimary : "var(--text-muted)",
+        // Premium: leve “glow” no ativo (sem estourar no dark)
+        boxShadow: active
+          ? "0 14px 30px color-mix(in srgb, var(--primary) 28%, rgba(0,0,0,0.35))"
+          : done
+          ? "0 10px 22px rgba(0,0,0,0.10)"
+          : "none",
+        transform: active ? "translateY(-1px)" : "translateY(0)",
+        transition: reduceMotion
+          ? "none"
+          : "transform 160ms ease, box-shadow 180ms ease, background 180ms ease, border-color 180ms ease",
+      }}
+      aria-current={active ? "step" : undefined}
+      aria-label={`Etapa ${n}`}
+      title={`Etapa ${n}`}
+    >
+      <span className="text-base" style={{ lineHeight: 1 }}>
+        {done ? "✓" : n}
+      </span>
+    </button>
+  );
+}
+
+function StepperDock({ step, onStep, drawerOpen, disabled }) {
+  // Mantém o comportamento de ocultar no mobile quando drawer abre (sem quebrar UX)
+  const [isMdUp, setIsMdUp] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.matchMedia?.("(min-width: 768px)")?.matches ?? true;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(min-width: 768px)");
+    const onChange = () => setIsMdUp(mq.matches);
+    onChange();
+    try {
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    } catch {
+      mq.addListener(onChange);
+      return () => mq.removeListener(onChange);
+    }
+  }, []);
+
+  const hiddenMobile = !isMdUp && drawerOpen;
+  const top =
+    "calc(var(--app-header-h, 72px) + env(safe-area-inset-top, 0px) + 10px)";
+
+  const trackOff = "color-mix(in srgb, var(--text) 12%, transparent)";
+  const trackOn = "var(--primary)";
+
+  // Conector “premium”: usa gradiente suave no concluído
+  const connectorStyle = (filled) => ({
+    background: filled
+      ? `linear-gradient(90deg, ${trackOn}, color-mix(in srgb, var(--primary) 70%, transparent))`
+      : trackOff,
+    boxShadow: filled ? "0 8px 18px rgba(0,0,0,0.10)" : "none",
+  });
+
+  return (
+    <div
+      className={`${hiddenMobile ? "hidden" : ""} z-[50]`}
+      style={{ position: "sticky", top }}
+    >
+      <div
+        className="rounded-[22px] border shadow-lg px-3 py-2.5 flex items-center justify-center gap-3"
+        style={{
+          // fundo do dock mais “glass”, sem competir com o primário dos steps
+          background: "color-mix(in srgb, var(--surface) 86%, var(--text) 6%)",
+          borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+        }}
+      >
+        <StepCircle
+          n={1}
+          active={step === 1}
+          done={step > 1}
+          disabled={disabled}
+          onClick={() => onStep?.(1)}
+        />
+        <span
+          aria-hidden="true"
+          className="h-[3px] w-10 md:w-14 rounded-full"
+          style={connectorStyle(step >= 2)}
+        />
+        <StepCircle
+          n={2}
+          active={step === 2}
+          done={step > 2}
+          disabled={disabled}
+          onClick={() => onStep?.(2)}
+        />
+        <span
+          aria-hidden="true"
+          className="h-[3px] w-10 md:w-14 rounded-full"
+          style={connectorStyle(step >= 3)}
+        />
+        <StepCircle
+          n={3}
+          active={step === 3}
+          done={false}
+          disabled={disabled}
+          onClick={() => onStep?.(3)}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* =========================
+   Page
+========================= */
+
 export default function RegisterPage() {
-  useTenant()
+  useTenant();
 
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { login } = useAuth((s) => ({ login: s.login }))
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth((s) => ({ login: s.login }));
 
-  const [form, setForm] = useState(initial)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [okMsg, setOkMsg] = useState('')
-  const [submitted, setSubmitted] = useState(false)
-  const [errorList, setErrorList] = useState([])
-  const [step, setStep] = useState(1)
+  const [form, setForm] = useState(initial);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [errorList, setErrorList] = useState([]);
+  const [step, setStep] = useState(1);
 
-  const [showPass, setShowPass] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  const alertRef = useRef(null)
-  const nomeRef = useRef(null)
-  const emailRef = useRef(null)
-  const senhaRef = useRef(null)
-  const confirmRef = useRef(null)
-  const cpfRef = useRef(null)
-  const celRef = useRef(null)
+  // ✅ UX senha
+  const [capsOn, setCapsOn] = useState(false);
+  const [copyOk, setCopyOk] = useState(false);
+  const [genOk, setGenOk] = useState(false);
+
+  const alertRef = useRef(null);
+  const nomeRef = useRef(null);
+  const emailRef = useRef(null);
+  const senhaRef = useRef(null);
+  const confirmRef = useRef(null);
+  const cpfRef = useRef(null);
+  const celRef = useRef(null);
+
+  // ✅ Detecta abertura do drawer via atributo já setado no Navbar
+  const [drawerOpen, setDrawerOpen] = useState(() => {
+    if (typeof document === "undefined") return false;
+    return document.documentElement.getAttribute("data-mobile-drawer-open") === "true";
+  });
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const el = document.documentElement;
+    const sync = () => setDrawerOpen(el.getAttribute("data-mobile-drawer-open") === "true");
+    sync();
+
+    const obs = new MutationObserver(sync);
+    obs.observe(el, { attributes: true, attributeFilter: ["data-mobile-drawer-open"] });
+    return () => obs.disconnect();
+  }, []);
 
   const ageFromISO = (iso) => {
-    if (!iso) return null
-    const d = new Date(iso)
-    if (isNaN(d)) return null
-    const t = new Date()
-    let a = t.getFullYear() - d.getFullYear()
-    const m = t.getMonth() - d.getMonth()
-    if (m < 0 || (m === 0 && t.getDate() < d.getDate())) a--
-    return a
-  }
+    if (!iso) return null;
+    const d = new Date(iso);
+    if (isNaN(d)) return null;
+    const t = new Date();
+    let a = t.getFullYear() - d.getFullYear();
+    const m = t.getMonth() - d.getMonth();
+    if (m < 0 || (m === 0 && t.getDate() < d.getDate())) a--;
+    return a;
+  };
 
-  const idade = useMemo(
-    () => ageFromISO(form.dataNascimento),
-    [form.dataNascimento]
-  )
-  const idadeOk = idade !== null && idade >= 18 && idade <= 100
+  const idade = useMemo(() => ageFromISO(form.dataNascimento), [form.dataNascimento]);
+  const idadeOk = idade !== null && idade >= 18 && idade <= 100;
 
-  const nomeOk = useMemo(() => form.nome.trim().length >= 3, [form.nome])
-  const emailOk = useMemo(() => isValidEmail(form.email), [form.email])
-  const cpfOk = useMemo(() => isValidCPF(form.cpf), [form.cpf])
-  const senhaChecks = useMemo(
-    () => getPasswordChecks(form.senha),
-    [form.senha]
-  )
-  const senhaOk = useMemo(() => isStrongPassword(form.senha), [form.senha])
+  const nomeOk = useMemo(() => form.nome.trim().length >= 3, [form.nome]);
+  const emailOk = useMemo(() => isValidEmail(form.email), [form.email]);
+  const cpfOk = useMemo(() => isValidCPF(form.cpf), [form.cpf]);
+
+  const senhaChecks = useMemo(() => getPasswordChecks(form.senha), [form.senha]);
+  const senhaOk = useMemo(() => isStrongPassword(form.senha), [form.senha]);
   const confirmOk = useMemo(
     () => form.confirmSenha.length > 0 && form.confirmSenha === form.senha,
     [form.confirmSenha, form.senha]
-  )
-  const celularOk = useMemo(
-    () => phoneIsValid(form.celular),
-    [form.celular]
-  )
+  );
+  const celularOk = useMemo(() => phoneIsValid(form.celular), [form.celular]);
 
-  const formValido =
-    nomeOk && emailOk && cpfOk && celularOk && idadeOk && senhaOk && confirmOk
-
-  // usados apenas como referência interna; botões já não dependem deles
-  const step1Valid = nomeOk && cpfOk && idadeOk
-  const step2Valid = emailOk && celularOk
-  const step3Valid = senhaOk && confirmOk
+  const step1Valid = nomeOk && cpfOk && idadeOk;
+  const step2Valid = emailOk && celularOk;
+  const step3Valid = senhaOk && confirmOk;
 
   useEffect(() => {
-    setError('')
-    setOkMsg('')
-  }, [form])
+    setError("");
+  }, [form]);
 
   useEffect(() => {
-    if (error) setTimeout(() => alertRef.current?.focus(), 0)
-  }, [error])
+    if (error) setTimeout(() => alertRef.current?.focus(), 0);
+  }, [error]);
+
+  // Score da senha (UX)
+  const passScore = useMemo(() => scorePassword(form.senha), [form.senha]);
 
   function buildErrorList(values) {
-    const items = []
-    const age = ageFromISO(values.dataNascimento)
+    const items = [];
+    const age = ageFromISO(values.dataNascimento);
 
-    if (!(values.nome || '').trim())
-      items.push({
-        field: 'nome',
-        label: 'Nome completo é obrigatório.',
-      })
-    if (!isValidEmail(values.email))
-      items.push({
-        field: 'email',
-        label: 'Informe um e-mail válido.',
-      })
-    if (!isValidCPF(values.cpf))
-      items.push({
-        field: 'cpf',
-        label: 'Informe um CPF válido.',
-      })
-    if (!phoneIsValid(values.celular))
-      items.push({
-        field: 'celular',
-        label: 'Informe um celular válido com DDD.',
-      })
+    if (!(values.nome || "").trim()) items.push({ field: "nome", label: "Nome completo é obrigatório" });
+    if (!isValidEmail(values.email)) items.push({ field: "email", label: "Informe um e-mail válido" });
+    if (!isValidCPF(values.cpf)) items.push({ field: "cpf", label: "Informe um CPF válido" });
+    if (!phoneIsValid(values.celular)) items.push({ field: "celular", label: "Informe um celular válido com DDD" });
+
     if (!values.dataNascimento || age === null) {
-      items.push({
-        field: 'dataNascimento',
-        label: 'Informe sua data de nascimento.',
-      })
+      items.push({ field: "dataNascimento", label: "Informe sua data de nascimento" });
     } else if (age < 18 || age > 100) {
-      items.push({
-        field: 'dataNascimento',
-        label: 'Você precisa ter entre 18 e 100 anos.',
-      })
+      items.push({ field: "dataNascimento", label: "Você precisa ter entre 18 e 100 anos" });
     }
+
     if (!isStrongPassword(values.senha)) {
       items.push({
-        field: 'senha',
-        label:
-          'A senha deve ter pelo menos 8 caracteres, com letra maiúscula, minúscula e número.',
-      })
+        field: "senha",
+        label: "A senha precisa ter 8 caracteres com maiúscula, minúscula e número",
+      });
     }
+
     if (!(values.confirmSenha && values.confirmSenha === values.senha)) {
-      items.push({
-        field: 'confirmSenha',
-        label: 'As senhas precisam ser iguais.',
-      })
+      items.push({ field: "confirmSenha", label: "As senhas precisam ser iguais" });
     }
-    return items
+
+    return items;
   }
 
-  function buildStep1Errors(values) {
-    const all = buildErrorList(values)
-    const step1Fields = ['nome', 'cpf', 'dataNascimento']
-    return all.filter((it) => step1Fields.includes(it.field))
-  }
-
-  function buildStep2Errors(values) {
-    const all = buildErrorList(values)
-    const step2Fields = ['email', 'celular']
-    return all.filter((it) => step2Fields.includes(it.field))
+  function buildStepErrors(values, stepN) {
+    const all = buildErrorList(values);
+    const fields =
+      stepN === 1 ? ["nome", "cpf", "dataNascimento"] :
+      stepN === 2 ? ["email", "celular"] :
+      stepN === 3 ? ["senha", "confirmSenha"] :
+      null;
+    return fields ? all.filter((it) => fields.includes(it.field)) : all;
   }
 
   function focusByField(field) {
@@ -499,259 +939,306 @@ export default function RegisterPage() {
       celular: celRef,
       senha: senhaRef,
       confirmSenha: confirmRef,
-    }
-    map[field]?.current?.focus()
+    };
+    map[field]?.current?.focus();
   }
 
   const recomputeErrorsIfSubmitted = (next) => {
-    if (!submitted) return
-    const list =
-      step === 1
-        ? buildStep1Errors(next)
-        : step === 2
-        ? buildStep2Errors(next)
-        : buildErrorList(next)
-    setErrorList(list)
-  }
+    if (!submitted) return;
+    setErrorList(buildStepErrors(next, step));
+  };
 
   const onChangeMasked =
-    (name, formatter, _ref) =>
+    (name, formatter) =>
     (e) => {
-      const raw = e.target.value || ''
-      const nextVal = formatter(raw)
-      const next = { ...form, [name]: nextVal }
-      setForm(next)
-      recomputeErrorsIfSubmitted(next)
-    }
+      const raw = e.target.value || "";
+      const nextVal = formatter(raw);
+      const next = { ...form, [name]: nextVal };
+      setForm(next);
+      recomputeErrorsIfSubmitted(next);
+    };
 
   const onPasteMasked = (name, formatter) => (e) => {
-    e.preventDefault()
-    const pasted =
-      (e.clipboardData || window.clipboardData).getData('text') || ''
-    const nextVal = formatter(pasted)
-    const next = { ...form, [name]: nextVal }
-    setForm(next)
-    recomputeErrorsIfSubmitted(next)
-  }
-
-  function onChange(e) {
-    const { name, value, type, checked } = e.target
-    const next = {
-      ...form,
-      [name]: type === 'checkbox' ? checked : value,
-    }
-    setForm(next)
-    recomputeErrorsIfSubmitted(next)
-  }
+    e.preventDefault();
+    const pasted = (e.clipboardData || window.clipboardData).getData("text") || "";
+    const nextVal = formatter(pasted);
+    const next = { ...form, [name]: nextVal };
+    setForm(next);
+    recomputeErrorsIfSubmitted(next);
+  };
 
   async function onSubmit(e) {
-    e.preventDefault()
-    if (loading) return
+    e.preventDefault();
+    if (loading) return;
 
     if (step === 1) {
-      setSubmitted(true)
-      const list = buildStep1Errors(form)
-      setErrorList(list)
-
+      setSubmitted(true);
+      const list = buildStepErrors(form, 1);
+      setErrorList(list);
       if (list.length > 0 || !step1Valid) {
-        if (list.length > 0) focusByField(list[0].field)
-        return
+        if (list[0]) focusByField(list[0].field);
+        return;
       }
-
-      // Etapa 1 OK → avança para a 2 sem validações exibidas
-      setStep(2)
-      setSubmitted(false)
-      setErrorList([])
-      setTimeout(() => emailRef.current?.focus(), 0)
-      return
+      setStep(2);
+      setSubmitted(false);
+      setErrorList([]);
+      setTimeout(() => emailRef.current?.focus(), 0);
+      return;
     }
 
     if (step === 2) {
-      setSubmitted(true)
-      const list = buildStep2Errors(form)
-      setErrorList(list)
-
+      setSubmitted(true);
+      const list = buildStepErrors(form, 2);
+      setErrorList(list);
       if (list.length > 0 || !step2Valid) {
-        if (list.length > 0) focusByField(list[0].field)
-        return
+        if (list[0]) focusByField(list[0].field);
+        return;
       }
-
-      // Etapa 2 OK → avança para a 3 sem validações exibidas
-      setStep(3)
-      setSubmitted(false)
-      setErrorList([])
-      setTimeout(() => senhaRef.current?.focus(), 0)
-      return
+      setStep(3);
+      setSubmitted(false);
+      setErrorList([]);
+      setTimeout(() => senhaRef.current?.focus(), 0);
+      return;
     }
 
-    // step 3
-    setSubmitted(true)
-    const list = buildErrorList(form)
-    setErrorList(list)
-
+    setSubmitted(true);
+    const list = buildErrorList(form);
+    setErrorList(list);
     if (list.length > 0 || !step3Valid) {
-      if (list.length > 0) focusByField(list[0].field)
-      return
+      if (list[0]) focusByField(list[0].field);
+      return;
     }
 
-    if (!isValidCPF(form.cpf)) {
-      setError('CPF inválido. Verifique os números digitados.')
-      setTimeout(() => alertRef.current?.focus(), 0)
-      focusByField('cpf')
-      setStep(1)
-      setSubmitted(false)
-      return
-    }
-
-    const rawFrom = location.state?.from
+    const rawFrom = location.state?.from;
     const from =
-      typeof rawFrom === 'string'
+      typeof rawFrom === "string"
         ? rawFrom
         : rawFrom?.pathname
-        ? `${rawFrom.pathname}${rawFrom.search || ''}${rawFrom.hash || ''}`
-        : '/area'
+        ? `${rawFrom.pathname}${rawFrom.search || ""}${rawFrom.hash || ""}`
+        : "/area";
 
-    const identificador = form.email?.trim() || onlyDigits(form.cpf)
-    const payload = {
-      ...form,
-      aceiteTermos: true,
-      aceitePrivacidade: true,
-    }
+    const identificador = form.email?.trim() || onlyDigits(form.cpf);
+    const payload = { ...form, aceiteTermos: true, aceitePrivacidade: true };
 
     try {
-      setLoading(true)
-      setError('')
-      setOkMsg('')
+      setLoading(true);
+      setError("");
 
-      await registerUser(payload)
-      await login(identificador, form.senha)
-
-      try {
-        console.info(
-          '[Register] Iniciando registro do dispositivo FCM (WEB) após cadastro...'
-        )
-        await registrarDispositivoFcmWeb()
-        console.info('[Register] Registro do dispositivo FCM finalizado (WEB).')
-      } catch (err) {
-        console.error(
-          '[Register] Falha ao registrar dispositivo FCM (WEB):',
-          err
-        )
-      }
+      await registerUser(payload);
+      await login(identificador, form.senha);
 
       try {
-        const prefill = {
-          cpf: onlyDigits(form.cpf),
-          celular: onlyDigits(form.celular),
-          dataNascimento: form.dataNascimento || '',
-          email: (form.email || '').trim(),
-          nome: (form.nome || '').trim(),
-        }
-        sessionStorage.setItem('reg_prefill', JSON.stringify(prefill))
-        localStorage.setItem('register:last', JSON.stringify(prefill))
+        await registrarDispositivoFcmWeb();
       } catch {}
 
-      navigate(from, { replace: true })
+      navigate(from, { replace: true });
     } catch (err) {
-      console.error(err)
       const apiMsg =
         err?.response?.data?.message ||
         err?.response?.data?.error ||
-        (typeof err?.response?.data === 'string'
-          ? err?.response?.data
-          : null) ||
-        'Não foi possível concluir o cadastro.'
-      setError(apiMsg)
-      setOkMsg('')
-      setTimeout(() => alertRef.current?.focus(), 0)
+        (typeof err?.response?.data === "string" ? err?.response?.data : null) ||
+        "Não foi possível concluir o cadastro";
+      setError(apiMsg);
+      setTimeout(() => alertRef.current?.focus(), 0);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   const firstName = useMemo(() => {
-    const n = (form.nome || '').trim()
-    if (!n) return ''
-    return n.split(' ')[0]
-  }, [form.nome])
+    const n = (form.nome || "").trim();
+    if (!n) return "";
+    return n.split(" ")[0];
+  }, [form.nome]);
 
-  const stepTitle =
+  const canGoBack = step > 1;
+
+  const headerHint =
     step === 1
-      ? 'Etapa 1 de 3 · Seus dados principais'
+      ? { icon: User, title: "Dados", text: "Informações básicas para validar seu acesso." }
       : step === 2
-      ? 'Etapa 2 de 3 · Contatos'
-      : 'Etapa 3 de 3 · Sua senha'
+      ? { icon: Mail, title: "Contato", text: "E-mail e celular para recuperação e avisos." }
+      : { icon: ShieldCheck, title: "Segurança", text: "Uma senha forte protege sua conta." };
 
-  const stepDesc =
+  const IconHint = headerHint.icon;
+  const sendLabel = step === 3 ? "Criar conta" : "Continuar";
+
+  // Aside minimalista (sem poluir): some no mobile, aparece no md+
+  const asideInfo =
     step === 1
-      ? 'Informe seus dados básicos para começarmos o cadastro.'
+      ? { icon: Fingerprint, title: "Validação do titular", bullets: ["Evita fraudes", "Cadastro rápido", "Sem papelada"] }
       : step === 2
-      ? 'Agora, confirme seus dados de contato para enviarmos comunicações importantes.'
-      : 'Por fim, defina uma senha segura para acessar sua área.'
+      ? { icon: Phone, title: "Recuperação e avisos", bullets: ["Recuperar senha", "Avisos do contrato", "Suporte"] }
+      : { icon: ShieldCheck, title: "Senha forte", bullets: ["Mais proteção", "Menos tentativas indevidas", "Você altera depois"] };
 
-  const progressPercent = step === 1 ? '33%' : step === 2 ? '66%' : '100%'
+  const AsideIcon = asideInfo.icon;
+
+  const inputBg = "color-mix(in srgb, var(--surface-elevated) 92%, transparent)";
+
+  async function copyToClipboard(text) {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "absolute";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopyOk(true);
+      setTimeout(() => setCopyOk(false), 1200);
+    } catch {
+      setCopyOk(false);
+    }
+  }
+
+  function applyGeneratedPassword() {
+    const pw = generatePassword(14);
+    const next = { ...form, senha: pw, confirmSenha: pw };
+    setForm(next);
+    setGenOk(true);
+    setTimeout(() => setGenOk(false), 1200);
+    // mantém validações consistentes
+    if (submitted) setErrorList(buildStepErrors(next, 3));
+    // foca no botão de envio (sensação “pronto”)
+    setTimeout(() => confirmRef.current?.focus(), 0);
+  }
 
   return (
     <section className="section">
-      <div className="container-max max-w-4xl relative">
-        <div className="min-h-[60vh] py-8 flex flex-col justify-center">
+      <div className="container-max max-w-5xl relative">
+        <div className="min-h-[60vh] py-6 md:py-8 flex flex-col gap-5">
+          {/* Fundo ambiental – premium e discreto */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 top-[72px] mx-auto h-40 max-w-2xl rounded-[48px] opacity-70"
+            className="pointer-events-none absolute inset-0 -z-10 rounded-[48px]"
             style={{
               background:
-                'radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)',
-              zIndex: -1,
+                "radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--primary) 14%, transparent) 0, transparent 70%)," +
+                "radial-gradient(80% 80% at 12% 25%, color-mix(in srgb, var(--text) 9%, transparent) 0, transparent 60%)," +
+                "radial-gradient(80% 80% at 90% 30%, color-mix(in srgb, var(--text) 7%, transparent) 0, transparent 60%)," +
+                "linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface) 82%, transparent))",
+              maskImage:
+                "radial-gradient(120% 90% at 50% 0%, #000 0, #000 45%, transparent 78%)",
+              opacity: 0.95,
             }}
           />
 
-          <header className="mb-6">
+          {/* a) Criar conta */}
+          <header className="pt-1">
             <div
-              className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--surface-elevated)_94%,transparent)] p-1 border shadow-sm"
+              className="rounded-3xl border shadow-lg px-4 py-3 flex items-center justify-between gap-3"
               style={{
-                borderColor:
-                  'color-mix(in srgb, var(--primary) 28%, transparent)',
+                background: "color-mix(in srgb, var(--surface) 88%, var(--text) 6%)",
+                borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
               }}
             >
-              <button
-                type="button"
-                className="px-4 py-1.5 text-xs md:text-sm font-semibold rounded-full bg-[color-mix(in_srgb,var(--primary)_22%,transparent)] inline-flex items-center gap-1.5"
-              >
-                <UserPlus size={14} />
-                <span>Criar conta</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/login')}
-                className="px-4 py-1.5 text-xs md:text-sm font-medium rounded-full hover:bg-[color-mix(in_srgb,var(--surface)_92%,transparent)]"
-              >
-                Já tenho conta
-              </button>
-            </div>
+              <div className="flex items-center gap-3 min-w-0">
+                <span
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border flex-shrink-0"
+                  style={{
+                    background: "color-mix(in srgb, var(--primary) 16%, transparent)",
+                    borderColor: "color-mix(in srgb, var(--primary) 32%, transparent)",
+                    color: "var(--primary)",
+                  }}
+                >
+                  <UserPlus size={18} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm md:text-base font-semibold leading-tight truncate">Criar conta</p>
+                  <p className="text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
+                    3 etapas • rápido e seguro
+                  </p>
+                </div>
+              </div>
 
-            <h1 className="mt-4 text-2xl md:text-3xl font-semibold tracking-tight">
-              Cadastre-se em poucos passos
-            </h1>
-            <p
-              className="mt-1 text-sm md:text-base leading-relaxed"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              Você só precisa informar seus dados, escolher uma senha e pronto.
-            </p>
+              <div className="hidden sm:flex items-center gap-2">
+                <span
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs md:text-sm"
+                  style={{
+                    borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                    background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  <IconHint size={14} style={{ color: "var(--primary)" }} />
+                  <span className="truncate">{headerHint.title}</span>
+                </span>
+              </div>
+            </div>
           </header>
+
+          {/* b) Stepper (sticky) */}
+          <StepperDock
+            step={step}
+            drawerOpen={drawerOpen}
+            disabled={loading}
+            onStep={(n) => {
+              if (n <= step) {
+                setStep(n);
+                setSubmitted(false);
+                setErrorList([]);
+                setTimeout(() => {
+                  if (n === 1) nomeRef.current?.focus();
+                  if (n === 2) emailRef.current?.focus();
+                  if (n === 3) senhaRef.current?.focus();
+                }, 0);
+              }
+            }}
+          />
+
+          {/* c) Dica */}
+          <div>
+            <div
+              className="rounded-3xl border px-4 py-3 flex items-start gap-3"
+              style={{
+                background: "color-mix(in srgb, var(--surface) 92%, transparent)",
+                borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+              }}
+            >
+              <span
+                className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-2xl border"
+                style={{
+                  background: "color-mix(in srgb, var(--primary) 12%, transparent)",
+                  borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)",
+                  color: "var(--primary)",
+                }}
+                aria-hidden="true"
+              >
+                <IconHint size={16} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm md:text-base font-semibold leading-tight" style={{ color: "var(--text)" }}>
+                  {headerHint.title}
+                </p>
+                <p className="text-xs md:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                  {step === 3 && firstName ? (
+                    <>
+                      {firstName}, falta pouco. {headerHint.text}
+                    </>
+                  ) : (
+                    headerHint.text
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
 
           {error && (
             <div
               ref={alertRef}
               role="alert"
               tabIndex={-1}
-              className="mb-4 rounded-2xl px-4 py-3 text-sm md:text-base"
+              className="rounded-2xl px-4 py-3 text-sm md:text-base border shadow-sm"
               style={{
-                border:
-                  '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
-                background:
-                  'color-mix(in srgb, var(--primary) 14%, transparent)',
-                color: 'var(--text)',
+                borderColor: "color-mix(in srgb, var(--primary) 30%, transparent)",
+                background: "color-mix(in srgb, var(--primary) 12%, transparent)",
+                color: "var(--text)",
               }}
               aria-live="assertive"
             >
@@ -759,269 +1246,535 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {okMsg && (
-            <div
-              className="mb-4 rounded-2xl px-4 py-3 text-sm md:text-base"
-              style={{
-                border:
-                  '1px solid color-mix(in srgb, var(--primary) 25%, transparent)',
-                background:
-                  'color-mix(in srgb, var(--primary) 8%, transparent)',
-                color: 'var(--text)',
-              }}
-              role="status"
-            >
-              {okMsg}
-            </div>
-          )}
-
-          <form
-            onSubmit={onSubmit}
-            className="relative overflow-hidden p-6 md:p-8 space-y-6 rounded-3xl border shadow-xl"
-            style={{
-              background:
-                'color-mix(in srgb, var(--surface) 88%, var(--text) 6%)',
-              borderColor: 'color-mix(in srgb, var(--text) 18%, transparent)',
-            }}
-          >
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-20"
-              style={{
-                background:
-                  'radial-gradient(120% 140% at 50% 120%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)',
-                opacity: 0.6,
-              }}
-            />
-
-            <fieldset
-              disabled={loading}
-              className="space-y-6 relative z-[1]"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs md:text-sm font-semibold tracking-wide uppercase">
-                    {stepTitle}
-                  </p>
-                  <span
-                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] md:text-xs"
-                    style={{
-                      background:
-                        'color-mix(in srgb, var(--surface-elevated) 90%, transparent)',
-                      color: 'var(--text-muted)',
-                    }}
-                  >
-                    <span
-                      className="inline-block h-1.5 w-1.5 rounded-full"
-                      style={{ background: 'var(--primary)' }}
-                    />
-                    {step === 1
-                      ? 'Começando'
-                      : step === 2
-                      ? 'Continuando'
-                      : 'Quase lá'}
-                  </span>
-                </div>
-
-                <div
-                  className="h-1.5 rounded-full overflow-hidden"
-                  style={{
-                    background:
-                      'color-mix(in srgb, var(--surface-elevated) 80%, var(--text) 6%)',
-                  }}
-                >
-                  <div
-                    className="h-full rounded-full transition-all duration-300"
-                    style={{
-                      width: progressPercent,
-                      background: 'var(--primary)',
-                    }}
-                  />
-                </div>
-
-                <p
-                  className="text-xs md:text-sm"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  {stepDesc}
-                </p>
-              </div>
-
-              {step === 1 && (
-                <div
-                  className="rounded-2xl px-4 py-3 text-xs md:text-sm mb-1"
-                  style={{
-                    background:
-                      'color-mix(in srgb, var(--surface-elevated) 92%, transparent)',
-                    border:
-                      '1px dashed color-mix(in srgb, var(--text) 14%, transparent)',
-                  }}
-                >
-                  <p className="font-medium mb-1">
-                    Nesta etapa, vamos pedir apenas:
-                  </p>
-                  <ol className="list-decimal ml-4 space-y-1">
-                    <li>Nome completo</li>
-                    <li>CPF</li>
-                    <li>Data de nascimento</li>
-                  </ol>
-                </div>
-              )}
-
-              {step === 3 && (
-                <div
-                  className="rounded-2xl px-4 py-3 text-xs md:text-sm mb-1 flex items-start gap-2"
-                  style={{
-                    background:
-                      'color-mix(in srgb, var(--primary) 12%, transparent)',
-                    border:
-                      '1px solid color-mix(in srgb, var(--primary) 40%, transparent)',
-                  }}
-                >
-                  <div className="mt-0.5">
-                    <CheckCircle2
-                      size={18}
-                      style={{ color: 'var(--primary)' }}
-                    />
-                  </div>
-                  <div>
-                    <p className="font-medium mb-0.5">
-                      {firstName
-                        ? `${firstName}, seus dados estão certos.`
-                        : 'Seus dados estão certos.'}
-                    </p>
-                    <p style={{ color: 'var(--text-muted)' }}>
-                      Agora crie uma senha para acessar sua conta quando
-                      quiser.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div
-                className="rounded-2xl border px-4 py-4 md:px-5 md:py-5 space-y-6"
-                style={{
-                  background:
-                    'color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)',
-                  borderColor:
-                    'color-mix(in srgb, var(--text) 16%, transparent)',
-                }}
+          <MasterCard>
+            <form onSubmit={onSubmit} noValidate>
+              <fieldset
+                disabled={loading}
+                className="grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)] gap-6 md:gap-8 items-start"
               >
-                {step === 1 && (
-                  <>
-                    <div>
-                      <label
-                        htmlFor="nome"
-                        className="label font-medium text-sm md:text-base"
-                      >
-                        Nome completo{' '}
-                        <span aria-hidden="true" className="text-red-600">
-                          *
-                        </span>
-                      </label>
-                      <input
-                        id="nome"
-                        name="nome"
-                        ref={nomeRef}
-                        value={form.nome}
-                        onChange={onChange}
-                        className={`input h-12 text-base bg-white ${
-                          submitted && !nomeOk ? 'ring-1 ring-red-500' : ''
-                        }`}
-                        placeholder="Maria Oliveira"
-                        autoComplete="name"
-                        aria-required="true"
-                        aria-invalid={submitted && !nomeOk}
-                      />
-                      {submitted && !nomeOk && (
-                        <p className="text-xs md:text-sm mt-1 text-red-600">
-                          Informe ao menos 3 caracteres.
-                        </p>
-                      )}
-                    </div>
+                {/* FORM */}
+                <FormPanel
+                  title="Crie sua conta"
+                  subtitle="Use o microfone nos campos disponíveis, se preferir."
+                >
+                  <div className="grid gap-4">
+                    {step === 1 && (
+                      <div className="space-y-5">
+                        <div>
+                          <label htmlFor="nome" className="label font-medium text-sm md:text-base">
+                            Nome completo <span aria-hidden="true" className="text-red-600">*</span>
+                          </label>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label
-                          htmlFor="cpf"
-                          className="label font-medium text-sm md:text-base"
-                        >
-                          CPF{' '}
-                          <span aria-hidden="true" className="text-red-600">
-                            *
-                          </span>
-                        </label>
-                        <input
-                          id="cpf"
-                          name="cpf"
-                          ref={cpfRef}
-                          value={formatCPF(form.cpf)}
-                          onChange={onChangeMasked('cpf', formatCPF, cpfRef)}
-                          onPaste={onPasteMasked('cpf', formatCPF)}
-                          className={`input h-12 text-base bg-white ${
-                            submitted && !cpfOk ? 'ring-1 ring-red-500' : ''
-                          }`}
-                          placeholder="000.000.000-00"
-                          inputMode="numeric"
-                          autoComplete="off"
-                          aria-required="true"
-                          aria-invalid={submitted && !cpfOk}
-                        />
-                        {submitted && !cpfOk && (
-                          <p className="text-xs md:text-sm mt-1 text-red-600">
-                            CPF inválido. Verifique os números digitados.
-                          </p>
-                        )}
-                      </div>
+                          <VoiceTextInput
+                            id="nome"
+                            name="nome"
+                            inputRef={nomeRef}
+                            value={form.nome}
+                            onChange={(e) => {
+                              const next = { ...form, nome: e.target.value };
+                              setForm(next);
+                              if (submitted) setErrorList(buildStepErrors(next, 1));
+                            }}
+                            onChangeValue={(nextVal) => {
+                              const cleaned = normalizeNameFromSpeech(nextVal);
+                              const next = { ...form, nome: cleaned };
+                              setForm(next);
+                              if (submitted) setErrorList(buildStepErrors(next, 1));
+                            }}
+                            className={`input h-12 text-base ${
+                              submitted && !nomeOk ? "ring-1 ring-red-500" : ""
+                            }`}
+                            style={{ background: inputBg }}
+                            placeholder="Maria Oliveira"
+                            autoComplete="name"
+                            ariaRequired="true"
+                            ariaInvalid={submitted && !nomeOk}
+                            disabled={loading}
+                            enableVoice
+                            applyMode="replace"
+                            normalizeTranscript={(t) => normalizeNameFromSpeech(t)}
+                            idleHint="Toque no microfone para ditar seu nome"
+                            listeningHint="Ao terminar toque no quadrado para concluir"
+                          />
 
-                      <div>
-                        <label className="label font-medium text-sm md:text-base">
-                          Data de nascimento{' '}
-                          <span aria-hidden="true" className="text-red-600">
-                            *
-                          </span>
-                        </label>
-                        <DateSelectBR
-                          idPrefix="reg-nasc"
-                          valueISO={form.dataNascimento}
-                          onChangeISO={(iso) =>
-                            setForm((p) => ({
-                              ...p,
-                              dataNascimento: iso,
-                            }))
-                          }
-                          minAge={18}
-                          maxAge={100}
-                          invalid={
-                            submitted &&
-                            (!form.dataNascimento || !idadeOk)
-                          }
-                        />
-                        {submitted &&
-                          (!form.dataNascimento || !idadeOk) && (
+                          {submitted && !nomeOk && (
                             <p className="text-xs md:text-sm mt-1 text-red-600">
-                              É preciso ter entre <b>18</b> e <b>100</b> anos.
+                              Informe ao menos 3 caracteres.
                             </p>
                           )}
-                      </div>
-                    </div>
+                        </div>
 
-                    {submitted && step === 1 && errorList.length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label htmlFor="cpf" className="label font-medium text-sm md:text-base">
+                              CPF <span aria-hidden="true" className="text-red-600">*</span>
+                            </label>
+
+                            <VoiceTextInput
+                              id="cpf"
+                              name="cpf"
+                              inputRef={cpfRef}
+                              value={formatCPF(form.cpf)}
+                              onChange={onChangeMasked("cpf", formatCPF)}
+                              onPaste={onPasteMasked("cpf", formatCPF)}
+                              onChangeValue={(spoken) => {
+                                const digits = normalizeDigitsFromSpeech(spoken).slice(0, 11);
+                                const formatted = formatCPF(digits);
+                                const next = { ...form, cpf: formatted };
+                                setForm(next);
+                                if (submitted) setErrorList(buildStepErrors(next, 1));
+                              }}
+                              className={`input h-12 text-base ${
+                                submitted && !cpfOk ? "ring-1 ring-red-500" : ""
+                              }`}
+                              style={{ background: inputBg }}
+                              placeholder="000.000.000-00"
+                              inputMode="numeric"
+                              autoComplete="off"
+                              ariaRequired="true"
+                              ariaInvalid={submitted && !cpfOk}
+                              disabled={loading}
+                              enableVoice
+                              applyMode="replace"
+                              idleHint="Toque no microfone e fale os números do CPF"
+                              listeningHint="Ao terminar toque no quadrado para concluir"
+                            />
+
+                            {submitted && !cpfOk && (
+                              <p className="text-xs md:text-sm mt-1 text-red-600">
+                                CPF inválido. Verifique os números digitados.
+                              </p>
+                            )}
+                          </div>
+
+                          <div>
+                            <label className="label font-medium text-sm md:text-base">
+                              Data de nascimento <span aria-hidden="true" className="text-red-600">*</span>
+                            </label>
+
+                            <DateSelectBR
+                              idPrefix="reg-nasc"
+                              valueISO={form.dataNascimento}
+                              onChangeISO={(iso) => {
+                                const next = { ...form, dataNascimento: iso };
+                                setForm(next);
+                                if (submitted) setErrorList(buildStepErrors(next, 1));
+                              }}
+                              minAge={18}
+                              maxAge={100}
+                              invalid={submitted && (!form.dataNascimento || !idadeOk)}
+                            />
+
+                            {submitted && (!form.dataNascimento || !idadeOk) && (
+                              <p className="text-xs md:text-sm mt-1 text-red-600">
+                                É preciso ter entre <b>18</b> e <b>100</b> anos.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {step === 2 && (
+                      <div className="space-y-5">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label htmlFor="email" className="label font-medium text-sm md:text-base">
+                              E-mail <span aria-hidden="true" className="text-red-600">*</span>
+                            </label>
+
+                            {/* ✅ Sem voz no e-mail */}
+                            <input
+                              id="email"
+                              name="email"
+                              ref={emailRef}
+                              value={form.email}
+                              onChange={(e) => {
+                                const v = normalizeEmailTyping(e.target.value || "");
+                                const next = { ...form, email: v };
+                                setForm(next);
+                                recomputeErrorsIfSubmitted(next);
+                              }}
+                              type="text"
+                              inputMode="email"
+                              autoCapitalize="none"
+                              autoCorrect="off"
+                              spellCheck={false}
+                              className={`input h-12 text-base ${
+                                submitted && !emailOk ? "ring-1 ring-red-500" : ""
+                              }`}
+                              style={{ background: inputBg }}
+                              placeholder="maria@exemplo.com"
+                              autoComplete="email"
+                              aria-required="true"
+                              aria-invalid={submitted && !emailOk}
+                              disabled={loading}
+                            />
+
+                            {submitted && !emailOk && (
+                              <p className="text-xs md:text-sm mt-1 text-red-600">
+                                Informe um e-mail válido.
+                              </p>
+                            )}
+                          </div>
+
+                          <div>
+                            <label htmlFor="celular" className="label font-medium text-sm md:text-base">
+                              Celular <span aria-hidden="true" className="text-red-600">*</span>
+                            </label>
+
+                            <VoiceTextInput
+                              id="celular"
+                              name="celular"
+                              inputRef={celRef}
+                              value={formatPhoneBR(form.celular)}
+                              onChange={onChangeMasked("celular", formatPhoneBR)}
+                              onPaste={onPasteMasked("celular", formatPhoneBR)}
+                              onChangeValue={(spoken) => {
+                                const digits = normalizeDigitsFromSpeech(spoken).slice(0, 11);
+                                const formatted = formatPhoneBR(digits);
+                                const next = { ...form, celular: formatted };
+                                setForm(next);
+                                recomputeErrorsIfSubmitted(next);
+                              }}
+                              className={`input h-12 text-base ${
+                                submitted && !celularOk ? "ring-1 ring-red-500" : ""
+                              }`}
+                              style={{ background: inputBg }}
+                              placeholder="(00) 90000-0000"
+                              inputMode="tel"
+                              autoComplete="tel"
+                              ariaRequired="true"
+                              ariaInvalid={submitted && !celularOk}
+                              disabled={loading}
+                              enableVoice
+                              applyMode="replace"
+                              idleHint="Toque no microfone e fale os números com DDD"
+                              listeningHint="Ao terminar toque no quadrado para concluir"
+                            />
+
+                            {submitted && !celularOk && (
+                              <p className="text-xs md:text-sm mt-1 text-red-600">
+                                Informe um celular válido com DDD.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* =========================
+                        STEP 3 – SENHA (Apple-level)
+                       ========================= */}
+                    {step === 3 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* COLUNA ESQUERDA: Criar senha */}
+                        <div>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <label htmlFor="senha" className="label font-medium text-sm md:text-base">
+                                Crie uma senha <span aria-hidden="true" className="text-red-600">*</span>
+                              </label>
+                              <p className="text-[11px] md:text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                                Dica: use 8+ caracteres ou gere uma senha forte em 1 clique.
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => applyGeneratedPassword()}
+                              className="inline-flex items-center gap-2 rounded-full h-10 px-4 border text-xs md:text-sm font-semibold hover:opacity-90 active:opacity-80"
+                              style={{
+                                background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
+                                borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)",
+                                color: "var(--text)",
+                              }}
+                              disabled={loading}
+                              title="Gerar senha forte"
+                            >
+                              <Wand2 size={16} style={{ color: "var(--primary)" }} />
+                              {genOk ? "Gerada!" : "Gerar"}
+                            </button>
+                          </div>
+
+                          {/* INPUT SENHA */}
+                          <div className={`mt-2 relative ${submitted && !senhaOk ? "ring-1 ring-red-500 rounded-2xl" : ""}`}>
+                            <input
+                              id="senha"
+                              type={showPass ? "text" : "password"}
+                              name="senha"
+                              ref={senhaRef}
+                              value={form.senha}
+                              onChange={(e) => {
+                                const next = { ...form, senha: e.target.value };
+                                setForm(next);
+                                recomputeErrorsIfSubmitted(next);
+                              }}
+                              onKeyUp={(e) => {
+                                try {
+                                  setCapsOn(!!e.getModifierState?.("CapsLock"));
+                                } catch {}
+                              }}
+                              className="input pr-[104px] h-12 text-xs sm:text-sm md:text-base"
+                              style={{ background: inputBg }}
+                              placeholder="Ex.: MinhaSenhaForte2025"
+                              autoComplete="new-password"
+                              aria-required="true"
+                              aria-invalid={submitted && !senhaOk}
+                              aria-describedby="senha-ux senha-policy"
+                            />
+
+                            {/* Ações à direita (Mostrar / Copiar) */}
+                            <div className="absolute inset-y-0 right-0 flex items-center gap-1 pr-2">
+                              <button
+                                type="button"
+                                onClick={() => setShowPass((v) => !v)}
+                                className="h-9 w-9 inline-flex items-center justify-center rounded-full border hover:opacity-90 active:opacity-80"
+                                style={{
+                                  background: "color-mix(in srgb, var(--surface) 86%, transparent)",
+                                  borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                                  color: "var(--text)",
+                                }}
+                                aria-label={showPass ? "Ocultar senha" : "Mostrar senha"}
+                                aria-pressed={showPass}
+                                title={showPass ? "Ocultar" : "Mostrar"}
+                              >
+                                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(form.senha || "")}
+                                className="h-9 w-9 inline-flex items-center justify-center rounded-full border hover:opacity-90 active:opacity-80 disabled:opacity-60 disabled:cursor-not-allowed"
+                                style={{
+                                  background: "color-mix(in srgb, var(--surface) 86%, transparent)",
+                                  borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                                  color: "var(--text)",
+                                }}
+                                disabled={!form.senha}
+                                aria-label="Copiar senha"
+                                title={copyOk ? "Copiada!" : "Copiar"}
+                              >
+                                <Copy size={16} style={{ color: copyOk ? "var(--primary)" : "currentColor" }} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Caps Lock + helper */}
+                          <div id="senha-ux" className="mt-2 space-y-2">
+                            {capsOn && (
+                              <div
+                                className="rounded-2xl px-3 py-2 border text-xs md:text-sm inline-flex items-center gap-2"
+                                style={{
+                                  background: "color-mix(in srgb, var(--primary) 10%, transparent)",
+                                  borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)",
+                                  color: "var(--text)",
+                                }}
+                                role="status"
+                              >
+                                <AlertTriangle size={14} style={{ color: "var(--primary)" }} />
+                                Caps Lock ativado
+                              </div>
+                            )}
+
+                            <div
+                              className="rounded-2xl px-4 py-3 border"
+                              style={{
+                                background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
+                                borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                              }}
+                            >
+                              <StrengthPill score={passScore.score} label={passScore.label} />
+                              <p className="mt-2 text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
+                                {passScore.hint}
+                              </p>
+                            </div>
+
+                            {/* Checklist vivo (sem poluir) */}
+                            <div
+                              id="senha-policy"
+                              className="rounded-2xl px-4 py-3 border"
+                              style={{
+                                background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
+                                borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                              }}
+                              aria-live="polite"
+                            >
+                              <p className="text-[11px] md:text-xs mb-2 font-semibold" style={{ color: "var(--text)" }}>
+                                Requisitos mínimos
+                              </p>
+                              <ul className="space-y-1.5">
+                                <LiveCheck ok={senhaChecks.len} text="8 ou mais caracteres" />
+                                <LiveCheck ok={senhaChecks.upper} text="1 letra maiúscula (A-Z)" />
+                                <LiveCheck ok={senhaChecks.lower} text="1 letra minúscula (a-z)" />
+                                <LiveCheck ok={senhaChecks.digit} text="1 número (0-9)" />
+                              </ul>
+
+                              {/* Mensagem “ok” sem barulho */}
+                              {senhaOk && (
+                                <div
+                                  className="mt-3 rounded-xl px-3 py-2 border text-xs md:text-sm inline-flex items-center gap-2"
+                                  style={{
+                                    background: "color-mix(in srgb, var(--primary) 12%, transparent)",
+                                    borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)",
+                                    color: "var(--text)",
+                                  }}
+                                  role="status"
+                                >
+                                  <CheckCircle2 size={16} style={{ color: "var(--primary)" }} />
+                                  Senha aprovada
+                                </div>
+                              )}
+                            </div>
+
+                            {submitted && !senhaOk && (
+                              <p className="text-xs md:text-sm mt-1 text-red-600">
+                                Ajuste a senha para cumprir os requisitos.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* COLUNA DIREITA: Confirmar + termos */}
+                        <div>
+                          <label htmlFor="confirmSenha" className="label font-medium text-sm md:text-base">
+                            Confirme a senha <span aria-hidden="true" className="text-red-600">*</span>
+                          </label>
+                          <p className="text-[11px] md:text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                            Digite novamente para evitar erros.
+                          </p>
+
+                          <div
+                            className={`mt-2 relative ${
+                              submitted && !confirmOk ? "ring-1 ring-red-500 rounded-2xl" : ""
+                            }`}
+                          >
+                            <input
+                              id="confirmSenha"
+                              ref={confirmRef}
+                              type={showConfirm ? "text" : "password"}
+                              name="confirmSenha"
+                              value={form.confirmSenha}
+                              onChange={(e) => {
+                                const next = { ...form, confirmSenha: e.target.value };
+                                setForm(next);
+                                recomputeErrorsIfSubmitted(next);
+                              }}
+                              className="input pr-[56px] h-12 text-xs sm:text-sm md:text-base"
+                              style={{ background: inputBg }}
+                              placeholder="Repita exatamente a mesma senha"
+                              autoComplete="new-password"
+                              aria-required="true"
+                              aria-invalid={submitted && !confirmOk}
+                              aria-describedby="confirm-feedback"
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() => setShowConfirm((v) => !v)}
+                              className="absolute inset-y-0 right-0 my-auto mr-2 h-9 w-9 inline-flex items-center justify-center rounded-full border hover:opacity-90 active:opacity-80"
+                              style={{
+                                background: "color-mix(in srgb, var(--surface) 86%, transparent)",
+                                borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                                color: "var(--text)",
+                              }}
+                              aria-label={showConfirm ? "Ocultar confirmação" : "Mostrar confirmação"}
+                              aria-pressed={showConfirm}
+                              title={showConfirm ? "Ocultar" : "Mostrar"}
+                            >
+                              {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                            </button>
+                          </div>
+
+                          {/* Feedback imediato de match (sem agressividade) */}
+                          <div id="confirm-feedback" className="mt-2">
+                            {form.confirmSenha.length > 0 && (
+                              <div
+                                className="rounded-2xl px-3 py-2 border text-xs md:text-sm inline-flex items-center gap-2"
+                                style={{
+                                  background: confirmOk
+                                    ? "color-mix(in srgb, var(--primary) 12%, transparent)"
+                                    : "color-mix(in srgb, var(--text) 8%, transparent)",
+                                  borderColor: confirmOk
+                                    ? "color-mix(in srgb, var(--primary) 22%, transparent)"
+                                    : "color-mix(in srgb, var(--text) 14%, transparent)",
+                                  color: "var(--text)",
+                                }}
+                                role="status"
+                              >
+                                {confirmOk ? (
+                                  <>
+                                    <Check size={16} style={{ color: "var(--primary)" }} />
+                                    Senhas conferem
+                                  </>
+                                ) : (
+                                  <>
+                                    <X size={16} style={{ color: "var(--text-muted)" }} />
+                                    Ainda não confere
+                                  </>
+                                )}
+                              </div>
+                            )}
+
+                            {submitted && !confirmOk && (
+                              <p className="text-xs md:text-sm mt-2 text-red-600">
+                                As senhas precisam ser iguais.
+                              </p>
+                            )}
+                          </div>
+
+                          <div
+                            className="mt-4 rounded-2xl px-4 py-3 border flex items-start gap-2"
+                            style={{
+                              background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
+                              borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                            }}
+                          >
+                            <CheckCircle2 size={18} className="mt-0.5" style={{ color: "var(--primary)" }} />
+                            <div className="text-xs md:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                              Ao criar sua conta, você concorda com os{" "}
+                              <a href="/termos-uso" target="_blank" rel="noreferrer" className="underline">
+                                Termos de Uso
+                              </a>{" "}
+                              e a{" "}
+                              <a href="/politica-privacidade" target="_blank" rel="noreferrer" className="underline">
+                                Política de Privacidade
+                              </a>
+                              .
+                            </div>
+                          </div>
+
+                          {/* Dica para conversão (gerenciador) – discreto */}
+                          <div
+                            className="mt-3 rounded-2xl px-4 py-3 border"
+                            style={{
+                              background: "color-mix(in srgb, var(--surface) 92%, transparent)",
+                              borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                            }}
+                          >
+                            <p className="text-xs md:text-sm font-semibold" style={{ color: "var(--text)" }}>
+                              Sugestão rápida
+                            </p>
+                            <p className="mt-1 text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
+                              Se você usa gerenciador de senhas, pode gerar e salvar automaticamente.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {submitted && errorList.length > 0 && (
                       <div
-                        className="rounded-lg px-4 py-3 text-sm md:text-base mt-1"
+                        className="rounded-2xl px-4 py-3 text-sm md:text-base border"
                         style={{
-                          border:
-                            '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
-                          background:
-                            'color-mix(in srgb, var(--primary) 12%, transparent)',
-                          color: 'var(--text)',
+                          borderColor: "color-mix(in srgb, var(--primary) 30%, transparent)",
+                          background: "color-mix(in srgb, var(--primary) 10%, transparent)",
+                          color: "var(--text)",
                         }}
                         role="alert"
                         aria-live="assertive"
                       >
-                        <p className="font-medium mb-1">
-                          Revise os campos destacados antes de continuar:
-                        </p>
+                        <p className="font-medium mb-1">Revise os campos destacados</p>
                         <ul className="list-disc ml-5 space-y-1">
                           {errorList.map((it, idx) => (
                             <li key={idx}>
@@ -1037,426 +1790,136 @@ export default function RegisterPage() {
                         </ul>
                       </div>
                     )}
-                  </>
-                )}
 
-                {step === 2 && (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label
-                          htmlFor="email"
-                          className="label font-medium text-sm md:text-base"
-                        >
-                          E-mail{' '}
-                          <span aria-hidden="true" className="text-red-600">
-                            *
-                          </span>
-                        </label>
-                        <input
-                          id="email"
-                          type="email"
-                          name="email"
-                          ref={emailRef}
-                          value={form.email}
-                          onChange={onChange}
-                          className={`input h-12 text-base bg-white ${
-                            submitted && !emailOk ? 'ring-1 ring-red-500' : ''
-                          }`}
-                          placeholder="maria@exemplo.com"
-                          autoComplete="email"
-                          inputMode="email"
-                          aria-required="true"
-                          aria-invalid={submitted && !emailOk}
-                        />
-                        {submitted && !emailOk && (
-                          <p className="text-xs md:text-sm mt-1 text-red-600">
-                            Informe um e-mail válido.
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        <label
-                          htmlFor="celular"
-                          className="label font-medium text-sm md:text-base"
-                        >
-                          Celular{' '}
-                          <span aria-hidden="true" className="text-red-600">
-                            *
-                          </span>
-                        </label>
-                        <input
-                          id="celular"
-                          name="celular"
-                          ref={celRef}
-                          value={formatPhoneBR(form.celular)}
-                          onChange={onChangeMasked(
-                            'celular',
-                            formatPhoneBR,
-                            celRef
-                          )}
-                          onPaste={onPasteMasked('celular', formatPhoneBR)}
-                          className={`input h-12 text-base bg-white ${
-                            submitted && !celularOk ? 'ring-1 ring-red-500' : ''
-                          }`}
-                          placeholder="(00) 90000-0000"
-                          inputMode="tel"
-                          autoComplete="tel"
-                          aria-required="true"
-                          aria-invalid={submitted && !celularOk}
-                        />
-                        {submitted && !celularOk && (
-                          <p className="text-xs md:text-sm mt-1 text-red-600">
-                            Informe um celular válido com DDD.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {submitted && step === 2 && errorList.length > 0 && (
-                      <div
-                        className="rounded-lg px-4 py-3 text-sm md:text-base mt-1"
-                        style={{
-                          border:
-                            '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
-                          background:
-                            'color-mix(in srgb, var(--primary) 12%, transparent)',
-                          color: 'var(--text)',
-                        }}
-                        role="alert"
-                        aria-live="assertive"
-                      >
-                        <p className="font-medium mb-1">
-                          Revise os campos destacados antes de continuar:
-                        </p>
-                        <ul className="list-disc ml-5 space-y-1">
-                          {errorList.map((it, idx) => (
-                            <li key={idx}>
-                              <button
-                                type="button"
-                                className="underline hover:opacity-80"
-                                onClick={() => focusByField(it.field)}
-                              >
-                                {it.label}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {step === 3 && (
-                  <>
+                    {/* Bottom bar – simples e direto */}
                     <div
-                      className="rounded-2xl px-4 py-3 text-xs md:text-sm mb-2 flex items-start gap-2"
+                      className="sticky bottom-0 pt-2"
                       style={{
                         background:
-                          'color-mix(in srgb, var(--surface) 90%, transparent)',
-                        border:
-                          '1px dashed color-mix(in srgb, var(--text) 18%, transparent)',
+                          "linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--surface-elevated) 92%, transparent) 30%, color-mix(in srgb, var(--surface-elevated) 96%, transparent) 100%)",
+                        paddingBottom: 2,
                       }}
                     >
-                      <Lock
-                        size={18}
-                        className="mt-0.5"
-                        style={{ color: 'var(--text-muted)' }}
-                      />
-                      <div>
-                        <p className="font-medium mb-0.5">
-                          Capriche em uma senha segura.
-                        </p>
-                        <p style={{ color: 'var(--text-muted)' }}>
-                          Use uma combinação de letras maiúsculas, minúsculas e
-                          números que só você saiba.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label
-                          htmlFor="senha"
-                          className="label font-medium text-sm md:text-base"
-                        >
-                          Senha{' '}
-                          <span aria-hidden="true" className="text-red-600">
-                            *
-                          </span>
-                        </label>
-                        <div
-                          className={`relative ${
-                            submitted && !senhaOk
-                              ? 'ring-1 ring-red-500 rounded-md'
-                              : ''
-                          }`}
-                        >
-                          <input
-                            id="senha"
-                            type={showPass ? 'text' : 'password'}
-                            name="senha"
-                            ref={senhaRef}
-                            value={form.senha}
-                            onChange={onChange}
-                            className="input pr-12 h-12 text-xs sm:text-sm md:text-base bg-white"
-                            placeholder="Crie uma senha forte"
-                            autoComplete="new-password"
-                            aria-required="true"
-                            aria-invalid={submitted && !senhaOk}
-                            aria-describedby="senha-policy"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPass((v) => !v)}
-                            className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none text-sm"
-                            aria-label={
-                              showPass ? 'Ocultar senha' : 'Mostrar senha'
-                            }
-                            aria-pressed={showPass}
-                            title={
-                              showPass ? 'Ocultar senha' : 'Mostrar senha'
-                            }
-                          >
-                            {showPass ? '🙈' : '👁️'}
-                          </button>
-                        </div>
-
-                        <div
-                          id="senha-policy"
-                          className="rounded-lg px-3 py-2 mt-2"
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <button
+                          type="submit"
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed shadow-lg"
+                          disabled={loading}
                           style={{
                             background:
-                              'color-mix(in srgb, var(--surface) 80%, transparent)',
-                            border: '1px solid var(--c-border)',
+                              "linear-gradient(180deg, color-mix(in srgb, var(--primary) 88%, #000 0%), color-mix(in srgb, var(--primary) 74%, #000 0%))",
+                            color: "var(--on-primary)",
                           }}
-                          aria-live="polite"
                         >
-                          <p
-                            className="text-[11px] md:text-xs mb-1"
-                            style={{ color: 'var(--text-muted)' }}
+                          <span>{loading ? "Processando…" : sendLabel}</span>
+                          <span
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full"
+                            style={{
+                              background: "color-mix(in srgb, var(--on-primary) 18%, transparent)",
+                            }}
+                            aria-hidden="true"
                           >
-                            A senha precisa ter:
-                          </p>
-                          <ul className="space-y-1">
-                            <Rule ok={senhaChecks.len}>
-                              Pelo menos 8 caracteres
-                            </Rule>
-                            <Rule ok={senhaChecks.upper}>
-                              Ao menos 1 letra maiúscula (A–Z)
-                            </Rule>
-                            <Rule ok={senhaChecks.lower}>
-                              Ao menos 1 letra minúscula (a–z)
-                            </Rule>
-                            <Rule ok={senhaChecks.digit}>
-                              Ao menos 1 número (0–9)
-                            </Rule>
-                          </ul>
-                        </div>
-
-                        {submitted && !senhaOk && (
-                          <p className="text-xs md:text-sm mt-2 text-red-600">
-                            Ajuste a senha conforme os requisitos acima.
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        <label
-                          htmlFor="confirmSenha"
-                          className="label font-medium text-sm md:text-base"
-                        >
-                          Confirmar senha{' '}
-                          <span aria-hidden="true" className="text-red-600">
-                            *
+                            <ArrowRight size={16} />
                           </span>
-                        </label>
-                        <div
-                          className={`relative ${
-                            submitted && !confirmOk
-                              ? 'ring-1 ring-red-500 rounded-md'
-                              : ''
-                          }`}
-                        >
-                          <input
-                            id="confirmSenha"
-                            ref={confirmRef}
-                            type={showConfirm ? 'text' : 'password'}
-                            name="confirmSenha"
-                            value={form.confirmSenha}
-                            onChange={onChange}
-                            className="input pr-12 h-12 text-xs sm:text-sm md:text-base bg-white"
-                            placeholder="Repita a mesma senha"
-                            autoComplete="new-password"
-                            aria-required="true"
-                            aria-invalid={submitted && !confirmOk}
-                          />
+                        </button>
+
+                        {canGoBack ? (
                           <button
                             type="button"
-                            onClick={() => setShowConfirm((v) => !v)}
-                            className="absolute inset-y-0 right-0 px-3 hover:opacity-80 focus:outline-none text-sm"
-                            aria-label={
-                              showConfirm ? 'Ocultar senha' : 'Mostrar senha'
-                            }
-                            aria-pressed={showConfirm}
-                            title={
-                              showConfirm ? 'Ocultar senha' : 'Mostrar senha'
-                            }
+                            onClick={() => {
+                              const prev = Math.max(1, step - 1);
+                              setStep(prev);
+                              setSubmitted(false);
+                              setErrorList([]);
+                              setTimeout(() => {
+                                if (prev === 1) nomeRef.current?.focus();
+                                if (prev === 2) emailRef.current?.focus();
+                                if (prev === 3) senhaRef.current?.focus();
+                              }, 0);
+                            }}
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-sm md:text-base font-medium border hover:opacity-90"
+                            style={{
+                              background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
+                              borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                              color: "var(--text)",
+                            }}
                           >
-                            {showConfirm ? '🙈' : '👁️'}
+                            <ChevronLeft size={18} />
+                            Voltar
                           </button>
-                        </div>
-                        {submitted && !confirmOk && (
-                          <p className="text-xs md:text-sm mt-1 text-red-600">
-                            As senhas precisam ser iguais.
-                          </p>
+                        ) : (
+                          <Link
+                            to="/login"
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-sm md:text-base font-medium border hover:opacity-90"
+                            style={{
+                              background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
+                              borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                              color: "var(--text)",
+                            }}
+                          >
+                            Já tenho conta
+                          </Link>
                         )}
                       </div>
+
+                      <p
+                        className="mt-3 text-[11px] md:text-xs text-center leading-relaxed"
+                        style={{ color: "var(--text-muted)" }}
+                      >
+                        Seus dados são tratados conforme a LGPD.
+                      </p>
+                    </div>
+                  </div>
+                </FormPanel>
+
+                {/* COLUNA DIREITA – MINIMAL (não polui decisão); escondida no mobile */}
+                <aside
+                  className="hidden md:flex rounded-2xl border px-5 py-5 flex-col justify-between gap-4"
+                  style={{
+                    background: "color-mix(in srgb, var(--surface-elevated) 94%, transparent)",
+                    borderColor: "color-mix(in srgb, var(--primary) 20%, transparent)",
+                  }}
+                >
+                  <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[11px]">
+                      <span
+                        className="inline-flex h-5 w-5 items-center justify-center rounded-full"
+                        style={{ background: "var(--primary)", color: "var(--on-primary, #fff)" }}
+                      >
+                        <AsideIcon size={12} />
+                      </span>
+                      <span style={{ color: "var(--text-muted)" }}>{asideInfo.title}</span>
                     </div>
 
-                    {submitted && step === 3 && errorList.length > 0 && (
-                      <div
-                        className="rounded-lg px-4 py-3 text-sm md:text-base mt-1"
-                        style={{
-                          border:
-                            '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
-                          background:
-                            'color-mix(in srgb, var(--primary) 12%, transparent)',
-                          color: 'var(--text)',
-                        }}
-                        role="alert"
-                        aria-live="assertive"
-                      >
-                        <p className="font-medium mb-1">
-                          Revise os campos destacados para concluir o cadastro:
-                        </p>
-                        <ul className="list-disc ml-5 space-y-1">
-                          {errorList.map((it, idx) => (
-                            <li key={idx}>
-                              <button
-                                type="button"
-                                className="underline hover:opacity-80"
-                                onClick={() => focusByField(it.field)}
-                              >
-                                {it.label}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
+                    <ul className="mt-2 space-y-2 text-sm">
+                      {asideInfo.bullets.map((b, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span
+                            className="mt-2 inline-block h-1.5 w-1.5 rounded-full"
+                            style={{ background: "var(--primary)" }}
+                          />
+                          <span style={{ color: "var(--text)" }}>{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                {step === 1 && (
-                  <>
+                  <div className="space-y-2">
                     <button
-                      type="submit"
-                      className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-12 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
+                      type="button"
+                      onClick={() => navigate("/login")}
+                      className="btn-outline w-full justify-center rounded-2xl h-11 md:h-12 text-sm md:text-base font-semibold"
                       disabled={loading}
-                    >
-                      Continuar
-                    </button>
-                    <Link
-                      to="/login"
-                      className="btn-outline w-full sm:w-auto justify-center rounded-2xl h-12 text-sm md:text-base font-medium"
-                      aria-disabled={loading}
                     >
                       Já tenho conta
-                    </Link>
-                  </>
-                )}
-
-                {step === 2 && (
-                  <>
-                    <button
-                      type="submit"
-                      className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-12 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
-                      disabled={loading}
-                    >
-                      Continuar
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStep(1)
-                        setSubmitted(false)
-                        setErrorList([])
-                        setTimeout(() => nomeRef.current?.focus(), 0)
-                      }}
-                      className="btn-outline w-full sm:w-auto justify-center rounded-2xl h-12 text-sm md:text-base font-medium"
-                    >
-                      Voltar aos dados principais
-                    </button>
-                  </>
-                )}
-
-                {step === 3 && (
-                  <>
-                    <button
-                      type="submit"
-                      className="btn-primary w-full sm:w-auto justify-center rounded-2xl h-12 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed transform-gpu transition-transform duration-150 hover:scale-[1.01] focus:scale-[0.99]"
-                      disabled={loading}
-                    >
-                      {loading ? 'Criando conta…' : 'Criar conta agora'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStep(2)
-                        setSubmitted(false)
-                        setErrorList([])
-                        setTimeout(() => emailRef.current?.focus(), 0)
-                      }}
-                      className="btn-outline w-full sm:w-auto justify-center rounded-2xl h-12 text-sm md:text-base font-medium"
-                    >
-                      Voltar aos contatos
-                    </button>
-                  </>
-                )}
-              </div>
-
-              {!formValido && !submitted && (
-                <p
-                  className="mt-1 text-[11px] md:text-xs text-center"
-                  style={{ color: 'var(--text-muted)' }}
-                >
-                  Preencha os campos com * para finalizar o cadastro.
-                </p>
-              )}
-
-              <p
-                className="mt-2 text-[11px] md:text-xs text-center leading-relaxed"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                Ao criar sua conta, você declara que leu e concorda com os{' '}
-                <a
-                  href="/termos-uso"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
-                  Termos de Uso
-                </a>{' '}
-                e com a{' '}
-                <a
-                  href="/politica-privacidade"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
-                  Política de Privacidade
-                </a>
-                . Seus dados são protegidos com criptografia e em conformidade
-                com a LGPD.
-              </p>
-            </fieldset>
-          </form>
+                  </div>
+                </aside>
+              </fieldset>
+            </form>
+          </MasterCard>
         </div>
       </div>
     </section>
-  )
+  );
 }

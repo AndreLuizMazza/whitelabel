@@ -88,6 +88,50 @@ function buildWhats(number, msg) {
   return digits ? `https://wa.me/${digits}?text=${encodeURIComponent(msg)}` : null
 }
 
+/**
+ * ✅ Parse local robusto
+ * IMPORTANTE: nunca usar new Date("YYYY-MM-DD") (vira UTC e pode “voltar um dia” no Brasil).
+ */
+function parseDateLocal(s) {
+  if (!s) return null
+  const t = String(s)
+
+  // dd/mm/yyyy
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(t)) {
+    const [dd, mm, yyyy] = t.split('/')
+    const d = new Date(+yyyy, +mm - 1, +dd)
+    return Number.isNaN(d.getTime()) ? null : d
+  }
+
+  // yyyy-mm-dd (ou yyyy-mm-ddTHH:mm...)
+  const base = t.split('T')[0]
+  const parts = base.split('-')
+  if (parts.length === 3) {
+    const [Y, M, D] = parts
+    const d = new Date(+Y, +M - 1, +D) // ✅ local time (meia-noite local)
+    return Number.isNaN(d.getTime()) ? null : d
+  }
+
+  // fallback (evitar)
+  const d = new Date(t)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+function startOfToday() {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+}
+
+function isSameDay(a, b) {
+  if (!a || !b) return false
+  const da = a instanceof Date ? a : parseDateLocal(a)
+  const db = b instanceof Date ? b : parseDateLocal(b)
+  if (!da || !db) return false
+  const x = new Date(da.getFullYear(), da.getMonth(), da.getDate())
+  const y = new Date(db.getFullYear(), db.getMonth(), db.getDate())
+  return x.getTime() === y.getTime()
+}
+
 /* ============================================================
    CARD DE RESUMO DO PLANO – estilo “home de banco premium”
    ============================================================ */
@@ -98,13 +142,11 @@ function PlanoHighlightCard({
   totalEmAtraso,
   hasAtraso,
   nomeExibicao,
+  contratoAtivo,
+  vencendoHoje,
 }) {
   // valores visíveis por padrão
   const [mostrarValores, setMostrarValores] = useState(true)
-
-  const tituloMensalidade = hasAtraso
-    ? 'Mensalidade em atraso'
-    : 'Próxima mensalidade'
 
   if (!contrato) return null
 
@@ -121,8 +163,25 @@ function PlanoHighlightCard({
   const dataProx = proximaParcela?.dataVencimento ?? null
   const valorProx = proximaParcela?.valorParcela ?? null
 
-  const situacaoLabel = hasAtraso ? 'Em atraso' : 'Em dia'
-  const situacaoCor = hasAtraso ? '#fb7185' : '#4ade80'
+  // ✅ Prioridade de mensagem: atraso > vence hoje > próxima
+  const tituloMensalidade = hasAtraso
+    ? 'Mensalidade em atraso'
+    : vencendoHoje
+      ? 'Mensalidade vencendo hoje'
+      : 'Próxima mensalidade'
+
+  // ✅ “Plano em dia” só se contrato estiver ativo
+  const situacaoLabel = hasAtraso
+    ? 'Em atraso'
+    : contratoAtivo
+      ? (vencendoHoje ? 'Vence hoje' : 'Em dia')
+      : 'Aguardando ativação'
+
+  const situacaoCor = hasAtraso
+    ? '#fb7185'
+    : vencendoHoje
+      ? '#fbbf24'
+      : '#4ade80'
 
   const diaD = extractDiaFromDateString(dataProx)
 
@@ -147,6 +206,20 @@ function PlanoHighlightCard({
           mixBlendMode: 'screen',
         }}
       />
+
+      {/* brilho extra (leve) quando vence hoje */}
+      {vencendoHoje && !hasAtraso && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full"
+          style={{
+            background:
+              'radial-gradient(circle at center, rgba(251,191,36,0.55) 0, rgba(251,191,36,0.0) 65%)',
+            filter: 'blur(8px)',
+            opacity: 0.9,
+          }}
+        />
+      )}
 
       {/* conteúdo principal */}
       <div className="relative z-[1] flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
@@ -182,10 +255,23 @@ function PlanoHighlightCard({
             {numeroContrato && (
               <span className="opacity-90">Contrato #{numeroContrato}</span>
             )}
+
+            {vencendoHoje && !hasAtraso && (
+              <span
+                className="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
+                style={{
+                  background: 'rgba(251,191,36,0.26)',
+                  border: '1px solid rgba(251,191,36,0.62)',
+                  color: 'var(--on-primary, #ffffff)',
+                }}
+              >
+                Vence hoje
+              </span>
+            )}
           </div>
         </div>
 
-        {/* lado direito – próxima mensalidade */}
+        {/* lado direito – mensalidade */}
         <div className="text-right flex flex-col items-end gap-2 sm:gap-3">
           <div>
             <p className="text-[11px] uppercase tracking-[0.18em] opacity-80">
@@ -197,8 +283,15 @@ function PlanoHighlightCard({
                 <p className="mt-1 text-2xl sm:text-3xl font-semibold leading-tight">
                   {mostrarValores ? fmtBRL(valorProx) : '••••••'}
                 </p>
+
                 <p className="text-xs sm:text-sm opacity-90">
-                  Vence em {fmtDate(dataProx)}
+                  {hasAtraso ? (
+                    <>Venceu em {fmtDate(dataProx)}</>
+                  ) : vencendoHoje ? (
+                    <>Vence hoje • {fmtDate(dataProx)}</>
+                  ) : (
+                    <>Vence em {fmtDate(dataProx)}</>
+                  )}
                 </p>
               </>
             ) : (
@@ -215,19 +308,19 @@ function PlanoHighlightCard({
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
               }}
               style={{
-                background: 'rgba(255,255,255,0.16)',
-                border: '1px solid rgba(255,255,255,0.45)',
+                background: vencendoHoje && !hasAtraso ? 'rgba(251,191,36,0.22)' : 'rgba(255,255,255,0.16)',
+                border: vencendoHoje && !hasAtraso ? '1px solid rgba(251,191,36,0.62)' : '1px solid rgba(255,255,255,0.45)',
                 color: 'var(--on-primary, #ffffff)',
               }}
             >
               <CreditCard size={16} className="mr-2" />
-              Pagar agora
+              {hasAtraso ? 'Regularizar agora' : vencendoHoje ? 'Pagar hoje' : 'Pagar agora'}
             </button>
           )}
         </div>
       </div>
 
-      {/* métricas inferiores (com Dia D e sem "Total já pago") */}
+      {/* métricas inferiores */}
       <div className="relative z-[1] mt-6 pt-4 border-t border-white/25 flex flex-wrap items-center justify-between gap-4 text-xs sm:text-sm">
         <div className="flex flex-wrap gap-4 sm:gap-8">
           {diaD && (
@@ -482,17 +575,26 @@ export default function AreaUsuario() {
 
   /* ===== função de atraso por parcela (para PagamentoFacil) ===== */
   const isParcelaEmAtraso = (p) => {
+    // ✅ Regra: atraso somente quando vencimento < hoje (sem horário)
     if (!p?.dataVencimento) return false
     const status = String(p.status || '').toUpperCase()
     if (status === 'PAGA' || status === 'PAID' || status === 'CANCELADA') {
       return false
     }
-    const dt = new Date(p.dataVencimento)
-    if (Number.isNaN(dt.getTime())) return false
-    const hoje = new Date()
+
+    const dt = parseDateLocal(p.dataVencimento)
+    if (!dt) return false
+
+    const hoje = startOfToday()
     dt.setHours(0, 0, 0, 0)
-    hoje.setHours(0, 0, 0, 0)
     return dt < hoje
+  }
+
+  const isParcelaVencendoHoje = (p) => {
+    if (!p?.dataVencimento) return false
+    const status = String(p.status || '').toUpperCase()
+    if (status === 'PAGA' || status === 'PAID' || status === 'CANCELADA') return false
+    return isSameDay(p.dataVencimento, startOfToday())
   }
 
   /* ===== total em atraso (somente parcelas vencidas e não pagas) ===== */
@@ -530,6 +632,16 @@ export default function AreaUsuario() {
 
   /* ===== boolean de atraso para o card ===== */
   const hasAtraso = totalEmAtraso > 0
+
+  /* ===== contrato ativo (para “plano em dia”) ===== */
+  const contratoAtivo = Boolean(contrato && isAtivo(contrato))
+
+  /* ===== “vence hoje” (só se NÃO for atraso) ===== */
+  const vencendoHoje = Boolean(
+    proximaParcela &&
+      isParcelaVencendoHoje(proximaParcela) &&
+      !isParcelaEmAtraso(proximaParcela)
+  )
 
   /* ===== âncoras ===== */
   function scrollToPagamento() {
@@ -618,10 +730,14 @@ export default function AreaUsuario() {
                   <span
                     className="inline-block h-1.5 w-1.5 rounded-full"
                     style={{
-                      background: hasAtraso ? '#fb7185' : '#4ade80',
+                      background: hasAtraso ? '#fb7185' : (vencendoHoje ? '#fbbf24' : '#4ade80'),
                     }}
                   />
-                  {hasAtraso ? 'Plano com parcelas em atraso' : 'Plano em dia'}
+                  {hasAtraso
+                    ? 'Plano com parcelas em atraso'
+                    : contratoAtivo
+                      ? (vencendoHoje ? 'Vence hoje' : 'Plano em dia')
+                      : 'Aguardando ativação'}
                 </span>
 
                 {proximaParcela?.dataVencimento && (
@@ -656,6 +772,8 @@ export default function AreaUsuario() {
                 totalEmAtraso={totalEmAtraso}
                 hasAtraso={hasAtraso}
                 nomeExibicao={nomeExibicao}
+                contratoAtivo={contratoAtivo}
+                vencendoHoje={vencendoHoje}
               />
             </div>
           )}
@@ -862,7 +980,8 @@ export default function AreaUsuario() {
 
                 {/* COLUNA LATERAL: últimas notificações */}
                 <div className="lg:col-span-1">
-                  <div className="lg:sticky lg:top-6 space-y-6">
+                  {/* ✅ Removido sticky: não flutua mais ao rolar */}
+                  <div className="space-y-6">
                     <NotificationsCenter
                       items={notifications}
                       loading={loadingNotifications}

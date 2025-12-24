@@ -23,8 +23,14 @@ import HeaderNotificationsBell from "@/components/HeaderNotificationsBell"
 /**
  * MENU PRINCIPAL – PÚBLICO
  * Referência única para Navbar, sidebar e mobile drawer.
+ *
+ * Organização premium (BigTech):
+ * - Essencial: Home, Planos, Benefícios, Memorial
+ * - Serviços: 2ª Via, Contatos
+ * - Suporte: Ajuda
  */
 export const MAIN_MENU_LINKS = [
+  // Essencial
   {
     key: "home",
     to: "/",
@@ -50,18 +56,22 @@ export const MAIN_MENU_LINKS = [
     label: "Memorial",
     icon: HeartHandshake,
   },
-  {
-    key: "contatos",
-    to: "/filiais",
-    label: "Contatos",
-    icon: Phone,
-  },
+
+  // Serviços
   {
     key: "segunda-via",
     to: "/contratos",
     label: "2ª Via",
     icon: FileText,
   },
+  {
+    key: "contatos",
+    to: "/filiais",
+    label: "Contatos",
+    icon: Phone,
+  },
+
+  // Suporte
   {
     key: "ajuda",
     to: "/#faq",
@@ -114,15 +124,23 @@ export default function GlobalShell({ children }) {
   }))
   const tenant = useTenant((s) => s.empresa)
 
-  const brandName =
-    tenant?.nomeFantasia || tenant?.nome || "Sua Marca Aqui"
+  const brandName = tenant?.nomeFantasia || tenant?.nome || "Sua Marca Aqui"
 
-  const menuPublic = MAIN_MENU_LINKS
-  const menuPrivate = PRIVATE_MENU_LINKS
+  // Agrupamento premium no sidebar (com divisórias)
+  const menuPublicGrouped = [
+    // Essencial
+    ...MAIN_MENU_LINKS.slice(0, 4),
+    { divider: true },
+    // Serviços
+    ...MAIN_MENU_LINKS.slice(4, 6),
+    { divider: true },
+    // Suporte
+    ...MAIN_MENU_LINKS.slice(6),
+  ]
 
   const fullMenu = isAuthenticated()
-    ? [...menuPublic, { divider: true }, ...menuPrivate]
-    : menuPublic
+    ? [...menuPublicGrouped, { divider: true }, ...PRIVATE_MENU_LINKS]
+    : menuPublicGrouped
 
   const baseItemClass =
     "group flex items-center gap-3 px-4 py-2.5 mx-3 rounded-2xl text-sm font-medium transition-colors"
@@ -147,7 +165,7 @@ export default function GlobalShell({ children }) {
     return location.pathname === "/" && location.hash === "#faq"
   }
 
-  // mesmo comportamento da logo do Navbar
+  // Mesmo comportamento da logo do Navbar
   function handleBrandClick(e) {
     if (location.pathname === "/") {
       e.preventDefault()
@@ -193,6 +211,29 @@ export default function GlobalShell({ children }) {
           </Link>
         </div>
 
+        {/* CTA (não logado) – SEMPRE visível no desktop */}
+        {!isAuthenticated() && (
+          <div className="px-4 pt-3 pb-2">
+            <Link
+              to="/planos"
+              className="block text-center rounded-2xl px-4 py-3 font-semibold transition shadow-sm hover:shadow"
+              style={{ background: "var(--primary)", color: "#fff" }}
+              aria-label="Fazer adesão"
+            >
+              Fazer adesão
+            </Link>
+
+            <Link
+              to="/login"
+              className="mt-2 block text-center rounded-2xl px-4 py-2.5 text-sm font-medium border transition hover:bg-black/4 dark:hover:bg-white/5"
+              style={{ borderColor: "var(--c-border)", color: "var(--text)" }}
+              aria-label="Entrar"
+            >
+              Entrar
+            </Link>
+          </div>
+        )}
+
         {/* Menu principal + privado */}
         <nav className="flex-1 overflow-y-auto py-4 space-y-1">
           {fullMenu.map((item, i) =>
@@ -231,9 +272,7 @@ export default function GlobalShell({ children }) {
                 to={item.to}
                 end={item.exact}
                 className={({ isActive }) =>
-                  baseItemClass +
-                  " " +
-                  (isActive ? activeClass : inactiveClass)
+                  baseItemClass + " " + (isActive ? activeClass : inactiveClass)
                 }
               >
                 {({ isActive }) => (
@@ -250,9 +289,7 @@ export default function GlobalShell({ children }) {
                       className={
                         iconContainerBase +
                         " " +
-                        (isActive
-                          ? iconContainerActive
-                          : iconContainerInactive)
+                        (isActive ? iconContainerActive : iconContainerInactive)
                       }
                     >
                       <item.icon className="h-4 w-4" />
@@ -278,10 +315,7 @@ export default function GlobalShell({ children }) {
               <span className="text-[11px] uppercase tracking-[0.18em] mb-1">
                 Preferências
               </span>
-              <span
-                className="text-xs"
-                style={{ color: "var(--text-muted)" }}
-              >
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
                 Notificações e tema do site
               </span>
             </div>
