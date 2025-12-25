@@ -188,20 +188,26 @@ function normalizeEmailTyping(input = "") {
 
 function scorePassword(pw = "") {
   const s = String(pw || "");
-  if (!s) return { score: 0, label: "Crie uma senha", hint: "Use 8+ caracteres com letras e número." };
+  if (!s)
+    return {
+      score: 0,
+      label: "Crie uma senha",
+      hint: "Use 8+ caracteres com letras e número.",
+    };
 
   const checks = getPasswordChecks(s);
   const variety =
-    (checks.lower ? 1 : 0) + (checks.upper ? 1 : 0) + (checks.digit ? 1 : 0) + (/[^A-Za-z0-9]/.test(s) ? 1 : 0);
+    (checks.lower ? 1 : 0) +
+    (checks.upper ? 1 : 0) +
+    (checks.digit ? 1 : 0) +
+    (/[^A-Za-z0-9]/.test(s) ? 1 : 0);
 
-  // Heurística simples, estável e “sem susto” (0..100)
   let score = 0;
-  score += Math.min(40, s.length * 4); // até 40
-  score += variety * 12; // até 48
+  score += Math.min(40, s.length * 4);
+  score += variety * 12;
   if (s.length >= 12) score += 8;
   if (s.length >= 16) score += 6;
 
-  // Penalidades leves
   if (/^(.)\1{5,}$/.test(s)) score -= 20;
   if (/1234|abcd|senha|password/i.test(s)) score -= 20;
 
@@ -219,7 +225,6 @@ function scorePassword(pw = "") {
   }
 
   if (isStrongPassword(s) && s.length >= 12 && score < 70) {
-    // suaviza: se passou nos requisitos e tem 12+, tratamos como “forte”
     score = Math.max(score, 70);
     label = "Forte";
     hint = "Perfeito. Você pode seguir.";
@@ -229,7 +234,6 @@ function scorePassword(pw = "") {
 }
 
 function generatePassword(length = 14) {
-  // Gera senha forte com letras, números e símbolos comuns
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const lower = "abcdefghijkmnopqrstuvwxyz";
   const digits = "23456789";
@@ -248,7 +252,6 @@ function generatePassword(length = 14) {
 
   const pick = (set) => set[rand(set.length)];
   let pw = "";
-  // garante variedade mínima
   pw += pick(upper);
   pw += pick(lower);
   pw += pick(digits);
@@ -256,7 +259,6 @@ function generatePassword(length = 14) {
 
   for (let i = pw.length; i < length; i++) pw += pick(all);
 
-  // embaralha
   const arr = pw.split("");
   for (let i = arr.length - 1; i > 0; i--) {
     const j = rand(i + 1);
@@ -266,7 +268,6 @@ function generatePassword(length = 14) {
 }
 
 function StrengthPill({ score, label }) {
-  // Só usa primária (sem inventar paleta). Intensidade via opacidade.
   const width = `${Math.max(6, Math.min(100, score))}%`;
   const strong = score >= 70;
   const good = score >= 40 && score < 70;
@@ -626,11 +627,7 @@ function FormPanel({ title, subtitle, children }) {
     >
       {(title || subtitle) && (
         <div className="space-y-1 mb-4">
-          {title && (
-            <p className="text-xs md:text-sm font-semibold tracking-wide uppercase">
-              {title}
-            </p>
-          )}
+          {title && <p className="text-xs md:text-sm font-semibold tracking-wide uppercase">{title}</p>}
           {subtitle && (
             <p className="text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
               {subtitle}
@@ -647,7 +644,6 @@ function FormPanel({ title, subtitle, children }) {
    Stepper – só números (sticky)
 ========================= */
 
-// Preferência do usuário (reduce motion) para suavizar animações sem “sumir” UX
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
@@ -668,12 +664,7 @@ function usePrefersReducedMotion() {
 
 function StepCircle({ n, active, done, onClick, disabled }) {
   const reduceMotion = usePrefersReducedMotion();
-
   const isPrimary = active || done;
-
-  // Cor “inteligente” para contraste:
-  // - usa --on-primary se o tenant definir
-  // - fallback branco (funciona bem na maioria das paletas)
   const onPrimary = "var(--on-primary, #ffffff)";
 
   return (
@@ -690,7 +681,6 @@ function StepCircle({ n, active, done, onClick, disabled }) {
           ? "color-mix(in srgb, var(--primary) 65%, #000 0%)"
           : "color-mix(in srgb, var(--text) 14%, transparent)",
         color: isPrimary ? onPrimary : "var(--text-muted)",
-        // Premium: leve “glow” no ativo (sem estourar no dark)
         boxShadow: active
           ? "0 14px 30px color-mix(in srgb, var(--primary) 28%, rgba(0,0,0,0.35))"
           : done
@@ -713,7 +703,6 @@ function StepCircle({ n, active, done, onClick, disabled }) {
 }
 
 function StepperDock({ step, onStep, drawerOpen, disabled }) {
-  // Mantém o comportamento de ocultar no mobile quando drawer abre (sem quebrar UX)
   const [isMdUp, setIsMdUp] = useState(() => {
     if (typeof window === "undefined") return true;
     return window.matchMedia?.("(min-width: 768px)")?.matches ?? true;
@@ -734,13 +723,11 @@ function StepperDock({ step, onStep, drawerOpen, disabled }) {
   }, []);
 
   const hiddenMobile = !isMdUp && drawerOpen;
-  const top =
-    "calc(var(--app-header-h, 72px) + env(safe-area-inset-top, 0px) + 10px)";
+  const top = "calc(var(--app-header-h, 72px) + env(safe-area-inset-top, 0px) + 10px)";
 
   const trackOff = "color-mix(in srgb, var(--text) 12%, transparent)";
   const trackOn = "var(--primary)";
 
-  // Conector “premium”: usa gradiente suave no concluído
   const connectorStyle = (filled) => ({
     background: filled
       ? `linear-gradient(90deg, ${trackOn}, color-mix(in srgb, var(--primary) 70%, transparent))`
@@ -749,51 +736,21 @@ function StepperDock({ step, onStep, drawerOpen, disabled }) {
   });
 
   return (
-    <div
-      className={`${hiddenMobile ? "hidden" : ""} z-[50]`}
-      style={{ position: "sticky", top }}
-    >
+    <div className={`${hiddenMobile ? "hidden" : ""} z-[50]`} style={{ position: "sticky", top }}>
       <div
         className="rounded-[22px] border shadow-lg px-3 py-2.5 flex items-center justify-center gap-3"
         style={{
-          // fundo do dock mais “glass”, sem competir com o primário dos steps
           background: "color-mix(in srgb, var(--surface) 86%, var(--text) 6%)",
           borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
         }}
       >
-        <StepCircle
-          n={1}
-          active={step === 1}
-          done={step > 1}
-          disabled={disabled}
-          onClick={() => onStep?.(1)}
-        />
-        <span
-          aria-hidden="true"
-          className="h-[3px] w-10 md:w-14 rounded-full"
-          style={connectorStyle(step >= 2)}
-        />
-        <StepCircle
-          n={2}
-          active={step === 2}
-          done={step > 2}
-          disabled={disabled}
-          onClick={() => onStep?.(2)}
-        />
-        <span
-          aria-hidden="true"
-          className="h-[3px] w-10 md:w-14 rounded-full"
-          style={connectorStyle(step >= 3)}
-        />
-        <StepCircle
-          n={3}
-          active={step === 3}
-          done={false}
-          disabled={disabled}
-          onClick={() => onStep?.(3)}
-        />
+        <StepCircle n={1} active={step === 1} done={step > 1} disabled={disabled} onClick={() => onStep?.(1)} />
+        <span aria-hidden="true" className="h-[3px] w-10 md:w-14 rounded-full" style={connectorStyle(step >= 2)} />
+        <StepCircle n={2} active={step === 2} done={step > 2} disabled={disabled} onClick={() => onStep?.(2)} />
+        <span aria-hidden="true" className="h-[3px] w-10 md:w-14 rounded-full" style={connectorStyle(step >= 3)} />
+        <StepCircle n={3} active={step === 3} done={false} disabled={disabled} onClick={() => onStep?.(3)} />
       </div>
     </div>
   );
@@ -825,6 +782,16 @@ export default function RegisterPage() {
   const [copyOk, setCopyOk] = useState(false);
   const [genOk, setGenOk] = useState(false);
 
+  // ✅ transição leve entre etapas (sem libs; respeita reduce motion)
+  const reduceMotion = usePrefersReducedMotion();
+  const [stepFxOn, setStepFxOn] = useState(true);
+  useEffect(() => {
+    if (reduceMotion) return;
+    setStepFxOn(false);
+    const t = requestAnimationFrame(() => setStepFxOn(true));
+    return () => cancelAnimationFrame(t);
+  }, [step, reduceMotion]);
+
   const alertRef = useRef(null);
   const nomeRef = useRef(null);
   const emailRef = useRef(null);
@@ -833,7 +800,6 @@ export default function RegisterPage() {
   const cpfRef = useRef(null);
   const celRef = useRef(null);
 
-  // ✅ Detecta abertura do drawer via atributo já setado no Navbar
   const [drawerOpen, setDrawerOpen] = useState(() => {
     if (typeof document === "undefined") return false;
     return document.documentElement.getAttribute("data-mobile-drawer-open") === "true";
@@ -889,7 +855,6 @@ export default function RegisterPage() {
     if (error) setTimeout(() => alertRef.current?.focus(), 0);
   }, [error]);
 
-  // Score da senha (UX)
   const passScore = useMemo(() => scorePassword(form.senha), [form.senha]);
 
   function buildErrorList(values) {
@@ -1063,7 +1028,6 @@ export default function RegisterPage() {
   const IconHint = headerHint.icon;
   const sendLabel = step === 3 ? "Criar conta" : "Continuar";
 
-  // Aside minimalista (sem poluir): some no mobile, aparece no md+
   const asideInfo =
     step === 1
       ? { icon: Fingerprint, title: "Validação do titular", bullets: ["Evita fraudes", "Cadastro rápido", "Sem papelada"] }
@@ -1103,17 +1067,34 @@ export default function RegisterPage() {
     setForm(next);
     setGenOk(true);
     setTimeout(() => setGenOk(false), 1200);
-    // mantém validações consistentes
     if (submitted) setErrorList(buildStepErrors(next, 3));
-    // foca no botão de envio (sensação “pronto”)
     setTimeout(() => confirmRef.current?.focus(), 0);
   }
+
+  // ✅ resumo claro para leigo (sem poluição)
+  const requirementsSummary = useMemo(() => {
+    const missing = [];
+    if (!senhaChecks.len) missing.push("8+ caracteres");
+    if (!senhaChecks.upper) missing.push("1 maiúscula");
+    if (!senhaChecks.lower) missing.push("1 minúscula");
+    if (!senhaChecks.digit) missing.push("1 número");
+    return missing;
+  }, [senhaChecks]);
+
+  const stepTransitionStyle = useMemo(() => {
+    if (reduceMotion) return {};
+    return {
+      opacity: stepFxOn ? 1 : 0,
+      transform: stepFxOn ? "translateY(0px)" : "translateY(8px)",
+      transition: "opacity 180ms ease, transform 220ms ease",
+      willChange: "opacity, transform",
+    };
+  }, [stepFxOn, reduceMotion]);
 
   return (
     <section className="section">
       <div className="container-max max-w-5xl relative">
         <div className="min-h-[60vh] py-6 md:py-8 flex flex-col gap-5">
-          {/* Fundo ambiental – premium e discreto */}
           <div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 -z-10 rounded-[48px]"
@@ -1253,11 +1234,8 @@ export default function RegisterPage() {
                 className="grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)] gap-6 md:gap-8 items-start"
               >
                 {/* FORM */}
-                <FormPanel
-                  title="Crie sua conta"
-                  subtitle="Use o microfone nos campos disponíveis, se preferir."
-                >
-                  <div className="grid gap-4">
+                <FormPanel title="Crie sua conta" subtitle="Use o microfone nos campos disponíveis, se preferir.">
+                  <div className="grid gap-4" style={stepTransitionStyle} key={step}>
                     {step === 1 && (
                       <div className="space-y-5">
                         <div>
@@ -1281,9 +1259,7 @@ export default function RegisterPage() {
                               setForm(next);
                               if (submitted) setErrorList(buildStepErrors(next, 1));
                             }}
-                            className={`input h-12 text-base ${
-                              submitted && !nomeOk ? "ring-1 ring-red-500" : ""
-                            }`}
+                            className={`input h-12 text-base ${submitted && !nomeOk ? "ring-1 ring-red-500" : ""}`}
                             style={{ background: inputBg }}
                             placeholder="Maria Oliveira"
                             autoComplete="name"
@@ -1298,9 +1274,7 @@ export default function RegisterPage() {
                           />
 
                           {submitted && !nomeOk && (
-                            <p className="text-xs md:text-sm mt-1 text-red-600">
-                              Informe ao menos 3 caracteres.
-                            </p>
+                            <p className="text-xs md:text-sm mt-1 text-red-600">Informe ao menos 3 caracteres.</p>
                           )}
                         </div>
 
@@ -1324,9 +1298,7 @@ export default function RegisterPage() {
                                 setForm(next);
                                 if (submitted) setErrorList(buildStepErrors(next, 1));
                               }}
-                              className={`input h-12 text-base ${
-                                submitted && !cpfOk ? "ring-1 ring-red-500" : ""
-                              }`}
+                              className={`input h-12 text-base ${submitted && !cpfOk ? "ring-1 ring-red-500" : ""}`}
                               style={{ background: inputBg }}
                               placeholder="000.000.000-00"
                               inputMode="numeric"
@@ -1383,7 +1355,6 @@ export default function RegisterPage() {
                               E-mail <span aria-hidden="true" className="text-red-600">*</span>
                             </label>
 
-                            {/* ✅ Sem voz no e-mail */}
                             <input
                               id="email"
                               name="email"
@@ -1400,9 +1371,7 @@ export default function RegisterPage() {
                               autoCapitalize="none"
                               autoCorrect="off"
                               spellCheck={false}
-                              className={`input h-12 text-base ${
-                                submitted && !emailOk ? "ring-1 ring-red-500" : ""
-                              }`}
+                              className={`input h-12 text-base ${submitted && !emailOk ? "ring-1 ring-red-500" : ""}`}
                               style={{ background: inputBg }}
                               placeholder="maria@exemplo.com"
                               autoComplete="email"
@@ -1412,9 +1381,7 @@ export default function RegisterPage() {
                             />
 
                             {submitted && !emailOk && (
-                              <p className="text-xs md:text-sm mt-1 text-red-600">
-                                Informe um e-mail válido.
-                              </p>
+                              <p className="text-xs md:text-sm mt-1 text-red-600">Informe um e-mail válido.</p>
                             )}
                           </div>
 
@@ -1437,9 +1404,7 @@ export default function RegisterPage() {
                                 setForm(next);
                                 recomputeErrorsIfSubmitted(next);
                               }}
-                              className={`input h-12 text-base ${
-                                submitted && !celularOk ? "ring-1 ring-red-500" : ""
-                              }`}
+                              className={`input h-12 text-base ${submitted && !celularOk ? "ring-1 ring-red-500" : ""}`}
                               style={{ background: inputBg }}
                               placeholder="(00) 90000-0000"
                               inputMode="tel"
@@ -1464,26 +1429,26 @@ export default function RegisterPage() {
                     )}
 
                     {/* =========================
-                        STEP 3 – SENHA (Apple-level)
+                        STEP 3 – SENHA (despoluída, leiga-friendly)
                        ========================= */}
                     {step === 3 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {/* COLUNA ESQUERDA: Criar senha */}
+                      <div className="space-y-4">
+                        {/* Linha 1: Senha */}
                         <div>
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
                               <label htmlFor="senha" className="label font-medium text-sm md:text-base">
-                                Crie uma senha <span aria-hidden="true" className="text-red-600">*</span>
+                                Senha <span aria-hidden="true" className="text-red-600">*</span>
                               </label>
                               <p className="text-[11px] md:text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                                Dica: use 8+ caracteres ou gere uma senha forte em 1 clique.
+                                Use 8+ caracteres com letras e número (ou gere automaticamente).
                               </p>
                             </div>
 
                             <button
                               type="button"
                               onClick={() => applyGeneratedPassword()}
-                              className="inline-flex items-center gap-2 rounded-full h-10 px-4 border text-xs md:text-sm font-semibold hover:opacity-90 active:opacity-80"
+                              className="inline-flex items-center gap-2 rounded-full h-10 px-4 border text-xs md:text-sm font-semibold hover:opacity-90 active:opacity-80 flex-shrink-0"
                               style={{
                                 background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
                                 borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)",
@@ -1497,7 +1462,6 @@ export default function RegisterPage() {
                             </button>
                           </div>
 
-                          {/* INPUT SENHA */}
                           <div className={`mt-2 relative ${submitted && !senhaOk ? "ring-1 ring-red-500 rounded-2xl" : ""}`}>
                             <input
                               id="senha"
@@ -1517,14 +1481,13 @@ export default function RegisterPage() {
                               }}
                               className="input pr-[104px] h-12 text-xs sm:text-sm md:text-base"
                               style={{ background: inputBg }}
-                              placeholder="Ex.: MinhaSenhaForte2025"
+                              placeholder="Digite sua senha"
                               autoComplete="new-password"
                               aria-required="true"
                               aria-invalid={submitted && !senhaOk}
                               aria-describedby="senha-ux senha-policy"
                             />
 
-                            {/* Ações à direita (Mostrar / Copiar) */}
                             <div className="absolute inset-y-0 right-0 flex items-center gap-1 pr-2">
                               <button
                                 type="button"
@@ -1560,7 +1523,7 @@ export default function RegisterPage() {
                             </div>
                           </div>
 
-                          {/* Caps Lock + helper */}
+                          {/* Feedback mínimo e claro */}
                           <div id="senha-ux" className="mt-2 space-y-2">
                             {capsOn && (
                               <div
@@ -1577,6 +1540,7 @@ export default function RegisterPage() {
                               </div>
                             )}
 
+                            {/* Força: mantém a barra (alto valor), remove “cards” extras */}
                             <div
                               className="rounded-2xl px-4 py-3 border"
                               style={{
@@ -1588,29 +1552,108 @@ export default function RegisterPage() {
                               <p className="mt-2 text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
                                 {passScore.hint}
                               </p>
-                            </div>
 
-                            {/* Checklist vivo (sem poluir) */}
-                            <div
-                              id="senha-policy"
-                              className="rounded-2xl px-4 py-3 border"
-                              style={{
-                                background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
-                                borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-                              }}
-                              aria-live="polite"
-                            >
-                              <p className="text-[11px] md:text-xs mb-2 font-semibold" style={{ color: "var(--text)" }}>
-                                Requisitos mínimos
-                              </p>
-                              <ul className="space-y-1.5">
-                                <LiveCheck ok={senhaChecks.len} text="8 ou mais caracteres" />
-                                <LiveCheck ok={senhaChecks.upper} text="1 letra maiúscula (A-Z)" />
-                                <LiveCheck ok={senhaChecks.lower} text="1 letra minúscula (a-z)" />
-                                <LiveCheck ok={senhaChecks.digit} text="1 número (0-9)" />
-                              </ul>
+                              {/* Requisitos em 1 linha (para leigo) */}
+                              <div className="mt-3 flex flex-wrap items-center gap-2">
+                                <span className="text-[11px] md:text-xs font-semibold" style={{ color: "var(--text)" }}>
+                                  Requisitos:
+                                </span>
 
-                              {/* Mensagem “ok” sem barulho */}
+                                <span
+                                  className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] md:text-xs"
+                                  style={{
+                                    background: senhaChecks.len
+                                      ? "color-mix(in srgb, var(--primary) 10%, transparent)"
+                                      : "color-mix(in srgb, var(--text) 7%, transparent)",
+                                    borderColor: senhaChecks.len
+                                      ? "color-mix(in srgb, var(--primary) 18%, transparent)"
+                                      : "color-mix(in srgb, var(--text) 14%, transparent)",
+                                    color: senhaChecks.len ? "var(--text)" : "var(--text-muted)",
+                                  }}
+                                >
+                                  {senhaChecks.len ? <Check size={12} style={{ color: "var(--primary)" }} /> : <X size={12} />}
+                                  8+
+                                </span>
+
+                                <span
+                                  className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] md:text-xs"
+                                  style={{
+                                    background: senhaChecks.upper
+                                      ? "color-mix(in srgb, var(--primary) 10%, transparent)"
+                                      : "color-mix(in srgb, var(--text) 7%, transparent)",
+                                    borderColor: senhaChecks.upper
+                                      ? "color-mix(in srgb, var(--primary) 18%, transparent)"
+                                      : "color-mix(in srgb, var(--text) 14%, transparent)",
+                                    color: senhaChecks.upper ? "var(--text)" : "var(--text-muted)",
+                                  }}
+                                >
+                                  {senhaChecks.upper ? <Check size={12} style={{ color: "var(--primary)" }} /> : <X size={12} />}
+                                  A-Z
+                                </span>
+
+                                <span
+                                  className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] md:text-xs"
+                                  style={{
+                                    background: senhaChecks.lower
+                                      ? "color-mix(in srgb, var(--primary) 10%, transparent)"
+                                      : "color-mix(in srgb, var(--text) 7%, transparent)",
+                                    borderColor: senhaChecks.lower
+                                      ? "color-mix(in srgb, var(--primary) 18%, transparent)"
+                                      : "color-mix(in srgb, var(--text) 14%, transparent)",
+                                    color: senhaChecks.lower ? "var(--text)" : "var(--text-muted)",
+                                  }}
+                                >
+                                  {senhaChecks.lower ? <Check size={12} style={{ color: "var(--primary)" }} /> : <X size={12} />}
+                                  a-z
+                                </span>
+
+                                <span
+                                  className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] md:text-xs"
+                                  style={{
+                                    background: senhaChecks.digit
+                                      ? "color-mix(in srgb, var(--primary) 10%, transparent)"
+                                      : "color-mix(in srgb, var(--text) 7%, transparent)",
+                                    borderColor: senhaChecks.digit
+                                      ? "color-mix(in srgb, var(--primary) 18%, transparent)"
+                                      : "color-mix(in srgb, var(--text) 14%, transparent)",
+                                    color: senhaChecks.digit ? "var(--text)" : "var(--text-muted)",
+                                  }}
+                                >
+                                  {senhaChecks.digit ? <Check size={12} style={{ color: "var(--primary)" }} /> : <X size={12} />}
+                                  0-9
+                                </span>
+                              </div>
+
+                              {/* Só mostra “detalhes” quando necessário (reduz poluição) */}
+                              <details className="mt-3">
+                                <summary
+                                  className="text-xs md:text-sm font-semibold cursor-pointer select-none"
+                                  style={{ color: "var(--text)" }}
+                                >
+                                  Ver detalhes
+                                </summary>
+
+                                <div
+                                  id="senha-policy"
+                                  className="mt-2 rounded-2xl px-4 py-3 border"
+                                  style={{
+                                    background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
+                                    borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                                  }}
+                                  aria-live="polite"
+                                >
+                                  <p className="text-[11px] md:text-xs mb-2 font-semibold" style={{ color: "var(--text)" }}>
+                                    Requisitos mínimos
+                                  </p>
+                                  <ul className="space-y-1.5">
+                                    <LiveCheck ok={senhaChecks.len} text="8 ou mais caracteres" />
+                                    <LiveCheck ok={senhaChecks.upper} text="1 letra maiúscula (A-Z)" />
+                                    <LiveCheck ok={senhaChecks.lower} text="1 letra minúscula (a-z)" />
+                                    <LiveCheck ok={senhaChecks.digit} text="1 número (0-9)" />
+                                  </ul>
+                                </div>
+                              </details>
+
                               {senhaOk && (
                                 <div
                                   className="mt-3 rounded-xl px-3 py-2 border text-xs md:text-sm inline-flex items-center gap-2"
@@ -1625,30 +1668,23 @@ export default function RegisterPage() {
                                   Senha aprovada
                                 </div>
                               )}
-                            </div>
 
-                            {submitted && !senhaOk && (
-                              <p className="text-xs md:text-sm mt-1 text-red-600">
-                                Ajuste a senha para cumprir os requisitos.
-                              </p>
-                            )}
+                              {submitted && !senhaOk && (
+                                <p className="text-xs md:text-sm mt-3 text-red-600">
+                                  Falta: <b>{requirementsSummary.join(", ")}</b>.
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        {/* COLUNA DIREITA: Confirmar + termos */}
+                        {/* Linha 2: Confirmar */}
                         <div>
                           <label htmlFor="confirmSenha" className="label font-medium text-sm md:text-base">
-                            Confirme a senha <span aria-hidden="true" className="text-red-600">*</span>
+                            Confirmar senha <span aria-hidden="true" className="text-red-600">*</span>
                           </label>
-                          <p className="text-[11px] md:text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                            Digite novamente para evitar erros.
-                          </p>
 
-                          <div
-                            className={`mt-2 relative ${
-                              submitted && !confirmOk ? "ring-1 ring-red-500 rounded-2xl" : ""
-                            }`}
-                          >
+                          <div className={`mt-2 relative ${submitted && !confirmOk ? "ring-1 ring-red-500 rounded-2xl" : ""}`}>
                             <input
                               id="confirmSenha"
                               ref={confirmRef}
@@ -1662,7 +1698,7 @@ export default function RegisterPage() {
                               }}
                               className="input pr-[56px] h-12 text-xs sm:text-sm md:text-base"
                               style={{ background: inputBg }}
-                              placeholder="Repita exatamente a mesma senha"
+                              placeholder="Digite novamente"
                               autoComplete="new-password"
                               aria-required="true"
                               aria-invalid={submitted && !confirmOk}
@@ -1686,7 +1722,6 @@ export default function RegisterPage() {
                             </button>
                           </div>
 
-                          {/* Feedback imediato de match (sem agressividade) */}
                           <div id="confirm-feedback" className="mt-2">
                             {form.confirmSenha.length > 0 && (
                               <div
@@ -1710,19 +1745,18 @@ export default function RegisterPage() {
                                 ) : (
                                   <>
                                     <X size={16} style={{ color: "var(--text-muted)" }} />
-                                    Ainda não confere
+                                    Não confere
                                   </>
                                 )}
                               </div>
                             )}
 
                             {submitted && !confirmOk && (
-                              <p className="text-xs md:text-sm mt-2 text-red-600">
-                                As senhas precisam ser iguais.
-                              </p>
+                              <p className="text-xs md:text-sm mt-2 text-red-600">As senhas precisam ser iguais.</p>
                             )}
                           </div>
 
+                          {/* Termos (mantido) — mais compacto */}
                           <div
                             className="mt-4 rounded-2xl px-4 py-3 border flex items-start gap-2"
                             style={{
@@ -1742,22 +1776,6 @@ export default function RegisterPage() {
                               </a>
                               .
                             </div>
-                          </div>
-
-                          {/* Dica para conversão (gerenciador) – discreto */}
-                          <div
-                            className="mt-3 rounded-2xl px-4 py-3 border"
-                            style={{
-                              background: "color-mix(in srgb, var(--surface) 92%, transparent)",
-                              borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-                            }}
-                          >
-                            <p className="text-xs md:text-sm font-semibold" style={{ color: "var(--text)" }}>
-                              Sugestão rápida
-                            </p>
-                            <p className="mt-1 text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
-                              Se você usa gerenciador de senhas, pode gerar e salvar automaticamente.
-                            </p>
                           </div>
                         </div>
                       </div>
@@ -1872,7 +1890,7 @@ export default function RegisterPage() {
                   </div>
                 </FormPanel>
 
-                {/* COLUNA DIREITA – MINIMAL (não polui decisão); escondida no mobile */}
+                {/* COLUNA DIREITA – MINIMAL; escondida no mobile */}
                 <aside
                   className="hidden md:flex rounded-2xl border px-5 py-5 flex-col justify-between gap-4"
                   style={{
@@ -1894,10 +1912,7 @@ export default function RegisterPage() {
                     <ul className="mt-2 space-y-2 text-sm">
                       {asideInfo.bullets.map((b, idx) => (
                         <li key={idx} className="flex items-start gap-2">
-                          <span
-                            className="mt-2 inline-block h-1.5 w-1.5 rounded-full"
-                            style={{ background: "var(--primary)" }}
-                          />
+                          <span className="mt-2 inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--primary)" }} />
                           <span style={{ color: "var(--text)" }}>{b}</span>
                         </li>
                       ))}
