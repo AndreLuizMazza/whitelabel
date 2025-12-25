@@ -1,12 +1,21 @@
-import SoftChip from "@/components/memorial/SoftChip";
+// src/components/memorial/IdentityCard.jsx
+import { useMemo } from "react";
 import {
   Eye,
+  Heart,
   MapPin,
   Clock3,
-  Heart,
   Star,
   Cross,
 } from "lucide-react";
+
+/* =========================
+   Helpers
+========================= */
+
+function cx(...a) {
+  return a.filter(Boolean).join(" ");
+}
 
 function initialsFromName(nome) {
   const parts = String(nome || "")
@@ -14,45 +23,91 @@ function initialsFromName(nome) {
     .split(/\s+/)
     .filter(Boolean)
     .slice(0, 2);
+
   if (!parts.length) return "—";
   return parts.map((p) => p[0]).join("").toUpperCase();
 }
 
+function safeNum(v) {
+  const n = Number(v || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function plural(n, s, p) {
+  return n === 1 ? s : p;
+}
+
+/* =========================
+   UI atoms
+========================= */
+
+function Chip({ children, tone = "neutral" }) {
+  const base =
+    "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs sm:text-[13px] font-semibold ring-1 whitespace-nowrap";
+  const tones = {
+    neutral:
+      "bg-[color:color-mix(in_srgb,var(--surface)_72%,transparent)] ring-[color:color-mix(in_srgb,var(--c-border)_60%,transparent)] text-[var(--text)]",
+    brand:
+      "bg-[color:color-mix(in_srgb,var(--brand, var(--primary))_12%,var(--surface))] ring-[color:color-mix(in_srgb,var(--brand, var(--primary))_26%,var(--c-border))] text-[var(--text)]",
+  };
+  return <span className={cx(base, tones[tone] || tones.neutral)}>{children}</span>;
+}
+
+function HairlineCard({ children }) {
+  return (
+    <section
+      className={cx(
+        "rounded-3xl p-4 sm:p-6 ring-1",
+        "bg-[var(--surface)]",
+        "ring-[color:color-mix(in_srgb,var(--c-border)_80%,transparent)]",
+        "shadow-[0_18px_55px_rgba(0,0,0,.06)]"
+      )}
+    >
+      {children}
+    </section>
+  );
+}
+
+/* =========================
+   Component
+========================= */
+
 export default function IdentityCard({
   nome,
   fotoUrl = null,
+
   nasc = "—",
   fale = "—",
   horaFal = null,
+
   idade = null,
   views = 0,
   reacoes = 0,
+
   naturalidade = null,
   localFalecimento = null,
-  highContrast = false,
 }) {
-  const wrap = highContrast
-    ? "bg-[var(--surface)] ring-1 ring-black/30 dark:bg-black dark:ring-white/30"
-    : "bg-[var(--surface)] ring-1 ring-[color:color-mix(in_srgb,var(--c-border)_85%,transparent)] dark:bg-[var(--surface)] dark:ring-[color:color-mix(in_srgb,var(--c-border)_70%,transparent)]";
+  const v = safeNum(views);
+  const r = safeNum(reacoes);
 
-  const portraitBg = "color-mix(in srgb, var(--brand, var(--primary)) 10%, var(--surface))";
-  const portraitRing = "color-mix(in srgb, var(--brand, var(--primary)) 16%, var(--c-border))";
+  const portraitBg = useMemo(() => {
+    return "color-mix(in srgb, var(--brand, var(--primary)) 10%, var(--surface))";
+  }, []);
+
+  const portraitRing = useMemo(() => {
+    return "color-mix(in srgb, var(--brand, var(--primary)) 18%, var(--c-border))";
+  }, []);
 
   return (
-    <section
-      className={[
-        "rounded-3xl p-4 sm:p-6 shadow-[0_18px_55px_rgba(0,0,0,.06)]",
-        wrap,
-      ].join(" ")}
-    >
+    <HairlineCard>
       <div className="flex items-start gap-4">
-        {/* Portrait — SEM CORTES */}
+        {/* Portrait (sem cortes) */}
         <div className="shrink-0">
           <div
-            className="relative rounded-2xl overflow-hidden"
+            className="relative overflow-hidden rounded-2xl"
             style={{
-              width: 92,
-              height: 92,
+              width: 96,
+              height: 96,
               background: portraitBg,
               border: `1px solid ${portraitRing}`,
               boxShadow: "0 14px 40px rgba(0,0,0,.10)",
@@ -60,18 +115,20 @@ export default function IdentityCard({
           >
             {fotoUrl ? (
               <>
+                {/* fundo blur editorial */}
                 <div
                   className="absolute inset-0"
                   style={{
                     backgroundImage: `url(${fotoUrl})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
-                    filter: "blur(18px) saturate(1.06)",
+                    filter: "blur(18px) saturate(1.08)",
                     transform: "scale(1.12)",
                     opacity: 0.55,
                   }}
                   aria-hidden="true"
                 />
+                {/* imagem principal sem corte */}
                 <img
                   src={fotoUrl}
                   alt={nome}
@@ -81,12 +138,14 @@ export default function IdentityCard({
                     objectPosition: "center",
                     background: "rgba(0,0,0,.06)",
                   }}
+                  draggable={false}
                 />
+                {/* leve máscara para “respeito” */}
                 <div
                   className="absolute inset-0 pointer-events-none"
                   style={{
                     background:
-                      "radial-gradient(120px circle at 30% 25%, rgba(255,255,255,.18), transparent 58%), radial-gradient(140px circle at 70% 70%, rgba(0,0,0,.18), transparent 60%)",
+                      "radial-gradient(120px circle at 30% 25%, rgba(255,255,255,.16), transparent 58%), radial-gradient(140px circle at 70% 70%, rgba(0,0,0,.18), transparent 60%)",
                     mixBlendMode: "overlay",
                     opacity: 0.7,
                   }}
@@ -109,13 +168,14 @@ export default function IdentityCard({
           </div>
         </div>
 
+        {/* Conteúdo */}
         <div className="min-w-0 flex-1">
           <h1
             className="leading-tight break-words"
             style={{
               color: "var(--text)",
               fontSize: 20,
-              fontWeight: 650,
+              fontWeight: 750,
               letterSpacing: "-0.02em",
               WebkitFontSmoothing: "antialiased",
             }}
@@ -123,65 +183,70 @@ export default function IdentityCard({
             {nome}
           </h1>
 
-          <div className="mt-3 flex flex-wrap gap-2">
-            {/* ⭐ / ✝ datas */}
-            <SoftChip highContrast={highContrast}>
-              <span className="inline-flex items-center gap-2 min-w-0">
-                <span className="inline-flex items-center gap-1.5">
-                  <Star className="h-4 w-4 opacity-90" />
-                  <span className="tabular-nums">{nasc}</span>
-                </span>
-                <span className="opacity-60">—</span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Cross className="h-4 w-4 opacity-90" />
-                  <span className="tabular-nums">{fale}</span>
-                </span>
-                {horaFal ? (
-                  <span className="inline-flex items-center gap-1.5 ml-1">
-                    <span className="opacity-60">•</span>
-                    <Clock3 className="h-4 w-4 opacity-85" />
-                    <span className="tabular-nums">{horaFal}</span>
-                  </span>
-                ) : null}
+          {/* Datas (hierarquia para leitura) */}
+          <div className="mt-2.5 space-y-1">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--text)]">
+              <span className="inline-flex items-center gap-2">
+                <Star className="h-4 w-4 opacity-80" />
+                <span className="tabular-nums">{nasc}</span>
               </span>
-            </SoftChip>
 
+              <span className="opacity-55">—</span>
+
+              <span className="inline-flex items-center gap-2">
+                <Cross className="h-4 w-4 opacity-80" />
+                <span className="tabular-nums">{fale}</span>
+              </span>
+            </div>
+
+            {/* Hora embaixo (pedido explícito) */}
+            {horaFal ? (
+              <div className="text-xs sm:text-sm text-[var(--text)] opacity-75 flex items-center gap-2">
+                <Clock3 className="h-4 w-4 opacity-75" />
+                <span className="tabular-nums">às {horaFal}</span>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Chips (Facebook/Instagram: badges de contexto) */}
+          <div className="mt-3 flex flex-wrap gap-2">
             {idade != null ? (
-              <SoftChip highContrast={highContrast}>
-                <span className="tabular-nums">{idade}</span> anos
-              </SoftChip>
+              <Chip tone="brand">
+                <span className="tabular-nums">{idade}</span>
+                <span>{plural(Number(idade), "ano", "anos")}</span>
+              </Chip>
             ) : null}
 
-            <SoftChip highContrast={highContrast}>
-              <Eye className="h-4 w-4 opacity-85" />
-              <span className="tabular-nums">{Number(views || 0)}</span>
-              <span>visualiza{Number(views || 0) === 1 ? "ção" : "ções"}</span>
-            </SoftChip>
+            <Chip>
+              <Eye className="h-4 w-4 opacity-80" />
+              <span className="tabular-nums">{v}</span>
+              <span>{plural(v, "visualização", "visualizações")}</span>
+            </Chip>
 
-            {Number(reacoes || 0) > 0 ? (
-              <SoftChip highContrast={highContrast}>
-                <Heart className="h-4 w-4 opacity-85" />
-                <span className="tabular-nums">{Number(reacoes || 0)}</span>
-                <span>reações</span>
-              </SoftChip>
+            {r > 0 ? (
+              <Chip>
+                <Heart className="h-4 w-4 opacity-80" />
+                <span className="tabular-nums">{r}</span>
+                <span>{plural(r, "reação", "reações")}</span>
+              </Chip>
             ) : null}
 
             {naturalidade ? (
-              <SoftChip highContrast={highContrast}>
-                <MapPin className="h-4 w-4 opacity-85" />
+              <Chip>
+                <MapPin className="h-4 w-4 opacity-80" />
                 <span className="break-words">Natural de {naturalidade}</span>
-              </SoftChip>
+              </Chip>
             ) : null}
 
             {localFalecimento ? (
-              <SoftChip highContrast={highContrast}>
-                <Clock3 className="h-4 w-4 opacity-85" />
+              <Chip>
+                <Clock3 className="h-4 w-4 opacity-80" />
                 <span className="break-words">Falecimento: {localFalecimento}</span>
-              </SoftChip>
+              </Chip>
             ) : null}
           </div>
         </div>
       </div>
-    </section>
+    </HairlineCard>
   );
 }
