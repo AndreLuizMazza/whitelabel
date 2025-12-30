@@ -109,11 +109,7 @@
         "to": "/memorial",
         "variant": "primary"
       },
-      "secondary": {
-        "label": "Falar com o time",
-        "to": "https://wa.me/?text=Olá! Quero saber mais sobre os planos da Amorim.",
-        "variant": "outline-light"
-      },
+
       "showValuePills": false
     }
   ],

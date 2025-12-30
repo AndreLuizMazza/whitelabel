@@ -109,11 +109,6 @@
         "to": "/beneficios",
         "variant": "primary"
       },
-      "secondary": {
-        "label": "Falar com o time",
-        "to": "https://wa.me/?text=Ol%C3%A1!%20Quero%20saber%20mais%20sobre%20os%20planos%20da%20Rio%20Life.",
-        "variant": "outline-light"
-      },
       "showValuePills": false
     }
   ],

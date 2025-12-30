@@ -109,11 +109,6 @@
         "to": "/memorial",
         "variant": "primary"
       },
-      "secondary": {
-        "label": "Falar no WhatsApp",
-        "to": "https://wa.me/?text=Olá! Quero saber mais sobre os planos da Dália Cerimonial.",
-        "variant": "outline-light"
-      },
       "showValuePills": false
     }
   ],

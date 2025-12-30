@@ -29,6 +29,9 @@ import {
   MessageCircle,
   Facebook,
   Heart,
+  BookHeart,
+  Image as ImageIcon,
+  Info,
 } from "lucide-react";
 
 /* ===== Alto contraste (persistido em localStorage) ===== */
@@ -46,7 +49,7 @@ function useHighContrast() {
 /* ===== Helpers de cor ===== */
 function hexToHsl(hex) {
   let c = String(hex || "").replace("#", "");
-  if (!c) return { h: 158, s: 72, l: 45 }; // fallback emerald
+  if (!c) return { h: 158, s: 72, l: 45 };
   if (c.length === 3) c = c.split("").map((x) => x + x).join("");
   const num = parseInt(c, 16);
   const r = (num >> 16) / 255,
@@ -133,48 +136,154 @@ function openMaps(q) {
   window.open(url, "_blank");
 }
 
-function AgendaCard({ title, data, hora, local, icon: Icon, hc }) {
-  const wrap = hc
-    ? "bg-[var(--surface)] text-[var(--text)] ring-1 ring-black/30 dark:bg-black dark:text-[var(--text)] dark:ring-white/30"
-    : "bg-[var(--surface)] text-[var(--text)] ring-1 ring-[color:color-mix(in_srgb,var(--c-border)_85%,transparent)] dark:bg-[var(--surface)] dark:text-[var(--text)] dark:ring-[color:color-mix(in_srgb,var(--c-border)_70%,transparent)]";
+function clsx(...a) {
+  return a.filter(Boolean).join(" ");
+}
+
+function SectionCard({ children, highContrast, className = "" }) {
+  const ring = highContrast
+    ? "ring-black/30 dark:ring-white/30"
+    : "ring-[color:color-mix(in_srgb,var(--c-border)_85%,transparent)] dark:ring-[color:color-mix(in_srgb,var(--c-border)_70%,transparent)]";
 
   return (
-    <div
-      className={`min-h-[112px] rounded-2xl p-4 shadow-[0_12px_40px_rgba(0,0,0,.05)] ${wrap}`}
+    <section
+      className={clsx(
+        "relative overflow-hidden rounded-3xl p-4 sm:p-6 ring-1 bg-[var(--surface)]",
+        "shadow-[0_18px_55px_rgba(0,0,0,.06)]",
+        ring,
+        className
+      )}
     >
-      <div className="flex items-center gap-2 text-sm sm:text-[15px] font-semibold">
-        <Icon className="h-4.5 w-4.5 text-[color:var(--brand-700)] dark:text-[color:var(--brand-50)]" />
-        {title}
+      {children}
+    </section>
+  );
+}
+
+function SectionHeader({ icon: Icon, title, subtitle }) {
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2">
+          {Icon ? (
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl ring-1 bg-[color:color-mix(in_srgb,var(--surface-alt)_82%,transparent)] ring-[color:color-mix(in_srgb,var(--c-border)_65%,transparent)]">
+              <Icon className="h-[18px] w-[18px] opacity-85 text-[color:var(--brand-700)] dark:text-[color:var(--brand-50)]" />
+            </span>
+          ) : null}
+          <h2 className="text-[15px] sm:text-lg font-semibold text-[var(--text)] leading-tight">
+            {title}
+          </h2>
+        </div>
+        {subtitle ? (
+          <p className="mt-2 text-sm text-[var(--text)] opacity-75 leading-relaxed">
+            {subtitle}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function MiniNav({ items = [] }) {
+  return (
+    <div
+      className={clsx(
+        "mt-3 sm:mt-4 rounded-2xl p-2 ring-1",
+        "bg-[color:color-mix(in_srgb,var(--surface)_82%,transparent)] backdrop-blur",
+        "ring-[color:color-mix(in_srgb,var(--c-border)_60%,transparent)]",
+        "shadow-[0_14px_42px_rgba(0,0,0,.06)]"
+      )}
+    >
+      <div className="flex flex-wrap gap-2">
+        {items.map((it) => (
+          <button
+            key={it.key}
+            type="button"
+            onClick={it.onClick}
+            className={clsx(
+              "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold ring-1",
+              "bg-[color:color-mix(in_srgb,var(--surface-alt)_86%,transparent)]",
+              "ring-[color:color-mix(in_srgb,var(--c-border)_65%,transparent)]",
+              "text-[var(--text)] hover:opacity-95"
+            )}
+          >
+            <it.icon className="h-4 w-4 opacity-80" />
+            {it.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ===== Timeline ===== */
+function TimelineItem({ title, date, hour, place, icon: Icon, highContrast }) {
+  const hasAnything = Boolean(date || hour || place);
+  if (!hasAnything) return null;
+
+  const pillRing = highContrast
+    ? "ring-black/25 dark:ring-white/25"
+    : "ring-[color:color-mix(in_srgb,var(--c-border)_65%,transparent)]";
+
+  return (
+    <div className="relative pl-9">
+      <div
+        className="absolute left-3 top-2 bottom-2 w-px"
+        style={{
+          background:
+            "linear-gradient(to bottom, color-mix(in srgb, var(--brand) 22%, transparent), color-mix(in srgb, var(--c-border) 55%, transparent))",
+        }}
+        aria-hidden="true"
+      />
+
+      <div
+        className={clsx(
+          "absolute left-0 top-1.5 h-6 w-6 rounded-2xl ring-1 flex items-center justify-center",
+          "bg-[color:color-mix(in_srgb,var(--surface)_72%,transparent)]",
+          pillRing
+        )}
+        aria-hidden="true"
+      >
+        <Icon className="h-4 w-4 text-[color:var(--brand-700)] dark:text-[color:var(--brand-50)]" />
       </div>
 
-      {(data || hora) && (
-        <p className="mt-2 text-sm flex flex-wrap items-center gap-2 text-[var(--text)]">
-          <span className="inline-flex items-center gap-1">
-            <Calendar className="h-4 w-4 opacity-80" />
-            <span className="tabular-nums">{data || "Data a definir"}</span>
-          </span>
-          {hora && (
+      <div
+        className={clsx(
+          "rounded-2xl p-4 ring-1 bg-[color:color-mix(in_srgb,var(--surface-alt)_78%,transparent)]",
+          pillRing
+        )}
+      >
+        <div className="text-sm font-semibold text-[var(--text)]">{title}</div>
+
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[var(--text)] opacity-90">
+          {date ? (
+            <span className="inline-flex items-center gap-1">
+              <Calendar className="h-4 w-4 opacity-75" />
+              <span className="tabular-nums">{date}</span>
+            </span>
+          ) : null}
+
+          {hour ? (
             <span className="inline-flex items-center gap-1">
               <span className="opacity-60">•</span>
-              <Clock3 className="h-4 w-4 opacity-80" />
-              <span className="tabular-nums">{hora}</span>
+              <Clock3 className="h-4 w-4 opacity-75" />
+              <span className="tabular-nums">{hour}</span>
             </span>
-          )}
-        </p>
-      )}
+          ) : null}
+        </div>
 
-      {local && (
-        <button
-          type="button"
-          onClick={() => openMaps(local)}
-          className="mt-2 inline-flex items-start gap-2 text-[color:var(--brand-700)] hover:underline dark:text-[color:var(--brand-50)]"
-          title="Abrir no Google Maps"
-        >
-          <MapPin className="h-4 w-4 mt-0.5" />
-          <span className="text-left break-words">{local}</span>
-          <ExternalLink className="h-3.5 w-3.5 mt-0.5 opacity-90" />
-        </button>
-      )}
+        {place ? (
+          <button
+            type="button"
+            onClick={() => openMaps(place)}
+            className="mt-2 inline-flex items-start gap-2 text-[color:var(--brand-700)] hover:underline dark:text-[color:var(--brand-50)]"
+            title="Abrir no Google Maps"
+          >
+            <MapPin className="h-4 w-4 mt-0.5" />
+            <span className="text-left break-words">{place}</span>
+            <ExternalLink className="h-3.5 w-3.5 mt-0.5 opacity-90" />
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -194,8 +303,11 @@ export default function MemorialDetail() {
   const [interacoes, setInteracoes] = useState([]);
   const [loadingExtras, setLoadingExtras] = useState(false);
 
+  const bioRef = useRef(null);
+  const agendaRef = useRef(null);
   const tributeRef = useRef(null);
   const messagesRef = useRef(null);
+  const galleryRef = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -254,19 +366,15 @@ export default function MemorialDetail() {
     } catch {}
   }
 
-  function scrollToTribute() {
-    tributeRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-  function scrollToMessages() {
-    messagesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  function scrollTo(ref) {
+    ref?.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function handleCreateInteracao(obitoId, payload) {
     await createMemorialInteracao(obitoId, payload);
     const latest = await getMemorialInteracoes(obitoId);
     setInteracoes(Array.isArray(latest) ? latest : []);
-    // levar o usuário para as mensagens após enviar (sensação de “registro efetuado”)
-    setTimeout(() => scrollToMessages(), 250);
+    setTimeout(() => scrollTo(messagesRef), 250);
   }
 
   if (loading) {
@@ -296,7 +404,6 @@ export default function MemorialDetail() {
   /* Dados principais */
   const nome = data?.nomeFalecido || data?.nome || "Sem nome";
 
-  // capa inexistente acontece muito → fallback para foto
   const foto = data?.fotoUrl || data?.foto || null;
   const capa = data?.fotoCapaUrl || null;
   const heroImage = capa || foto || null;
@@ -306,6 +413,7 @@ export default function MemorialDetail() {
   const horaFal = fmtHour(data?.horaFalecimento);
   const idade = calcAge(data?.dtNascimento, data?.dtFalecimento);
 
+  // ✅ métricas: presentes, mas o peso visual fica no IdentityCard (mais discreto)
   const views = Number(data?.contadorAcessos ?? 0);
   const reacoes = Number(data?.numeroReacoes ?? 0);
 
@@ -333,21 +441,22 @@ export default function MemorialDetail() {
     urlAtual
   )}`;
 
-  const cardWrap = highContrast
-    ? "bg-[var(--surface)] ring-1 ring-black/30 dark:bg-black dark:ring-white/30"
-    : "bg-[var(--surface)] ring-1 ring-[color:color-mix(in_srgb,var(--c-border)_85%,transparent)] dark:bg-[var(--surface)] dark:ring-[color:color-mix(in_srgb,var(--c-border)_70%,transparent)]";
+  const navItems = [
+    { key: "bio", label: "Biografia", icon: Info, onClick: () => scrollTo(bioRef) },
+    { key: "agenda", label: "Agenda", icon: Calendar, onClick: () => scrollTo(agendaRef) },
+    { key: "homenagens", label: "Homenagens", icon: Heart, onClick: () => scrollTo(tributeRef) },
+    { key: "galeria", label: "Fotos", icon: ImageIcon, onClick: () => scrollTo(galleryRef) },
+    { key: "mensagens", label: "Mensagens", icon: BookHeart, onClick: () => scrollTo(messagesRef) },
+  ];
 
   return (
     <div className="container mx-auto max-w-5xl px-3 sm:px-4 py-6 sm:py-10">
       {/* Top bar */}
       <div className="flex items-center justify-between">
         <BackButton to="/memorial" />
+
         <div className="flex items-center gap-1 sm:gap-2">
-          <button
-            onClick={copyLink}
-            title="Copiar link"
-            className="btn-brand-ghost"
-          >
+          <button onClick={copyLink} title="Copiar link" className="btn-brand-ghost">
             <Copy className="h-5 w-5" />
           </button>
 
@@ -393,7 +502,7 @@ export default function MemorialDetail() {
         />
       </div>
 
-      {/* Identity Card — nome legível + métricas (fora da imagem) */}
+      {/* Identity Card — editorial */}
       <div className="-mt-8 sm:-mt-10 relative z-10 px-1">
         <IdentityCard
           nome={nome}
@@ -407,69 +516,69 @@ export default function MemorialDetail() {
           naturalidade={naturalidade}
           localFalecimento={localFalecimento}
           highContrast={highContrast}
-          // se seu IdentityCard aceitar callback/extra: pode adicionar CTA pra rolar até homenagens
-          // onOpenTribute={scrollToTribute}
-          // messagesCount={interacoes.length}
-          // onOpenMessages={scrollToMessages}
         />
+
+        {/* Mini navegação (excelente para idosos: previsibilidade) */}
+        <MiniNav items={navItems} />
       </div>
 
       {/* GRID PRINCIPAL */}
       <div className="mt-5 sm:mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
-        {/* Sidebar */}
+        {/* Sidebar (desktop): reforço de “despedida” + CTA único */}
         <aside className="lg:col-span-1">
           <div className="lg:sticky lg:top-6 space-y-4">
-            <div
-              className={`${cardWrap} rounded-3xl p-4 sm:p-6 shadow-[0_18px_55px_rgba(0,0,0,.06)]`}
-            >
-              <h2 className="text-[15px] sm:text-lg font-semibold text-[var(--text)] flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-[color:var(--brand-700)] dark:text-[color:var(--brand-50)]" />
-                Agenda & Locais
-              </h2>
+            <div ref={agendaRef} />
 
-              <div className="mt-3 sm:mt-4 space-y-3 sm:space-y-4">
-                <AgendaCard
+            <SectionCard highContrast={highContrast}>
+              <SectionHeader
+                icon={Calendar}
+                title="Agenda de despedida"
+                subtitle="Informações de velório, cerimônia e sepultamento."
+              />
+
+              <div className="mt-4 space-y-3">
+                <TimelineItem
                   title="Velório"
-                  data={velorioData}
-                  hora={velorioHora}
-                  local={localVelorio}
+                  date={velorioData}
+                  hour={velorioHora}
+                  place={localVelorio}
                   icon={Clock3}
-                  hc={highContrast}
+                  highContrast={highContrast}
                 />
-                <AgendaCard
+                <TimelineItem
                   title="Cerimônia"
-                  data={cerimoniaData}
-                  hora={cerimoniaHora}
-                  local={localCerimonia}
+                  date={cerimoniaData}
+                  hour={cerimoniaHora}
+                  place={localCerimonia}
                   icon={Calendar}
-                  hc={highContrast}
+                  highContrast={highContrast}
                 />
-                <AgendaCard
+                <TimelineItem
                   title="Sepultamento"
-                  data={sepData}
-                  hora={sepHora}
-                  local={localSepultamento}
+                  date={sepData}
+                  hour={sepHora}
+                  place={localSepultamento}
                   icon={MapPin}
-                  hc={highContrast}
+                  highContrast={highContrast}
                 />
 
-                {data?.qrcodeUrl && (
-                  <div className={`${cardWrap} rounded-2xl p-4`}>
-                    <p className="text-sm font-medium flex items-center gap-2 text-[var(--text)]">
+                {data?.qrcodeUrl ? (
+                  <div className="mt-2 rounded-2xl p-4 ring-1 bg-[color:color-mix(in_srgb,var(--surface-alt)_82%,transparent)] ring-[color:color-mix(in_srgb,var(--c-border)_65%,transparent)]">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
                       <QrCode className="h-4 w-4 text-[color:var(--brand-700)] dark:text-[color:var(--brand-50)]" />
                       QR do Memorial
-                    </p>
+                    </div>
                     <img
                       src={data.qrcodeUrl}
                       alt="QR do memorial"
                       className="mt-3 h-36 w-36 sm:h-40 sm:w-40 object-contain"
                     />
                   </div>
-                )}
+                ) : null}
               </div>
-            </div>
+            </SectionCard>
 
-            {/* Ação rápida (mobile-friendly) */}
+            {/* CTA ÚNICO (sem duplicar com outro bloco no main) */}
             <div
               className="rounded-3xl p-4 ring-1 shadow-[0_18px_55px_rgba(0,0,0,.06)]"
               style={{
@@ -480,23 +589,24 @@ export default function MemorialDetail() {
               }}
             >
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <Heart className="h-5 w-5 text-[color:var(--brand-700)] dark:text-[color:var(--brand-50)]" />
                     <div className="text-sm font-semibold text-[var(--text)]">
-                      Homenagens
+                      Deixar homenagem
                     </div>
                     <span className="ml-1 cta-badge">{interacoes.length}</span>
                   </div>
-                  <p className="mt-1 text-xs text-[var(--text)] opacity-80">
-                    Envie uma mensagem, assine o livro, acenda uma vela ou envie uma flor.
+
+                  <p className="mt-1 text-xs text-[var(--text)] opacity-80 leading-relaxed">
+                    Mensagem, livro de presença, vela ou flor. Um gesto simples e respeitoso.
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={scrollToTribute}
-                  className="btn-brand"
+                  onClick={() => scrollTo(tributeRef)}
+                  className="btn-brand shrink-0"
                 >
                   Homenagear
                 </button>
@@ -505,29 +615,30 @@ export default function MemorialDetail() {
           </div>
         </aside>
 
-        {/* Conteúdo */}
+        {/* Conteúdo principal — fluxo emocional */}
         <main className="lg:col-span-2 space-y-4 sm:space-y-6">
-          {/* Biografia */}
-          <section
-            className={`${cardWrap} rounded-3xl p-4 sm:p-6 shadow-[0_18px_55px_rgba(0,0,0,.06)]`}
-          >
-            <h2 className="text-[15px] sm:text-lg font-semibold text-[var(--text)]">
-              Biografia
-            </h2>
+          {/* Biografia primeiro (quem foi) */}
+          <div ref={bioRef} />
+          <SectionCard highContrast={highContrast}>
+            <SectionHeader
+              icon={Info}
+              title="Biografia"
+              subtitle="Uma lembrança breve e respeitosa sobre a história e a vida."
+            />
 
             {biografia ? (
-              <div className="prose prose-zinc max-w-none mt-2 sm:mt-3 dark:prose-invert">
+              <div className="prose prose-zinc max-w-none mt-3 dark:prose-invert">
                 <p>{biografia}</p>
               </div>
             ) : (
-              <p className="mt-2 sm:mt-3 text-[var(--text)]">
+              <p className="mt-3 text-[var(--text)] opacity-85 leading-relaxed">
                 A família ainda não adicionou uma biografia. Assim que for disponibilizada, aparecerá aqui.
               </p>
             )}
 
-            {epitafio && (
+            {epitafio ? (
               <blockquote
-                className="mt-3 sm:mt-4 rounded-2xl px-4 py-3 italic ring-1"
+                className="mt-4 rounded-2xl px-4 py-3 italic ring-1"
                 style={{
                   background:
                     "color-mix(in srgb, var(--surface-alt) 70%, transparent)",
@@ -538,84 +649,33 @@ export default function MemorialDetail() {
               >
                 “{epitafio}”
               </blockquote>
-            )}
-          </section>
+            ) : null}
+          </SectionCard>
 
-          {/* CTA homenagens */}
-          <section
-            className="rounded-3xl p-4 sm:p-6 ring-1 shadow-[0_18px_55px_rgba(0,0,0,.06)]"
-            style={{
-              borderColor:
-                "color-mix(in srgb, var(--brand-100) 75%, var(--c-border))",
-              background:
-                "linear-gradient(90deg, color-mix(in srgb, var(--brand-50) 92%, white) 0%, var(--surface) 55%, var(--surface) 100%)",
-            }}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3 sm:gap-6 items-center">
-              <div className="sm:col-span-3">
-                <div className="flex items-center gap-2">
-                  <Heart className="h-5 w-5 text-[color:var(--brand-700)] dark:text-[color:var(--brand-50)]" />
-                  <h3
-                    className="text-[15px] sm:text-base font-semibold"
-                    style={{
-                      color: "color-mix(in srgb, var(--brand-700) 92%, black)",
-                    }}
-                  >
-                    Homenagens & Reações
-                  </h3>
-                  <span className="ml-1 cta-badge">{interacoes.length}</span>
-                </div>
-
-                <p
-                  className="text-sm mt-1"
-                  style={{
-                    color:
-                      "color-mix(in srgb, var(--text) 75%, var(--brand-700))",
-                  }}
-                >
-                  Deixe uma mensagem, assine o livro de presença, acenda uma vela 🕯️ ou envie flores 🌹 para homenagear {nome}.
-                </p>
-              </div>
-
-              <div className="sm:col-span-2 flex items-center sm:justify-end gap-2">
-                <div className="hidden sm:block cta-divider" aria-hidden="true" />
-                <button
-                  type="button"
-                  className="btn-brand w-full sm:w-auto"
-                  onClick={scrollToTribute}
-                >
-                  Enviar homenagem
-                </button>
-              </div>
-            </div>
-          </section>
-
-          {/* FORM HOMENAGEM */}
+          {/* Homenagem (ação consciente) */}
           <div ref={tributeRef} />
+          <TributeForm
+            obitoId={data.id}
+            nomeFalecido={nome}
+            highContrast={highContrast}
+            onSubmit={handleCreateInteracao}
+            termosHref="/termos-de-servico.html"
+            privacidadeHref="/politica-de-privacidade.html"
+          />
 
-<TributeForm
-  obitoId={data.id}
-  nomeFalecido={nome}
-  highContrast={highContrast}
-  onSubmit={handleCreateInteracao}
-  termosHref="/termos-de-servico.html"
-  privacidadeHref="/politica-de-privacidade.html"
-/>
-
-
-          {/* GALERIA */}
+          {/* Galeria (memória visual) */}
+          <div ref={galleryRef} />
           <GalleryGrid items={midias} highContrast={highContrast} />
 
-          {/* MENSAGENS */}
+          {/* Mensagens (voz coletiva) */}
           <div ref={messagesRef} />
           <MessagesList items={interacoes} highContrast={highContrast} />
 
-          {/* Loader discreto para extras */}
-          {loadingExtras && (
+          {loadingExtras ? (
             <div className="text-sm text-[var(--text)] opacity-70 px-1">
               Carregando galeria e homenagens…
             </div>
-          )}
+          ) : null}
         </main>
       </div>
     </div>

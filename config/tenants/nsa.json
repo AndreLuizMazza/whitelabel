@@ -60,7 +60,7 @@
     {
       "id": "memorial",
       "tag": "Homenagens & lembranças",
-      "title": "Memorial Online da Funerária Patense",
+      "title": "Memorial Online Nossa Senhora Aparecida",
       "subtitle": "Registre homenagens, mensagens de carinho e acompanhe informações das cerimônias em um só lugar.",
       "image": "https://patense.awis.com.br/assets/hero-memorial-patense.jpg",
       "primary": {
@@ -82,11 +82,7 @@
         "to": "/parceiros/inscrever",
         "variant": "primary"
       },
-      "secondary": {
-        "label": "Falar com o time",
-        "to": "https://wa.me/5546XXXXXXXX?text=Ol%C3%A1!%20Quero%20ser%20parceiro%20da%20Funer%C3%A1ria%20Patense.",
-        "variant": "outline-light"
-      },
+
       "showValuePills": false
     }
   ],

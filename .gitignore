@@ -1,5 +1,3 @@
-.env.vercel
-
 # Dependências
 node_modules/
 pnpm-lock.yaml
@@ -18,6 +16,7 @@ out/
 Thumbs.db
 
 # Ambientes
+.env.vercel
 .env
 .env.*.local
 .env.local

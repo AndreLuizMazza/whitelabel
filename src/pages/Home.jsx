@@ -1,5 +1,5 @@
 // src/pages/Home.jsx
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import useTenant from '@/store/tenant'
@@ -28,6 +28,21 @@ import {
   ChevronRight,
   Pause,
   Play,
+
+  // ✅ ícones para ValuePills por slide (vindos do tenant JSON)
+  ShieldCheck,
+  Users,
+  Clock,
+  Percent,
+  Store,
+  Wallet,
+  Video,
+  HeartPulse,
+  PawPrint,
+  Heart,
+  Smile,
+  BookHeart,
+  Globe,
 } from 'lucide-react'
 
 /* ===================== constantes de imagem ===================== */
@@ -43,6 +58,63 @@ function isCapacitorRuntime() {
   if (typeof cap.isNativePlatform === 'function') return !!cap.isNativePlatform()
   if (typeof cap.getPlatform === 'function') return cap.getPlatform() !== 'web'
   return true
+}
+
+/* ===================== URL / ASSETS (robusto) ===================== */
+
+function normalizeBase(base) {
+  const b = String(base || '').trim()
+  if (!b) return ''
+  return b.endsWith('/') ? b : b + '/'
+}
+
+function cleanUrlInput(v) {
+  let s = String(v || '').trim()
+  if (!s) return ''
+  s = s.replace(/^"+/, '').replace(/"+$/, '')
+  s = s.replace(/^'+/, '').replace(/'+$/, '')
+  s = s.replace(/[\u200B-\u200D\uFEFF]/g, '')
+  return s.trim()
+}
+
+function resolveAssetUrl(input, base) {
+  const raw = cleanUrlInput(input)
+  if (!raw) return ''
+
+  if (/^(https?:)?\/\//i.test(raw)) return raw
+  if (/^(data|blob):/i.test(raw)) return raw
+
+  try {
+    if (raw.startsWith('/')) {
+      const origin =
+        typeof window !== 'undefined' && window.location?.origin
+          ? window.location.origin
+          : 'http://localhost'
+      return new URL(raw, origin).toString()
+    }
+
+    const b = normalizeBase(base)
+    if (b) return new URL(raw, b).toString()
+
+    const origin =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : 'http://localhost'
+    return new URL('/' + raw.replace(/^\/+/, ''), origin).toString()
+  } catch {
+    if (raw.startsWith('/')) return raw
+    return base ? normalizeBase(base) + raw.replace(/^\/+/, '') : '/' + raw.replace(/^\/+/, '')
+  }
+}
+
+function safeUrl(u) {
+  const s0 = cleanUrlInput(u)
+  if (!s0) return ''
+  return s0.replace(/ /g, '%20')
+}
+
+function isExternalHref(href) {
+  return /^https?:\/\//i.test(href || '')
 }
 
 /* ===================== peças utilitárias ===================== */
@@ -138,10 +210,31 @@ function FeatureCardPremium({ icon, title, desc, to, cta, mounted, delay = 0 }) 
 }
 
 /* ========================================================================
-   VALUE PILLS – PREMIUM
+   VALUE PILLS – PREMIUM (por slide)
    ======================================================================== */
 
-function ValuePills() {
+const PILL_ICONS = {
+  ShieldCheck,
+  Users,
+  Clock,
+  Percent,
+  Store,
+  Wallet,
+  Video,
+  HeartPulse,
+  PawPrint,
+  Heart,
+  Smile,
+  BookHeart,
+  Globe,
+  IdCard,
+  QrCode,
+  Gift,
+  MessageCircle,
+  HeartHandshake,
+}
+
+function ValuePills({ pills }) {
   const pillBase =
     'inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[11px] sm:text-xs font-medium ' +
     'backdrop-blur-md transition-all tracking-wide border'
@@ -155,22 +248,33 @@ function ValuePills() {
     boxShadow: '0 10px 30px rgba(15,23,42,0.10)',
   }
 
+  const safe = Array.isArray(pills) ? pills.filter(Boolean) : []
+
+  // ✅ fallback se tenant ainda não mandar valuePills
+  const fallback = [
+    { icon: 'IdCard', label: 'Carteirinha digital' },
+    { icon: 'QrCode', label: 'PIX & boletos' },
+    { icon: 'Gift', label: 'Clube de benefícios' },
+  ]
+
+  const list = safe.length ? safe : fallback
+
   return (
     <div className="flex flex-wrap gap-2" aria-label="Recursos em destaque">
-      <span className={pillBase} style={pillStyle}>
-        <IdCard size={13} /> Carteirinha digital
-      </span>
-      <span className={pillBase} style={pillStyle}>
-        <QrCode size={13} /> PIX & boletos
-      </span>
-      <span className={pillBase} style={pillStyle}>
-        <Gift size={13} /> Clube de benefícios
-      </span>
+      {list.map((p, idx) => {
+        const Icon = PILL_ICONS[p?.icon] || IdCard
+        const label = String(p?.label || '').trim() || 'Benefício'
+        return (
+          <span key={`${p?.icon || 'i'}-${idx}`} className={pillBase} style={pillStyle}>
+            <Icon size={13} /> {label}
+          </span>
+        )
+      })}
     </div>
   )
 }
 
-/* =================== HERO SLIDER (Apple-level, igual ao Memorial) =================== */
+/* =================== HERO SLIDER =================== */
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false)
@@ -194,10 +298,6 @@ function useIsTouchDevice() {
     setIsTouch(!!v)
   }, [])
   return isTouch
-}
-
-function isExternalHref(href) {
-  return /^https?:\/\//i.test(href || '')
 }
 
 function HeroCtaButton({ cta }) {
@@ -270,6 +370,55 @@ function HeroCtaButton({ cta }) {
   )
 }
 
+function HeroSecondaryButton({ cta }) {
+  if (!cta?.to || !cta?.label) return null
+  const external = isExternalHref(cta.to)
+
+  const inner = (
+    <CTAButton
+      as="span"
+      size="lg"
+      variant={cta.variant || 'outline'}
+      className="min-w-[190px] justify-center rounded-full px-7 text-sm font-semibold"
+    >
+      {cta.label}
+    </CTAButton>
+  )
+
+  if (external) {
+    return (
+      <motion.a
+        href={cta.to}
+        target="_blank"
+        rel="noopener noreferrer"
+        whileHover={{ scale: 1.02, y: -1 }}
+        whileTap={{ scale: 0.98, y: 0 }}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+        aria-label={`${cta.label} (abre em nova aba)`}
+        className="inline-block"
+      >
+        {inner}
+      </motion.a>
+    )
+  }
+
+  return (
+    <Link to={cta.to} className="inline-block" aria-label={cta.label}>
+      <motion.span
+        whileHover={{ scale: 1.02, y: -1 }}
+        whileTap={{ scale: 0.98, y: 0 }}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+      >
+        {inner}
+      </motion.span>
+    </Link>
+  )
+}
+
 function HeroIconButton({ ariaLabel, onClick, children }) {
   return (
     <button
@@ -291,7 +440,14 @@ function HeroIconButton({ ariaLabel, onClick, children }) {
 
 function HomeHeroSlideLayer({ slide, isActive, prefersReduced }) {
   const [broken, setBroken] = useState(false)
+
+  // ✅ crítico: imagem mudou -> reseta o broken
+  useEffect(() => {
+    setBroken(false)
+  }, [slide?.image])
+
   const img = slide?.image
+  const finalImg = !broken && img ? img : slide?.fallbackImage
 
   return (
     <div
@@ -302,12 +458,12 @@ function HomeHeroSlideLayer({ slide, isActive, prefersReduced }) {
       aria-hidden={!isActive}
       style={{ zIndex: isActive ? 1 : 0 }}
     >
-      {!broken && img ? (
+      {finalImg ? (
         <>
           <div
             className="absolute inset-0"
             style={{
-              backgroundImage: `url(${img})`,
+              backgroundImage: `url(${finalImg})`,
               backgroundSize: 'cover',
               backgroundPosition: slide?.focus || 'center',
               filter: 'blur(22px) saturate(1.06)',
@@ -316,12 +472,13 @@ function HomeHeroSlideLayer({ slide, isActive, prefersReduced }) {
             }}
           />
           <img
-            src={img}
+            src={finalImg}
             alt={slide?.title || ''}
             className="absolute inset-0 h-full w-full"
             draggable={false}
             loading={isActive ? 'eager' : 'lazy'}
             onError={() => setBroken(true)}
+            referrerPolicy="no-referrer"
             style={{
               objectFit: 'cover',
               objectPosition: slide?.focus || 'center',
@@ -364,7 +521,7 @@ function HomeHeroSlideLayer({ slide, isActive, prefersReduced }) {
   )
 }
 
-function HeroSlider({ slides, mounted }) {
+function HeroSlider({ slides, mounted, onActiveSlideChange }) {
   const prefersReduced = usePrefersReducedMotion()
   const isTouch = useIsTouchDevice()
 
@@ -377,39 +534,54 @@ function HeroSlider({ slides, mounted }) {
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
 
+  // ✅ FIX: hover/focus precisam ser reativos (useState) para rearmar o timer
+  const [isHovering, setIsHovering] = useState(false)
+  const [isFocused, setIsFocused] = useState(false)
+
   const timeoutRef = useRef(null)
-  const hoverRef = useRef(false)
-  const focusRef = useRef(false)
 
   const startXRef = useRef(null)
   const deltaXRef = useRef(0)
 
-  const next = () =>
-    setIndex((i) => (hasSlides ? (i + 1) % safeSlides.length : 0))
-  const prev = () =>
-    setIndex((i) =>
-      hasSlides ? (i - 1 + safeSlides.length) % safeSlides.length : 0
-    )
+  const next = useCallback(
+    () => setIndex((i) => (hasSlides ? (i + 1) % safeSlides.length : 0)),
+    [hasSlides, safeSlides.length]
+  )
+  const prev = useCallback(
+    () =>
+      setIndex((i) =>
+        hasSlides ? (i - 1 + safeSlides.length) % safeSlides.length : 0
+      ),
+    [hasSlides, safeSlides.length]
+  )
+
+  // ✅ reporta slide ativo para o Home (ValuePills por slide)
+  useEffect(() => {
+    if (!hasSlides) return
+    const s = safeSlides[index] || safeSlides[0]
+    onActiveSlideChange?.(s)
+  }, [hasSlides, safeSlides, index, onActiveSlideChange])
 
   useEffect(() => {
+    clearTimeout(timeoutRef.current)
+
     if (!hasSlides) return
     if (prefersReduced) return
     if (paused) return
-    if (hoverRef.current) return
-    if (focusRef.current) return
+    if (isHovering) return
+    if (isFocused) return
 
-    clearTimeout(timeoutRef.current)
     timeoutRef.current = setTimeout(() => next(), 8000)
-
     return () => clearTimeout(timeoutRef.current)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, hasSlides, prefersReduced, paused])
+  }, [index, hasSlides, prefersReduced, paused, isHovering, isFocused, next])
 
+  // preload da próxima
   useEffect(() => {
     if (!hasSlides) return
     const n = safeSlides[(index + 1) % safeSlides.length]
     if (!n?.image) return
     const img = new Image()
+    img.referrerPolicy = 'no-referrer'
     img.src = n.image
   }, [hasSlides, safeSlides, index])
 
@@ -434,8 +606,7 @@ function HeroSlider({ slides, mounted }) {
     }
     el.addEventListener('keydown', onKey)
     return () => el.removeEventListener('keydown', onKey)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasSlides])
+  }, [hasSlides, next, prev])
 
   const onPointerDown = (e) => {
     if (!hasSlides || !isTouch) return
@@ -460,7 +631,7 @@ function HeroSlider({ slides, mounted }) {
 
   if (!hasSlides) return null
   const slide = safeSlides[index] || safeSlides[0]
-  const { tag, title, subtitle, primary } = slide
+  const { tag, title, subtitle, primary, secondary } = slide
 
   const goTo = (i) => {
     const size = safeSlides.length
@@ -484,21 +655,25 @@ function HeroSlider({ slides, mounted }) {
         boxShadow:
           '0 1px 0 rgba(255,255,255,.25) inset, 0 18px 60px rgba(15,23,42,.18)',
       }}
-      onMouseEnter={() => (hoverRef.current = true)}
-      onMouseLeave={() => (hoverRef.current = false)}
-      onFocus={() => (focusRef.current = true)}
-      onBlur={() => (focusRef.current = false)}
+      onMouseEnter={() => {
+        setIsHovering(true)
+        clearTimeout(timeoutRef.current)
+      }}
+      onMouseLeave={() => setIsHovering(false)}
+      onFocus={() => {
+        setIsFocused(true)
+        clearTimeout(timeoutRef.current)
+      }}
+      onBlur={() => setIsFocused(false)}
       onTouchStart={() => isTouch && setPaused(true)}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
       aria-roledescription="carousel"
       aria-label="Destaques"
     >
-      <div
-        className="absolute inset-0 z-0 pointer-events-none"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-      >
+      <div className="absolute inset-0 z-0">
         {safeSlides.map((s, i) => (
           <HomeHeroSlideLayer
             key={s.id || i}
@@ -558,9 +733,10 @@ function HeroSlider({ slides, mounted }) {
                 </p>
               )}
 
-              {primary && (
+              {(primary || secondary) && (
                 <div className="mt-6 flex flex-wrap gap-3">
                   <HeroCtaButton cta={primary} />
+                  <HeroSecondaryButton cta={secondary} />
                 </div>
               )}
             </div>
@@ -611,7 +787,9 @@ function HeroSlider({ slides, mounted }) {
                   aria-label={paused ? 'Reproduzir' : 'Pausar'}
                 >
                   {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                  <span className="text-xs font-semibold">{paused ? 'Play' : 'Pause'}</span>
+                  <span className="text-xs font-semibold">
+                    {paused ? 'Play' : 'Pause'}
+                  </span>
                 </button>
 
                 <HeroIconButton ariaLabel="Próximo slide" onClick={next}>
@@ -652,7 +830,6 @@ export default function Home() {
     return () => clearTimeout(t)
   }, [])
 
-  // Detecta se está dentro do app (Capacitor)
   const inCapacitorApp = useMemo(() => isCapacitorRuntime(), [])
 
   useEffect(() => {
@@ -668,6 +845,19 @@ export default function Home() {
     }
   }, [location])
 
+  // ✅ base pública para assets do tenant (do JSON)
+  const assetsBase = useMemo(() => {
+    const t = empresa?.tema || {}
+    return (
+      t.assetsBaseUrl ||
+      t.cdnBaseUrl ||
+      t.assetBase ||
+      empresa?.assetsBaseUrl ||
+      empresa?.tema?.assetsBaseUrl ||
+      ''
+    )
+  }, [empresa])
+
   const heroTitleDefault =
     empresa?.heroTitle ||
     empresa?.tema?.heroTitle ||
@@ -678,9 +868,12 @@ export default function Home() {
     empresa?.tema?.heroSubtitle ||
     'Planos completos de assistência familiar, benefícios exclusivos e atendimento humanizado.'
 
+  // ✅ heroImageDefault agora resolve relativo via assetsBaseUrl e sanitiza URL
   const heroImageDefault = useMemo(() => {
-    return empresa?.heroImage || empresa?.tema?.heroImage || HERO_FALLBACKS[0]
-  }, [empresa])
+    const raw =
+      empresa?.heroImage || empresa?.tema?.heroImage || HERO_FALLBACKS[0]
+    return safeUrl(resolveAssetUrl(raw, assetsBase))
+  }, [empresa, assetsBase])
 
   const telefoneDigits = useMemo(() => {
     let t = empresa?.contato?.telefone || ''
@@ -704,7 +897,12 @@ export default function Home() {
         title: heroTitleDefault,
         subtitle: heroSubtitleDefault,
         image: heroImageDefault || HERO_FALLBACKS[0],
+        fallbackImage: HERO_FALLBACKS[0],
         primary: { label: 'Ver planos agora', to: '/planos', variant: 'primary' },
+        secondary: null,
+        focus: 'center',
+        showValuePills: true,
+        valuePills: null,
       },
       {
         id: 'memorial',
@@ -713,7 +911,12 @@ export default function Home() {
         subtitle:
           'Acompanhe informações das cerimônias, acenda uma vela virtual e deixe sua mensagem de carinho.',
         image: HERO_FALLBACKS[1],
+        fallbackImage: HERO_FALLBACKS[1],
         primary: { label: 'Acessar Memorial', to: '/memorial', variant: 'primary' },
+        secondary: null,
+        focus: 'center',
+        showValuePills: false,
+        valuePills: null,
       },
       {
         id: 'parceiros',
@@ -722,11 +925,16 @@ export default function Home() {
         subtitle:
           'Ofereça condições especiais para nossos associados e fortaleça sua marca.',
         image: HERO_FALLBACKS[2],
+        fallbackImage: HERO_FALLBACKS[2],
         primary: {
           label: 'Quero ser parceiro(a)',
           to: '/parceiros/inscrever',
           variant: 'primary',
         },
+        secondary: null,
+        focus: 'center',
+        showValuePills: false,
+        valuePills: null,
       },
     ],
     [heroTitleDefault, heroSubtitleDefault, heroImageDefault]
@@ -736,36 +944,64 @@ export default function Home() {
     const tenantSlides = empresa?.heroSlides || empresa?.tema?.heroSlides || null
 
     if (Array.isArray(tenantSlides) && tenantSlides.length > 0) {
-      return tenantSlides.map((s, i) => ({
-        id: s.id || i,
-        tag: s.tag || s.pill || s.badge || 'Assistência familiar',
-        title: s.title || heroTitleDefault,
-        subtitle: s.subtitle || heroSubtitleDefault,
-        image: s.image || s.heroImage || HERO_FALLBACKS[i % HERO_FALLBACKS.length],
-        primary: s.primary || null,
-        focus: s.focus || s.objectPosition || 'center',
-      }))
+      return tenantSlides.map((s, i) => {
+        const fb = HERO_FALLBACKS[i % HERO_FALLBACKS.length]
+        const rawImg =
+          s.image || s.heroImage || (i === 0 ? heroImageDefault : fb)
+
+        const resolved = safeUrl(resolveAssetUrl(rawImg, assetsBase))
+
+        return {
+          id: s.id || i,
+          tag: s.tag || s.pill || s.badge || 'Assistência familiar',
+          title: s.title || heroTitleDefault,
+          subtitle: s.subtitle || heroSubtitleDefault,
+          image: resolved || fb,
+          fallbackImage: fb,
+          primary: s.primary || null,
+          secondary: s.secondary || null,
+          focus: s.focus || s.objectPosition || 'center',
+          showValuePills:
+            typeof s.showValuePills === 'boolean' ? s.showValuePills : true,
+
+          // ✅ NOVO: ValuePills por slide (do JSON do tenant)
+          valuePills: Array.isArray(s.valuePills) ? s.valuePills : null,
+        }
+      })
     }
 
     return defaultSlides
-  }, [empresa, heroTitleDefault, heroSubtitleDefault, defaultSlides])
+  }, [
+    empresa,
+    heroTitleDefault,
+    heroSubtitleDefault,
+    defaultSlides,
+    assetsBase,
+    heroImageDefault,
+  ])
+
+  // ✅ ValuePills por slide (showValuePills)
+  const [activeSlide, setActiveSlide] = useState(null)
+  const showPills = activeSlide?.showValuePills !== false
+  const pills = activeSlide?.valuePills || null
 
   return (
     <section className="section">
       <div className="container-max relative">
-        <HeroSlider slides={slides} mounted={mounted} />
+        <HeroSlider slides={slides} mounted={mounted} onActiveSlideChange={setActiveSlide} />
 
-        <div
-          className={[
-            'mt-6 mb-10 md:mb-12 transition-all duration-700',
-            mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
-          ].join(' ')}
-          style={{ transitionDelay: '150ms' }}
-        >
-          <ValuePills />
-        </div>
+        {showPills && (
+          <div
+            className={[
+              'mt-6 mb-10 md:mb-12 transition-all duration-700',
+              mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
+            ].join(' ')}
+            style={{ transitionDelay: '150ms' }}
+          >
+            <ValuePills pills={pills} />
+          </div>
+        )}
 
-        {/* GRID DE FEATURES */}
         <div className="relative grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 lg:gap-6">
           <FeatureCardPremium
             icon={<UserSquare2 size={22} strokeWidth={2} />}
@@ -777,7 +1013,6 @@ export default function Home() {
             delay={200}
           />
 
-          {/* Esconde no Capacitor: Segunda via */}
           {!inCapacitorApp && (
             <FeatureCardPremium
               icon={<Receipt size={22} strokeWidth={2} />}
@@ -800,7 +1035,6 @@ export default function Home() {
             delay={260}
           />
 
-          {/* Esconde no Capacitor: Clube de benefícios */}
           {!inCapacitorApp && (
             <FeatureCardPremium
               icon={<Gift size={22} strokeWidth={2} />}
@@ -834,7 +1068,6 @@ export default function Home() {
           />
         </div>
 
-        {/* APP SECTION (esconde quando estiver no app Capacitor) */}
         {!inCapacitorApp && (
           <div
             className={[
@@ -888,17 +1121,14 @@ export default function Home() {
           </div>
         )}
 
-        {/* CTA PLANOS */}
         <div className="mt-12 md:mt-16">
           <PlanosCTA onSeePlans={() => (window.location.href = '/planos')} />
         </div>
 
-        {/* CTA MEMORIAL */}
         <div className="mt-12 md:mt-16">
           <MemorialCTA onVisitMemorial={() => (window.location.href = '/memorial')} />
         </div>
 
-        {/* CTA PARCEIROS (esconde no Capacitor: parceiro premium) */}
         {!inCapacitorApp && (
           <div className="mt-12 md:mt-16">
             <ParceirosCTA
@@ -908,7 +1138,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* FAQ */}
         <div className="faq-dark mt-12 md:mt-16" id="home-faq">
           <FaqSection isLogged={isLogged} areaDest={isLogged ? '/area' : '/login'} />
         </div>
