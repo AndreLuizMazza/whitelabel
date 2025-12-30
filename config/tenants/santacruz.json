@@ -113,11 +113,7 @@
         "to": "/memorial",
         "variant": "primary"
       },
-      "secondary": {
-        "label": "Falar no WhatsApp",
-        "to": "https://wa.me/?text=Olá! Gostaria de informações sobre os planos da Pax Santa Cruz.",
-        "variant": "outline-light"
-      },
+
       "showValuePills": false
     }
   ],

@@ -109,11 +109,6 @@
         "to": "/login",
         "variant": "primary"
       },
-      "secondary": {
-        "label": "Falar no WhatsApp",
-        "to": "https://wa.me/?text=Olá! Quero saber mais sobre o Cartão de Benefícios Aliança.",
-        "variant": "outline-light"
-      },
       "showValuePills": false
     }
   ],

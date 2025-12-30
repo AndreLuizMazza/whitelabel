@@ -109,11 +109,7 @@
         "to": "/memorial",
         "variant": "primary"
       },
-      "secondary": {
-        "label": "Atendimento via WhatsApp",
-        "to": "https://wa.me/?text=Olá! Gostaria de saber mais sobre os planos da Vysa Life.",
-        "variant": "outline-light"
-      },
+
       "showValuePills": false
     }
   ],
