@@ -1,7 +1,7 @@
 sudo wo site create new.grupopatense.com.br --html  --le --dns=dns_cf
 
 # Testar aplicação
-$env:TENANT="rosapax"; npm run dev
+$env:TENANT="patense"; npm run dev
 
 
 #### build  da aplicação

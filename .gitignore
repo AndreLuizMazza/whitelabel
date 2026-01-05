@@ -26,6 +26,7 @@ Thumbs.db
 .env.production.local
 .env.test
 .env.test.loca
+.env.alianca.vercel
 
 # Logs
 npm-debug.log*
