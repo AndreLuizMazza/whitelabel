@@ -1,6 +1,9 @@
 {
   "slug": "patense",
   "v": 9,
+
+  "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/274/",
+
   "vars": {
     "--primary": "#004C3F",
     "--primary-dark": "#003B31",
@@ -31,7 +34,7 @@
     "--button-hover": "color-mix(in srgb, var(--primary) 26%, var(--secondary))"
   },
 
-  "logo": "https://grupopatense.com.br/wp-content/uploads/2025/01/Marca-Dagua-2-Logo-Grupo-Patense.png",
+  "logo": "patense.png",
 
   "heroTitle": "Proteção e tranquilidade para sua família",
   "heroSubtitle": "Planos de assistência familiar da Funerária Patense, com benefícios exclusivos e atendimento humanizado.",
@@ -90,5 +93,5 @@
     }
   ],
 
-  "domain": "patense.com.br"
+  "domain": "grupopatense.com.br"
 }
