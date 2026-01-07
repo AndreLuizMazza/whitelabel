@@ -6,7 +6,7 @@ export function setAuthTokenProvider(fn) { tokenProvider = fn }
 
 // Em prod, não prefixe nada: as rotas já começam com /api/...
 const baseURL = import.meta.env.PROD
-  ? '' // << correção: era '/api'
+  ? '' 
   : (import.meta.env.VITE_BFF_BASE || 'http://localhost:8787')
 
 const api = axios.create({
