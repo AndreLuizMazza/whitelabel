@@ -16,6 +16,7 @@ out/
 Thumbs.db
 
 # Ambientes
+.env.*
 .env.vercel
 .env
 .env.*.local
