@@ -2,6 +2,9 @@
   "slug": "safem",
   "v": 1,
 
+  
+  "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/350/",
+
   "vars": {
     "--primary": "#0A2E5C",
     "--primary-dark": "#061F3E",
@@ -63,7 +66,7 @@
     "--accent-warm": "#F26A1B"
   },
 
-  "logo": "https://sandbox.progem.com.br/progem/api/downloads/empresa/350/arquivo?nome=3550f6f5-cbdf-4650-9979-83fc66b40020_logosemfundo.png",
+  "logo": "safem.png",
 
   "heroTitle": "Proteção e cuidado para toda a família",
   "heroSubtitle": "Assistência familiar com estrutura, acolhimento e compromisso em todos os momentos.",
@@ -84,7 +87,7 @@
       "secondary": {
         "label": "Área do associado",
         "to": "/login",
-        "variant": "outline-light"
+        "variant": "outline"
       },
       "showValuePills": true
     },
@@ -95,8 +98,8 @@
       "subtitle": "Equipe preparada e serviços organizados para apoiar sua família com dignidade.",
       "image": "https://seu-dominio-de-arquivos.com/safem/hero-servicos.jpg",
       "primary": {
-        "label": "Produtos e serviços",
-        "to": "/servicos",
+        "label": "Ver planos",
+        "to": "/planos",
         "variant": "primary"
       },
       "secondary": null,
@@ -113,14 +116,10 @@
         "to": "/memorial",
         "variant": "primary"
       },
-      "secondary": {
-        "label": "Falar no WhatsApp",
-        "to": "https://wa.me/?text=Olá! Gostaria de saber mais sobre os planos da SAFEM Assistência Familiar.",
-        "variant": "outline-light"
-      },
+      "secondary":null,
       "showValuePills": false
     }
   ],
 
-  "domain": "safemassistencia.com.br"
+  "domain": "safem.com.br"
 }

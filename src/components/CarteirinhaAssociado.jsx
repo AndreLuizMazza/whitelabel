@@ -131,8 +131,21 @@ export default function CarteirinhaAssociado({
     empresa?.dominio ||
     (typeof window !== 'undefined' ? window.location.origin : '')
 
-  // dados
-  const nome = contrato.nomeTitular || user?.nome || user?.name || 'Associado(a)'
+  // =========================
+  // ✅ DADOS (alvo = user quando vier via state)
+  // =========================
+  const pessoaNome =
+    user?.nome ||
+    user?.name ||
+    contrato?.nome ||
+    contrato?.nomeDependente ||
+    contrato?.nomePessoa ||
+    user?.email ||
+    'Associado(a)'
+
+  const nomeTitularInformativo =
+    contrato?.nomeTitular || contrato?.titularNome || ''
+
   const plano = contrato.nomePlano ?? contrato.plano?.nome ?? 'Plano'
   const numero =
     contrato.numeroContrato ?? contrato.id ?? contrato.contratoId ?? '—'
@@ -141,18 +154,43 @@ export default function CarteirinhaAssociado({
   const ativo =
     contrato.contratoAtivo ??
     String(contrato.status || '').toUpperCase() === 'ATIVO'
+
+  // foto: se existirem chaves específicas de dependente no futuro, elas entram aqui
   const fotoDeclarada =
     user?.fotoUrl || user?.photoURL || contrato?.fotoTitular || ''
-  const cpf = user?.cpf || contrato?.cpfTitular || ''
+
+  // CPF sempre do user alvo (state.user quando imprimindo dependente)
+  const cpf =
+    user?.cpf ||
+    user?.documento ||
+    contrato?.cpf ||
+    contrato?.documento ||
+    contrato?.cpfPessoa ||
+    ''
+
   const cpfDigits = onlyDigits(cpf)
+  const hasCpfOk = cpfDigits && cpfDigits.length === 11
+
   const cpfShown = useMemo(
     () => (printable ? formatCPF(cpf) : displayCPF(cpf, 'last2')),
     [cpf, printable]
   )
 
-  // verificação + QR
-  const verifyPath = `/verificar/${encodeURIComponent(cpfDigits)}`
-  const verifyUrl = `${verifyBase}${verifyPath}`
+  // =========================
+  // ✅ QR SEMPRE (com fallback)
+  // =========================
+  const verifyUrl = useMemo(() => {
+    const base = verifyBase || ''
+    if (hasCpfOk) {
+      return `${base}/verificar/${encodeURIComponent(cpfDigits)}`
+    }
+    // fallback: ainda dá para validar pelo contrato/nome no backoffice
+    const q = new URLSearchParams()
+    if (numero && numero !== '—') q.set('contrato', String(numero))
+    if (pessoaNome) q.set('nome', String(pessoaNome).slice(0, 80))
+    return `${base}/verificar?${q.toString()}`
+  }, [verifyBase, hasCpfOk, cpfDigits, numero, pessoaNome])
+
   const validade = todayBR()
   const [qrDataUrl, setQrDataUrl] = useState(
     contrato?.qrCodeUrl || contrato?.qr || ''
@@ -162,20 +200,22 @@ export default function CarteirinhaAssociado({
     let disposed = false
     ;(async () => {
       try {
-        if (!qrDataUrl && cpfDigits) {
-          const dataUrl = await QRCode.toDataURL(verifyUrl, {
-            errorCorrectionLevel: 'M',
-            margin: 1,
-            width: 220,
-          })
-          if (!disposed) setQrDataUrl(dataUrl)
-        }
-      } catch {}
+        // sempre tenta gerar, mesmo sem CPF
+        const dataUrl = await QRCode.toDataURL(verifyUrl || 'about:blank', {
+          errorCorrectionLevel: 'M',
+          margin: 1,
+          width: 220,
+        })
+        if (!disposed) setQrDataUrl(dataUrl)
+      } catch {
+        // se falhar, não quebra UI (mas tenta manter algo)
+        if (!disposed) setQrDataUrl('')
+      }
     })()
     return () => {
       disposed = true
     }
-  }, [cpfDigits, verifyUrl, qrDataUrl])
+  }, [verifyUrl])
 
   // ===== Avatar via BFF =====
   useEffect(() => {
@@ -215,16 +255,14 @@ export default function CarteirinhaAssociado({
 
   const avatarUrl = fotoUrl || avatarBlobUrl || fotoDeclarada || ''
 
-  // autoavaliação
+  // autoavaliação (não bloqueia QR)
   useEffect(() => {
     if (warnedRef.current) return
-    if (!nome) showToast('Nome do titular ausente na carteirinha.')
+    if (!pessoaNome) showToast('Nome ausente na carteirinha.')
     if (!plano) showToast('Plano não identificado.')
     if (!numero) showToast('Número do contrato ausente.')
-    if (!cpfDigits || cpfDigits.length !== 11)
-      showToast('CPF inválido ou não informado.')
     warnedRef.current = true
-  }, [nome, plano, numero, cpfDigits])
+  }, [pessoaNome, plano, numero])
 
   // igualar altura ao card do contrato (desktop)
   useEffect(() => {
@@ -260,7 +298,6 @@ export default function CarteirinhaAssociado({
     ? '0 18px 46px rgba(0,0,0,0.55)'
     : '0 18px 46px rgba(15,23,42,0.30)'
 
-  // ✅ no print: sempre 100% (quem manda é o wrapper em mm)
   const cardWidth = printable ? '100%' : 'min(480px, 92vw)'
 
   const radius = printable ? (screenLikePrint ? '22px' : '14px') : '22px'
@@ -321,7 +358,7 @@ export default function CarteirinhaAssociado({
 
   // ===== Helpers de clamp (2 linhas) para SCREEN e PRINT =====
   const nameClampStyle = (() => {
-    const fs = fontForName(nome)
+    const fs = fontForName(pessoaNome)
     const lineHeight = 1.15
     return {
       fontSize: `${fs}px`,
@@ -331,12 +368,10 @@ export default function CarteirinhaAssociado({
       lineHeight,
       ...(printable
         ? {
-            // PRINT: limite por altura (mais confiável)
             maxHeight: `${Math.ceil(fs * lineHeight * 2)}px`,
             overflow: 'hidden',
           }
         : {
-            // SCREEN: line-clamp real
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
@@ -378,7 +413,7 @@ export default function CarteirinhaAssociado({
             {avatarUrl && !imgErro ? (
               <img
                 src={avatarUrl}
-                alt={nome}
+                alt={pessoaNome}
                 className="rounded-full object-cover"
                 style={{
                   width: 58,
@@ -400,18 +435,16 @@ export default function CarteirinhaAssociado({
                     '2px solid color-mix(in srgb, var(--primary) 60%, transparent)',
                 }}
               >
-                {initials(nome)}
+                {initials(pessoaNome)}
               </div>
             )}
           </div>
 
           <div className="min-w-0">
-            {/* NOME (clamp 2 linhas + quebra controlada) */}
             <div className="font-semibold leading-snug" style={nameClampStyle}>
-              {nome}
+              {pessoaNome}
             </div>
 
-            {/* PLANO (clamp 2 linhas + quebra controlada) */}
             <div
               className="mt-0.5 font-semibold uppercase tracking-[0.08em]"
               style={planoClampStyle}
@@ -427,7 +460,6 @@ export default function CarteirinhaAssociado({
                 Contrato #{numero}
               </span>
 
-              {/* status badge (igual do original: só na tela) */}
               {!printable && (
                 <span
                   className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold shadow-sm"
@@ -446,6 +478,8 @@ export default function CarteirinhaAssociado({
                 </span>
               )}
             </div>
+
+
           </div>
         </div>
 
@@ -493,7 +527,6 @@ export default function CarteirinhaAssociado({
           dúvida, contate a unidade responsável.
         </p>
 
-        {/* tabs (tela) */}
         {!printable && !hideTabs && (
           <div className="mt-3 flex gap-2">
             <button
@@ -566,6 +599,8 @@ export default function CarteirinhaAssociado({
             <br />
             Gerada em: <strong>{validade}</strong>
           </div>
+
+         
         </div>
 
         {tenantLogo && (
@@ -596,8 +631,7 @@ export default function CarteirinhaAssociado({
             className="text-[10px] leading-snug"
             style={{ color: 'var(--on-primary, #ffffff)', opacity: 0.9 }}
           >
-            Verifique esta carteirinha pelo site oficial da empresa ou escaneando
-            o QR Code ao lado.
+            Verifique escaneando o QR Code.
           </p>
 
           {tenantPhone && (
@@ -610,22 +644,35 @@ export default function CarteirinhaAssociado({
           )}
         </div>
 
-        {qrDataUrl && (
-          <div
-            className="rounded-2xl p-2 shadow-lg"
-            style={{
-              background: 'rgba(255,255,255,0.20)',
-              backdropFilter: 'blur(8px)',
-            }}
-          >
+        {/* ✅ QR SEMPRE (se falhar, renderiza placeholder discreto) */}
+        <div
+          className="rounded-2xl p-2 shadow-lg"
+          style={{
+            background: 'rgba(255,255,255,0.20)',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          {qrDataUrl ? (
             <img
               src={qrDataUrl}
               alt="QR code de verificação"
               style={{ width: 74, height: 74 }}
               referrerPolicy="no-referrer"
             />
-          </div>
-        )}
+          ) : (
+            <div
+              style={{
+                width: 74,
+                height: 74,
+                borderRadius: 14,
+                border: '1px solid rgba(255,255,255,0.35)',
+                background: 'rgba(255,255,255,0.10)',
+              }}
+              aria-label="QR code indisponível"
+              title="QR code indisponível"
+            />
+          )}
+        </div>
       </footer>
 
       {!printable && !hideTabs && (
@@ -685,12 +732,14 @@ export default function CarteirinhaAssociado({
       <section
         className="relative mx-auto printable-card"
         style={cardStyle}
-        aria-label={`Carteirinha do Associado • ${nome} (${
+        aria-label={`Carteirinha do Associado • ${pessoaNome} (${
           side === 'front' ? 'Frente' : 'Verso'
         })`}
       >
         <div aria-hidden="true" style={{ ...topGlowStyle, opacity: 0 }} />
-        <div style={staticPad}>{side === 'back' ? <Back hideTabs /> : <Front hideTabs />}</div>
+        <div style={staticPad}>
+          {side === 'back' ? <Back hideTabs /> : <Front hideTabs />}
+        </div>
       </section>
     )
   }
@@ -740,7 +789,7 @@ export default function CarteirinhaAssociado({
     <section
       className="relative mx-auto"
       style={{ ...cardStyle, perspective: '1100px', WebkitPerspective: '1100px' }}
-      aria-label={`Carteirinha do Associado • ${nome}`}
+      aria-label={`Carteirinha do Associado • ${pessoaNome}`}
       role="button"
       tabIndex={0}
       onClick={toggleSide}

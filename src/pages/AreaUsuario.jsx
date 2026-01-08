@@ -892,10 +892,11 @@ export default function AreaUsuario() {
                           helper="Ver e gerenciar beneficiários"
                           to="/area/dependentes"
                           state={{
-                            dependentes,
-                            numeroContrato,
-                            nomePlano,
-                            unidadeNome,
+                              dependentes,
+                              contrato,         
+                              numeroContrato,    
+                              nomePlano,
+                              unidadeNome,
                           }}
                         />
                         {planoLinks.length > 0 && planoIdForRoute && (

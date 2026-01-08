@@ -9,7 +9,6 @@ dist/
 .build/
 .vercel/
 .next/
-.vite/
 out/
 
 # Sistema
@@ -17,6 +16,7 @@ out/
 Thumbs.db
 
 # Ambientes
+.env.*
 .env.vercel
 .env
 .env.*.local
