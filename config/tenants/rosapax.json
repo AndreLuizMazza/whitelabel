@@ -53,7 +53,7 @@
       "secondary": {
         "label": "Área do associado",
         "to": "/login",
-        "variant": "outline-light"
+        "variant": "outline"
       },
       "showValuePills": true
     },
@@ -85,7 +85,7 @@
       "secondary": {
         "label": "Falar com o time",
         "to": "https://wa.me/553898802418?text=Ol%C3%A1!%20Quero%20ser%20parceiro%20da%20Funer%C3%A1ria%20Rosa%20Pax.",
-        "variant": "outline-light"
+        "variant": "outline"
       },
       "showValuePills": false
     }
