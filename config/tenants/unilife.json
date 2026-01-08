@@ -57,7 +57,7 @@
     {
       "id": "planos",
       "tag": "Planos em destaque",
-      "title": "Planos que protegem — com acolhimento e segurança",
+      "title": "Planos que protegem com acolhimento e segurança",
       "subtitle": "Coberturas pensadas para oferecer tranquilidade, orientação e suporte com atendimento humanizado.",
       "image": "planos.png",
       "primary": { "label": "Ver planos", "to": "/planos", "variant": "primary" },
@@ -72,11 +72,11 @@
     {
       "id": "telemedicina",
       "tag": "Telemedicina 24h",
-      "title": "Médico online, rápido e seguro — onde você estiver",
+      "title": "Médico online, rápido e seguro onde você estiver",
       "subtitle": "Consultas por telemedicina com praticidade, agilidade e orientação profissional sem sair de casa.",
       "image": "telemedicina.png",
-      "primary": { "label": "Ativar telemedicina", "to": "/planos", "variant": "primary" },
-      "secondary": { "label": "Como funciona", "to": "/telemedicina", "variant": "outline" },
+      "primary": { "label": "Ver planos", "to": "/planos", "variant": "primary" },
+      "secondary": { "label": "Área do associado", "to": "/login", "variant": "outline" },
       "showValuePills": true,
       "valuePills": [
         { "icon": "Clock", "label": "24 horas" },
@@ -91,7 +91,7 @@
       "subtitle": "Vantagens e parcerias em saúde, serviços e comércios conveniados — economia que faz diferença no orçamento.",
       "image": "descontos.png",
       "primary": { "label": "Ver clube de descontos", "to": "/beneficios", "variant": "primary" },
-      "secondary": { "label": "Parceiros", "to": "/parceiros", "variant": "outline" },
+      "secondary": { "label": "Parceiros", "to": "/beneficios", "variant": "outline" },
       "showValuePills": true,
       "valuePills": [
         { "icon": "Percent", "label": "Descontos de verdade" },
@@ -120,7 +120,7 @@
       "title": "Cuidado, apoio e tranquilidade para seu pet",
       "subtitle": "Planos de assistência pet para oferecer suporte, orientação e benefícios no cuidado com animais de estimação.",
       "image": "pet.png",
-      "primary": { "label": "Planos pet", "to": "/planos?categoria=pet", "variant": "primary" },
+      "primary": { "label": "Ver lanos", "to": "/planos", "variant": "primary" },
       "showValuePills": true,
       "valuePills": [
         { "icon": "PawPrint", "label": "Amigos de verdade" },
