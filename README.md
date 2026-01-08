@@ -75,3 +75,5 @@ npm run dev:static
 ```
 
 - `preview:static` e `dev:static` usam `VITE_DISABLE_BOOTSTRAP=1` para não chamar o BFF.
+
+
