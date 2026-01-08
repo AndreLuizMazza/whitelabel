@@ -1,7 +1,7 @@
 {
   "slug": "dalia",
   "v": 1,
-
+ "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/268/",
   "vars": {
     "--primary": "#B8D080",
     "--primary-dark": "#465620",
@@ -59,7 +59,7 @@
     "--c-border": "rgba(255,255,255,0.22)"
   },
 
-  "logo": "https://app.progem.com.br/progem/api/downloads/empresa/268/arquivo?nome=c6706560-c5be-4469-bd8d-f16d2b72d77b_daliasemfundo.png",
+  "logo": "dalia-semfundo.png",
 
   "heroTitle": "Acolhimento e cuidado em cada detalhe",
   "heroSubtitle": "Assistência e estrutura completa com atendimento humanizado e respeito à sua família.",
@@ -80,9 +80,30 @@
       "secondary": {
         "label": "Área do associado",
         "to": "/login",
-        "variant": "outline-light"
+        "variant": "outline"
       },
-      "showValuePills": true
+      
+      "showValuePills": true,
+      "valuePills": [
+        { "icon": "ShieldCheck", "label": "Cobertura completa" },
+        { "icon": "Users", "label": "Para toda a família" },
+        { "icon": "Clock", "label": "Atendimento 24h" }
+      ]
+    },
+        {
+      "id": "telemedicina",
+      "tag": "Telemedicina 24h",
+      "title": "Médico online, rápido e seguro onde você estiver",
+      "subtitle": "Consultas por telemedicina com praticidade, agilidade e orientação profissional sem sair de casa.",
+      "image": "telemedicina.png",
+      "primary": { "label": "Ver planos", "to": "/planos", "variant": "primary" },
+      "secondary": { "label": "Área do associado", "to": "/login", "variant": "outline" },
+      "showValuePills": true,
+      "valuePills": [
+        { "icon": "Clock", "label": "24 horas" },
+        { "icon": "Video", "label": "Consulta online" },
+        { "icon": "HeartPulse", "label": "Orientação médica" }
+      ]
     },
     {
       "id": "servicos",
@@ -91,12 +112,17 @@
       "subtitle": "Equipe preparada e organização completa para oferecer segurança e acolhimento.",
       "image": "https://seu-dominio-de-arquivos.com/dalia/hero-servicos.jpg",
       "primary": {
-        "label": "Produtos e serviços",
-        "to": "/servicos",
+        "label": "Conhecer planos",
+        "to": "/planos",
         "variant": "primary"
       },
       "secondary": null,
-      "showValuePills": false
+      "showValuePills": true,
+      "valuePills": [
+        { "icon": "ShieldCheck", "label": "Cobertura completa" },
+        { "icon": "Users", "label": "Para toda a família" },
+        { "icon": "Clock", "label": "Atendimento 24h" }
+      ]
     },
     {
       "id": "memorial",
@@ -109,9 +135,29 @@
         "to": "/memorial",
         "variant": "primary"
       },
-      "showValuePills": false
+      "showValuePills": true,
+      "valuePills": [
+        { "icon": "BookHeart", "label": "Homenagens" },
+        { "icon": "MessageCircle", "label": "Mensagens" },
+        { "icon": "Globe", "label": "Acesso online" }
+      ]
+    },
+    {
+      "id": "pet",
+      "tag": "Assistência Pet",
+      "title": "Cuidado, apoio e tranquilidade para seu pet",
+      "subtitle": "Planos de assistência pet para oferecer suporte, orientação e benefícios no cuidado com animais de estimação.",
+      "image": "pet.png",
+      "primary": { "label": "Ver lanos", "to": "/planos", "variant": "primary" },
+      "showValuePills": true,
+      "valuePills": [
+        { "icon": "PawPrint", "label": "Amigos de verdade" },
+        { "icon": "Heart", "label": "Cuidado contínuo" },
+        { "icon": "Smile", "label": "Mais tranquilidade" }
+      ]
     }
   ],
 
   "domain": "daliacerimonial.com.br"
 }
+

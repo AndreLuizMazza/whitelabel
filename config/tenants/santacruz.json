@@ -84,7 +84,7 @@
       "secondary": {
         "label": "Área do associado",
         "to": "/login",
-        "variant": "outline-light"
+        "variant": "outline"
       },
       "showValuePills": true
     },
