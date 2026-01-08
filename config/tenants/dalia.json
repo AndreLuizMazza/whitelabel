@@ -82,7 +82,7 @@
         "to": "/login",
         "variant": "outline"
       },
-      
+    
       "showValuePills": true,
       "valuePills": [
         { "icon": "ShieldCheck", "label": "Cobertura completa" },
