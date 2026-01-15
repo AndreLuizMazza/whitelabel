@@ -1,7 +1,7 @@
 {
   "slug": "amorim",
-  "v": 1,
-
+  "v": 2,
+"assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/91/",
   "vars": {
     "--primary": "#0C4B2C",          
     "--primary-dark": "#0A3A22",
@@ -59,7 +59,7 @@
     "--c-border": "rgba(255,255,255,0.24)"
   },
 
-  "logo": "https://app.progem.com.br/progem/api/downloads/empresa/91/arquivo?nome=61e8fdc7-276b-4c83-b32e-86508a7ac5ec_amorimsemfundo.png",
+  "logo": "logoamorim.png",
 
   "heroTitle": "Cuidado que honra histórias de vida",
   "heroSubtitle": "Serviços funerários e planos de assistência com respeito, apoio e acolhimento.",
@@ -91,12 +91,12 @@
       "subtitle": "Atendimento especializado e estrutura completa para todo o ciclo de cuidado.",
       "image": "https://seu-dominio-de-arquivos.com/amorim/hero-servicos-amorim.jpg",
       "primary": {
-        "label": "Nossos serviços",
-        "to": "/servicos",
+        "label": "Nossos Planos",
+        "to": "/planos",
         "variant": "primary"
       },
       "secondary": null,
-      "showValuePills": false
+      "showValuePills": true
     },
     {
       "id": "memorial",
@@ -110,7 +110,7 @@
         "variant": "primary"
       },
 
-      "showValuePills": false
+      "showValuePills": true
     }
   ],
 
