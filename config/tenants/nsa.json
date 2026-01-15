@@ -75,7 +75,7 @@
         "variant": "primary"
       },
       "secondary": null,
-            "showValuePills": true,
+      "showValuePills": true,
       "valuePills": [
         { "icon": "BookHeart", "label": "Homenagens" },
         { "icon": "MessageCircle", "label": "Mensagens" },
