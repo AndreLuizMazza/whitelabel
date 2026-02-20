@@ -1,0 +1,126 @@
+{
+  "slug": "funeralcard",
+  "v": 2,
+
+  "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/308/",
+
+  "vars": {
+    "--primary": "#1E7F9D",
+    "--primary-dark": "#186C86",
+    "--primary-light": "#2FA4C6",
+    "--secondary": "#5AC334",
+    "--on-primary": "#FFFFFF",
+
+    "--surface": "#FFFFFF",
+    "--surface-alt": "#F3F7F9",
+
+    "--text": "#0F172A",
+    "--text-muted": "#475569",
+
+    "--c-border": "rgba(15,23,42,0.10)",
+
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 12%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 22%, transparent)",
+    "--nav-active-color": "#1E7F9D",
+
+    "--highlight": "#5AC334",
+    "--button-hover": "color-mix(in srgb, var(--primary) 25%, #000000)"
+  },
+
+  "varsDark": {
+    "--surface": "#0F172A",
+    "--surface-alt": "#162233",
+
+    "--text": "#F8FAFC",
+    "--text-muted": "#CBD5E1",
+
+    "--c-border": "rgba(255,255,255,0.18)",
+
+    "--primary": "#2FA4C6",
+    "--primary-dark": "#1E7F9D",
+    "--primary-light": "#5BC0DE",
+    "--secondary": "#5AC334",
+
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 18%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 32%, transparent)",
+    "--nav-active-color": "#FFFFFF",
+
+    "--highlight": "#5AC334",
+    "--button-hover": "color-mix(in srgb, var(--primary) 35%, #000000)"
+  },
+
+  "logo": "funeralcard2.png",
+
+  "heroTitle": "Cuidado, respeito e proteção para sua família",
+  "heroSubtitle": "Planos acessíveis, atendimento humanizado e benefícios pensados para oferecer tranquilidade em todos os momentos.",
+
+
+   "heroSlides": [
+    {
+      "id": "planos",
+      "tag": "Planos em destaque",
+      "title": "Proteção e tranquilidade para sua família",
+      "subtitle": "Coberturas pensadas para proteger sua família com orientação e atendimento humanizado.",
+      "image": "planos.png",
+      "primary": { "label": "Ver planos", "to": "/planos", "variant": "primary" },
+      "secondary": { "label": "Área do associado", "to": "/login", "variant": "outline" },
+      "showValuePills": true,
+      "valuePills": [
+        { "icon": "ShieldCheck", "label": "Proteção completa" },
+        { "icon": "Users", "label": "Para a família" },
+        { "icon": "Clock", "label": "Atendimento 24h" }
+      ]
+    },
+    {
+      "id": "beneficios",
+      "tag": "Clube de vantagens",
+      "title": "Economia real para usar todo mês",
+      "subtitle": "Vantagens e parcerias em serviços e comércios conveniados — benefícios que fazem diferença no orçamento.",
+      "image": "descontos.png",
+      "primary": { "label": "Ver benefícios", "to": "/beneficios", "variant": "primary" },
+      "secondary": { "label": "Parceiros", "to": "/beneficios", "variant": "outline" },
+      "showValuePills": true,
+      "valuePills": [
+        { "icon": "Percent", "label": "Descontos reais" },
+        { "icon": "Store", "label": "Rede conveniada" },
+        { "icon": "Wallet", "label": "Economia mensal" }
+      ]
+    },
+    {
+      "id": "memorial",
+      "tag": "Memorial Digital",
+      "title": "Memorial e homenagens em um só lugar",
+      "subtitle": "Um espaço digital para mensagens, homenagens e detalhes de cerimônias com respeito e simplicidade.",
+      "image": "memorial.png",
+      "primary": { "label": "Acessar memorial", "to": "/memorial", "variant": "primary" },
+      "secondary": null,
+      "showValuePills": true,
+      "valuePills": [
+        { "icon": "BookHeart", "label": "Homenagens" },
+        { "icon": "MessageCircle", "label": "Mensagens" },
+        { "icon": "Globe", "label": "Acesso online" }
+      ]
+    },
+    {
+      "id": "pet",
+      "tag": "Assistência Pet",
+      "title": "Cuidado e tranquilidade para seu pet",
+      "subtitle": "Planos de assistência pet com suporte, orientação e benefícios para o dia a dia.",
+      "image": "pet.png",
+      "primary": { "label": "Ver planos", "to": "/planos", "variant": "primary" },
+      "secondary": null,
+      "showValuePills": true,
+      "valuePills": [
+        { "icon": "PawPrint", "label": "Apoio ao pet" },
+        { "icon": "Heart", "label": "Cuidado contínuo" },
+        { "icon": "Smile", "label": "Mais tranquilidade" }
+      ]
+    }
+  ],
+  
+  "domain": "funeralcardbrasil.com.br"
+
+
+
+  
+}
