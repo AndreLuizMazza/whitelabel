@@ -1,7 +1,7 @@
 {
   "slug": "unifax",
   "v": 2,
-
+  "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/344/",
   "vars": {
     "--primary": "#7A1C1C",
     "--primary-dark": "#5E1414",
@@ -59,7 +59,7 @@
     "--c-border": "rgba(255,255,255,0.18)"
   },
 
-  "logo": "https://app.progem.com.br/progem/api/downloads/empresa/344/arquivo?nome=d7f0c90b-6132-4a73-aa41-4708dd87284a_arquivo_6.png",
+  "logo": "unipax.png",
 
   "heroTitle": "Proteção, cuidado e tranquilidade para sua família",
   "heroSubtitle": "Um plano de assistência familiar pensado para apoiar você com respeito e responsabilidade.",
@@ -68,50 +68,50 @@
   "heroSlides": [
     {
       "id": "planos",
-      "tag": "Plano Familiar",
-      "title": "Cuidar da família é estar presente",
-      "subtitle": "Assistência completa, acessível e preparada para os momentos mais importantes.",
-      "image": "https://seu-dominio-de-arquivos.com/unifax/hero-planos-modern.jpg",
-      "primary": {
-        "label": "Conhecer planos",
-        "to": "/planos",
-        "variant": "primary"
-      },
-      "secondary": {
-        "label": "Área do associado",
-        "to": "/login",
-        "variant": "outline"
-      },
-      "showValuePills": true
+      "tag": "Planos em destaque",
+      "title": "Proteção e tranquilidade para sua família",
+      "subtitle": "Coberturas pensadas para proteger sua família com orientação e atendimento humanizado.",
+      "image": "planos.png",
+      "primary": { "label": "Ver planos", "to": "/planos", "variant": "primary" },
+      "secondary": { "label": "Área do associado", "to": "/login", "variant": "outline" },
+      "showValuePills": true,
+      "valuePills": [
+        { "icon": "ShieldCheck", "label": "Proteção completa" },
+        { "icon": "Users", "label": "Para a família" },
+        { "icon": "Clock", "label": "Atendimento 24h" }
+      ]
     },
     {
-      "id": "servicos",
-      "tag": "Estrutura & Atendimento",
-      "title": "Atendimento humano, simples e organizado",
-      "subtitle": "Equipe preparada para orientar e acolher sua família com dignidade.",
-      "image": "https://seu-dominio-de-arquivos.com/unifax/hero-servicos-modern.jpg",
-      "primary": {
-        "label": "Ver serviços",
-        "to": "/servicos",
-        "variant": "primary"
-      },
-      "secondary": null,
-      "showValuePills": false
+      "id": "beneficios",
+      "tag": "Clube de vantagens",
+      "title": "Economia real para usar todo mês",
+      "subtitle": "Vantagens e parcerias em serviços e comércios conveniados — benefícios que fazem diferença no orçamento.",
+      "image": "descontos.png",
+      "primary": { "label": "Ver benefícios", "to": "/beneficios", "variant": "primary" },
+      "secondary": { "label": "Parceiros", "to": "/beneficios", "variant": "outline" },
+      "showValuePills": true,
+      "valuePills": [
+        { "icon": "Percent", "label": "Descontos reais" },
+        { "icon": "Store", "label": "Rede conveniada" },
+        { "icon": "Wallet", "label": "Economia mensal" }
+      ]
     },
     {
       "id": "memorial",
       "tag": "Memorial Digital",
-      "title": "Memórias preservadas com respeito",
-      "subtitle": "Um espaço digital para homenagens, mensagens e informações importantes.",
-      "image": "https://seu-dominio-de-arquivos.com/unifax/hero-memorial-modern.jpg",
-      "primary": {
-        "label": "Acessar memorial",
-        "to": "/memorial",
-        "variant": "primary"
-      },
-      "showValuePills": false
+      "title": "Memorial e homenagens em um só lugar",
+      "subtitle": "Um espaço digital para mensagens, homenagens e detalhes de cerimônias com respeito e simplicidade.",
+      "image": "memorial.png",
+      "primary": { "label": "Acessar memorial", "to": "/memorial", "variant": "primary" },
+      "secondary": null,
+      "showValuePills": true,
+      "valuePills": [
+        { "icon": "BookHeart", "label": "Homenagens" },
+        { "icon": "MessageCircle", "label": "Mensagens" },
+        { "icon": "Globe", "label": "Acesso online" }
+      ]
     }
+    
   ],
-
   "domain": "unifaxassistencia.com.br"
 }
