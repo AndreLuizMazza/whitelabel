@@ -1,71 +1,62 @@
 {
-  "slug": "unifax",
-  "v": 2,
-  "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/344/",
+  "slug": "valedapaz",
+  "v": 3,
+
+  "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/421/",
+
   "vars": {
-    "--primary": "#7A1C1C",
-    "--primary-dark": "#5E1414",
-    "--primary-light": "#A63A3A",
-    "--secondary": "#2F8F46",
-    "--on-primary": "#ffffff",
+    "--primary": "#7C79B5",
+    "--primary-dark": "#6461A3",
+    "--primary-light": "#9A97CF",
 
-    "--surface": "#ffffff",
-    "--surface-alt": "#F7F8FA",
-    "--text": "#0E1624",
-    "--text-muted": "#5B667A",
-    "--c-border": "rgba(0,0,0,0.08)",
+    "--secondary": "#8FB3D9",
+    "--on-primary": "#FFFFFF",
 
-    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 8%, transparent)",
+    "--surface": "#FFFFFF",
+    "--surface-alt": "#F5F7FB",
+
+    "--text": "#1F2937",
+    "--text-muted": "#6B7280",
+
+    "--c-border": "rgba(31,41,55,0.08)",
+
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 10%, transparent)",
     "--nav-active-bg": "color-mix(in srgb, var(--primary) 18%, transparent)",
-    "--nav-active-color": "#5E1414",
+    "--nav-active-color": "#6461A3",
 
-    "--highlight": "#2F8F46",
-    "--button-hover": "color-mix(in srgb, var(--primary) 24%, #000000)",
-
-    "--sidebar-icon": "#5E1414",
-    "--sidebar-icon-muted": "#8A94A6",
-    "--sidebar-icon-active": "#2F8F46",
-    "--sidebar-text": "#0E1624",
-    "--sidebar-text-muted": "#5B667A",
-    "--headline": "#5E1414"
+    "--highlight": "#8FB3D9",
+    "--button-hover": "color-mix(in srgb, var(--primary) 25%, #000000)"
   },
 
   "varsDark": {
-    "--surface": "#0C111B",
-    "--surface-alt": "#121A29",
+    "--surface": "#0F172A",
+    "--surface-alt": "#162033",
 
-    "--text": "#F9FAFB",
-    "--text-muted": "#AAB3C5",
+    "--text": "#F8FAFC",
+    "--text-muted": "#CBD5E1",
 
-    "--primary": "#A63A3A",
-    "--primary-dark": "#7A1C1C",
-    "--primary-light": "#C95E5E",
-    "--secondary": "#3FAE63",
+    "--c-border": "rgba(255,255,255,0.12)",
+
+    "--primary": "#9A97CF",
+    "--primary-dark": "#7C79B5",
+    "--primary-light": "#B8B6E5",
+
+    "--secondary": "#A9C3E3",
 
     "--nav-hover-bg": "color-mix(in srgb, var(--primary) 16%, transparent)",
     "--nav-active-bg": "color-mix(in srgb, var(--primary) 28%, transparent)",
     "--nav-active-color": "#FFFFFF",
 
-    "--highlight": "#3FAE63",
-    "--button-hover": "color-mix(in srgb, var(--primary) 32%, #000000)",
-
-    "--sidebar-icon": "#FFFFFF",
-    "--sidebar-icon-muted": "#7C8CAB",
-    "--sidebar-icon-active": "#3FAE63",
-    "--sidebar-text": "#E5E7EB",
-    "--sidebar-text-muted": "#AAB3C5",
-    "--headline": "#FFFFFF",
-
-    "--c-border": "rgba(255,255,255,0.18)"
+    "--highlight": "#A9C3E3",
+    "--button-hover": "color-mix(in srgb, var(--primary) 35%, #000000)"
   },
 
-  "logo": "unipax.png",
+  "logo": "valedapaz1.png",
 
-  "heroTitle": "Proteção, cuidado e tranquilidade para sua família",
-  "heroSubtitle": "Um plano de assistência familiar pensado para apoiar você com respeito e responsabilidade.",
-  "heroImage": "https://seu-dominio-de-arquivos.com/unifax/hero-unifax-modern.jpg",
+  "heroTitle": "Um espaço de memória, respeito e serenidade",
+  "heroSubtitle": "Homenagens digitais e informações organizadas com sensibilidade e acolhimento.",
 
-  "heroSlides": [
+     "heroSlides": [
     {
       "id": "planos",
       "tag": "Planos em destaque",
@@ -113,5 +104,7 @@
     }
     
   ],
-  "domain": "unifaxassistencia.com.br"
+  
+  
+  "domain": "valedapazmemorial.com.br"
 }
