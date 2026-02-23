@@ -1,61 +1,62 @@
 {
-  "slug": "paiefilho",
-  "v": 2,
+  "slug": "valedapaz",
+  "v": 3,
 
-  "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/242/",
+  "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/421/",
 
   "vars": {
-    "--primary": "#2D5FCB",
-    "--primary-dark": "#1E3FA8",
-    "--primary-light": "#4C7BE0",
+    "--primary": "#7C79B5",
+    "--primary-dark": "#6461A3",
+    "--primary-light": "#9A97CF",
 
-    "--secondary": "#F8FAFC",
+    "--secondary": "#8FB3D9",
     "--on-primary": "#FFFFFF",
 
     "--surface": "#FFFFFF",
-    "--surface-alt": "#F3F6FB",
+    "--surface-alt": "#F5F7FB",
 
-    "--text": "#0F172A",
-    "--text-muted": "#475569",
+    "--text": "#1F2937",
+    "--text-muted": "#6B7280",
 
-    "--c-border": "rgba(15,23,42,0.10)",
+    "--c-border": "rgba(31,41,55,0.08)",
 
-    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 12%, transparent)",
-    "--nav-active-bg": "color-mix(in srgb, var(--primary) 22%, transparent)",
-    "--nav-active-color": "#2D5FCB",
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 10%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 18%, transparent)",
+    "--nav-active-color": "#6461A3",
 
-    "--highlight": "#4C7BE0",
+    "--highlight": "#8FB3D9",
     "--button-hover": "color-mix(in srgb, var(--primary) 25%, #000000)"
   },
 
   "varsDark": {
     "--surface": "#0F172A",
-    "--surface-alt": "#16223A",
+    "--surface-alt": "#162033",
 
     "--text": "#F8FAFC",
     "--text-muted": "#CBD5E1",
 
-    "--c-border": "rgba(255,255,255,0.15)",
+    "--c-border": "rgba(255,255,255,0.12)",
 
-    "--primary": "#4C7BE0",
-    "--primary-dark": "#2D5FCB",
-    "--primary-light": "#7FA4FF",
+    "--primary": "#9A97CF",
+    "--primary-dark": "#7C79B5",
+    "--primary-light": "#B8B6E5",
 
-    "--secondary": "#FFFFFF",
+    "--secondary": "#A9C3E3",
 
-    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 18%, transparent)",
-    "--nav-active-bg": "color-mix(in srgb, var(--primary) 30%, transparent)",
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 16%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 28%, transparent)",
     "--nav-active-color": "#FFFFFF",
 
-    "--highlight": "#4C7BE0",
+    "--highlight": "#A9C3E3",
     "--button-hover": "color-mix(in srgb, var(--primary) 35%, #000000)"
   },
 
-  "logo": "paiefilh1.png",
+  "logo": "valedapaz1.png",
 
-  "heroTitle": "Acolhimento, fé e respeito em todos os momentos",
-  "heroSubtitle": "Atendimento humanizado e suporte completo para cuidar da sua família com dedicação e sensibilidade.",
-   "heroSlides": [
+  "heroTitle": "Um espaço de memória, respeito e serenidade",
+  "heroSubtitle": "Homenagens digitais e informações organizadas com sensibilidade e acolhimento.",
+
+     "heroSlides": [
     {
       "id": "planos",
       "tag": "Planos em destaque",
@@ -103,5 +104,7 @@
     }
     
   ],
-  "domain": "planospaiefilhos.com.br"
+  
+  
+  "domain": "valedapazmemorial.com.br"
 }
