@@ -1,6 +1,6 @@
 {
   "slug": "funeralcard",
-  "v": 2,
+  "v": 3,
 
   "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/308/",
 
@@ -49,7 +49,7 @@
     "--button-hover": "color-mix(in srgb, var(--primary) 35%, #000000)"
   },
 
-  "logo": "funeralcard2.png",
+  "logo": "funeralcard3.png",
 
   "heroTitle": "Cuidado, respeito e proteção para sua família",
   "heroSubtitle": "Planos acessíveis, atendimento humanizado e benefícios pensados para oferecer tranquilidade em todos os momentos.",
