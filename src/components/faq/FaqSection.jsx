@@ -1,11 +1,16 @@
 // src/components/faq/FaqSection.jsx
 import { useMemo, useState } from "react"
 import { Link } from "react-router-dom"
+import useTenant from "@/store/tenant"
+import { isBeneficiosEnabled } from "@/lib/tenantModules"
 import CTAButton from "@/components/ui/CTAButton"
 import FaqItem from "./FaqItem.jsx"
 import { Smartphone, Apple } from "lucide-react"
 
 export default function FaqSection({ isLogged, areaDest }) {
+  const empresa = useTenant((s) => s.empresa)
+  const showClubeLink = isBeneficiosEnabled(empresa)
+
   const ANDROID_URL = import.meta.env.VITE_ANDROID_URL || "#"
   const IOS_URL = import.meta.env.VITE_IOS_URL || "#"
 
@@ -146,7 +151,9 @@ export default function FaqSection({ isLogged, areaDest }) {
 
       {/* CTAs de rodapé do FAQ (padronizados) */}
       <div className="mt-6 flex flex-wrap items-center gap-2">
-        <CTAButton as="link" to="/beneficios" variant="outline">Ver parceiros</CTAButton>
+        {showClubeLink && (
+          <CTAButton as="link" to="/beneficios" variant="outline">Ver parceiros</CTAButton>
+        )}
         <CTAButton as="link" to={isLogged ? "/area" : "/login"}>Abrir área</CTAButton>
       </div>
 

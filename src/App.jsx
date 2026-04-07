@@ -53,9 +53,21 @@ import HistoricoPagamentos from '@/pages/HistoricoPagamentos.jsx'
 
 // 🧩 Tenant (para título dinâmico)
 import useTenant from '@/store/tenant'
+import { isBeneficiosEnabled, isMemorialEnabled } from '@/lib/tenantModules'
 
 // 🧩 Layout global com sidebar
 import GlobalShell from '@/layouts/GlobalShell.jsx'
+
+/** Gate único: bloqueia rota se o módulo estiver desabilitado no tenant (`empresa`). */
+function TenantModuleGate({ module, children }) {
+  const empresa = useTenant((s) => s.empresa)
+  const ok =
+    module === 'memorial'
+      ? isMemorialEnabled(empresa)
+      : isBeneficiosEnabled(empresa)
+  if (!ok) return <Navigate to="/" replace />
+  return children
+}
 
 function resolvePageTitle(pathname = '/') {
   if (pathname === '/') return 'Início'
@@ -148,8 +160,22 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/planos" element={<PlanosGrid />} />
               <Route path="/planos/:id" element={<PlanoDetalhe />} />
-              <Route path="/beneficios" element={<ClubeBeneficios />} />
-              <Route path="/beneficios/:id" element={<ParceiroDetalhe />} />
+              <Route
+                path="/beneficios"
+                element={
+                  <TenantModuleGate module="beneficios">
+                    <ClubeBeneficios />
+                  </TenantModuleGate>
+                }
+              />
+              <Route
+                path="/beneficios/:id"
+                element={
+                  <TenantModuleGate module="beneficios">
+                    <ParceiroDetalhe />
+                  </TenantModuleGate>
+                }
+              />
               <Route path="/contratos" element={<ContratoPage />} />
               <Route path="/contratos/:id/pagamentos" element={<Pagamentos />} />
               <Route path="/login" element={<LoginPage />} />
@@ -167,8 +193,22 @@ export default function App() {
               <Route path="/verificar/:cpf" element={<VerificarCarteirinha />} />
 
               {/* Memorial */}
-              <Route path="/memorial" element={<MemorialList />} />
-              <Route path="/memorial/:slug" element={<MemorialDetail />} />
+              <Route
+                path="/memorial"
+                element={
+                  <TenantModuleGate module="memorial">
+                    <MemorialList />
+                  </TenantModuleGate>
+                }
+              />
+              <Route
+                path="/memorial/:slug"
+                element={
+                  <TenantModuleGate module="memorial">
+                    <MemorialDetail />
+                  </TenantModuleGate>
+                }
+              />
 
               {/* Impressão da carteirinha */}
               <Route path="/carteirinha/print" element={<CarteirinhaPrint />} />
