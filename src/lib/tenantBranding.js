@@ -76,6 +76,116 @@ export function safeUrl(u) {
 }
 
 /**
+ * Nome exibido do tenant (aba do navegador, shell), mesma precedência geral da logo.
+ * Não cria fonte nova de verdade: usa campos já usados no app (nomeFantasia, nome, etc.).
+ */
+export function resolveTenantBrandName() {
+  try {
+    const st = useTenant.getState?.();
+    const emp = st?.empresa || {};
+    const fromStore =
+      emp.nomeFantasia ||
+      emp.nome ||
+      emp.razaoSocial ||
+      emp.brandName;
+    if (fromStore) return String(fromStore).trim();
+  } catch {}
+
+  try {
+    const inline = window.__TENANT__ || {};
+    const raw =
+      inline.nomeFantasia ||
+      inline.nome ||
+      inline.brandName ||
+      inline.shellTitle ||
+      inline.siteTitle;
+    if (raw) return String(raw).trim();
+  } catch {}
+
+  try {
+    const raw = localStorage.getItem("tenant_empresa");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const fromLs =
+        parsed?.nomeFantasia ||
+        parsed?.nome ||
+        parsed?.razaoSocial ||
+        parsed?.brandName;
+      if (fromLs) return String(fromLs).trim();
+    }
+  } catch {}
+
+  try {
+    const inline = window.__TENANT__ || {};
+    if (inline.slug) {
+      const s = String(inline.slug);
+      return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
+    }
+  } catch {}
+  try {
+    const raw = localStorage.getItem("tenant_empresa");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.slug) {
+        const s = String(parsed.slug);
+        return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
+      }
+    }
+  } catch {}
+
+  return "";
+}
+
+/**
+ * Ícone do shell (favicon): favicon explícito do tenant, senão mesma origem da logo.
+ */
+export function resolveTenantFaviconUrl() {
+  try {
+    const st = useTenant.getState?.();
+    const emp = st?.empresa || {};
+    const tema = emp?.tema || {};
+    const assetsBase =
+      tema.assetsBaseUrl ||
+      tema.cdnBaseUrl ||
+      emp.assetsBaseUrl ||
+      emp.cdnBaseUrl ||
+      "";
+
+    const raw =
+      emp.faviconUrl ||
+      tema.favicon ||
+      tema.faviconUrl ||
+      emp.urlLogo ||
+      emp.logoUrl ||
+      emp.logo ||
+      tema.logo ||
+      tema.logoUrl;
+
+    const resolved = safeUrl(resolveAssetUrl(raw, assetsBase));
+    if (resolved) return resolved;
+  } catch {}
+
+  return resolveTenantLogoUrl();
+}
+
+/**
+ * Aplica <link rel="icon"> tenant-aware (reconciliação runtime / bootstrap).
+ */
+export function applyTenantFaviconHref(href) {
+  const u = safeUrl(href);
+  if (typeof document === "undefined" || !u) return;
+
+  let link = document.getElementById("tenant-favicon");
+  if (!link) {
+    link = document.createElement("link");
+    link.id = "tenant-favicon";
+    link.rel = "icon";
+    document.head.appendChild(link);
+  }
+  link.href = u;
+}
+
+/**
  * Resolve a URL da logo do tenant, com vários fallbacks:
  * - store do tenant (empresa.logo / logoUrl / logo_path / urlLogo / tema.logo)
  * - window.__TENANT__
@@ -83,7 +193,7 @@ export function safeUrl(u) {
  * - CSS var --tenant-logo
  * - /img/logo.png
  *
- * ✅ Compatível: mantém o comportamento antigo e só melhora a resolução
+ * Compatível: mantém o comportamento antigo e só melhora a resolução
  * de tema.logo + assetsBaseUrl quando existir.
  */
 export function resolveTenantLogoUrl() {

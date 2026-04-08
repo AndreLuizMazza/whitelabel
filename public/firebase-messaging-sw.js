@@ -26,8 +26,11 @@ messaging.onBackgroundMessage((payload) => {
   const notificationTitle = notification.title || "Nova notificação"
   const notificationOptions = {
     body: notification.body || "",
-    // ajuste o ícone para um arquivo real do seu projeto (ex.: /icons/icon-192.png)
-    icon: "/icon-192x192.png",
+    // Preferência: ícone do payload FCM (tenant/backend); fallback estático do deploy
+    icon:
+      notification.icon ||
+      (payload.data && payload.data.icon) ||
+      "/icon-192x192.png",
     data: payload.data || {},
   }
 
