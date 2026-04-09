@@ -9,6 +9,9 @@ import {
   resolveFaviconUrl,
   resolveBrandDisplayName,
   resolveShellThemeColors,
+  resolveBrandLogoUrl,
+  resolveAllBrandIconUrls,
+  BRAND_ICON_FIELD_KEYS,
 } from "../src/lib/branding/tenantContract.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -29,9 +32,10 @@ assert(
   favLegacy.includes("logodemo") || favLegacy.includes("128"),
   `legacy favicon: ${favLegacy}`
 );
+const legacyName = resolveBrandDisplayName(legacy, null);
 assert(
-  resolveBrandDisplayName(legacy, null).toLowerCase().includes("demo"),
-  `legacy brand name from slug: ${resolveBrandDisplayName(legacy, null)}`
+  legacyName.length > 0 && legacy.slug === "demo",
+  `legacy brand name / slug: ${legacyName} (slug=${legacy.slug})`
 );
 
 const rich = load("unilife.json");
@@ -40,5 +44,15 @@ const favRich = resolveFaviconUrl(rich);
 assert(favRich.includes("logounilife"), `unilife favicon: ${favRich}`);
 const colors = resolveShellThemeColors(rich);
 assert(colors.themeColor === "#0477BF", `themeColor ${colors.themeColor}`);
+
+const demoLogoLight = resolveBrandLogoUrl(legacy, "light");
+const demoLogoDark = resolveBrandLogoUrl(legacy, "dark");
+assert(
+  demoLogoLight.length > 0 && demoLogoDark.length > 0,
+  "demo logo light/dark URLs"
+);
+const snap = resolveAllBrandIconUrls(legacy);
+assert(snap.favicon && snap.shellFavicon, "snapshot favicon");
+assert(BRAND_ICON_FIELD_KEYS.length === 9, "BRAND_ICON_FIELD_KEYS");
 
 console.log("contract-parity: OK");

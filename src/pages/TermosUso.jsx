@@ -1,6 +1,7 @@
 // src/pages/TermosUso.jsx
 import { useEffect } from 'react'
 import useTenant from '@/store/tenant'
+import { applyStaticPageTitle } from '@/lib/shellBranding'
 import { formatEndereco, hojeISO } from '@/lib/format'
 
 export default function TermosUso() {
@@ -16,8 +17,8 @@ export default function TermosUso() {
     : 'Comarca da sede da empresa'
 
   useEffect(() => {
-    document.title = `Termos de Uso - ${nomeFantasia}`
-  }, [nomeFantasia])
+    applyStaticPageTitle('Termos de Uso', empresa)
+  }, [empresa])
 
   if (!empresa) {
     return (

@@ -15,6 +15,16 @@
   --nav-hover-bg: color-mix(in srgb, var(--primary) 10%, transparent);
   --nav-active-bg: color-mix(in srgb, var(--primary) 18%, transparent);
   --nav-active-color: var(--primary);
+
+  /* Tenant: definidos em JS a partir do contrato (theme-inline / TenantBootstrapper / initTheme) */
+  --tenant-logo-light: none;
+  --tenant-logo-dark: none;
+  --tenant-logo: var(--tenant-logo-light);
+}
+
+html.dark,
+html.theme-dark {
+  --tenant-logo: var(--tenant-logo-dark, var(--tenant-logo-light));
 }
 
 /* base */

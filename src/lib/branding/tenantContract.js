@@ -1,10 +1,60 @@
 /**
  * Contrato formal de branding (tenant JSON embutido em window.__TENANT__).
  * Funções puras: sem store, sem localStorage como fonte primária.
+ *
+ * @see {BRAND_ICON_FIELD_KEYS} — chaves auditáveis de ícones em `brand`.
+ * @see {BRAND_LOGO_FIELD_KEYS} — logos (light/dark) para UI e fallbacks.
  */
 import { resolveAssetUrl, safeUrl } from "./urls.js";
 
-/** @typedef {{ slug?: string, v?: number, assetsBaseUrl?: string, cdnBaseUrl?: string, logo?: string, domain?: string, brand?: object, shell?: object, seo?: object, pwa?: object, routing?: object }} TenantContract */
+/**
+ * Ícones de marca no contrato (paths relativos a assetsBaseUrl ou absolutos).
+ * Uso: shell <head>, manifest PWA, OG; pushIcon/pushBadge para payload FCM (não confundir com shell).
+ * @typedef {{
+ *   name?: string,
+ *   legalName?: string,
+ *   shortName?: string,
+ *   logo?: string,
+ *   logoLight?: string,
+ *   logoDark?: string,
+ *   favicon?: string,
+ *   faviconSvg?: string,
+ *   appleTouchIcon?: string,
+ *   pwaIcon192?: string,
+ *   pwaIcon512?: string,
+ *   maskableIcon512?: string,
+ *   ogImage?: string,
+ *   pushIcon?: string,
+ *   pushBadge?: string,
+ * }} TenantBrandContract
+ */
+
+/** @typedef {{ slug?: string, v?: number, assetsBaseUrl?: string, cdnBaseUrl?: string, logo?: string, domain?: string, brand?: TenantBrandContract, shell?: object, seo?: object, pwa?: object, routing?: object, vars?: object, varsDark?: object }} TenantContract */
+
+/** Chaves de ícone fixas em `brand` (auditoria / tooling). */
+export const BRAND_ICON_FIELD_KEYS = [
+  "favicon",
+  "faviconSvg",
+  "appleTouchIcon",
+  "pwaIcon192",
+  "pwaIcon512",
+  "maskableIcon512",
+  "ogImage",
+  "pushIcon",
+  "pushBadge",
+];
+
+/** Chaves de logo em `brand` (variantes light/dark). */
+export const BRAND_LOGO_FIELD_KEYS = ["logo", "logoLight", "logoDark"];
+
+/** Único fallback textual do shell quando não há slug nem marca (alinhado a index.html). */
+export const SHELL_DOCUMENT_TITLE_FALLBACK = "Plataforma";
+
+/**
+ * Raster favicon final quando resolveFaviconUrl não encontra candidato no contrato.
+ * Asset estático do app (não confundir com logo do tenant em CDN).
+ */
+export const SHELL_FAVICON_FALLBACK_PATH = "/img/logo.png";
 
 export function formatSlugAsShellTitle(slug) {
   if (!slug) return "";
@@ -14,6 +64,45 @@ export function formatSlugAsShellTitle(slug) {
 
 function brandOf(t) {
   return t?.brand && typeof t.brand === "object" ? t.brand : null;
+}
+
+/** Primeiro valor não vazio (após trim); ignora `brand.*` vazio para cair no legado na raiz. */
+function firstNonEmpty(...vals) {
+  for (const v of vals) {
+    const s = String(v ?? "").trim();
+    if (s) return s;
+  }
+  return undefined;
+}
+
+/**
+ * Alinha `brand.logo` / `brand.logoDark` / `brand.logoLight` com os campos na raiz (`logo`, `logoDark`, `logoLight`).
+ * - `brand.*` tem prioridade sobre a raiz quando existir valor não vazio.
+ * - Tenants só com raiz (sem `brand`): espelha para `brand` para leitores que só usam `brand`.
+ * Mutado in-place para o payload em `window.__TENANT__` (cópia no build).
+ * Não chamar após merge de API que substitui `logo` por URL absoluta (ex.: pushEmpresaEverywhere).
+ */
+export function normalizeTenantLogoFields(t) {
+  if (!t || typeof t !== "object") return t;
+  const b0 = brandOf(t);
+  const logo = firstNonEmpty(b0?.logo, t?.logo);
+  const logoDark = firstNonEmpty(b0?.logoDark, t?.logoDark);
+  const logoLight = firstNonEmpty(b0?.logoLight, t?.logoLight);
+
+  t.brand = { ...(b0 || {}) };
+  if (logo !== undefined) {
+    t.brand.logo = logo;
+    t.logo = logo;
+  }
+  if (logoDark !== undefined) {
+    t.brand.logoDark = logoDark;
+    t.logoDark = logoDark;
+  }
+  if (logoLight !== undefined) {
+    t.brand.logoLight = logoLight;
+    t.logoLight = logoLight;
+  }
+  return t;
 }
 
 function shellOf(t) {
@@ -37,8 +126,7 @@ export function assetsBaseFromContract(t) {
 }
 
 function legacyLogo(t) {
-  const b = brandOf(t);
-  return String(b?.logo || t?.logo || "").trim();
+  return String(firstNonEmpty(brandOf(t)?.logo, t?.logo) || "").trim();
 }
 
 /**
@@ -73,7 +161,7 @@ export function resolveBrandDisplayName(t, empresa) {
   if (n3) return n3;
   const slug = formatSlugAsShellTitle(t?.slug);
   if (slug) return slug;
-  return "Plataforma";
+  return SHELL_DOCUMENT_TITLE_FALLBACK;
 }
 
 /**
@@ -100,7 +188,7 @@ export function resolveTitleTemplate(t) {
  */
 export function formatDocumentTitleFromTemplate(template, sectionLabel, base) {
   const sec = String(sectionLabel || "").trim();
-  const b = String(base || "").trim() || "Plataforma";
+  const b = String(base || "").trim() || SHELL_DOCUMENT_TITLE_FALLBACK;
   const tpl = String(template || "").trim();
   if (!tpl) {
     return sec ? `${sec} • ${b}` : b;
@@ -122,6 +210,15 @@ export function resolveFaviconUrl(t, originOverride) {
     if (u) return u;
   }
   return "";
+}
+
+/**
+ * Favicon para <link rel="icon">: contrato (resolveFaviconUrl) e, se vazio, fallback explícito no app.
+ */
+export function resolveShellFaviconHref(t, originOverride) {
+  const primary = resolveFaviconUrl(t, originOverride);
+  if (primary) return primary;
+  return resolveContractAssetUrl(t, SHELL_FAVICON_FALLBACK_PATH, originOverride);
 }
 
 /** SVG opcional (link separado) */
@@ -181,6 +278,41 @@ export function resolveOgImageUrl(t, originOverride) {
     if (u) return u;
   }
   return "";
+}
+
+/**
+ * Logo de marca para UI (CSS / img src): modo claro ou escuro.
+ * - light: brand.logoLight ?? brand.logo ?? t.logoLight ?? t.logo
+ * - dark: brand.logoDark ?? brand.logo ?? t.logoDark ?? t.logo (legado sem `brand.logoDark`)
+ */
+export function resolveBrandLogoUrl(t, mode, originOverride) {
+  const b = brandOf(t);
+  const raw =
+    mode === "dark"
+      ? firstNonEmpty(b?.logoDark, t?.logoDark, b?.logo, t?.logo)
+      : firstNonEmpty(b?.logoLight, t?.logoLight, b?.logo, t?.logo);
+  return resolveContractAssetUrl(t, raw, originOverride);
+}
+
+/**
+ * Snapshot auditável: todos os ícones + logos resolvidos (mesmas funções que shell / manifest / push).
+ */
+export function resolveAllBrandIconUrls(t, originOverride) {
+  const pwa = resolvePwaIcons(t, originOverride);
+  return {
+    favicon: resolveFaviconUrl(t, originOverride),
+    faviconSvg: resolveFaviconSvgUrl(t, originOverride),
+    appleTouchIcon: resolveAppleTouchIconUrl(t, originOverride),
+    pwaIcon192: pwa.icon192,
+    pwaIcon512: pwa.icon512,
+    maskableIcon512: pwa.maskable,
+    ogImage: resolveOgImageUrl(t, originOverride),
+    pushIcon: resolvePushIconUrl(t, originOverride),
+    pushBadge: resolvePushBadgeUrl(t, originOverride),
+    shellFavicon: resolveShellFaviconHref(t, originOverride),
+    logoLight: resolveBrandLogoUrl(t, "light", originOverride),
+    logoDark: resolveBrandLogoUrl(t, "dark", originOverride),
+  };
 }
 
 export function resolvePrimaryDomain(t) {

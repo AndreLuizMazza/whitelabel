@@ -1,9 +1,26 @@
 // scripts/theme-build.mjs
+/**
+ * Gera public/theme-inline.js e public/manifest.webmanifest.
+ *
+ * Título e hrefs de ícone são embutidos como literais usando APENAS tenantContract:
+ *   resolveShellTitle, resolveShellFaviconHref, resolveFaviconSvgUrl, resolveAppleTouchIconUrl
+ * (mesmas funções que applyRouteDocumentTitle / applyTenantShellIconsFromContract em runtime).
+ *
+ * Prova de paridade: npm run test:shell-branding (lê o JSON do tenant e compara ao ficheiro gerado).
+ */
 import { readFile, writeFile, access, mkdir, readdir } from "node:fs/promises";
 import { constants as FS } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildWebManifestPayload } from "../src/lib/branding/tenantContract.js";
+import {
+  buildWebManifestPayload,
+  resolveShellTitle,
+  resolveShellFaviconHref,
+  resolveFaviconSvgUrl,
+  resolveAppleTouchIconUrl,
+  resolveBrandLogoUrl,
+  normalizeTenantLogoFields,
+} from "../src/lib/branding/tenantContract.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -80,102 +97,22 @@ Esperado: ${TENANT}.json`);
       throw new Error(`Arquivo "${usedPath}" inválido: campo "vars" ausente ou não-objeto.`);
     }
 
-    const tenantPayload = { ...cfg, slug: cfg.slug || TENANT };
+    const tenantPayload = normalizeTenantLogoFields({ ...cfg, slug: cfg.slug || TENANT });
 
-    // IIFE espelha a precedência em src/lib/branding/tenantContract.js (shell sem API).
+    const shellOnlyTitle = resolveShellTitle(tenantPayload, null);
+    const preFav = resolveShellFaviconHref(tenantPayload);
+    const preSvg = resolveFaviconSvgUrl(tenantPayload);
+    const preApple = resolveAppleTouchIconUrl(tenantPayload);
+    const preLogoLight = resolveBrandLogoUrl(tenantPayload, "light");
+    const preLogoDark = resolveBrandLogoUrl(tenantPayload, "dark");
+
+    /* IIFE: CSS vars + data-* + localStorage; título e hrefs de ícone vêm do tenantContract (pré-calculado no build). */
     const js = `
 /* Gerado de ${usedPath.replace(process.cwd() + "/", "")} */
 window.__TENANT__ = ${JSON.stringify(tenantPayload)};
 
 (function(){
   try {
-    function shellTitleFromSlug(slug) {
-      if (!slug) return "";
-      var s = String(slug);
-      return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-    }
-    function cleanUrlInput(v) {
-      var s = String(v || "").trim();
-      if (!s) return "";
-      s = s.replace(/^"+/, "").replace(/"+$/, "");
-      s = s.replace(/^'+/, "").replace(/'+$/, "");
-      s = s.replace(/[\\u200B-\\u200D\\uFEFF]/g, "");
-      return s.trim();
-    }
-    function normalizeBase(base) {
-      var b = cleanUrlInput(base);
-      if (!b) return "";
-      return b.charAt(b.length - 1) === "/" ? b : b + "/";
-    }
-    function resolveAssetUrlInline(raw, base) {
-      var r = cleanUrlInput(raw);
-      if (!r) return "";
-      if (/^(https?:)?\\/\\//i.test(r)) return r;
-      if (/^(data|blob):/i.test(r)) return r;
-      try {
-        if (r.indexOf("/") === 0) {
-          var origin = window.location && window.location.origin ? window.location.origin : "http://localhost";
-          return new URL(r, origin).toString();
-        }
-        var b = normalizeBase(base);
-        if (b) return new URL(r.replace(/^\\/+/, ""), b).toString();
-        origin = window.location && window.location.origin ? window.location.origin : "http://localhost";
-        return new URL("/" + r.replace(/^\\/+/, ""), origin).toString();
-      } catch (e) {
-        if (r.indexOf("/") === 0) return r;
-        b = normalizeBase(base);
-        return b ? b + r.replace(/^\\/+/, "") : "/" + r.replace(/^\\/+/, "");
-      }
-    }
-    function safeUrlInline(u) {
-      var s0 = cleanUrlInput(u);
-      if (!s0) return "";
-      return s0.replace(/ /g, "%20");
-    }
-    function shellDocumentTitle(t) {
-      var sh = t.shell || {};
-      var b = t.brand || {};
-      var a = String(sh.title || "").trim();
-      if (a) return a;
-      var n1 = String(b.name || "").trim();
-      if (n1) return n1;
-      var n2 = String(b.shortName || "").trim();
-      if (n2) return n2;
-      var slug = shellTitleFromSlug(t.slug);
-      if (slug) return slug;
-      return "Plataforma";
-    }
-    function shellFaviconHref(t) {
-      var base = (t.assetsBaseUrl || t.cdnBaseUrl || "").trim();
-      var b = t.brand || {};
-      var candidates = [b.favicon, b.logo, t.logo];
-      for (var i = 0; i < candidates.length; i++) {
-        var r = String(candidates[i] || "").trim();
-        if (!r) continue;
-        var u = safeUrlInline(resolveAssetUrlInline(r, base));
-        if (u) return u;
-      }
-      return "";
-    }
-    function shellFaviconSvgHref(t) {
-      var b = t.brand || {};
-      var raw = String(b.faviconSvg || "").trim();
-      if (!raw) return "";
-      var base = (t.assetsBaseUrl || t.cdnBaseUrl || "").trim();
-      return safeUrlInline(resolveAssetUrlInline(raw, base));
-    }
-    function shellAppleTouchHref(t) {
-      var base = (t.assetsBaseUrl || t.cdnBaseUrl || "").trim();
-      var b = t.brand || {};
-      var candidates = [b.appleTouchIcon, b.pwaIcon192, b.logo, t.logo];
-      for (var j = 0; j < candidates.length; j++) {
-        var r2 = String(candidates[j] || "").trim();
-        if (!r2) continue;
-        var u2 = safeUrlInline(resolveAssetUrlInline(r2, base));
-        if (u2) return u2;
-      }
-      return "";
-    }
     function upsertLink(rel, id, href, type) {
       if (!href) return;
       var el = document.getElementById(id);
@@ -230,17 +167,30 @@ window.__TENANT__ = ${JSON.stringify(tenantPayload)};
       }
     }
     if (docEl){
-      docEl.setAttribute("data-tenant", t.slug || "${TENANT}");
-      docEl.setAttribute("data-theme", mode);
+      docEl.setAttribute("data-tenant", t.slug || ${JSON.stringify(TENANT)});
+      docEl.setAttribute("data-theme", choice);
+      docEl.setAttribute("data-mode", mode);
+      docEl.classList.remove("dark", "theme-dark", "theme-light");
+      if (mode === "dark") { docEl.classList.add("dark", "theme-dark"); }
+      else { docEl.classList.add("theme-light"); }
       docEl.setAttribute("data-theme-ready", "1");
     }
 
-    document.title = shellDocumentTitle(t);
-    var fav = shellFaviconHref(t);
+    var logoL = ${JSON.stringify(preLogoLight)};
+    var logoD = ${JSON.stringify(preLogoDark)};
+    if (style) {
+      if (logoL) style.setProperty("--tenant-logo-light", 'url("' + logoL + '")');
+      if (logoD) style.setProperty("--tenant-logo-dark", 'url("' + logoD + '")');
+      var effLogo = (mode === "dark") ? (logoD || logoL) : (logoL || logoD);
+      if (effLogo) style.setProperty("--tenant-logo", 'url("' + effLogo + '")');
+    }
+
+    document.title = ${JSON.stringify(shellOnlyTitle)};
+    var fav = ${JSON.stringify(preFav)};
     if (fav) upsertLink("icon", "tenant-favicon", fav);
-    var fsvg = shellFaviconSvgHref(t);
+    var fsvg = ${JSON.stringify(preSvg)};
     if (fsvg) upsertLink("icon", "tenant-favicon-svg", fsvg, "image/svg+xml");
-    var ap = shellAppleTouchHref(t);
+    var ap = ${JSON.stringify(preApple)};
     if (ap) upsertLink("apple-touch-icon", "tenant-apple-touch-icon", ap);
     upsertManifestLink();
 
@@ -252,7 +202,7 @@ window.__TENANT__ = ${JSON.stringify(tenantPayload)};
     if (bgC) upsertMetaName("msapplication-TileColor", themeC);
 
     try {
-      localStorage.setItem("tenant_empresa", JSON.stringify(t));
+      localStorage.setItem("tenant_contract_cache", JSON.stringify(t));
       localStorage.setItem("tenant_vars", JSON.stringify(chosen || {}));
     } catch(_){}
   } catch (e) { try { console.warn("theme-inline failed", e); } catch(_){} }

@@ -1,6 +1,7 @@
 // src/pages/PoliticaPrivacidade.jsx
 import { useEffect } from 'react'
 import useTenant from '@/store/tenant'
+import { applyStaticPageTitle } from '@/lib/shellBranding'
 import { formatEndereco, hojeISO } from '@/lib/format'
 
 export default function PoliticaPrivacidade() {
@@ -16,8 +17,8 @@ export default function PoliticaPrivacidade() {
     : undefined
 
   useEffect(() => {
-    document.title = `Política de Privacidade - ${nomeFantasia}`
-  }, [nomeFantasia])
+    applyStaticPageTitle('Política de Privacidade', empresa)
+  }, [empresa])
 
   if (!empresa) {
     return (

@@ -53,11 +53,7 @@ import HistoricoPagamentos from '@/pages/HistoricoPagamentos.jsx'
 
 // 🧩 Tenant (para título dinâmico)
 import useTenant from '@/store/tenant'
-import {
-  resolveBrandDisplayName,
-  resolveTitleTemplate,
-  formatDocumentTitleFromTemplate,
-} from '@/lib/tenantBranding'
+import { applyRouteDocumentTitle } from '@/lib/shellBranding'
 import { bootstrapTenantSeoDefaults } from '@/lib/seo'
 import { isBeneficiosEnabled, isMemorialEnabled } from '@/lib/tenantModules'
 
@@ -75,48 +71,12 @@ function TenantModuleGate({ module, children }) {
   return children
 }
 
-function resolvePageTitle(pathname = '/') {
-  if (pathname === '/') return 'Início'
-  if (pathname === '/planos') return 'Planos'
-  if (pathname.startsWith('/planos/')) return 'Detalhes do plano'
-  if (pathname === '/beneficios') return 'Clube de Benefícios'
-  if (pathname.startsWith('/beneficios/')) return 'Benefício'
-  if (pathname === '/contratos') return 'Contratos'
-  if (pathname.endsWith('/pagamentos')) return 'Pagamentos do contrato'
-  if (pathname === '/login') return 'Entrar'
-  if (pathname === '/criar-conta') return 'Criar conta'
-  if (pathname === '/recuperar-senha') return 'Recuperar senha'
-  if (pathname === '/redefinir-senha') return 'Verificar código'
-  if (pathname === '/trocar-senha') return 'Trocar senha'
-  if (pathname === '/politica-cookies') return 'Política de Cookies'
-  if (pathname === '/politica-privacidade') return 'Política de Privacidade'
-  if (pathname === '/termos-uso') return 'Termos de Uso'
-  if (pathname === '/filiais') return 'Unidades'
-  if (pathname.startsWith('/verificar/')) return 'Verificar carteirinha'
-  if (pathname === '/memorial') return 'Memorial'
-  if (pathname.startsWith('/memorial/')) return 'Homenagem'
-  if (pathname === '/carteirinha/print') return 'Impressão da carteirinha'
-  if (pathname === '/servicos-digitais') return 'Serviços digitais'
-  if (pathname === '/carteirinha') return 'Carteirinha digital'
-  if (pathname === '/area') return 'Área do associado'
-  if (pathname === '/perfil') return 'Perfil'
-  if (pathname === '/area/dependentes') return 'Dependentes'
-  if (pathname === '/area/pagamentos') return 'Histórico de pagamentos'
-  if (pathname === '/cadastro') return 'Contratação'
-  if (pathname === '/confirmacao') return 'Confirmação'
-  return ''
-}
-
 function useDynamicTitle() {
   const location = useLocation()
   const tenant = useTenant((s) => s.empresa)
 
   useEffect(() => {
-    const t = typeof window !== 'undefined' ? window.__TENANT__ : null
-    const base = resolveBrandDisplayName(t, tenant)
-    const section = resolvePageTitle(location.pathname)
-    const tpl = resolveTitleTemplate(t)
-    document.title = formatDocumentTitleFromTemplate(tpl, section, base)
+    applyRouteDocumentTitle(location.pathname, tenant)
   }, [location.pathname, tenant])
 
   useEffect(() => {

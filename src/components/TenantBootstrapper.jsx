@@ -2,7 +2,11 @@
 import { useEffect, useRef } from 'react'
 import { bootstrapTenant } from '@/boot/tenant'
 import useTenant from '@/store/tenant'
-import { applyTenantShellIconsFromContract } from '@/lib/tenantBranding'
+import {
+  applyTenantShellIconsFromContract,
+  applyTenantBrandLogoCssVars,
+} from '@/lib/tenantBranding'
+import { LS_TENANT_CONTRACT_KEY, LS_TENANT_EMPRESA_KEY } from '@/lib/tenantStorageKeys'
 
 /* ===================== slug ===================== */
 
@@ -126,9 +130,18 @@ function readFromStore() {
   return null
 }
 
+function readFromLocalStorageContract() {
+  try {
+    const raw = localStorage.getItem(LS_TENANT_CONTRACT_KEY)
+    const parsed = raw ? safeJsonParse(raw) : null
+    if (parsed && typeof parsed === 'object') return parsed
+  } catch {}
+  return null
+}
+
 function readFromLocalStorageEmpresa() {
   try {
-    const raw = localStorage.getItem('tenant_empresa')
+    const raw = localStorage.getItem(LS_TENANT_EMPRESA_KEY)
     const parsed = raw ? safeJsonParse(raw) : null
     if (parsed && typeof parsed === 'object') return parsed
   } catch {}
@@ -157,7 +170,10 @@ function readFromWindow() {
 
 function applyRootBranding({ logoUrl, assetsBaseUrl }) {
   try {
-    if (logoUrl) {
+    const w = typeof window !== 'undefined' ? window.__TENANT__ : null
+    if (w && (w.brand || w.logo)) {
+      applyTenantBrandLogoCssVars(w)
+    } else if (logoUrl) {
       document.documentElement.style.setProperty('--tenant-logo', `url("${logoUrl}")`)
     }
     if (assetsBaseUrl) {
@@ -190,7 +206,7 @@ function pushEmpresaEverywhere(empresaNormalized, assetsBaseUrl, logoResolved) {
   } catch {}
 
   try {
-    localStorage.setItem('tenant_empresa', JSON.stringify(empresaNormalized))
+    localStorage.setItem(LS_TENANT_EMPRESA_KEY, JSON.stringify(empresaNormalized))
   } catch {}
 
   applyRootBranding({
@@ -288,6 +304,7 @@ export default function TenantBootstrapper() {
       for (let i = 0; i < maxTries; i++) {
         const stEmpresa = readFromStore()
         const win = readFromWindow()
+        const lsContract = readFromLocalStorageContract()
         const lsEmpresa = readFromLocalStorageEmpresa()
         const lsTheme = readFromLocalStorageTheme()
 
@@ -296,6 +313,7 @@ export default function TenantBootstrapper() {
           (looksLikeThemeJson(r) && r) ||
           (looksLikeThemeJson(win) && win) ||
           (looksLikeThemeJson(lsTheme) && lsTheme) ||
+          (looksLikeThemeJson(lsContract) && lsContract) ||
           (looksLikeThemeJson(lsEmpresa) && lsEmpresa) ||
           null
 

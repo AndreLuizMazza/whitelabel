@@ -11,6 +11,7 @@
     "shortName": "São Bento ",
 
     "logo": "logodemo.png",
+    "logoDark": "logodemo-dark.png",
 
     "favicon": "icons/favicon.png",
     "faviconSvg": "icons/favicon.svg",
@@ -94,8 +95,6 @@
     "--highlight": "#73B9FF",
     "--button-hover": "color-mix(in srgb, var(--primary) 30%, #000000)"
   },
-
-  "logo": "logodemo.png",
 
   "heroTitle": "Assistência pet para quem faz parte da sua família",
   "heroSubtitle": "Planos de assistência para cães e gatos, com benefícios, orientação e cuidado nos momentos que mais importam.",

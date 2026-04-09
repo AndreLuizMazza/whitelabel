@@ -1,5 +1,10 @@
 // src/theme/initTheme.js
 import { resolveShellThemeColors } from "@/lib/branding/tenantContract.js";
+import { applyTenantBrandLogoCssVars } from "@/lib/tenantBranding.js";
+import {
+  LS_TENANT_CONTRACT_KEY,
+  LS_TENANT_EMPRESA_KEY,
+} from "@/lib/tenantStorageKeys.js";
 
 export const THEME_KEY = 'ui_theme'; // 'system' | 'light' | 'dark'
 
@@ -23,12 +28,40 @@ function getInlineTenant() {
   catch { return null; }
 }
 
-/** Lê dados do tenant em cache (bootstrap do backend) */
+/** Normaliza objeto empresa (API) para ter vars na raiz como o contrato. */
+function normalizePaletteSource(t) {
+  if (!t || typeof t !== "object") return null;
+  if (t.vars && typeof t.vars === "object") return t;
+  if (t.tema?.vars && typeof t.tema.vars === "object") {
+    return {
+      vars: t.tema.vars,
+      varsDark:
+        t.tema.varsDark && typeof t.tema.varsDark === "object"
+          ? t.tema.varsDark
+          : undefined,
+    };
+  }
+  return null;
+}
+
+/**
+ * Paleta em cache: snapshot do contrato (tenant_contract_cache) ou empresa API (tenant_empresa).
+ */
 function getCachedTenant() {
   try {
-    const raw = localStorage.getItem('tenant_empresa');
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+    const rawC = localStorage.getItem(LS_TENANT_CONTRACT_KEY);
+    if (rawC) {
+      const p = JSON.parse(rawC);
+      const n = normalizePaletteSource(p);
+      if (n) return n;
+    }
+    const rawE = localStorage.getItem(LS_TENANT_EMPRESA_KEY);
+    if (!rawE) return null;
+    const p = JSON.parse(rawE);
+    return normalizePaletteSource(p);
+  } catch {
+    return null;
+  }
 }
 
 /** Aplica variáveis CSS no :root */
@@ -102,6 +135,12 @@ export function applyTheme(choice) {
 
   // 3) meta theme-color coerente com a superfície atual
   setMetaThemeColor(mode);
+
+  // 3b) Logo do contrato: --tenant-logo alinhado ao modo efetivo (light/dark)
+  try {
+    const T = getInlineTenant();
+    if (T) applyTenantBrandLogoCssVars(T);
+  } catch {}
 
   // 4) persistência
   try {
