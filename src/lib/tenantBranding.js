@@ -76,68 +76,16 @@ export function safeUrl(u) {
 }
 
 /**
- * Nome exibido do tenant (aba do navegador, shell), mesma precedência geral da logo.
- * Não cria fonte nova de verdade: usa campos já usados no app (nomeFantasia, nome, etc.).
+ * Label legível a partir de slug (alinhado ao shell em theme-inline.js).
  */
-export function resolveTenantBrandName() {
-  try {
-    const st = useTenant.getState?.();
-    const emp = st?.empresa || {};
-    const fromStore =
-      emp.nomeFantasia ||
-      emp.nome ||
-      emp.razaoSocial ||
-      emp.brandName;
-    if (fromStore) return String(fromStore).trim();
-  } catch {}
-
-  try {
-    const inline = window.__TENANT__ || {};
-    const raw =
-      inline.nomeFantasia ||
-      inline.nome ||
-      inline.brandName ||
-      inline.shellTitle ||
-      inline.siteTitle;
-    if (raw) return String(raw).trim();
-  } catch {}
-
-  try {
-    const raw = localStorage.getItem("tenant_empresa");
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      const fromLs =
-        parsed?.nomeFantasia ||
-        parsed?.nome ||
-        parsed?.razaoSocial ||
-        parsed?.brandName;
-      if (fromLs) return String(fromLs).trim();
-    }
-  } catch {}
-
-  try {
-    const inline = window.__TENANT__ || {};
-    if (inline.slug) {
-      const s = String(inline.slug);
-      return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
-    }
-  } catch {}
-  try {
-    const raw = localStorage.getItem("tenant_empresa");
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.slug) {
-        const s = String(parsed.slug);
-        return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
-      }
-    }
-  } catch {}
-
-  return "";
+export function formatSlugAsShellTitle(slug) {
+  if (!slug) return "";
+  const s = String(slug);
+  return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : "";
 }
 
 /**
- * Ícone do shell (favicon): favicon explícito do tenant, senão mesma origem da logo.
+ * Favicon no runtime: mesma regra de negócio da logo (urlLogo / tema.logo + base).
  */
 export function resolveTenantFaviconUrl() {
   try {
@@ -150,22 +98,18 @@ export function resolveTenantFaviconUrl() {
       emp.assetsBaseUrl ||
       emp.cdnBaseUrl ||
       "";
-
-    const raw =
-      emp.faviconUrl ||
-      tema.favicon ||
-      tema.faviconUrl ||
-      emp.urlLogo ||
-      emp.logoUrl ||
-      emp.logo ||
-      tema.logo ||
-      tema.logoUrl;
-
-    const resolved = safeUrl(resolveAssetUrl(raw, assetsBase));
-    if (resolved) return resolved;
+    const raw = emp.urlLogo || tema.logo;
+    if (raw) return safeUrl(resolveAssetUrl(raw, assetsBase));
   } catch {}
 
-  return resolveTenantLogoUrl();
+  try {
+    const inline = window.__TENANT__;
+    const base = inline?.assetsBaseUrl || inline?.cdnBaseUrl || "";
+    const raw = inline?.logo;
+    if (raw && base) return safeUrl(resolveAssetUrl(raw, base));
+  } catch {}
+
+  return "";
 }
 
 /**

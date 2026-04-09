@@ -53,7 +53,7 @@ import HistoricoPagamentos from '@/pages/HistoricoPagamentos.jsx'
 
 // 🧩 Tenant (para título dinâmico)
 import useTenant from '@/store/tenant'
-import { resolveTenantBrandName } from '@/lib/tenantBranding'
+import { formatSlugAsShellTitle } from '@/lib/tenantBranding'
 
 // 🧩 Layout global com sidebar
 import GlobalShell from '@/layouts/GlobalShell.jsx'
@@ -95,10 +95,15 @@ function useDynamicTitle() {
   const tenant = useTenant((s) => s.empresa)
 
   useEffect(() => {
-    const base = resolveTenantBrandName()
-    const fallback = base || 'Plataforma'
+    const base =
+      tenant?.nomeFantasia ||
+      tenant?.nome ||
+      formatSlugAsShellTitle(
+        typeof window !== 'undefined' ? window.__TENANT__?.slug : ''
+      ) ||
+      'Plataforma'
     const section = resolvePageTitle(location.pathname)
-    document.title = section ? `${section} • ${fallback}` : fallback
+    document.title = section ? `${section} • ${base}` : base
   }, [location.pathname, tenant])
 }
 

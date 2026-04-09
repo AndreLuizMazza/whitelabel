@@ -77,68 +77,19 @@ Esperado: ${TENANT}.json`);
       throw new Error(`Arquivo "${usedPath}" inválido: campo "vars" ausente ou não-objeto.`);
     }
 
-    // Gera JS inline (mantive sua lógica)
+    // Shell branding (title + favicon) embutido no IIFE: fonte = window.__TENANT__ apenas; sem merge em LS.
     const js = `
-/* Gerado de ${usedPath.replace(process.cwd()+"/","")} */
-window.__TENANT__ = ${JSON.stringify({ ...cfg, slug: (cfg.slug || TENANT) })};
+/* Gerado de ${usedPath.replace(process.cwd() + "/", "")} */
+window.__TENANT__ = ${JSON.stringify({ ...cfg, slug: cfg.slug || TENANT })};
 
 (function(){
   try {
-    function cleanUrlInput(v) {
-      var s = String(v || "").trim();
-      if (!s) return "";
-      s = s.replace(/^"+/, "").replace(/"+$/, "");
-      s = s.replace(/^'+/, "").replace(/'+$/, "");
-      s = s.replace(/[\\u200B-\\u200D\\uFEFF]/g, "");
-      return s.trim();
+    function shellTitleFromSlug(slug) {
+      if (!slug) return "";
+      var s = String(slug);
+      return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
     }
-    function normalizeBase(base) {
-      var b = cleanUrlInput(base);
-      if (!b) return "";
-      return b.charAt(b.length - 1) === "/" ? b : b + "/";
-    }
-    function resolveAssetUrl(input, base) {
-      var raw = cleanUrlInput(input);
-      if (!raw) return "";
-      if (/^(https?:)?\\/\\//i.test(raw)) return raw;
-      if (/^(data|blob):/i.test(raw)) return raw;
-      try {
-        if (raw.indexOf("/") === 0) {
-          var origin = window.location && window.location.origin ? window.location.origin : "http://localhost";
-          return new URL(raw, origin).toString();
-        }
-        var b = normalizeBase(base);
-        if (b) return new URL(raw.replace(/^\\/+/, ""), b).toString();
-        origin = window.location && window.location.origin ? window.location.origin : "http://localhost";
-        return new URL("/" + raw.replace(/^\\/+/, ""), origin).toString();
-      } catch (e) {
-        if (raw.indexOf("/") === 0) return raw;
-        b = normalizeBase(base);
-        return b ? b + raw.replace(/^\\/+/, "") : "/" + raw.replace(/^\\/+/, "");
-      }
-    }
-    function safeUrl(u) {
-      var s = cleanUrlInput(u);
-      if (!s) return "";
-      return s.replace(/ /g, "%20");
-    }
-    function shellBrandName(x) {
-      if (!x || typeof x !== "object") return "";
-      var s = String(x.nomeFantasia || x.nome || x.brandName || x.shellTitle || x.siteTitle || x.razaoSocial || "").trim();
-      if (s) return s;
-      var slug = x.slug;
-      if (slug) {
-        var tt = String(slug);
-        return tt ? tt.charAt(0).toUpperCase() + tt.slice(1).toLowerCase() : "";
-      }
-      return "";
-    }
-    function shellFaviconHref(merged, theme) {
-      var base = normalizeBase(theme.assetsBaseUrl || theme.cdnBaseUrl || merged.assetsBaseUrl || merged.cdnBaseUrl || "");
-      var raw = merged.faviconUrl || (merged.tema && merged.tema.favicon) || theme.favicon || merged.urlLogo || merged.logoUrl || theme.logo || merged.logo;
-      return safeUrl(resolveAssetUrl(raw, base));
-    }
-    function upsertFavicon(href) {
+    function upsertTenantFavicon(href) {
       if (!href) return;
       var el = document.getElementById("tenant-favicon");
       if (!el) {
@@ -149,6 +100,20 @@ window.__TENANT__ = ${JSON.stringify({ ...cfg, slug: (cfg.slug || TENANT) })};
       }
       el.href = href;
     }
+    function shellFaviconFromTenant(t) {
+      var base = (t.assetsBaseUrl || t.cdnBaseUrl || "").trim();
+      var logo = (t.logo || "").trim();
+      if (!logo || !base) return "";
+      if (/^https?:\\/\\//i.test(logo) || logo.indexOf("//") === 0) return logo.replace(/ /g, "%20");
+      if (base.charAt(base.length - 1) !== "/") base += "/";
+      if (logo.charAt(0) === "/") {
+        try {
+          var o = window.location && window.location.origin ? window.location.origin : "";
+          return (o + logo).replace(/ /g, "%20");
+        } catch (_) { return logo.replace(/ /g, "%20"); }
+      }
+      return (base + logo.replace(/^\\/+/, "")).replace(/ /g, "%20");
+    }
 
     var docEl = document.documentElement;
     var style = docEl && docEl.style;
@@ -157,14 +122,14 @@ window.__TENANT__ = ${JSON.stringify({ ...cfg, slug: (cfg.slug || TENANT) })};
     var dark  = t.varsDark || null;
 
     // detecta tema (system/light/dark)
-    var choice = 'system';
-    try { choice = localStorage.getItem('ui_theme') || 'system'; } catch(_){}
+    var choice = "system";
+    try { choice = localStorage.getItem("ui_theme") || "system"; } catch(_){}
     var prefersDark = false;
-    try { prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch(_){}
-    var mode = (choice === 'system') ? (prefersDark ? 'dark' : 'light') : choice;
+    try { prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches; } catch(_){}
+    var mode = (choice === "system") ? (prefersDark ? "dark" : "light") : choice;
 
     // escolhe vars
-    var chosen = (mode === 'dark' && dark) ? Object.assign({}, light, dark) : light;
+    var chosen = (mode === "dark" && dark) ? Object.assign({}, light, dark) : light;
 
     // aplica
     if (style && chosen) {
@@ -173,38 +138,23 @@ window.__TENANT__ = ${JSON.stringify({ ...cfg, slug: (cfg.slug || TENANT) })};
       }
     }
     if (docEl){
-      docEl.setAttribute('data-tenant', t.slug || '${TENANT}');
-      docEl.setAttribute('data-theme', mode);
-      docEl.setAttribute('data-theme-ready', '1');
+      docEl.setAttribute("data-tenant", t.slug || "${TENANT}");
+      docEl.setAttribute("data-theme", mode);
+      docEl.setAttribute("data-theme-ready", "1");
     }
 
-    // cache: preserva identidade da API (mesmo slug) — sem nova fonte de verdade
-    var toSave = t;
+    // shell: antes do React — slug → title; favicon = assetsBaseUrl + logo (fallback)
+    var shellTitle = shellTitleFromSlug(t.slug);
+    if (shellTitle) document.title = shellTitle;
+    var favHref = shellFaviconFromTenant(t);
+    if (favHref) upsertTenantFavicon(favHref);
+
+    // cache
     try {
-      var prevStr = localStorage.getItem('tenant_empresa');
-      var prev = null;
-      try { prev = prevStr ? JSON.parse(prevStr) : null; } catch(_){}
-      if (prev && typeof prev === 'object' && String(prev.slug || '') === String(t.slug || '')) {
-        var idKeys = ['id','nomeFantasia','nome','razaoSocial','cnpj','urlLogo'];
-        toSave = Object.assign({}, t);
-        for (var ii = 0; ii < idKeys.length; ii++) {
-          var ik = idKeys[ii];
-          var pv = prev[ik];
-          var cv = toSave[ik];
-          if ((cv == null || cv === '') && pv != null && pv !== '') toSave[ik] = pv;
-        }
-      }
-      localStorage.setItem('tenant_empresa', JSON.stringify(toSave));
-      localStorage.setItem('tenant_vars', JSON.stringify(chosen || {}));
+      localStorage.setItem("tenant_empresa", JSON.stringify(t));
+      localStorage.setItem("tenant_vars", JSON.stringify(chosen || {}));
     } catch(_){}
-
-    var brand = shellBrandName(toSave);
-    if (brand) document.title = brand;
-
-    var fav = shellFaviconHref(toSave, t);
-    if (fav) upsertFavicon(fav);
-
-  } catch (e) { try { console.warn('theme-inline failed', e); } catch(_){} }
+  } catch (e) { try { console.warn("theme-inline failed", e); } catch(_){} }
 })();
 `.trim();
 
