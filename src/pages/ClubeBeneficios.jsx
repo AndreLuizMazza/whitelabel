@@ -4,6 +4,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import api from '@/lib/api.js'
 import { BadgePercent, Search, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react'
 
+import useTenant from '@/store/tenant'
+import { isMemorialEnabled } from '@/lib/tenantModules'
 import PlanosCompactCTA from '@/components/ctas/PlanosCompactCTA'
 import MemorialCompactCTA from '@/components/ctas/MemorialCompactCTA'
 import ParceirosCompactCTA from '@/components/ctas/ParceirosCompactCTA'
@@ -133,6 +135,8 @@ function ParceiroCard({ p }) {
 /* --- Página: Clube de Benefícios --- */
 export default function ClubeBeneficios() {
   const navigate = useNavigate()
+  const empresa = useTenant((s) => s.empresa)
+  const showMemorialCross = isMemorialEnabled(empresa)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -352,15 +356,21 @@ export default function ClubeBeneficios() {
           <h2 className="mb-4 text-xl font-bold" style={{ color: 'var(--text)' }}>
             Aproveite ainda mais os benefícios
           </h2>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div
+            className={
+              showMemorialCross ? 'grid gap-4 md:grid-cols-3' : 'grid gap-4 md:grid-cols-2'
+            }
+          >
             <PlanosCompactCTA
               onPrimary={() => navigate('/planos')}
               onSecondary={() => navigate('/planos?simular=1')}
             />
-            <MemorialCompactCTA
-              onPrimary={() => navigate('/memorial')}
-              onSecondary={() => navigate('/memorial/sobre')}
-            />
+            {showMemorialCross && (
+              <MemorialCompactCTA
+                onPrimary={() => navigate('/memorial')}
+                onSecondary={() => navigate('/memorial/sobre')}
+              />
+            )}
             <ParceirosCompactCTA
               onPrimary={() => navigate('/parceiros/inscrever')}
               onSecondary={() => window.open('https://wa.me/55SEUNUMERO?text=Quero%20ser%20parceiro', '_blank')}

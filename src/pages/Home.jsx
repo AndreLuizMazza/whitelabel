@@ -4,6 +4,11 @@ import { Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import useTenant from '@/store/tenant'
 import useAuth from '@/store/auth'
+import {
+  isBeneficiosEnabled,
+  isMemorialEnabled,
+  isSlideHiddenByModuleFlags,
+} from '@/lib/tenantModules'
 
 import PlanosCTA from '@/components/PlanosCTA'
 import MemorialCTA from '@/components/MemorialCTA'
@@ -234,7 +239,7 @@ const PILL_ICONS = {
   HeartHandshake,
 }
 
-function ValuePills({ pills }) {
+function ValuePills({ pills, includeClubeFallbackPill = true }) {
   const pillBase =
     'inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[11px] sm:text-xs font-medium ' +
     'backdrop-blur-md transition-all tracking-wide border'
@@ -251,11 +256,14 @@ function ValuePills({ pills }) {
   const safe = Array.isArray(pills) ? pills.filter(Boolean) : []
 
   // ✅ fallback se tenant ainda não mandar valuePills
-  const fallback = [
+  let fallback = [
     { icon: 'IdCard', label: 'Carteirinha digital' },
     { icon: 'QrCode', label: 'PIX & boletos' },
     { icon: 'Gift', label: 'Clube de benefícios' },
   ]
+  if (!includeClubeFallbackPill) {
+    fallback = fallback.filter((p) => p.icon !== 'Gift')
+  }
 
   const list = safe.length ? safe : fallback
 
@@ -889,8 +897,8 @@ export default function Home() {
     return `https://wa.me/${telefoneDigits}?text=${msg}`
   }, [telefoneDigits])
 
-  const defaultSlides = useMemo(
-    () => [
+  const defaultSlides = useMemo(() => {
+    const all = [
       {
         id: 'familia',
         tag: 'Assistência familiar & benefícios',
@@ -936,38 +944,44 @@ export default function Home() {
         showValuePills: false,
         valuePills: null,
       },
-    ],
-    [heroTitleDefault, heroSubtitleDefault, heroImageDefault]
-  )
+    ]
+    return all.filter((s) => {
+      if (s.id === 'memorial') return isMemorialEnabled(empresa)
+      return true
+    })
+  }, [heroTitleDefault, heroSubtitleDefault, heroImageDefault, empresa])
 
   const slides = useMemo(() => {
     const tenantSlides = empresa?.heroSlides || empresa?.tema?.heroSlides || null
 
     if (Array.isArray(tenantSlides) && tenantSlides.length > 0) {
-      return tenantSlides.map((s, i) => {
-        const fb = HERO_FALLBACKS[i % HERO_FALLBACKS.length]
-        const rawImg =
-          s.image || s.heroImage || (i === 0 ? heroImageDefault : fb)
+      const mapped = tenantSlides
+        .map((s, i) => {
+          const fb = HERO_FALLBACKS[i % HERO_FALLBACKS.length]
+          const rawImg =
+            s.image || s.heroImage || (i === 0 ? heroImageDefault : fb)
 
-        const resolved = safeUrl(resolveAssetUrl(rawImg, assetsBase))
+          const resolved = safeUrl(resolveAssetUrl(rawImg, assetsBase))
 
-        return {
-          id: s.id || i,
-          tag: s.tag || s.pill || s.badge || 'Assistência familiar',
-          title: s.title || heroTitleDefault,
-          subtitle: s.subtitle || heroSubtitleDefault,
-          image: resolved || fb,
-          fallbackImage: fb,
-          primary: s.primary || null,
-          secondary: s.secondary || null,
-          focus: s.focus || s.objectPosition || 'center',
-          showValuePills:
-            typeof s.showValuePills === 'boolean' ? s.showValuePills : true,
+          return {
+            id: s.id || i,
+            tag: s.tag || s.pill || s.badge || 'Assistência familiar',
+            title: s.title || heroTitleDefault,
+            subtitle: s.subtitle || heroSubtitleDefault,
+            image: resolved || fb,
+            fallbackImage: fb,
+            primary: s.primary || null,
+            secondary: s.secondary || null,
+            focus: s.focus || s.objectPosition || 'center',
+            showValuePills:
+              typeof s.showValuePills === 'boolean' ? s.showValuePills : true,
 
-          // ✅ NOVO: ValuePills por slide (do JSON do tenant)
-          valuePills: Array.isArray(s.valuePills) ? s.valuePills : null,
-        }
-      })
+            // ✅ NOVO: ValuePills por slide (do JSON do tenant)
+            valuePills: Array.isArray(s.valuePills) ? s.valuePills : null,
+          }
+        })
+        .filter((slide) => !isSlideHiddenByModuleFlags(slide, empresa))
+      if (mapped.length > 0) return mapped
     }
 
     return defaultSlides
@@ -998,7 +1012,10 @@ export default function Home() {
             ].join(' ')}
             style={{ transitionDelay: '150ms' }}
           >
-            <ValuePills pills={pills} />
+            <ValuePills
+              pills={pills}
+              includeClubeFallbackPill={isBeneficiosEnabled(empresa)}
+            />
           </div>
         )}
 
@@ -1035,7 +1052,7 @@ export default function Home() {
             delay={260}
           />
 
-          {!inCapacitorApp && (
+          {!inCapacitorApp && isBeneficiosEnabled(empresa) && (
             <FeatureCardPremium
               icon={<Gift size={22} strokeWidth={2} />}
               title="Clube de Benefícios"
@@ -1047,15 +1064,17 @@ export default function Home() {
             />
           )}
 
-          <FeatureCardPremium
-            icon={<HeartHandshake size={22} strokeWidth={2} />}
-            title="Memorial Online"
-            desc="Homenagens interativas e informações das cerimônias."
-            to="/memorial"
-            cta="Ver Memorial"
-            mounted={mounted}
-            delay={320}
-          />
+          {isMemorialEnabled(empresa) && (
+            <FeatureCardPremium
+              icon={<HeartHandshake size={22} strokeWidth={2} />}
+              title="Memorial Online"
+              desc="Homenagens interativas e informações das cerimônias."
+              to="/memorial"
+              cta="Ver Memorial"
+              mounted={mounted}
+              delay={320}
+            />
+          )}
 
           <FeatureCardPremium
             icon={<MessageCircle size={22} strokeWidth={2} />}
@@ -1125,9 +1144,11 @@ export default function Home() {
           <PlanosCTA onSeePlans={() => (window.location.href = '/planos')} />
         </div>
 
-        <div className="mt-12 md:mt-16">
-          <MemorialCTA onVisitMemorial={() => (window.location.href = '/memorial')} />
-        </div>
+        {isMemorialEnabled(empresa) && (
+          <div className="mt-12 md:mt-16">
+            <MemorialCTA onVisitMemorial={() => (window.location.href = '/memorial')} />
+          </div>
+        )}
 
         {!inCapacitorApp && (
           <div className="mt-12 md:mt-16">

@@ -10,6 +10,7 @@ import HeaderNotificationsBell from '@/components/HeaderNotificationsBell.jsx'
 import { getAvatarBlobUrl } from '@/lib/profile'
 
 import { MAIN_MENU_LINKS, PRIVATE_MENU_LINKS } from '@/layouts/GlobalShell.jsx'
+import { filterMainMenuLinksForTenant } from '@/lib/tenantModules'
 import { getTenantInitials, resolveTenantLogoUrl } from '@/lib/tenantBranding'
 
 /* ===================== runtime (Capacitor) ===================== */
@@ -210,16 +211,21 @@ export default function Navbar() {
   // No seu GlobalShell: 2ª via = "segunda-via", benefícios = "beneficios"
   const HIDE_IN_CAPACITOR_KEYS = useMemo(() => ['segunda-via', 'beneficios'], [])
 
+  const mainMenuForTenant = useMemo(
+    () => filterMainMenuLinksForTenant(MAIN_MENU_LINKS, empresa),
+    [empresa]
+  )
+
   // Links exibidos no DESKTOP: apenas Planos, Benefícios, Memorial
   // (no Capacitor: remove Benefícios)
-  const DESKTOP_MENU = MAIN_MENU_LINKS
+  const DESKTOP_MENU = mainMenuForTenant
     .filter((item) => ['planos', 'beneficios', 'memorial'].includes(item.key))
     .filter((item) => !(inCapacitorApp && item.key === 'beneficios'))
 
   // Menu completo usado no MOBILE (global)
   const fullMobileMenuBase = isLogged
-    ? [...MAIN_MENU_LINKS, { divider: true }, ...PRIVATE_MENU_LINKS]
-    : MAIN_MENU_LINKS
+    ? [...mainMenuForTenant, { divider: true }, ...PRIVATE_MENU_LINKS]
+    : mainMenuForTenant
 
   // ✅ no Capacitor: remove 2ª via + benefícios (mantém divider)
   const fullMobileMenu = useMemo(() => {
