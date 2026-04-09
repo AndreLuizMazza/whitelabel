@@ -1,9 +1,49 @@
-
-  {
+{
   "slug": "unilife",
-  "v": 2,
+  "v": 3,
 
   "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/92/",
+
+  "brand": {
+    "name": "Unilife",
+    "legalName": "Plano Unilife Brasil",
+    "shortName": "Unilife",
+    "logo": "logounilife.png",
+    "favicon": "logounilife.png",
+    "appleTouchIcon": "logounilife.png",
+    "pwaIcon192": "logounilife.png",
+    "pwaIcon512": "logounilife.png",
+    "maskableIcon512": "logounilife.png",
+    "ogImage": "planos.png",
+    "pushIcon": "logounilife.png",
+    "pushBadge": "logounilife.png"
+  },
+
+  "shell": {
+    "title": "Unilife",
+    "titleTemplate": "%s • Unilife",
+    "themeColor": "#0477BF",
+    "backgroundColor": "#ffffff"
+  },
+
+  "seo": {
+    "metaTitle": "Unilife",
+    "metaDescription": "Planos, telemedicina 24h e clube de descontos para cuidar da sua família."
+  },
+
+  "pwa": {
+    "name": "Unilife",
+    "shortName": "Unilife",
+    "description": "Área do associado Unilife",
+    "display": "standalone",
+    "orientation": "portrait",
+    "startUrl": "/",
+    "scope": "/"
+  },
+
+  "routing": {
+    "primaryDomain": "planounilifebrasil.com.br"
+  },
 
   "vars": {
     "--primary": "#0477BF",
@@ -130,12 +170,5 @@
     }
   ],
 
-    "domain": "planounilifebrasil.com.br"
+  "domain": "planounilifebrasil.com.br"
 }
-
-  
-  
-  
-
-
-

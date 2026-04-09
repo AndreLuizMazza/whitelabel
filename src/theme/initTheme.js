@@ -1,4 +1,5 @@
 // src/theme/initTheme.js
+import { resolveShellThemeColors } from "@/lib/branding/tenantContract.js";
 
 export const THEME_KEY = 'ui_theme'; // 'system' | 'light' | 'dark'
 
@@ -39,22 +40,28 @@ function applyVars(varsObj) {
   });
 }
 
-/** Meta theme-color (status bar em mobile) com base em --surface corrente */
+/** Meta theme-color: contrato shell (JSON) tem precedência; senão --surface efetiva */
 function setMetaThemeColor(mode) {
   const html = document.documentElement;
   let meta = document.querySelector('meta[name="theme-color"]');
   if (!meta) {
-    meta = document.createElement('meta');
-    meta.setAttribute('name','theme-color');
+    meta = document.createElement("meta");
+    meta.setAttribute("name", "theme-color");
     document.head.appendChild(meta);
   }
-  let color = '#ffffff';
+  const inline = getInlineTenant();
+  const { themeColor } = inline ? resolveShellThemeColors(inline) : { themeColor: "" };
+  if (themeColor) {
+    meta.setAttribute("content", themeColor);
+    return;
+  }
+  let color = "#ffffff";
   try {
     const cs = getComputedStyle(html);
-    const v = cs.getPropertyValue('--surface') || '';
-    color = (v && v.trim()) || (mode === 'dark' ? '#0b1220' : '#ffffff');
+    const v = cs.getPropertyValue("--surface") || "";
+    color = (v && v.trim()) || (mode === "dark" ? "#0b1220" : "#ffffff");
   } catch {}
-  meta.setAttribute('content', color);
+  meta.setAttribute("content", color);
 }
 
 /** Classes/atributos no <html> para o tema */

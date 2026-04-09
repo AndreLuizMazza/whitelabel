@@ -13,6 +13,7 @@
     "dev:client": "vite",
     "dev:static": "npm run predev && cross-env VITE_DISABLE_BOOTSTRAP=1 vite",
     "preview": "vite preview",
+    "test:contract": "node scripts/contract-parity.mjs",
     "preview:static": "cross-env VITE_DISABLE_BOOTSTRAP=1 vite preview",
     "build": "vite build",
     "prebuild:tenant": "node scripts/theme-build.mjs",

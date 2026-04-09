@@ -53,7 +53,12 @@ import HistoricoPagamentos from '@/pages/HistoricoPagamentos.jsx'
 
 // 🧩 Tenant (para título dinâmico)
 import useTenant from '@/store/tenant'
-import { formatSlugAsShellTitle } from '@/lib/tenantBranding'
+import {
+  resolveBrandDisplayName,
+  resolveTitleTemplate,
+  formatDocumentTitleFromTemplate,
+} from '@/lib/tenantBranding'
+import { bootstrapTenantSeoDefaults } from '@/lib/seo'
 
 // 🧩 Layout global com sidebar
 import GlobalShell from '@/layouts/GlobalShell.jsx'
@@ -95,16 +100,16 @@ function useDynamicTitle() {
   const tenant = useTenant((s) => s.empresa)
 
   useEffect(() => {
-    const base =
-      tenant?.nomeFantasia ||
-      tenant?.nome ||
-      formatSlugAsShellTitle(
-        typeof window !== 'undefined' ? window.__TENANT__?.slug : ''
-      ) ||
-      'Plataforma'
+    const t = typeof window !== 'undefined' ? window.__TENANT__ : null
+    const base = resolveBrandDisplayName(t, tenant)
     const section = resolvePageTitle(location.pathname)
-    document.title = section ? `${section} • ${base}` : base
+    const tpl = resolveTitleTemplate(t)
+    document.title = formatDocumentTitleFromTemplate(tpl, section, base)
   }, [location.pathname, tenant])
+
+  useEffect(() => {
+    bootstrapTenantSeoDefaults(useTenant.getState().empresa)
+  }, [tenant])
 }
 
 function useBodyRouteTag() {

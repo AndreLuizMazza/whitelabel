@@ -2,7 +2,7 @@
 import { useEffect, useRef } from 'react'
 import { bootstrapTenant } from '@/boot/tenant'
 import useTenant from '@/store/tenant'
-import { applyTenantFaviconHref, resolveTenantFaviconUrl } from '@/lib/tenantBranding'
+import { applyTenantShellIconsFromContract } from '@/lib/tenantBranding'
 
 /* ===================== slug ===================== */
 
@@ -332,7 +332,7 @@ export default function TenantBootstrapper() {
             (Array.isArray(empresaNormalized?.heroSlides) && empresaNormalized.heroSlides.length > 0)
 
           pushEmpresaEverywhere(empresaNormalized, assetsBaseUrl, logoResolved)
-          applyTenantFaviconHref(resolveTenantFaviconUrl())
+          applyTenantShellIconsFromContract()
 
           if (ready) {
             applied = true
