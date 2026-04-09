@@ -1,5 +1,7 @@
 // Itens do Mega Menu "Planos" (data-driven)
 // Cada item pode ter um predicate(empresa) para controle por tenant
+import { isBeneficiosEnabled } from '@/lib/tenantModules'
+
 export const planosItems = [
   {
     id: 'individual',
@@ -28,8 +30,7 @@ export const planosItems = [
     icon: 'Sparkles',
     title: 'Telemedicina',
     desc: 'Incluso para titular e opcional aos dependentes.',
-    // Exemplo de controle por feature:
-    // predicate: (empresa) => !!empresa?.telemedicina
+    predicate: (empresa) => isBeneficiosEnabled(empresa),
   },
   {
     id: 'clube',
@@ -37,6 +38,7 @@ export const planosItems = [
     icon: 'BadgeDollarSign',
     title: 'Clube de Descontos',
     desc: 'Rede de parceiros com vantagens exclusivas.',
+    predicate: (empresa) => isBeneficiosEnabled(empresa),
   },
   {
     id: 'comparador',

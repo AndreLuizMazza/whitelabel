@@ -17,6 +17,7 @@ import {
 
 import useAuth from "@/store/auth"
 import useTenant from "@/store/tenant"
+import { filterMainMenuLinksForTenant } from "@/lib/tenantModules"
 import ThemeToggle from "@/components/ThemeToggle"
 import HeaderNotificationsBell from "@/components/HeaderNotificationsBell"
 
@@ -116,6 +117,10 @@ export const PRIVATE_MENU_LINKS = [
   },
 ]
 
+const MENU_ESSENTIAL_KEYS = ["home", "planos", "beneficios", "memorial"]
+const MENU_SERVICOS_KEYS = ["segunda-via", "contatos"]
+const MENU_SUPORTE_KEYS = ["ajuda"]
+
 export default function GlobalShell({ children }) {
   const location = useLocation()
 
@@ -126,16 +131,17 @@ export default function GlobalShell({ children }) {
 
   const brandName = tenant?.nomeFantasia || tenant?.nome || "Sua Marca Aqui"
 
-  // Agrupamento premium no sidebar (com divisórias)
+  const mainFiltered = filterMainMenuLinksForTenant(MAIN_MENU_LINKS, tenant)
+  const pickGroup = (keys) =>
+    keys.map((k) => mainFiltered.find((item) => item.key === k)).filter(Boolean)
+
+  // Agrupamento por chave (sem slice por índice — seguro após filtro dinâmico)
   const menuPublicGrouped = [
-    // Essencial
-    ...MAIN_MENU_LINKS.slice(0, 4),
+    ...pickGroup(MENU_ESSENTIAL_KEYS),
     { divider: true },
-    // Serviços
-    ...MAIN_MENU_LINKS.slice(4, 6),
+    ...pickGroup(MENU_SERVICOS_KEYS),
     { divider: true },
-    // Suporte
-    ...MAIN_MENU_LINKS.slice(6),
+    ...pickGroup(MENU_SUPORTE_KEYS),
   ]
 
   const fullMenu = isAuthenticated()
