@@ -11,7 +11,8 @@ import { getAvatarBlobUrl } from '@/lib/profile'
 
 import { MAIN_MENU_LINKS, PRIVATE_MENU_LINKS } from '@/layouts/GlobalShell.jsx'
 import { filterMainMenuLinksForTenant } from '@/lib/tenantModules'
-import { getTenantInitials, resolveTenantLogoUrl } from '@/lib/tenantBranding'
+import { getTenantInitials } from '@/lib/tenantBranding'
+import { useTenantLogoUrl } from '@/lib/tenantLogoRuntime'
 
 /* ===================== runtime (Capacitor) ===================== */
 function isCapacitorRuntime() {
@@ -33,7 +34,7 @@ export default function Navbar() {
   const empresa = useTenant((s) => s.empresa)
 
   const nomeEmpresa = empresa?.nomeFantasia || empresa?.nome || 'Logo'
-  const logoUrl = resolveTenantLogoUrl()
+  const logoUrl = useTenantLogoUrl()
   const isLogged = isAuthenticated() || !!token || !!user
 
   const [mobileOpen, setMobileOpen] = useState(false)

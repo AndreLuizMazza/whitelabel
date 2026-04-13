@@ -1,6 +1,7 @@
 // src/theme/initTheme.js
 import { resolveShellThemeColors } from "@/lib/branding/tenantContract.js";
 import { applyTenantBrandLogoCssVars } from "@/lib/tenantBranding.js";
+import { setEffectiveThemeMode } from "@/lib/tenantLogoRuntime.js";
 import {
   LS_TENANT_CONTRACT_KEY,
   LS_TENANT_EMPRESA_KEY,
@@ -136,11 +137,22 @@ export function applyTheme(choice) {
   // 3) meta theme-color coerente com a superfície atual
   setMetaThemeColor(mode);
 
-  // 3b) Logo do contrato: --tenant-logo alinhado ao modo efetivo (light/dark)
+  // 3b) Logo do contrato: --tenant-logo-light/dark e --tenant-logo efetivo
   try {
     const T = getInlineTenant();
-    if (T) applyTenantBrandLogoCssVars(T);
+    if (T) {
+      applyTenantBrandLogoCssVars(T);
+    } else {
+      const rawC = localStorage.getItem(LS_TENANT_CONTRACT_KEY);
+      if (rawC) {
+        const p = JSON.parse(rawC);
+        if (p && typeof p === "object") applyTenantBrandLogoCssVars(p);
+      }
+    }
   } catch {}
+
+  // 3c) Notifica React (<img> da logo) — alinhado ao modo efetivo do <html>
+  setEffectiveThemeMode(mode);
 
   // 4) persistência
   try {

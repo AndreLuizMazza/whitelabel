@@ -4,6 +4,56 @@
 
   "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/274/",
 
+  "brand": {
+    "name": "Grupo Patense Serviços Funerários",
+    "legalName": "Grupo Patense Serviços Funerários",
+    "shortName": "Grupo Patense",
+
+    "logo": "patense.png",
+    "logoDark": "patense2-dark.png",
+
+    "favicon": "icons/favicon.png",
+    "faviconSvg": "icons/favicon.svg",
+
+    "appleTouchIcon": "icons/apple-touch-icon.png",
+
+    "pwaIcon192": "icons/icon-192.png",
+    "pwaIcon512": "icons/icon-512.png",
+    "maskableIcon512": "icons/icon-maskable-512.png",
+
+    "ogImage": "icons/og-image.png",
+
+    "pushIcon": "icons/push-icon.png",
+    "pushBadge": "icons/push-badge.png"
+  },
+
+  "shell": {
+    "title": "Grupo Patense",
+    "titleTemplate": "%s • Grupo Patense",
+    "themeColor": "#0B82FF",
+    "backgroundColor": "#ffffff"
+  },
+
+  "seo": {
+    "metaTitle": "Grupo Patense Serviços Funerários",
+    "metaDescription": "Serviços funerários completos com acolhimento, respeito e estrutura para atender famílias com dignidade em todos os momentos."
+  },
+
+  "pwa": {
+    "name": "Grupo Patense Serviços Funerários",
+    "shortName": "Patense",
+    "description": "Área do associado",
+    "display": "standalone",
+    "orientation": "portrait",
+    "startUrl": "/",
+    "scope": "/"
+  },
+
+  "routing": {
+    "primaryDomain": "grupopatense.com.br"
+  },
+
+
   "vars": {
     "--primary": "#004C3F",
     "--primary-dark": "#003B31",

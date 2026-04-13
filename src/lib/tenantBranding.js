@@ -202,12 +202,19 @@ export function applyTenantShellIconsFromContract() {
  * - localStorage tenant_empresa (API)
  * - CSS var --tenant-logo
  * - /img/logo.png
+ *
+ * @param {'light'|'dark'} [themeMode] — quando omitido, usa o modo atual do DOM (classes no <html>).
  */
-export function resolveTenantLogoUrl() {
+export function resolveTenantLogoUrl(themeMode) {
+  const mode =
+    themeMode === "light" || themeMode === "dark"
+      ? themeMode
+      : currentThemeModeFromDom();
+
   try {
     const inline = typeof window !== "undefined" && window.__TENANT__;
     if (inline) {
-      const u = resolveBrandLogoUrl(inline, currentThemeModeFromDom());
+      const u = resolveBrandLogoUrl(inline, mode);
       if (u) return u;
     }
   } catch {}
@@ -217,7 +224,7 @@ export function resolveTenantLogoUrl() {
     if (rawC) {
       const parsed = JSON.parse(rawC);
       if (parsed && typeof parsed === "object") {
-        const u = resolveBrandLogoUrl(parsed, currentThemeModeFromDom());
+        const u = resolveBrandLogoUrl(parsed, mode);
         if (u) return u;
       }
     }
