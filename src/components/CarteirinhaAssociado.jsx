@@ -62,6 +62,17 @@ function usePrefersReducedMotion() {
   return reduced
 }
 
+/** iPhone/iPadOS WebKit: preserve-3d + overflow em ancestrais costuma vazar faces; usamos fallback 2D. */
+function useIosLikeTouchDevice() {
+  return useMemo(() => {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') return false
+    const ua = navigator.userAgent || ''
+    if (/iPad|iPhone|iPod/.test(ua)) return true
+    if (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) return true
+    return false
+  }, [])
+}
+
 /* fonte adaptativa p/ nome/plano */
 function fontForName(n = '') {
   const len = String(n).length
@@ -101,6 +112,7 @@ export default function CarteirinhaAssociado({
 }) {
   const prefersDark = usePrefersDark()
   const reducedMotion = usePrefersReducedMotion()
+  const iosLike = useIosLikeTouchDevice()
   const warnedRef = useRef(false)
 
   const [imgErro, setImgErro] = useState(false)
@@ -333,24 +345,6 @@ export default function CarteirinhaAssociado({
     pointerEvents: 'none',
   }
 
-  const hintStyle = {
-    position: 'absolute',
-    right: '14px',
-    bottom: '14px',
-    padding: '8px 12px',
-    borderRadius: '999px',
-    fontSize: '11px',
-    fontWeight: 600,
-    background: 'rgba(255,255,255,0.16)',
-    border: '1px solid rgba(255,255,255,0.26)',
-    color: 'rgba(255,255,255,0.92)',
-    backdropFilter: 'blur(10px)',
-    WebkitBackdropFilter: 'blur(10px)',
-    boxShadow: '0 16px 44px rgba(0,0,0,0.25)',
-    userSelect: 'none',
-    pointerEvents: 'none',
-  }
-
   function toggleSide() {
     if (printable) return
     setUiSide((s) => (s === 'front' ? 'back' : 'front'))
@@ -407,7 +401,7 @@ export default function CarteirinhaAssociado({
   // ===================== RENDER HELPERS =====================
   const Front = ({ hideTabs = false }) => (
     <>
-      <header className="relative flex items-start justify-between gap-4 z-[1]">
+      <header className="relative shrink-0 flex items-start justify-between gap-4 z-[1]">
         <div className="flex items-start gap-4 min-w-0">
           <div className="relative shrink-0">
             {avatarUrl && !imgErro ? (
@@ -516,9 +510,9 @@ export default function CarteirinhaAssociado({
         </div>
       </header>
 
-      <div className="flex-1" />
+      <div className="flex-1 min-h-0 min-w-0" aria-hidden="true" />
 
-      <footer className="relative z-[1] pt-1">
+      <footer className="relative z-[1] shrink-0 pt-1 pb-0.5">
         <p
           className="text-[10px] leading-snug max-w-md"
           style={{ color: 'var(--on-primary, #ffffff)', opacity: 0.88 }}
@@ -528,7 +522,7 @@ export default function CarteirinhaAssociado({
         </p>
 
         {!printable && !hideTabs && (
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={(e) => {
@@ -575,8 +569,8 @@ export default function CarteirinhaAssociado({
 
   const Back = ({ hideTabs = false }) => (
     <>
-      <header className="relative flex items-start justify-between gap-4 z-[1]">
-        <div className="min-w-0">
+      <header className="relative shrink-0 flex items-start justify-between gap-4 z-[1]">
+        <div className="min-w-0 pr-2">
           <div
             className="text-[10px] uppercase tracking-[0.14em] font-medium opacity-90"
             style={{ color: 'var(--on-primary, #ffffff)' }}
@@ -599,8 +593,6 @@ export default function CarteirinhaAssociado({
             <br />
             Gerada em: <strong>{validade}</strong>
           </div>
-
-         
         </div>
 
         {tenantLogo && (
@@ -623,100 +615,101 @@ export default function CarteirinhaAssociado({
         )}
       </header>
 
-      <div className="flex-1" />
+      <div className="flex-1 min-h-0 min-w-0" aria-hidden="true" />
 
-      <footer className="relative z-[1] flex items-end justify-between gap-4">
-        <div className="max-w-[60%]">
-          <p
-            className="text-[10px] leading-snug"
-            style={{ color: 'var(--on-primary, #ffffff)', opacity: 0.9 }}
-          >
-            Verifique escaneando o QR Code.
-          </p>
-
-          {tenantPhone && (
+      <footer className="relative z-[1] shrink-0 flex flex-col gap-2 pb-0.5">
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0 max-w-[58%]">
             <p
-              className="text-[10px] mt-2"
+              className="text-[10px] leading-snug"
               style={{ color: 'var(--on-primary, #ffffff)', opacity: 0.9 }}
             >
-              Contato da unidade: {tenantPhone}
+              Verifique escaneando o QR Code.
             </p>
-          )}
+
+            {tenantPhone && (
+              <p
+                className="text-[10px] mt-1.5 leading-snug"
+                style={{ color: 'var(--on-primary, #ffffff)', opacity: 0.9 }}
+              >
+                Contato da unidade: {tenantPhone}
+              </p>
+            )}
+          </div>
+
+          <div
+            className="shrink-0 rounded-2xl p-2 shadow-lg"
+            style={{
+              background: 'rgba(255,255,255,0.20)',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            {qrDataUrl ? (
+              <img
+                src={qrDataUrl}
+                alt="QR code de verificação"
+                style={{ width: 74, height: 74, display: 'block' }}
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div
+                style={{
+                  width: 74,
+                  height: 74,
+                  borderRadius: 14,
+                  border: '1px solid rgba(255,255,255,0.35)',
+                  background: 'rgba(255,255,255,0.10)',
+                }}
+                aria-label="QR code indisponível"
+                title="QR code indisponível"
+              />
+            )}
+          </div>
         </div>
 
-        {/* ✅ QR SEMPRE (se falhar, renderiza placeholder discreto) */}
-        <div
-          className="rounded-2xl p-2 shadow-lg"
-          style={{
-            background: 'rgba(255,255,255,0.20)',
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          {qrDataUrl ? (
-            <img
-              src={qrDataUrl}
-              alt="QR code de verificação"
-              style={{ width: 74, height: 74 }}
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div
-              style={{
-                width: 74,
-                height: 74,
-                borderRadius: 14,
-                border: '1px solid rgba(255,255,255,0.35)',
-                background: 'rgba(255,255,255,0.10)',
+        {!printable && !hideTabs && (
+          <div className="flex flex-wrap gap-2 pt-0.5">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setUiSide('front')
               }}
-              aria-label="QR code indisponível"
-              title="QR code indisponível"
-            />
-          )}
-        </div>
+              className="px-3 py-1.5 rounded-full text-[11px] font-medium shadow-sm transition-transform hover:scale-[1.02]"
+              style={{
+                background:
+                  uiSide === 'front'
+                    ? 'rgba(255,255,255,0.30)'
+                    : 'rgba(255,255,255,0.16)',
+                color: '#0f172a',
+                backdropFilter: 'blur(6px)',
+              }}
+              aria-pressed={uiSide === 'front'}
+            >
+              Frente
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setUiSide('back')
+              }}
+              className="px-3 py-1.5 rounded-full text-[11px] font-medium shadow-sm transition-transform hover:scale-[1.02]"
+              style={{
+                background:
+                  uiSide === 'back'
+                    ? 'rgba(255,255,255,0.30)'
+                    : 'rgba(255,255,255,0.16)',
+                color: '#0f172a',
+                backdropFilter: 'blur(6px)',
+              }}
+              aria-pressed={uiSide === 'back'}
+            >
+              Verso
+            </button>
+          </div>
+        )}
       </footer>
-
-      {!printable && !hideTabs && (
-        <div className="mt-3 flex gap-2 z-[1]">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              setUiSide('front')
-            }}
-            className="px-3 py-1.5 rounded-full text-[11px] font-medium shadow-sm transition-transform hover:scale-[1.02]"
-            style={{
-              background:
-                uiSide === 'front'
-                  ? 'rgba(255,255,255,0.30)'
-                  : 'rgba(255,255,255,0.16)',
-              color: '#0f172a',
-              backdropFilter: 'blur(6px)',
-            }}
-            aria-pressed={uiSide === 'front'}
-          >
-            Frente
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              setUiSide('back')
-            }}
-            className="px-3 py-1.5 rounded-full text-[11px] font-medium shadow-sm transition-transform hover:scale-[1.02]"
-            style={{
-              background:
-                uiSide === 'back'
-                  ? 'rgba(255,255,255,0.30)'
-                  : 'rgba(255,255,255,0.16)',
-              color: '#0f172a',
-              backdropFilter: 'blur(6px)',
-            }}
-            aria-pressed={uiSide === 'back'}
-          >
-            Verso
-          </button>
-        </div>
-      )}
     </>
   )
 
@@ -744,7 +737,8 @@ export default function CarteirinhaAssociado({
     )
   }
 
-  // ===================== SCREEN: flip 3D =====================
+  // ===================== SCREEN: flip 3D (desktop/Android) | 2D swap (iOS WebKit) =====================
+  const flipRotate = uiSide === 'back' ? 'rotateY(180deg)' : 'rotateY(0deg)'
   const innerStyle = {
     position: 'absolute',
     inset: 0,
@@ -754,7 +748,8 @@ export default function CarteirinhaAssociado({
       ? 'none'
       : 'transform 560ms cubic-bezier(.2,.9,.2,1)',
     willChange: 'transform',
-    transform: uiSide === 'back' ? 'rotateY(180deg)' : 'rotateY(0deg)',
+    transform: flipRotate,
+    WebkitTransform: flipRotate,
   }
 
   const faceBase = {
@@ -762,13 +757,51 @@ export default function CarteirinhaAssociado({
     inset: 0,
     display: 'flex',
     flexDirection: 'column',
+    minHeight: 0,
     padding: paddingValue,
     backfaceVisibility: 'hidden',
     WebkitBackfaceVisibility: 'hidden',
+    // Separa planos no Safari e reduz z-fighting entre frente/verso
+    transform: 'translateZ(1px)',
+    WebkitTransform: 'translateZ(1px)',
   }
 
   const frontStyle = { ...faceBase }
-  const backStyle = { ...faceBase, transform: 'rotateY(180deg)' }
+  const backStyle = {
+    ...faceBase,
+    transform: 'rotateY(180deg) translateZ(1px)',
+    WebkitTransform: 'rotateY(180deg) translateZ(1px)',
+  }
+
+  const flatFaceTransition = reducedMotion || iosLike ? 'none' : 'opacity 220ms ease'
+
+  const flatFrontStyle = {
+    position: 'absolute',
+    inset: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: 0,
+    padding: paddingValue,
+    opacity: uiSide === 'front' ? 1 : 0,
+    visibility: uiSide === 'front' ? 'visible' : 'hidden',
+    zIndex: uiSide === 'front' ? 2 : 0,
+    pointerEvents: uiSide === 'front' ? 'auto' : 'none',
+    transition: flatFaceTransition,
+  }
+
+  const flatBackStyle = {
+    position: 'absolute',
+    inset: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: 0,
+    padding: paddingValue,
+    opacity: uiSide === 'back' ? 1 : 0,
+    visibility: uiSide === 'back' ? 'visible' : 'hidden',
+    zIndex: uiSide === 'back' ? 2 : 0,
+    pointerEvents: uiSide === 'back' ? 'auto' : 'none',
+    transition: flatFaceTransition,
+  }
 
   const shineStyle = {
     position: 'absolute',
@@ -785,35 +818,70 @@ export default function CarteirinhaAssociado({
       : 'transform 560ms cubic-bezier(.2,.9,.2,1)',
   }
 
-  return (
-    <section
-      className="relative mx-auto"
-      style={{ ...cardStyle, perspective: '1100px', WebkitPerspective: '1100px' }}
-      aria-label={`Carteirinha do Associado • ${pessoaNome}`}
-      role="button"
-      tabIndex={0}
-      onClick={toggleSide}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          toggleSide()
-        }
-      }}
-    >
-      <div aria-hidden="true" style={topGlowStyle} />
-      <div aria-hidden="true" style={shineStyle} />
-      <div aria-hidden="true" style={hintStyle}>
-        Toque para virar
-      </div>
+  // perspective fora do nó com overflow:hidden — evita achatamento do preserve-3d no WebKit
+  const flipStageStyle = {
+    position: 'absolute',
+    inset: 0,
+    isolation: 'isolate',
+    ...(iosLike
+      ? {}
+      : {
+          perspective: '1100px',
+          WebkitPerspective: '1100px',
+          transform: 'translateZ(0)',
+          WebkitTransform: 'translateZ(0)',
+        }),
+  }
 
-      <div style={innerStyle}>
-        <div style={frontStyle} aria-hidden={uiSide === 'back'}>
-          <Front />
+  return (
+    <div className="mx-auto w-full max-w-[min(480px,92vw)] flex flex-col items-stretch">
+      <section
+        className="relative w-full"
+        style={cardStyle}
+        aria-label={`Carteirinha do Associado • ${pessoaNome}`}
+        aria-describedby="carteirinha-flip-hint"
+        role="button"
+        tabIndex={0}
+        onClick={toggleSide}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            toggleSide()
+          }
+        }}
+      >
+        <div style={flipStageStyle}>
+          <div aria-hidden="true" style={topGlowStyle} />
+          <div aria-hidden="true" style={shineStyle} />
+
+          {iosLike ? (
+            <>
+              <div style={flatFrontStyle} aria-hidden={uiSide === 'back'}>
+                <Front />
+              </div>
+              <div style={flatBackStyle} aria-hidden={uiSide === 'front'}>
+                <Back />
+              </div>
+            </>
+          ) : (
+            <div style={innerStyle}>
+              <div style={frontStyle} aria-hidden={uiSide === 'back'}>
+                <Front />
+              </div>
+              <div style={backStyle} aria-hidden={uiSide === 'front'}>
+                <Back />
+              </div>
+            </div>
+          )}
         </div>
-        <div style={backStyle} aria-hidden={uiSide === 'front'}>
-          <Back />
-        </div>
-      </div>
-    </section>
+      </section>
+      <p
+        id="carteirinha-flip-hint"
+        className="mt-2.5 text-center text-[12px] font-medium leading-snug px-1"
+        style={{ color: 'var(--c-muted, #64748b)' }}
+      >
+        Toque na carteirinha para alternar frente e verso.
+      </p>
+    </div>
   )
 }

@@ -1,5 +1,5 @@
-/* Gerado de D:\whitelabel-local\web-progem-white-label\config\tenants\semeador.json */
-window.__TENANT__ = {"slug":"semeador","v":1,"assetsBaseUrl":"https://whitelabel.progem.com.br/arquivos/437/","vars":{"--primary":"#15803D","--primary-dark":"#166534","--primary-light":"#22C55E","--secondary":"#6B7280","--on-primary":"#FFFFFF","--surface":"#FFFFFF","--surface-alt":"#F3F7F4","--text":"#111827","--text-muted":"#6B7280","--c-border":"rgba(17,24,39,0.08)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 10%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 18%, transparent)","--nav-active-color":"#15803D","--highlight":"#15803D","--button-hover":"color-mix(in srgb, var(--primary) 25%, #000000)"},"varsDark":{"--surface":"#0B0B0C","--surface-alt":"#141416","--text":"#F9FAFB","--text-muted":"#D1D5DB","--c-border":"rgba(255,255,255,0.14)","--primary":"#22C55E","--primary-dark":"#15803D","--primary-light":"#4ADE80","--secondary":"#9CA3AF","--nav-hover-bg":"color-mix(in srgb, var(--primary) 16%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 28%, transparent)","--nav-active-color":"#FFFFFF","--highlight":"#22C55E","--button-hover":"color-mix(in srgb, var(--primary) 35%, #000000)"},"logo":"logo.png","heroTitle":"Cuidado e proteção para sua família","heroSubtitle":"Planos familiares acessíveis com atendimento humanizado e suporte completo em todos os momentos.","domain":"planosemeador.com.br","brand":{"logo":"logo.png"}};
+/* Gerado de D:\whitelabel-local\web-progem-white-label\config\tenants\rosapax.json */
+window.__TENANT__ = {"slug":"rosapax","v":5,"assetsBaseUrl":"https://whitelabel.progem.com.br/arquivos/257/","vars":{"--primary":"#D643D9","--primary-dark":"#A456A6","--primary-light":"#EE05F2","--secondary":"#EE05F2","--on-primary":"#ffffff","--surface":"#ffffff","--surface-alt":"#F2F2F2","--text":"#0D0D0D","--text-muted":"rgba(13,13,13,0.65)","--c-border":"rgba(0,0,0,0.08)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 10%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 20%, transparent)","--nav-active-color":"#D643D9","--highlight":"#EE05F2","--button-hover":"color-mix(in srgb, var(--primary) 15%, var(--secondary))"},"varsDark":{"--surface":"#0D0D0D","--surface-alt":"#1A1A1A","--text":"#F2F2F2","--text-muted":"rgba(242,242,242,0.7)","--c-border":"rgba(255,255,255,0.12)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 20%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 35%, transparent)","--nav-active-color":"#EE05F2","--highlight":"#D643D9","--button-hover":"color-mix(in srgb, var(--primary) 25%, var(--secondary))"},"logo":"logorosapax.png","heroTitle":"Proteção e tranquilidade para sua família","heroSubtitle":"Planos de assistência familiar, com benefícios exclusivos e atendimento humanizado.","heroImage":"https://patense.awis.com.br/assets/hero-familia-patense.jpg","heroSlides":[{"id":"familia","tag":"Assistência familiar & benefícios","title":"Proteção e tranquilidade para sua família","subtitle":"Planos completos para garantir segurança financeira e acolhimento em todos os momentos.","image":"https://patense.awis.com.br/assets/hero-familia-patense.jpg","primary":{"label":"Ver planos agora","to":"/planos","variant":"primary"},"secondary":{"label":"Área do associado","to":"/login","variant":"outline"},"showValuePills":true,"valuePills":[{"icon":"ShieldCheck","label":"Cobertura completa"},{"icon":"Users","label":"Para a família"},{"icon":"Clock","label":"Atendimento 24h"}]},{"id":"memorial","tag":"Homenagens & lembranças","title":"Memorial Online Rosa Pax","subtitle":"Registre homenagens, mensagens de carinho e acompanhe informações das cerimônias em um só lugar.","image":"https://patense.awis.com.br/assets/hero-memorial-patense.jpg","primary":{"label":"Acessar Memorial","to":"/memorial","variant":"primary"},"secondary":null,"showValuePills":true,"valuePills":[{"icon":"BookHeart","label":"Homenagens"},{"icon":"MessageCircle","label":"Mensagens"},{"icon":"Globe","label":"Acesso online"}]},{"id":"parceiros","tag":"Benefícios exclusivos para sua empresa","title":"Seja um parceiro da Rosa Pax","subtitle":"Ofereça vantagens para associados e fortaleça sua marca com indicações qualificadas.","image":"https://patense.awis.com.br/assets/hero-parceiros-patense.jpg","primary":{"label":"Quero ser parceiro(a)","to":"https://wa.me/553898802418?text=Ol%C3%A1!%20Quero%20ser%20parceiro%20da%20Funer%C3%A1ria%20Rosa%20Pax.","variant":"primary"},"secondary":{"label":"Falar com o time","to":"https://wa.me/553898802418?text=Ol%C3%A1!%20Quero%20ser%20parceiro%20da%20Funer%C3%A1ria%20Rosa%20Pax.","variant":"outline"},"showValuePills":true,"valuePills":[{"icon":"Percent","label":"Descontos de verdade"},{"icon":"Store","label":"Rede conveniada"},{"icon":"Wallet","label":"Economia mensal"}]}],"domain":"rosapax.com.br","brand":{"logo":"logorosapax.png"}};
 
 (function(){
   try {
@@ -57,7 +57,7 @@ window.__TENANT__ = {"slug":"semeador","v":1,"assetsBaseUrl":"https://whitelabel
       }
     }
     if (docEl){
-      docEl.setAttribute("data-tenant", t.slug || "semeador");
+      docEl.setAttribute("data-tenant", t.slug || "rosapax");
       docEl.setAttribute("data-theme", choice);
       docEl.setAttribute("data-mode", mode);
       docEl.classList.remove("dark", "theme-dark", "theme-light");
@@ -66,8 +66,8 @@ window.__TENANT__ = {"slug":"semeador","v":1,"assetsBaseUrl":"https://whitelabel
       docEl.setAttribute("data-theme-ready", "1");
     }
 
-    var logoL = "https://whitelabel.progem.com.br/arquivos/437/logo.png";
-    var logoD = "https://whitelabel.progem.com.br/arquivos/437/logo.png";
+    var logoL = "https://whitelabel.progem.com.br/arquivos/257/logorosapax.png";
+    var logoD = "https://whitelabel.progem.com.br/arquivos/257/logorosapax.png";
     if (style) {
       if (logoL) style.setProperty("--tenant-logo-light", 'url("' + logoL + '")');
       if (logoD) style.setProperty("--tenant-logo-dark", 'url("' + logoD + '")');
@@ -75,12 +75,12 @@ window.__TENANT__ = {"slug":"semeador","v":1,"assetsBaseUrl":"https://whitelabel
       if (effLogo) style.setProperty("--tenant-logo", 'url("' + effLogo + '")');
     }
 
-    document.title = "Semeador";
-    var fav = "https://whitelabel.progem.com.br/arquivos/437/logo.png";
+    document.title = "Rosapax";
+    var fav = "https://whitelabel.progem.com.br/arquivos/257/logorosapax.png";
     if (fav) upsertLink("icon", "tenant-favicon", fav);
     var fsvg = "";
     if (fsvg) upsertLink("icon", "tenant-favicon-svg", fsvg, "image/svg+xml");
-    var ap = "https://whitelabel.progem.com.br/arquivos/437/logo.png";
+    var ap = "https://whitelabel.progem.com.br/arquivos/257/logorosapax.png";
     if (ap) upsertLink("apple-touch-icon", "tenant-apple-touch-icon", ap);
     upsertManifestLink();
 
