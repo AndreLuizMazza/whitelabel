@@ -9,6 +9,7 @@ import { getMensal } from "@/lib/planUtils.js";
 function normalize(str = "") {
   return String(str).normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 }
+/** Heurística temporária; no futuro preferir tipo/categoria da API em um único getDisplayCategory(plano). */
 function detectTypeByName(nome = "") {
   const n = normalize(nome);
   if (/\bfamiliar\b/.test(n)) return "FAMILIAR";
@@ -73,43 +74,56 @@ export default function PlanosGrid() {
 
   // contadores por tipo
   const counts = useMemo(() => {
-    const base = { TODOS: enriched.length, FAMILIAR: 0, EMPRESARIAL: 0, INDIVIDUAL: 0 };
+    const base = {
+      TODOS: enriched.length,
+      FAMILIAR: 0,
+      EMPRESARIAL: 0,
+      INDIVIDUAL: 0,
+      OUTROS: 0,
+    };
     enriched.forEach((p) => {
       if (p._type === "FAMILIAR") base.FAMILIAR++;
       else if (p._type === "EMPRESARIAL") base.EMPRESARIAL++;
       else if (p._type === "INDIVIDUAL") base.INDIVIDUAL++;
+      else if (p._type === "OUTROS") base.OUTROS++;
     });
     return base;
   }, [enriched]);
 
+  const hasRealCategories =
+    counts.FAMILIAR + counts.EMPRESARIAL + counts.INDIVIDUAL > 0;
+  const realCategoryCount = [counts.FAMILIAR, counts.EMPRESARIAL, counts.INDIVIDUAL].filter(
+    (c) => c > 0
+  ).length;
+  const shouldShowTabs = realCategoryCount > 1;
+
   // define as tabs visíveis e ordem
   const tabs = useMemo(() => {
-    const hasAnyType = counts.FAMILIAR || counts.EMPRESARIAL || counts.INDIVIDUAL;
     const ordered = [
       { key: "FAMILIAR", label: "Familiar", count: counts.FAMILIAR },
       { key: "EMPRESARIAL", label: "Empresarial", count: counts.EMPRESARIAL },
       { key: "INDIVIDUAL", label: "Individual", count: counts.INDIVIDUAL },
+      { key: "OUTROS", label: "Outros", count: counts.OUTROS },
     ].filter((t) => t.count > 0);
-    if (hasAnyType) {
+    if (counts.TODOS > 0) {
       ordered.push({ key: "TODOS", label: "Todos", count: counts.TODOS });
       return ordered;
     }
     return [{ key: "TODOS", label: "Todos", count: counts.TODOS }];
   }, [counts]);
 
-  // garantir aba válida
+  // garantir aba válida (após carregar: evita corrigir com enriched ainda vazio)
   useEffect(() => {
+    if (loading || !shouldShowTabs) return;
     const available = tabs.map((t) => t.key);
-    const typesAvailable = available.some((k) => k !== "TODOS");
-    if (!typesAvailable) return;
-
-    const preferredOrder = ["FAMILIAR", "EMPRESARIAL", "INDIVIDUAL", "TODOS"];
-    const best = preferredOrder.find((k) => available.includes(k)) || "TODOS";
+    const preferredOrder = ["FAMILIAR", "EMPRESARIAL", "INDIVIDUAL", "OUTROS", "TODOS"];
+    const best =
+      preferredOrder.find((k) => available.includes(k)) ?? available[0] ?? "TODOS";
 
     if (!available.includes(tab)) {
       setTab(best);
     }
-  }, [tabs, tab]);
+  }, [tabs, tab, loading, shouldShowTabs]);
 
   // guardar preferência da aba
   useEffect(() => {
@@ -120,9 +134,10 @@ export default function PlanosGrid() {
 
   // filtro por aba
   const byTab = useMemo(() => {
+    if (!shouldShowTabs) return enriched;
     if (tab === "TODOS") return enriched;
     return enriched.filter((p) => p._type === tab);
-  }, [enriched, tab]);
+  }, [enriched, tab, shouldShowTabs]);
 
   // filtro por busca
   const byQuery = useMemo(() => {
@@ -159,39 +174,41 @@ export default function PlanosGrid() {
 
         {/* Sub-navbar (tabs + busca) */}
         <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <nav className="relative -mx-2 overflow-x-auto md:mx-0" aria-label="Filtrar planos por tipo">
-            <ul className="flex gap-2 min-w-max">
-              {tabs.map((t) => {
-                const active = tab === t.key;
-                return (
-                  <li key={t.key}>
-                    <button
-                      onClick={() => setTab(t.key)}
-                      className="px-4 py-2 rounded-full text-sm font-semibold border transition-colors"
-                      style={{
-                        borderColor: active ? "transparent" : "var(--c-border)",
-                        background: active
-                          ? "color-mix(in srgb, var(--primary) 14%, transparent)"
-                          : "var(--c-bg)",
-                        color: active ? "var(--primary)" : "var(--c-text)",
-                        boxShadow: active
-                          ? "0 0 0 1px color-mix(in srgb, var(--primary) 32%, transparent)"
-                          : "none",
-                      }}
-                      aria-current={active ? "page" : undefined}
-                    >
-                      {t.label}
-                      <span className="ml-2 rounded-full px-2 py-0.5 text-xs ring-1 ring-[var(--c-border)]">
-                        {t.count}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
+          {shouldShowTabs ? (
+            <nav className="relative -mx-2 overflow-x-auto md:mx-0" aria-label="Filtrar planos por tipo">
+              <ul className="flex gap-2 min-w-max">
+                {tabs.map((t) => {
+                  const active = tab === t.key;
+                  return (
+                    <li key={t.key}>
+                      <button
+                        onClick={() => setTab(t.key)}
+                        className="px-4 py-2 rounded-full text-sm font-semibold border transition-colors"
+                        style={{
+                          borderColor: active ? "transparent" : "var(--c-border)",
+                          background: active
+                            ? "color-mix(in srgb, var(--primary) 14%, transparent)"
+                            : "var(--c-bg)",
+                          color: active ? "var(--primary)" : "var(--c-text)",
+                          boxShadow: active
+                            ? "0 0 0 1px color-mix(in srgb, var(--primary) 32%, transparent)"
+                            : "none",
+                        }}
+                        aria-current={active ? "page" : undefined}
+                      >
+                        {t.label}
+                        <span className="ml-2 rounded-full px-2 py-0.5 text-xs ring-1 ring-[var(--c-border)]">
+                          {t.count}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          ) : null}
 
-          <div className="flex items-center gap-2">
+          <div className={`flex items-center gap-2 ${!shouldShowTabs ? "md:ml-auto w-full md:w-auto" : ""}`}>
             <label htmlFor="q" className="sr-only">Buscar plano</label>
             <input
               id="q"
@@ -217,10 +234,19 @@ export default function PlanosGrid() {
         {!loading && !error && planosOrdenados.length === 0 && (
           <div className="rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-8 text-center">
             <p className="text-[var(--c-text)] font-medium">
-              Nenhum plano encontrado
-              {tab !== "TODOS" ? ` em ${tabs.find((t) => t.key === tab)?.label}` : ""}.
+              {`Nenhum plano encontrado${
+                shouldShowTabs && tab !== "TODOS"
+                  ? ` em ${tabs.find((t) => t.key === tab)?.label}`
+                  : ""
+              }.`}
             </p>
-            {q ? <p className="mt-1 text-sm text-[var(--c-muted)]">Tente limpar o filtro de busca ou mudar a categoria.</p> : null}
+            {q ? (
+              <p className="mt-1 text-sm text-[var(--c-muted)]">
+                {shouldShowTabs
+                  ? "Tente limpar o filtro de busca ou mudar a categoria."
+                  : "Tente limpar o filtro de busca."}
+              </p>
+            ) : null}
           </div>
         )}
 
@@ -232,7 +258,7 @@ export default function PlanosGrid() {
               plano={p}
               precoMensal={p.precoMensal}
               bestSeller={p.bestSeller}
-              showTypeBadge={tab === "TODOS"}
+              showTypeBadge={!shouldShowTabs || tab === "TODOS"}
               onDetails={() => navigate(`/planos/${p.id}`)}
             />
           ))}
