@@ -1,0 +1,19 @@
+{
+  "name": "Semeador",
+  "short_name": "Semeador",
+  "description": "Semeador",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "/",
+  "scope": "/",
+  "theme_color": "#15803D",
+  "background_color": "#FFFFFF",
+  "icons": [
+    {
+      "src": "https://whitelabel.progem.com.br/arquivos/437/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

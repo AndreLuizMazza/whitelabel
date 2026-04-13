@@ -2,7 +2,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '@/lib/api.js'
+import { applyEmDashDocumentTitle } from '@/lib/shellBranding'
 import { pick, money, getMensal } from '@/lib/planUtils.js'
+import useTenant from '@/store/tenant'
 import { Sparkles, CheckCircle2, Clock3, ShieldCheck, BadgeCheck } from 'lucide-react'
 import CTAButton from '@/components/ui/CTAButton'
 import useAuth from '@/store/auth'
@@ -71,6 +73,7 @@ function Perks({ className = '' }) {
 export default function PlanoDetalhe() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const empresa = useTenant((s) => s.empresa)
 
   const isAuthenticated = useAuth((s) =>
     typeof s.isAuthenticated === 'function' ? s.isAuthenticated() : !!s.token
@@ -121,8 +124,8 @@ export default function PlanoDetalhe() {
   }, [])
 
   useEffect(() => {
-    if (plano?.nome) document.title = `${plano.nome} — Planos`
-  }, [plano?.nome])
+    if (plano?.nome) applyEmDashDocumentTitle(plano.nome, 'Planos', empresa)
+  }, [plano?.nome, empresa])
 
   const baseMensal = useMemo(() => getMensal(plano), [plano])
   const valorAdesao = toNum(pick(plano || {}, 'valorAdesao', 'valor_adesao') || 0)

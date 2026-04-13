@@ -1,5 +1,80 @@
 // src/lib/tenantBranding.js
 import useTenant from "@/store/tenant";
+import { resolveAssetUrl, safeUrl } from "@/lib/branding/urls.js";
+import {
+  LS_TENANT_CONTRACT_KEY,
+  LS_TENANT_EMPRESA_KEY,
+} from "@/lib/tenantStorageKeys.js";
+import {
+  formatSlugAsShellTitle,
+  resolveBrandLogoUrl,
+  resolveShellFaviconHref,
+  resolveFaviconSvgUrl,
+  resolveAppleTouchIconUrl,
+} from "@/lib/branding/tenantContract.js";
+
+export { resolveAssetUrl, safeUrl } from "@/lib/branding/urls.js";
+export {
+  formatSlugAsShellTitle,
+  resolveBrandDisplayName,
+  resolveShellTitle,
+  resolveTitleTemplate,
+  formatDocumentTitleFromTemplate,
+  SHELL_DOCUMENT_TITLE_FALLBACK,
+  SHELL_FAVICON_FALLBACK_PATH,
+  resolveFaviconUrl,
+  resolveShellFaviconHref,
+  resolveFaviconSvgUrl,
+  resolveAppleTouchIconUrl,
+  resolvePwaIcons,
+  resolvePushIconUrl,
+  resolvePushBadgeUrl,
+  resolveOgImageUrl,
+  resolvePrimaryDomain,
+  resolveShellThemeColors,
+  resolveSeoDefaults,
+  buildWebManifestPayload,
+  assetsBaseFromContract,
+  resolveContractAssetUrl,
+  resolveBrandLogoUrl,
+  resolveAllBrandIconUrls,
+  BRAND_ICON_FIELD_KEYS,
+  BRAND_LOGO_FIELD_KEYS,
+} from "@/lib/branding/tenantContract.js";
+
+function currentThemeModeFromDom() {
+  try {
+    return document.documentElement.classList.contains("dark") ? "dark" : "light";
+  } catch {
+    return "light";
+  }
+}
+
+/**
+ * Atualiza só `--tenant-logo` conforme modo atual (chamar após mudança light/dark).
+ */
+export function syncTenantLogoCssVarFromContract(t) {
+  if (typeof document === "undefined" || !t) return;
+  const u = resolveBrandLogoUrl(t, currentThemeModeFromDom());
+  if (u) {
+    document.documentElement.style.setProperty("--tenant-logo", `url("${u}")`);
+  }
+}
+
+/**
+ * Define --tenant-logo-light / --tenant-logo-dark / --tenant-logo a partir do contrato.
+ */
+export function applyTenantBrandLogoCssVars(t) {
+  if (typeof document === "undefined" || !t) return;
+  const root = document.documentElement;
+  const light = resolveBrandLogoUrl(t, "light");
+  const dark = resolveBrandLogoUrl(t, "dark");
+  if (light) root.style.setProperty("--tenant-logo-light", `url("${light}")`);
+  else root.style.removeProperty("--tenant-logo-light");
+  if (dark) root.style.setProperty("--tenant-logo-dark", `url("${dark}")`);
+  else root.style.removeProperty("--tenant-logo-dark");
+  syncTenantLogoCssVarFromContract(t);
+}
 
 // Logo vinda de CSS var (fallback final)
 function cssVarUrlOrNull(name = "--tenant-logo") {
@@ -14,80 +89,147 @@ function cssVarUrlOrNull(name = "--tenant-logo") {
   }
 }
 
-/* ===================== helpers novos (não quebram nada) ===================== */
+/**
+ * Favicon: contrato JSON (__TENANT__) primeiro; depois store (urlLogo / tema.logo).
+ */
+export function resolveTenantFaviconUrl() {
+  try {
+    const inline = typeof window !== "undefined" && window.__TENANT__;
+    if (inline) {
+      const u = resolveShellFaviconHref(inline);
+      if (u) return u;
+    }
+  } catch {}
 
-function cleanUrlInput(v) {
-  let s = String(v || "").trim();
-  if (!s) return "";
-  s = s.replace(/^"+/, "").replace(/"+$/, "");
-  s = s.replace(/^'+/, "").replace(/'+$/, "");
-  s = s.replace(/[\u200B-\u200D\uFEFF]/g, ""); // zero-width
-  return s.trim();
-}
+  try {
+    const raw = localStorage.getItem(LS_TENANT_CONTRACT_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        const u = resolveShellFaviconHref(parsed);
+        if (u) return u;
+      }
+    }
+  } catch {}
 
-function normalizeBase(base) {
-  const b = cleanUrlInput(base);
-  if (!b) return "";
-  return b.endsWith("/") ? b : b + "/";
+  try {
+    const st = useTenant.getState?.();
+    const emp = st?.empresa || {};
+    const tema = emp?.tema || {};
+    const assetsBase =
+      tema.assetsBaseUrl ||
+      tema.cdnBaseUrl ||
+      emp.assetsBaseUrl ||
+      emp.cdnBaseUrl ||
+      "";
+    const raw = emp.urlLogo || tema.logo;
+    if (raw) return safeUrl(resolveAssetUrl(raw, assetsBase));
+  } catch {}
+
+  return "";
 }
 
 /**
- * Resolve asset relativo usando assetsBaseUrl do tenant.
- * Exemplos:
- * - resolveAssetUrl("pet.png", "https://.../128/") -> "https://.../128/pet.png"
- * - resolveAssetUrl("https://x/y.png", base) -> mantém
- * - resolveAssetUrl("/img/a.png", base) -> absolute do site
+ * Aplica <link rel="icon"> tenant-aware (reconciliação runtime / bootstrap).
  */
-export function resolveAssetUrl(input, base) {
-  const raw = cleanUrlInput(input);
-  if (!raw) return "";
+export function applyTenantFaviconHref(href) {
+  const u = safeUrl(href);
+  if (typeof document === "undefined" || !u) return;
 
-  if (/^(https?:)?\/\//i.test(raw)) return raw;
-  if (/^(data|blob):/i.test(raw)) return raw;
-
-  try {
-    if (raw.startsWith("/")) {
-      const origin =
-        typeof window !== "undefined" && window.location?.origin
-          ? window.location.origin
-          : "http://localhost";
-      return new URL(raw, origin).toString();
-    }
-
-    const b = normalizeBase(base);
-    if (b) return new URL(raw, b).toString();
-
-    const origin =
-      typeof window !== "undefined" && window.location?.origin
-        ? window.location.origin
-        : "http://localhost";
-    return new URL("/" + raw.replace(/^\/+/, ""), origin).toString();
-  } catch {
-    if (raw.startsWith("/")) return raw;
-    const b = normalizeBase(base);
-    return b ? b + raw.replace(/^\/+/, "") : "/" + raw.replace(/^\/+/, "");
+  let link = document.getElementById("tenant-favicon");
+  if (!link) {
+    link = document.createElement("link");
+    link.id = "tenant-favicon";
+    link.rel = "icon";
+    document.head.appendChild(link);
   }
+  link.href = u;
 }
 
-export function safeUrl(u) {
-  const s0 = cleanUrlInput(u);
-  if (!s0) return "";
-  return s0.replace(/ /g, "%20");
+export function applyTenantFaviconSvgHref(href) {
+  const u = safeUrl(href);
+  if (typeof document === "undefined" || !u) return;
+  let link = document.getElementById("tenant-favicon-svg");
+  if (!link) {
+    link = document.createElement("link");
+    link.id = "tenant-favicon-svg";
+    link.rel = "icon";
+    link.type = "image/svg+xml";
+    document.head.appendChild(link);
+  }
+  link.href = u;
+}
+
+export function applyAppleTouchIconHref(href) {
+  const u = safeUrl(href);
+  if (typeof document === "undefined" || !u) return;
+  let link = document.getElementById("tenant-apple-touch-icon");
+  if (!link) {
+    link = document.createElement("link");
+    link.id = "tenant-apple-touch-icon";
+    link.rel = "apple-touch-icon";
+    document.head.appendChild(link);
+  }
+  link.href = u;
+}
+
+/**
+ * Único ponto que aplica <link rel="icon"> / svg / apple-touch a partir do contrato.
+ * URLs: exclusivamente resolveShellFaviconHref, resolveFaviconSvgUrl, resolveAppleTouchIconUrl
+ * (tenantContract). theme-build.mjs pré-calcula os mesmos valores para first paint.
+ */
+export function applyTenantShellIconsFromContract() {
+  try {
+    const t = typeof window !== "undefined" && window.__TENANT__;
+    if (!t) return;
+
+    const fav = resolveShellFaviconHref(t);
+    if (fav) applyTenantFaviconHref(fav);
+
+    const svg = resolveFaviconSvgUrl(t);
+    if (svg) applyTenantFaviconSvgHref(svg);
+
+    const apple = resolveAppleTouchIconUrl(t);
+    if (apple) applyAppleTouchIconHref(apple);
+  } catch {}
 }
 
 /**
  * Resolve a URL da logo do tenant, com vários fallbacks:
  * - store do tenant (empresa.logo / logoUrl / logo_path / urlLogo / tema.logo)
  * - window.__TENANT__
- * - localStorage('tenant_empresa')
+ * - localStorage tenant_contract_cache (contrato)
+ * - localStorage tenant_empresa (API)
  * - CSS var --tenant-logo
  * - /img/logo.png
  *
- * ✅ Compatível: mantém o comportamento antigo e só melhora a resolução
- * de tema.logo + assetsBaseUrl quando existir.
+ * @param {'light'|'dark'} [themeMode] — quando omitido, usa o modo atual do DOM (classes no <html>).
  */
-export function resolveTenantLogoUrl() {
-  // 1) Store do tenant (mais confiável)
+export function resolveTenantLogoUrl(themeMode) {
+  const mode =
+    themeMode === "light" || themeMode === "dark"
+      ? themeMode
+      : currentThemeModeFromDom();
+
+  try {
+    const inline = typeof window !== "undefined" && window.__TENANT__;
+    if (inline) {
+      const u = resolveBrandLogoUrl(inline, mode);
+      if (u) return u;
+    }
+  } catch {}
+
+  try {
+    const rawC = localStorage.getItem(LS_TENANT_CONTRACT_KEY);
+    if (rawC) {
+      const parsed = JSON.parse(rawC);
+      if (parsed && typeof parsed === "object") {
+        const u = resolveBrandLogoUrl(parsed, mode);
+        if (u) return u;
+      }
+    }
+  } catch {}
+
   try {
     const st = useTenant.getState?.();
     const emp = st?.empresa || {};
@@ -96,7 +238,6 @@ export function resolveTenantLogoUrl() {
     const assetsBase =
       tema.assetsBaseUrl || tema.cdnBaseUrl || emp.assetsBaseUrl || emp.cdnBaseUrl || "";
 
-    // (novos campos aceitos antes dos antigos)
     const rawFromStore =
       emp.urlLogo ||
       emp.logoUrl ||
@@ -109,27 +250,12 @@ export function resolveTenantLogoUrl() {
     const resolved = safeUrl(resolveAssetUrl(rawFromStore, assetsBase));
     if (resolved) return resolved;
 
-    // mantém seu retorno antigo se vier pronto (caso algum campo já esteja absoluto)
-    const fromStoreLegacy =
-      emp?.logo || emp?.logoUrl || emp?.logo_path;
+    const fromStoreLegacy = emp?.logo || emp?.logoUrl || emp?.logo_path;
     if (fromStoreLegacy) return fromStoreLegacy;
   } catch {}
 
-  // 2) Bootstrapping inline
   try {
-    const inline = window.__TENANT__;
-    // se vier assetsBaseUrl + logo relativo, resolve
-    const base = inline?.assetsBaseUrl || inline?.cdnBaseUrl || "";
-    const raw = inline?.logo || inline?.logoUrl || inline?.urlLogo;
-    const resolved = safeUrl(resolveAssetUrl(raw, base));
-    if (resolved) return resolved;
-
-    if (inline?.logo) return inline.logo;
-  } catch {}
-
-  // 3) localStorage (último snapshot conhecido)
-  try {
-    const raw = localStorage.getItem("tenant_empresa");
+    const raw = localStorage.getItem(LS_TENANT_EMPRESA_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       const base =
@@ -153,17 +279,12 @@ export function resolveTenantLogoUrl() {
     }
   } catch {}
 
-  // 4) CSS var configurável
   const cssVar = cssVarUrlOrNull("--tenant-logo");
   if (cssVar) return cssVar;
 
-  // 5) Fallback geral
   return "/img/logo.png";
 }
 
-/**
- * Iniciais do tenant (ex.: "Funerária Patense" -> "FP")
- */
 export function getTenantInitials(empresa) {
   const nome =
     empresa?.nomeFantasia || empresa?.nome || empresa?.razaoSocial || "T";

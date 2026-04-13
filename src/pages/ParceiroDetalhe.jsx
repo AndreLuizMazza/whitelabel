@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useLocation } from 'react-router-dom'
 import api from '@/lib/api'
+import { applyEmDashDocumentTitle, applyRouteDocumentTitle } from '@/lib/shellBranding'
+import useTenant from '@/store/tenant'
 import { MapPin, Phone, Mail, ArrowLeft, Percent, BadgePercent, Share2, ExternalLink } from 'lucide-react'
 
 const CLUB_PLACEHOLDER =
@@ -39,6 +41,7 @@ function domainUrl() {
 export default function ParceiroDetalhe() {
   const { id } = useParams()
   const location = useLocation()
+  const empresa = useTenant((s) => s.empresa)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [parceiro, setParceiro] = useState(null)
@@ -71,9 +74,13 @@ export default function ParceiroDetalhe() {
   }, [id])
 
   useEffect(() => {
-    if (parceiro?.nome) document.title = `${parceiro.nome} — Clube de Benefícios`
-    return () => { document.title = 'Clube de Benefícios' }
-  }, [parceiro?.nome])
+    if (parceiro?.nome) {
+      applyEmDashDocumentTitle(parceiro.nome, 'Clube de Benefícios', empresa)
+    }
+    return () => {
+      applyRouteDocumentTitle('/beneficios', useTenant.getState().empresa)
+    }
+  }, [parceiro?.nome, empresa])
 
   const imagens = useMemo(() => {
     const unica = parceiro?.imagem && String(parceiro.imagem).trim() ? [parceiro.imagem] : []

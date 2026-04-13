@@ -31,9 +31,8 @@ window.__TENANT__ = ${JSON.stringify(tenant)};
     if (t.slug) root.setAttribute('data-tenant', t.slug);
     root.setAttribute('data-theme-ready', '1');
 
-    // Snapshot leve no localStorage (usado por initTheme.js para comparar versões)
     try {
-      localStorage.setItem('tenant_empresa', JSON.stringify(t));
+      localStorage.setItem('tenant_contract_cache', JSON.stringify(t));
       localStorage.setItem('tenant_vars', JSON.stringify(vars || {}));
     } catch {}
   } catch (e) {}

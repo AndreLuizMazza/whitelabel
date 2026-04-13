@@ -1,15 +1,33 @@
 // scripts/theme-build.mjs
+/**
+ * Gera public/theme-inline.js e public/manifest.webmanifest.
+ *
+ * Título e hrefs de ícone são embutidos como literais usando APENAS tenantContract:
+ *   resolveShellTitle, resolveShellFaviconHref, resolveFaviconSvgUrl, resolveAppleTouchIconUrl
+ * (mesmas funções que applyRouteDocumentTitle / applyTenantShellIconsFromContract em runtime).
+ *
+ * Prova de paridade: npm run test:shell-branding (lê o JSON do tenant e compara ao ficheiro gerado).
+ */
 import { readFile, writeFile, access, mkdir, readdir } from "node:fs/promises";
 import { constants as FS } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  buildWebManifestPayload,
+  resolveShellTitle,
+  resolveShellFaviconHref,
+  resolveFaviconSvgUrl,
+  resolveAppleTouchIconUrl,
+  resolveBrandLogoUrl,
+  normalizeTenantLogoFields,
+} from "../src/lib/branding/tenantContract.js";
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname  = dirname(__filename);
+const __dirname = dirname(__filename);
 
 /* ----------------------- Resolve TENANT ----------------------- */
 const fromEnv = process.env.TENANT || process.env.npm_config_tenant;
-const fromArg = (process.argv.find(a => a.startsWith("--tenant=")) || "").split("=")[1];
+const fromArg = (process.argv.find((a) => a.startsWith("--tenant=")) || "").split("=")[1];
 const rawTenant = (fromEnv || fromArg || "").trim();
 
 if (!rawTenant) {
@@ -17,32 +35,32 @@ if (!rawTenant) {
   process.exit(1);
 }
 
-// normaliza para evitar case mismatch com o nome do arquivo
 const TENANT = rawTenant.toLowerCase();
 
-/* ----------------------- Caminhos ----------------------------- */
 const tenantsDir = resolve(process.cwd(), "config", "tenants");
-const cfgPath    = resolve(tenantsDir, `${TENANT}.json`);
+const cfgPath = resolve(tenantsDir, `${TENANT}.json`);
 const defaultCfg = resolve(tenantsDir, "default.json");
-const outPath    = resolve(process.cwd(), "public", "theme-inline.js");
+const outPath = resolve(process.cwd(), "public", "theme-inline.js");
+const manifestPath = resolve(process.cwd(), "public", "manifest.webmanifest");
 
-/* ----------------------- Helpers ------------------------------ */
 async function exists(path) {
-  try { await access(path, FS.F_OK); return true; } catch { return false; }
+  try {
+    await access(path, FS.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function listTenants() {
   try {
     const files = await readdir(tenantsDir);
-    return files
-      .filter(f => f.endsWith(".json"))
-      .map(f => f.replace(/\.json$/,""));
+    return files.filter((f) => f.endsWith(".json")).map((f) => f.replace(/\.json$/, ""));
   } catch {
     return [];
   }
 }
 
-/* ----------------------- Build -------------------------------- */
 (async () => {
   try {
     const hasTenant = await exists(cfgPath);
@@ -52,7 +70,9 @@ async function listTenants() {
     if (!hasTenant) {
       if (hasDefault) {
         const available = (await listTenants()).join(", ");
-        console.warn(`[theme] Tenant "${TENANT}" não encontrado em ${cfgPath}. Usando "default.json". Tenants disponíveis: ${available || "(nenhum)"}`);
+        console.warn(
+          `[theme] Tenant "${TENANT}" não encontrado em ${cfgPath}. Usando "default.json". Tenants disponíveis: ${available || "(nenhum)"}`
+        );
         usedPath = defaultCfg;
       } else {
         const available = (await listTenants()).join(", ");
@@ -77,55 +97,126 @@ Esperado: ${TENANT}.json`);
       throw new Error(`Arquivo "${usedPath}" inválido: campo "vars" ausente ou não-objeto.`);
     }
 
-    // Gera JS inline (mantive sua lógica)
+    const tenantPayload = normalizeTenantLogoFields({ ...cfg, slug: cfg.slug || TENANT });
+
+    const shellOnlyTitle = resolveShellTitle(tenantPayload, null);
+    const preFav = resolveShellFaviconHref(tenantPayload);
+    const preSvg = resolveFaviconSvgUrl(tenantPayload);
+    const preApple = resolveAppleTouchIconUrl(tenantPayload);
+    const preLogoLight = resolveBrandLogoUrl(tenantPayload, "light");
+    const preLogoDark = resolveBrandLogoUrl(tenantPayload, "dark");
+
+    /* IIFE: CSS vars + data-* + localStorage; título e hrefs de ícone vêm do tenantContract (pré-calculado no build). */
     const js = `
-/* Gerado de ${usedPath.replace(process.cwd()+"/","")} */
-window.__TENANT__ = ${JSON.stringify({ ...cfg, slug: (cfg.slug || TENANT) })};
+/* Gerado de ${usedPath.replace(process.cwd() + "/", "")} */
+window.__TENANT__ = ${JSON.stringify(tenantPayload)};
 
 (function(){
   try {
+    function upsertLink(rel, id, href, type) {
+      if (!href) return;
+      var el = document.getElementById(id);
+      if (!el) {
+        el = document.createElement("link");
+        el.id = id;
+        el.rel = rel;
+        if (type) el.type = type;
+        document.head.appendChild(el);
+      }
+      el.href = href;
+    }
+    function upsertMetaName(name, content) {
+      if (!content) return;
+      var sel = 'meta[name="' + name + '"]';
+      var el = document.head.querySelector(sel);
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute("name", name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", content);
+    }
+    function upsertManifestLink() {
+      var el = document.getElementById("tenant-manifest");
+      if (!el) {
+        el = document.createElement("link");
+        el.id = "tenant-manifest";
+        el.rel = "manifest";
+        document.head.appendChild(el);
+      }
+      el.href = "/manifest.webmanifest";
+    }
+
     var docEl = document.documentElement;
     var style = docEl && docEl.style;
     var t = window.__TENANT__ || {};
     var light = t.vars || {};
     var dark  = t.varsDark || null;
 
-    // detecta tema (system/light/dark)
-    var choice = 'system';
-    try { choice = localStorage.getItem('ui_theme') || 'system'; } catch(_){}
+    var choice = "system";
+    try { choice = localStorage.getItem("ui_theme") || "system"; } catch(_){}
     var prefersDark = false;
-    try { prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch(_){}
-    var mode = (choice === 'system') ? (prefersDark ? 'dark' : 'light') : choice;
+    try { prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches; } catch(_){}
+    var mode = (choice === "system") ? (prefersDark ? "dark" : "light") : choice;
 
-    // escolhe vars
-    var chosen = (mode === 'dark' && dark) ? Object.assign({}, light, dark) : light;
+    var chosen = (mode === "dark" && dark) ? Object.assign({}, light, dark) : light;
 
-    // aplica
     if (style && chosen) {
       for (var k in chosen) if (Object.prototype.hasOwnProperty.call(chosen, k)) {
         style.setProperty(k, String(chosen[k]));
       }
     }
     if (docEl){
-      docEl.setAttribute('data-tenant', t.slug || '${TENANT}');
-      docEl.setAttribute('data-theme', mode);
-      docEl.setAttribute('data-theme-ready', '1');
+      docEl.setAttribute("data-tenant", t.slug || ${JSON.stringify(TENANT)});
+      docEl.setAttribute("data-theme", choice);
+      docEl.setAttribute("data-mode", mode);
+      docEl.classList.remove("dark", "theme-dark", "theme-light");
+      if (mode === "dark") { docEl.classList.add("dark", "theme-dark"); }
+      else { docEl.classList.add("theme-light"); }
+      docEl.setAttribute("data-theme-ready", "1");
     }
 
-    // cache
+    var logoL = ${JSON.stringify(preLogoLight)};
+    var logoD = ${JSON.stringify(preLogoDark)};
+    if (style) {
+      if (logoL) style.setProperty("--tenant-logo-light", 'url("' + logoL + '")');
+      if (logoD) style.setProperty("--tenant-logo-dark", 'url("' + logoD + '")');
+      var effLogo = (mode === "dark") ? (logoD || logoL) : (logoL || logoD);
+      if (effLogo) style.setProperty("--tenant-logo", 'url("' + effLogo + '")');
+    }
+
+    document.title = ${JSON.stringify(shellOnlyTitle)};
+    var fav = ${JSON.stringify(preFav)};
+    if (fav) upsertLink("icon", "tenant-favicon", fav);
+    var fsvg = ${JSON.stringify(preSvg)};
+    if (fsvg) upsertLink("icon", "tenant-favicon-svg", fsvg, "image/svg+xml");
+    var ap = ${JSON.stringify(preApple)};
+    if (ap) upsertLink("apple-touch-icon", "tenant-apple-touch-icon", ap);
+    upsertManifestLink();
+
+    var sh = t.shell || {};
+    var vars = t.vars || {};
+    var themeC = String(sh.themeColor || vars["--primary"] || "").trim();
+    var bgC = String(sh.backgroundColor || vars["--surface"] || "").trim();
+    if (themeC) upsertMetaName("theme-color", themeC);
+    if (bgC) upsertMetaName("msapplication-TileColor", themeC);
+
     try {
-      localStorage.setItem('tenant_empresa', JSON.stringify(t));
-      localStorage.setItem('tenant_vars', JSON.stringify(chosen || {}));
+      localStorage.setItem("tenant_contract_cache", JSON.stringify(t));
+      localStorage.setItem("tenant_vars", JSON.stringify(chosen || {}));
     } catch(_){}
-  } catch (e) { try { console.warn('theme-inline failed', e); } catch(_){} }
+  } catch (e) { try { console.warn("theme-inline failed", e); } catch(_){} }
 })();
 `.trim();
 
-    // garante que a pasta public existe
     await mkdir(dirname(outPath), { recursive: true });
     await writeFile(outPath, js, "utf8");
 
+    const manifest = buildWebManifestPayload(tenantPayload);
+    await writeFile(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+
     console.log(`[tenant] Tema inline gerado para TENANT=${TENANT} -> public/theme-inline.js`);
+    console.log(`[tenant] manifest -> public/manifest.webmanifest`);
   } catch (err) {
     console.error("Erro ao gerar theme-inline.js:", err?.message || err);
     process.exit(1);

@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import useAuth from "@/store/auth"
 import useTenant from "@/store/tenant"
+import { useTenantLogoUrl } from "@/lib/tenantLogoRuntime"
 import HeaderNotificationsBell from "@/components/HeaderNotificationsBell.jsx"
 import ThemeToggle from "@/components/ThemeToggle.jsx"
 
@@ -21,6 +22,7 @@ export default function AppShell({ children }) {
   }))
 
   const tenant = useTenant((s) => s.empresa)
+  const logoUrl = useTenantLogoUrl()
 
   const menu = [
     { to: "/area", label: "Área do Associado", icon: <UserSquare2 size={20} /> },
@@ -47,7 +49,7 @@ export default function AppShell({ children }) {
         {/* logo + nome */}
         <div className="flex items-center gap-3 px-6 py-5 border-b border-[var(--c-border)]">
           <img
-            src={tenant?.logo || tenant?.logoUrl || "/img/logo.png"}
+            src={logoUrl}
             className="h-9 w-auto object-contain"
             alt={tenant?.nomeFantasia || "Empresa"}
           />
@@ -113,7 +115,7 @@ export default function AppShell({ children }) {
         "
       >
         <img
-          src={tenant?.logo || "/img/logo.png"}
+          src={logoUrl}
           className="h-8"
           alt="Logo"
         />

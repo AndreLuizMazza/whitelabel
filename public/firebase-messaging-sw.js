@@ -24,11 +24,17 @@ messaging.onBackgroundMessage((payload) => {
 
   const notification = payload.notification || {}
   const notificationTitle = notification.title || "Nova notificação"
+  // SW não acessa window.__TENANT__: ícones tenant-aware vêm do payload FCM (backend) ou fallback estático.
+  const data = payload.data || {}
   const notificationOptions = {
     body: notification.body || "",
-    // ajuste o ícone para um arquivo real do seu projeto (ex.: /icons/icon-192.png)
-    icon: "/icon-192x192.png",
-    data: payload.data || {},
+    icon:
+      notification.icon ||
+      data.icon ||
+      "/icon-192x192.png",
+    badge: data.badge || undefined,
+    image: notification.image || data.image,
+    data,
   }
 
   self.registration.showNotification(notificationTitle, notificationOptions)

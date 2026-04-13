@@ -1,6 +1,7 @@
 // src/pages/PoliticaCookies.jsx
 import { useEffect } from 'react'
 import useTenant from '@/store/tenant'
+import { applyStaticPageTitle } from '@/lib/shellBranding'
 import { formatEndereco, hojeISO } from '@/lib/format'
 
 export default function PoliticaCookies() {
@@ -11,8 +12,8 @@ export default function PoliticaCookies() {
   const endereco = formatEndereco(empresa)
 
   useEffect(() => {
-    document.title = `Política de Cookies - ${nomeFantasia}`
-  }, [nomeFantasia])
+    applyStaticPageTitle('Política de Cookies', empresa)
+  }, [empresa])
 
   if (!empresa) {
     return (
