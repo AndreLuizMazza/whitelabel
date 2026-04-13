@@ -1,16 +1,16 @@
 {
-  "name": "Semeador",
-  "short_name": "Semeador",
-  "description": "Semeador",
+  "name": "Rosapax",
+  "short_name": "Rosapax",
+  "description": "Rosapax",
   "display": "standalone",
   "orientation": "portrait",
   "start_url": "/",
   "scope": "/",
-  "theme_color": "#15803D",
-  "background_color": "#FFFFFF",
+  "theme_color": "#D643D9",
+  "background_color": "#ffffff",
   "icons": [
     {
-      "src": "https://whitelabel.progem.com.br/arquivos/437/logo.png",
+      "src": "https://whitelabel.progem.com.br/arquivos/257/logorosapax.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
