@@ -16,6 +16,7 @@
     "test:contract": "node scripts/contract-parity.mjs",
     "test:shell-branding": "node scripts/shell-branding-parity.mjs",
     "test:seo-inline-parity": "node scripts/seo-inline-parity.mjs",
+    "test:index-html-seo": "node scripts/index-html-seo-parity.mjs",
     "preview:static": "cross-env VITE_DISABLE_BOOTSTRAP=1 vite preview",
     "build": "vite build",
     "prebuild:tenant": "node scripts/theme-build.mjs",

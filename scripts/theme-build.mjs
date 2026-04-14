@@ -24,22 +24,9 @@ import {
   resolveBrandLogoUrl,
   normalizeTenantLogoFields,
   resolveSeoDefaults,
-  resolvePrimaryDomain,
   SEO_DESCRIPTION_FALLBACK,
 } from "../src/lib/branding/tenantContract.js";
-
-/** Origem canónica para og:url: env explícita ou domínio do contrato (https). */
-function resolveCanonicalSiteRootForOgUrl(t) {
-  const fromEnv = String(process.env.SITE_ORIGIN || "").trim();
-  if (fromEnv) {
-    return `${fromEnv.replace(/\/+$/, "")}/`;
-  }
-  const raw = String(resolvePrimaryDomain(t) || "").trim();
-  if (!raw) return "";
-  const host = raw.replace(/^https?:\/\//i, "").split("/")[0].trim();
-  if (!host) return "";
-  return `https://${host.replace(/\/+$/, "")}/`;
-}
+import { resolveCanonicalSiteRootForOgUrl } from "./resolve-canonical-site-origin.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
