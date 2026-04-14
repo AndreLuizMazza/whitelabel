@@ -11,9 +11,9 @@ import { fileURLToPath } from "node:url";
 import {
   normalizeTenantLogoFields,
   resolveSeoDefaults,
-  resolvePrimaryDomain,
   SEO_DESCRIPTION_FALLBACK,
 } from "../src/lib/branding/tenantContract.js";
+import { resolveCanonicalSiteRootForOgUrl } from "./resolve-canonical-site-origin.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
@@ -21,19 +21,6 @@ const root = resolve(__dirname, "..");
 const TENANT = (process.env.TENANT || process.env.npm_config_tenant || "demo").toLowerCase();
 const cfgPath = resolve(root, "config", "tenants", `${TENANT}.json`);
 const inlinePath = resolve(root, "public", "theme-inline.js");
-
-/** Manter em sincronia com scripts/theme-build.mjs */
-function resolveCanonicalSiteRootForOgUrl(t) {
-  const fromEnv = String(process.env.SITE_ORIGIN || "").trim();
-  if (fromEnv) {
-    return `${fromEnv.replace(/\/+$/, "")}/`;
-  }
-  const raw = String(resolvePrimaryDomain(t) || "").trim();
-  if (!raw) return "";
-  const host = raw.replace(/^https?:\/\//i, "").split("/")[0].trim();
-  if (!host) return "";
-  return `https://${host.replace(/\/+$/, "")}/`;
-}
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
