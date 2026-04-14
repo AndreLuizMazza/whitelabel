@@ -1,5 +1,5 @@
-/* Gerado de D:\whitelabel-local\web-progem-white-label\config\tenants\provida.json */
-window.__TENANT__ = {"slug":"provida","v":1,"assetsBaseUrl":"https://whitelabel.progem.com.br/arquivos/70/","vars":{"--primary":"#DC2626","--primary-dark":"#B91C1C","--primary-light":"#EF4444","--secondary":"#6B7280","--on-primary":"#FFFFFF","--surface":"#FFFFFF","--surface-alt":"#F7F7F7","--text":"#111827","--text-muted":"#6B7280","--c-border":"rgba(17,24,39,0.08)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 10%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 18%, transparent)","--nav-active-color":"#DC2626","--highlight":"#16A34A","--button-hover":"color-mix(in srgb, var(--primary) 25%, #000000)"},"varsDark":{"--surface":"#0B0B0C","--surface-alt":"#141416","--text":"#F9FAFB","--text-muted":"#D1D5DB","--c-border":"rgba(255,255,255,0.14)","--primary":"#EF4444","--primary-dark":"#DC2626","--primary-light":"#F87171","--secondary":"#9CA3AF","--nav-hover-bg":"color-mix(in srgb, var(--primary) 16%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 28%, transparent)","--nav-active-color":"#FFFFFF","--highlight":"#22C55E","--button-hover":"color-mix(in srgb, var(--primary) 35%, #000000)"},"brand":{"name":"Provida","legalName":"Provida","shortName":"Provida","logo":"logo.png","logoDark":"logo-dark.png","favicon":"icons/favicon.png","faviconSvg":"icons/favicon.svg","appleTouchIcon":"icons/apple-touch-icon.png","pwaIcon192":"icons/icon-192.png","pwaIcon512":"icons/icon-512.png","maskableIcon512":"icons/icon-maskable-512.png","ogImage":"icons/og-image.png","pushIcon":"icons/push-icon.png","pushBadge":"icons/push-badge.png"},"shell":{"title":"Provida","titleTemplate":"%s • Provida","themeColor":"#DC2626","backgroundColor":"#FFFFFF"},"seo":{"metaTitle":"Provida","metaDescription":"Cuidado e proteção para quem você ama. Assistência familiar completa com planos acessíveis e atendimento humanizado para garantir tranquilidade em todos os momentos."},"pwa":{"name":"Provida","shortName":"Provida","description":"Área do associado","display":"standalone","orientation":"portrait","startUrl":"/","scope":"/"},"routing":{"primaryDomain":"planoprovida.com.br"},"logo":"logo.png","heroTitle":"Cuidado e proteção para quem você ama","heroSubtitle":"Assistência familiar completa com planos acessíveis e atendimento humanizado para garantir tranquilidade em todos os momentos.","domain":"planoprovida.com.br","logoDark":"logo-dark.png"};
+/* Gerado de D:\whitelabel-local\web-progem-white-label\config\tenants\ciclusvitali.json */
+window.__TENANT__ = {"slug":"ciclusvitali","v":1,"assetsBaseUrl":"https://whitelabel.progem.com.br/arquivos/33/","vars":{"--primary":"#60A5FA","--primary-dark":"#3B82F6","--primary-light":"#93C5FD","--secondary":"#FB923C","--on-primary":"#FFFFFF","--surface":"#FFFFFF","--surface-alt":"#F5F9FF","--text":"#111827","--text-muted":"#6B7280","--c-border":"rgba(17,24,39,0.08)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 10%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 18%, transparent)","--nav-active-color":"#60A5FA","--highlight":"#FB923C","--button-hover":"color-mix(in srgb, var(--primary) 25%, #000000)"},"varsDark":{"--surface":"#0B0B0C","--surface-alt":"#141416","--text":"#F9FAFB","--text-muted":"#D1D5DB","--c-border":"rgba(255,255,255,0.14)","--primary":"#93C5FD","--primary-dark":"#60A5FA","--primary-light":"#BFDBFE","--secondary":"#FDBA74","--nav-hover-bg":"color-mix(in srgb, var(--primary) 16%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 28%, transparent)","--nav-active-color":"#FFFFFF","--highlight":"#FB923C","--button-hover":"color-mix(in srgb, var(--primary) 35%, #000000)"},"brand":{"name":"Ciclus Vitali","legalName":"Ciclus Vitali","shortName":"Ciclus","logo":"logo1.png","logoDark":"logo-dark.png","favicon":"icons/favicon.png","faviconSvg":"icons/favicon.svg","appleTouchIcon":"icons/apple-touch-icon.png","pwaIcon192":"icons/icon-192.png","pwaIcon512":"icons/icon-512.png","maskableIcon512":"icons/icon-maskable-512.png","ogImage":"icons/og-image.png","pushIcon":"icons/push-icon.png","pushBadge":"icons/push-badge.png"},"shell":{"title":"Ciclus Vitali","titleTemplate":"%s • Ciclus Vitali","themeColor":"#60A5FA","backgroundColor":"#FFFFFF"},"seo":{"metaTitle":"Ciclus Vitali","metaDescription":"Cuidado e bem-estar para sua família. Soluções assistenciais com atendimento humanizado, oferecendo mais tranquilidade, proteção e qualidade de vida em todos os momentos."},"pwa":{"name":"Ciclus Vitali","shortName":"Ciclus","description":"Área do associado","display":"standalone","orientation":"portrait","startUrl":"/","scope":"/"},"routing":{"primaryDomain":"associado.ciclusvitali.com.br"},"logo":"logo1.png","heroTitle":"Cuidado e bem-estar para sua família","heroSubtitle":"Soluções assistenciais com atendimento humanizado, oferecendo mais tranquilidade, proteção e qualidade de vida em todos os momentos.","domain":"associado.ciclusvitali.com.br","logoDark":"logo-dark.png"};
 
 (function(){
   try {
@@ -57,7 +57,7 @@ window.__TENANT__ = {"slug":"provida","v":1,"assetsBaseUrl":"https://whitelabel.
       }
     }
     if (docEl){
-      docEl.setAttribute("data-tenant", t.slug || "provida");
+      docEl.setAttribute("data-tenant", t.slug || "ciclusvitali");
       docEl.setAttribute("data-theme", choice);
       docEl.setAttribute("data-mode", mode);
       docEl.classList.remove("dark", "theme-dark", "theme-light");
@@ -66,8 +66,8 @@ window.__TENANT__ = {"slug":"provida","v":1,"assetsBaseUrl":"https://whitelabel.
       docEl.setAttribute("data-theme-ready", "1");
     }
 
-    var logoL = "https://whitelabel.progem.com.br/arquivos/70/logo.png";
-    var logoD = "https://whitelabel.progem.com.br/arquivos/70/logo-dark.png";
+    var logoL = "https://whitelabel.progem.com.br/arquivos/33/logo1.png";
+    var logoD = "https://whitelabel.progem.com.br/arquivos/33/logo-dark.png";
     if (style) {
       if (logoL) style.setProperty("--tenant-logo-light", 'url("' + logoL + '")');
       if (logoD) style.setProperty("--tenant-logo-dark", 'url("' + logoD + '")');
@@ -75,12 +75,12 @@ window.__TENANT__ = {"slug":"provida","v":1,"assetsBaseUrl":"https://whitelabel.
       if (effLogo) style.setProperty("--tenant-logo", 'url("' + effLogo + '")');
     }
 
-    document.title = "Provida";
-    var fav = "https://whitelabel.progem.com.br/arquivos/70/icons/favicon.png";
+    document.title = "Ciclus Vitali";
+    var fav = "https://whitelabel.progem.com.br/arquivos/33/icons/favicon.png";
     if (fav) upsertLink("icon", "tenant-favicon", fav);
-    var fsvg = "https://whitelabel.progem.com.br/arquivos/70/icons/favicon.svg";
+    var fsvg = "https://whitelabel.progem.com.br/arquivos/33/icons/favicon.svg";
     if (fsvg) upsertLink("icon", "tenant-favicon-svg", fsvg, "image/svg+xml");
-    var ap = "https://whitelabel.progem.com.br/arquivos/70/icons/apple-touch-icon.png";
+    var ap = "https://whitelabel.progem.com.br/arquivos/33/icons/apple-touch-icon.png";
     if (ap) upsertLink("apple-touch-icon", "tenant-apple-touch-icon", ap);
     upsertManifestLink();
 

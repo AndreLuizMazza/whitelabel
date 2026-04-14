@@ -1,0 +1,107 @@
+{
+  "slug": "ciclusvitali",
+  "v": 1,
+
+  "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/33/",
+
+  "vars": {
+    "--primary": "#60A5FA",
+    "--primary-dark": "#3B82F6",
+    "--primary-light": "#93C5FD",
+    "--secondary": "#FB923C",
+    "--on-primary": "#FFFFFF",
+
+    "--surface": "#FFFFFF",
+    "--surface-alt": "#F5F9FF",
+
+    "--text": "#111827",
+    "--text-muted": "#6B7280",
+
+    "--c-border": "rgba(17,24,39,0.08)",
+
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 10%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 18%, transparent)",
+    "--nav-active-color": "#60A5FA",
+
+    "--highlight": "#FB923C",
+    "--button-hover": "color-mix(in srgb, var(--primary) 25%, #000000)"
+  },
+
+  "varsDark": {
+    "--surface": "#0B0B0C",
+    "--surface-alt": "#141416",
+
+    "--text": "#F9FAFB",
+    "--text-muted": "#D1D5DB",
+
+    "--c-border": "rgba(255,255,255,0.14)",
+
+    "--primary": "#93C5FD",
+    "--primary-dark": "#60A5FA",
+    "--primary-light": "#BFDBFE",
+    "--secondary": "#FDBA74",
+
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 16%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 28%, transparent)",
+    "--nav-active-color": "#FFFFFF",
+
+    "--highlight": "#FB923C",
+    "--button-hover": "color-mix(in srgb, var(--primary) 35%, #000000)"
+  },
+
+  "brand": {
+    "name": "Ciclus Vitali",
+    "legalName": "Ciclus Vitali",
+    "shortName": "Ciclus",
+
+    "logo": "logo1.png",
+    "logoDark": "logo-dark.png",
+
+    "favicon": "icons/favicon.png",
+    "faviconSvg": "icons/favicon.svg",
+
+    "appleTouchIcon": "icons/apple-touch-icon.png",
+
+    "pwaIcon192": "icons/icon-192.png",
+    "pwaIcon512": "icons/icon-512.png",
+    "maskableIcon512": "icons/icon-maskable-512.png",
+
+    "ogImage": "icons/og-image.png",
+
+    "pushIcon": "icons/push-icon.png",
+    "pushBadge": "icons/push-badge.png"
+  },
+
+  "shell": {
+    "title": "Ciclus Vitali",
+    "titleTemplate": "%s • Ciclus Vitali",
+    "themeColor": "#60A5FA",
+    "backgroundColor": "#FFFFFF"
+  },
+
+  "seo": {
+    "metaTitle": "Ciclus Vitali",
+    "metaDescription": "Cuidado e bem-estar para sua família. Soluções assistenciais com atendimento humanizado, oferecendo mais tranquilidade, proteção e qualidade de vida em todos os momentos."
+  },
+
+  "pwa": {
+    "name": "Ciclus Vitali",
+    "shortName": "Ciclus",
+    "description": "Área do associado",
+    "display": "standalone",
+    "orientation": "portrait",
+    "startUrl": "/",
+    "scope": "/"
+  },
+
+  "routing": {
+    "primaryDomain": "associado.ciclusvitali.com.br"
+  },
+
+  "logo": "logo1.png",
+
+  "heroTitle": "Cuidado e bem-estar para sua família",
+  "heroSubtitle": "Soluções assistenciais com atendimento humanizado, oferecendo mais tranquilidade, proteção e qualidade de vida em todos os momentos.",
+
+  "domain": "associado.ciclusvitali.com.br"
+} 
