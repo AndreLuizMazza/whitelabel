@@ -1,5 +1,5 @@
-/* Gerado de D:\whitelabel-local\web-progem-white-label\config\tenants\ciclusvitali.json */
-window.__TENANT__ = {"slug":"ciclusvitali","v":1,"assetsBaseUrl":"https://whitelabel.progem.com.br/arquivos/33/","vars":{"--primary":"#60A5FA","--primary-dark":"#3B82F6","--primary-light":"#93C5FD","--secondary":"#FB923C","--on-primary":"#FFFFFF","--surface":"#FFFFFF","--surface-alt":"#F5F9FF","--text":"#111827","--text-muted":"#6B7280","--c-border":"rgba(17,24,39,0.08)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 10%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 18%, transparent)","--nav-active-color":"#60A5FA","--highlight":"#FB923C","--button-hover":"color-mix(in srgb, var(--primary) 25%, #000000)"},"varsDark":{"--surface":"#0B0B0C","--surface-alt":"#141416","--text":"#F9FAFB","--text-muted":"#D1D5DB","--c-border":"rgba(255,255,255,0.14)","--primary":"#93C5FD","--primary-dark":"#60A5FA","--primary-light":"#BFDBFE","--secondary":"#FDBA74","--nav-hover-bg":"color-mix(in srgb, var(--primary) 16%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 28%, transparent)","--nav-active-color":"#FFFFFF","--highlight":"#FB923C","--button-hover":"color-mix(in srgb, var(--primary) 35%, #000000)"},"brand":{"name":"Ciclus Vitali","legalName":"Ciclus Vitali","shortName":"Ciclus","logo":"logo1.png","logoDark":"logo-dark.png","favicon":"icons/favicon.png","faviconSvg":"icons/favicon.svg","appleTouchIcon":"icons/apple-touch-icon.png","pwaIcon192":"icons/icon-192.png","pwaIcon512":"icons/icon-512.png","maskableIcon512":"icons/icon-maskable-512.png","ogImage":"icons/og-image.png","pushIcon":"icons/push-icon.png","pushBadge":"icons/push-badge.png"},"shell":{"title":"Ciclus Vitali","titleTemplate":"%s • Ciclus Vitali","themeColor":"#60A5FA","backgroundColor":"#FFFFFF"},"seo":{"metaTitle":"Ciclus Vitali","metaDescription":"Cuidado e bem-estar para sua família. Soluções assistenciais com atendimento humanizado, oferecendo mais tranquilidade, proteção e qualidade de vida em todos os momentos."},"pwa":{"name":"Ciclus Vitali","shortName":"Ciclus","description":"Área do associado","display":"standalone","orientation":"portrait","startUrl":"/","scope":"/"},"routing":{"primaryDomain":"associado.ciclusvitali.com.br"},"logo":"logo1.png","heroTitle":"Cuidado e bem-estar para sua família","heroSubtitle":"Soluções assistenciais com atendimento humanizado, oferecendo mais tranquilidade, proteção e qualidade de vida em todos os momentos.","domain":"associado.ciclusvitali.com.br","logoDark":"logo-dark.png"};
+/* Gerado de D:\whitelabel-local\web-progem-white-label\config\tenants\funerariapopular.json */
+window.__TENANT__ = {"slug":"funerariapopular","v":1,"assetsBaseUrl":"https://whitelabel.progem.com.br/arquivos/438/","vars":{"--primary":"#1E3A8A","--primary-dark":"#172554","--primary-light":"#3B5FCC","--secondary":"#6B7280","--on-primary":"#FFFFFF","--surface":"#FFFFFF","--surface-alt":"#F3F6FB","--text":"#0B1220","--text-muted":"#6B7280","--c-border":"rgba(17,24,39,0.10)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 14%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 24%, transparent)","--nav-active-color":"#1E3A8A","--highlight":"#C9A227","--button-hover":"color-mix(in srgb, var(--primary) 32%, #000000)"},"varsDark":{"--surface":"#0A0A0B","--surface-alt":"#121214","--text":"#F9FAFB","--text-muted":"#D1D5DB","--c-border":"rgba(255,255,255,0.18)","--primary":"#4F6DFF","--primary-dark":"#1E3A8A","--primary-light":"#7C93FF","--secondary":"#9CA3AF","--nav-hover-bg":"color-mix(in srgb, var(--primary) 22%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 36%, transparent)","--nav-active-color":"#FFFFFF","--highlight":"#F2D06B","--button-hover":"color-mix(in srgb, var(--primary) 42%, #000000)"},"brand":{"name":"Funerária Popular","legalName":"Funerária Popular","shortName":"Popular","logo":"logo.png","logoDark":"logo-dark.png","favicon":"icons/favicon.png","faviconSvg":"icons/favicon.svg","appleTouchIcon":"icons/apple-touch-icon.png","pwaIcon192":"icons/icon-192.png","pwaIcon512":"icons/icon-512.png","maskableIcon512":"icons/icon-maskable-512.png","ogImage":"icons/og-image.png","pushIcon":"icons/push-icon.png","pushBadge":"icons/push-badge.png"},"shell":{"title":"Funerária Popular","titleTemplate":"%s • Funerária Popular","themeColor":"#1E3A8A","backgroundColor":"#FFFFFF"},"seo":{"metaTitle":"Funerária Popular","metaDescription":"Proteção e cuidado para sua família. Planos acessíveis com atendimento humanizado e segurança para garantir tranquilidade em todos os momentos."},"pwa":{"name":"Funerária Popular","shortName":"Popular","description":"Área do associado","display":"standalone","orientation":"portrait","startUrl":"/","scope":"/"},"routing":{"primaryDomain":"planovidapopular.com.br"},"logo":"logo.png","heroTitle":"Proteção e cuidado para sua família","heroSubtitle":"Planos acessíveis com atendimento humanizado e segurança para garantir tranquilidade em todos os momentos.","domain":"planovidapopular.com.br","logoDark":"logo-dark.png"};
 
 (function(){
   try {
@@ -57,7 +57,7 @@ window.__TENANT__ = {"slug":"ciclusvitali","v":1,"assetsBaseUrl":"https://whitel
       }
     }
     if (docEl){
-      docEl.setAttribute("data-tenant", t.slug || "ciclusvitali");
+      docEl.setAttribute("data-tenant", t.slug || "funerariapopular");
       docEl.setAttribute("data-theme", choice);
       docEl.setAttribute("data-mode", mode);
       docEl.classList.remove("dark", "theme-dark", "theme-light");
@@ -66,8 +66,8 @@ window.__TENANT__ = {"slug":"ciclusvitali","v":1,"assetsBaseUrl":"https://whitel
       docEl.setAttribute("data-theme-ready", "1");
     }
 
-    var logoL = "https://whitelabel.progem.com.br/arquivos/33/logo1.png";
-    var logoD = "https://whitelabel.progem.com.br/arquivos/33/logo-dark.png";
+    var logoL = "https://whitelabel.progem.com.br/arquivos/438/logo.png";
+    var logoD = "https://whitelabel.progem.com.br/arquivos/438/logo-dark.png";
     if (style) {
       if (logoL) style.setProperty("--tenant-logo-light", 'url("' + logoL + '")');
       if (logoD) style.setProperty("--tenant-logo-dark", 'url("' + logoD + '")');
@@ -75,12 +75,12 @@ window.__TENANT__ = {"slug":"ciclusvitali","v":1,"assetsBaseUrl":"https://whitel
       if (effLogo) style.setProperty("--tenant-logo", 'url("' + effLogo + '")');
     }
 
-    document.title = "Ciclus Vitali";
-    var fav = "https://whitelabel.progem.com.br/arquivos/33/icons/favicon.png";
+    document.title = "Funerária Popular";
+    var fav = "https://whitelabel.progem.com.br/arquivos/438/icons/favicon.png";
     if (fav) upsertLink("icon", "tenant-favicon", fav);
-    var fsvg = "https://whitelabel.progem.com.br/arquivos/33/icons/favicon.svg";
+    var fsvg = "https://whitelabel.progem.com.br/arquivos/438/icons/favicon.svg";
     if (fsvg) upsertLink("icon", "tenant-favicon-svg", fsvg, "image/svg+xml");
-    var ap = "https://whitelabel.progem.com.br/arquivos/33/icons/apple-touch-icon.png";
+    var ap = "https://whitelabel.progem.com.br/arquivos/438/icons/apple-touch-icon.png";
     if (ap) upsertLink("apple-touch-icon", "tenant-apple-touch-icon", ap);
     upsertManifestLink();
 
