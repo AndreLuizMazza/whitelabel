@@ -1,18 +1,18 @@
 {
-  "slug": "semeador",
-  "v": 2,
+  "slug": "provida",
+  "v": 1,
 
-  "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/437/",
+  "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/70/",
 
   "vars": {
-    "--primary": "#15803D",
-    "--primary-dark": "#166534",
-    "--primary-light": "#22C55E",
+    "--primary": "#DC2626",
+    "--primary-dark": "#B91C1C",
+    "--primary-light": "#EF4444",
     "--secondary": "#6B7280",
     "--on-primary": "#FFFFFF",
 
     "--surface": "#FFFFFF",
-    "--surface-alt": "#F3F7F4",
+    "--surface-alt": "#F7F7F7",
 
     "--text": "#111827",
     "--text-muted": "#6B7280",
@@ -21,9 +21,9 @@
 
     "--nav-hover-bg": "color-mix(in srgb, var(--primary) 10%, transparent)",
     "--nav-active-bg": "color-mix(in srgb, var(--primary) 18%, transparent)",
-    "--nav-active-color": "#15803D",
+    "--nav-active-color": "#DC2626",
 
-    "--highlight": "#15803D",
+    "--highlight": "#16A34A",
     "--button-hover": "color-mix(in srgb, var(--primary) 25%, #000000)"
   },
 
@@ -36,9 +36,9 @@
 
     "--c-border": "rgba(255,255,255,0.14)",
 
-    "--primary": "#22C55E",
-    "--primary-dark": "#15803D",
-    "--primary-light": "#4ADE80",
+    "--primary": "#EF4444",
+    "--primary-dark": "#DC2626",
+    "--primary-light": "#F87171",
     "--secondary": "#9CA3AF",
 
     "--nav-hover-bg": "color-mix(in srgb, var(--primary) 16%, transparent)",
@@ -50,9 +50,9 @@
   },
 
   "brand": {
-    "name": "Semeador Plano Familiar",
-    "legalName": "Semeador Plano Familiar",
-    "shortName": "Semeador",
+    "name": "Provida",
+    "legalName": "Provida",
+    "shortName": "Provida",
 
     "logo": "logo.png",
     "logoDark": "logo-dark.png",
@@ -73,20 +73,20 @@
   },
 
   "shell": {
-    "title": "Semeador",
-    "titleTemplate": "%s • Semeador",
-    "themeColor": "#15803D",
+    "title": "Provida",
+    "titleTemplate": "%s • Provida",
+    "themeColor": "#DC2626",
     "backgroundColor": "#FFFFFF"
   },
 
   "seo": {
-    "metaTitle": "Semeador Plano Familiar",
-    "metaDescription": "Cuidado e proteção para sua família. Planos familiares acessíveis com atendimento humanizado e suporte completo em todos os momentos."
+    "metaTitle": "Provida",
+    "metaDescription": "Cuidado e proteção para quem você ama. Assistência familiar completa com planos acessíveis e atendimento humanizado para garantir tranquilidade em todos os momentos."
   },
 
   "pwa": {
-    "name": "Semeador Plano Familiar",
-    "shortName": "Semeador",
+    "name": "Provida",
+    "shortName": "Provida",
     "description": "Área do associado",
     "display": "standalone",
     "orientation": "portrait",
@@ -95,13 +95,13 @@
   },
 
   "routing": {
-    "primaryDomain": "planosemeador.com.br"
+    "primaryDomain": "planoprovida.com.br"
   },
 
   "logo": "logo.png",
 
-  "heroTitle": "Cuidado e proteção para sua família",
-  "heroSubtitle": "Planos familiares acessíveis com atendimento humanizado e suporte completo em todos os momentos.",
+  "heroTitle": "Cuidado e proteção para quem você ama",
+  "heroSubtitle": "Assistência familiar completa com planos acessíveis e atendimento humanizado para garantir tranquilidade em todos os momentos.",
 
-  "domain": "planosemeador.com.br"
+  "domain": "planoprovida.com.br"
 }
