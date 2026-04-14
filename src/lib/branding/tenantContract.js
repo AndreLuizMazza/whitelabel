@@ -50,6 +50,10 @@ export const BRAND_LOGO_FIELD_KEYS = ["logo", "logoLight", "logoDark"];
 /** Único fallback textual do shell quando não há slug nem marca (alinhado a index.html). */
 export const SHELL_DOCUMENT_TITLE_FALLBACK = "Plataforma";
 
+/** Meta description quando `seo.metaDescription` está vazio (theme-build + `seo.js`). */
+export const SEO_DESCRIPTION_FALLBACK =
+  "Plataforma online — área do associado, contratos e benefícios.";
+
 /**
  * Raster favicon final quando resolveFaviconUrl não encontra candidato no contrato.
  * Asset estático do app (não confundir com logo do tenant em CDN).
