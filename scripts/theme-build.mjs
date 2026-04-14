@@ -2,11 +2,14 @@
 /**
  * Gera public/theme-inline.js e public/manifest.webmanifest.
  *
- * Título e hrefs de ícone são embutidos como literais usando APENAS tenantContract:
- *   resolveShellTitle, resolveShellFaviconHref, resolveFaviconSvgUrl, resolveAppleTouchIconUrl
- * (mesmas funções que applyRouteDocumentTitle / applyTenantShellIconsFromContract em runtime).
+ * Título, hrefs de ícone e metas sociais (description, og:*, twitter:*) usam APENAS tenantContract:
+ *   resolveShellTitle, resolveShellFaviconHref, resolveFaviconSvgUrl, resolveAppleTouchIconUrl,
+ *   resolveSeoDefaults, resolvePrimaryDomain, SEO_DESCRIPTION_FALLBACK
+ * (paridade com bootstrapTenantSeoDefaults em src/lib/seo.js para empresa === null).
  *
- * Prova de paridade: npm run test:shell-branding (lê o JSON do tenant e compara ao ficheiro gerado).
+ * og:url: SITE_ORIGIN no build (preferencial) ou https:// + routing.primaryDomain|domain.
+ *
+ * Provas de paridade: npm run test:shell-branding | npm run test:seo-inline-parity
  */
 import { readFile, writeFile, access, mkdir, readdir } from "node:fs/promises";
 import { constants as FS } from "node:fs";
@@ -20,7 +23,23 @@ import {
   resolveAppleTouchIconUrl,
   resolveBrandLogoUrl,
   normalizeTenantLogoFields,
+  resolveSeoDefaults,
+  resolvePrimaryDomain,
+  SEO_DESCRIPTION_FALLBACK,
 } from "../src/lib/branding/tenantContract.js";
+
+/** Origem canónica para og:url: env explícita ou domínio do contrato (https). */
+function resolveCanonicalSiteRootForOgUrl(t) {
+  const fromEnv = String(process.env.SITE_ORIGIN || "").trim();
+  if (fromEnv) {
+    return `${fromEnv.replace(/\/+$/, "")}/`;
+  }
+  const raw = String(resolvePrimaryDomain(t) || "").trim();
+  if (!raw) return "";
+  const host = raw.replace(/^https?:\/\//i, "").split("/")[0].trim();
+  if (!host) return "";
+  return `https://${host.replace(/\/+$/, "")}/`;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -106,7 +125,11 @@ Esperado: ${TENANT}.json`);
     const preLogoLight = resolveBrandLogoUrl(tenantPayload, "light");
     const preLogoDark = resolveBrandLogoUrl(tenantPayload, "dark");
 
-    /* IIFE: CSS vars + data-* + localStorage; título e hrefs de ícone vêm do tenantContract (pré-calculado no build). */
+    const { metaTitle, metaDescription, ogImage } = resolveSeoDefaults(tenantPayload, null);
+    const preSeoDesc = metaDescription || SEO_DESCRIPTION_FALLBACK;
+    const preOgUrl = resolveCanonicalSiteRootForOgUrl(tenantPayload);
+
+    /* IIFE: CSS vars + data-* + localStorage; título, ícones e metas sociais vêm do tenantContract (pré-calculado no build). */
     const js = `
 /* Gerado de ${usedPath.replace(process.cwd() + "/", "")} */
 window.__TENANT__ = ${JSON.stringify(tenantPayload)};
@@ -132,6 +155,17 @@ window.__TENANT__ = ${JSON.stringify(tenantPayload)};
       if (!el) {
         el = document.createElement("meta");
         el.setAttribute("name", name);
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", content);
+    }
+    function upsertMetaProperty(property, content) {
+      if (!content) return;
+      var sel = 'meta[property="' + property + '"]';
+      var el = document.head.querySelector(sel);
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute("property", property);
         document.head.appendChild(el);
       }
       el.setAttribute("content", content);
@@ -186,6 +220,23 @@ window.__TENANT__ = ${JSON.stringify(tenantPayload)};
     }
 
     document.title = ${JSON.stringify(shellOnlyTitle)};
+
+    var seoMetaTitle = ${JSON.stringify(metaTitle)};
+    var seoDesc = ${JSON.stringify(preSeoDesc)};
+    var seoOgImage = ${JSON.stringify(ogImage || "")};
+    var seoOgUrl = ${JSON.stringify(preOgUrl)};
+    var seoTwCard = seoOgImage ? "summary_large_image" : "summary";
+    upsertMetaName("description", seoDesc);
+    upsertMetaProperty("og:title", seoMetaTitle);
+    upsertMetaProperty("og:description", seoDesc);
+    if (seoOgImage) upsertMetaProperty("og:image", seoOgImage);
+    upsertMetaProperty("og:type", "website");
+    if (seoOgUrl) upsertMetaProperty("og:url", seoOgUrl);
+    upsertMetaName("twitter:card", seoTwCard);
+    upsertMetaName("twitter:title", seoMetaTitle);
+    upsertMetaName("twitter:description", seoDesc);
+    if (seoOgImage) upsertMetaName("twitter:image", seoOgImage);
+
     var fav = ${JSON.stringify(preFav)};
     if (fav) upsertLink("icon", "tenant-favicon", fav);
     var fsvg = ${JSON.stringify(preSvg)};

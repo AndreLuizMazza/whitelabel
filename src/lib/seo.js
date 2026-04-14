@@ -1,5 +1,8 @@
 // src/lib/seo.js
-import { resolveSeoDefaults } from "@/lib/branding/tenantContract.js";
+import {
+  resolveSeoDefaults,
+  SEO_DESCRIPTION_FALLBACK,
+} from "@/lib/branding/tenantContract.js";
 
 /**
  * Atualiza <title> e metas de descrição/OG/Twitter.
@@ -33,7 +36,7 @@ export function setPageSEO({ title, description, image, url } = {}) {
   const desc =
     description ||
     defaultDescriptionFromTenant() ||
-    "Plataforma online — área do associado, contratos e benefícios.";
+    SEO_DESCRIPTION_FALLBACK;
 
   upsert('meta[name="description"]', { content: desc });
 
@@ -91,9 +94,7 @@ export function bootstrapTenantSeoDefaults(empresa) {
     });
   };
 
-  const desc =
-    metaDescription ||
-    "Plataforma online — área do associado, contratos e benefícios.";
+  const desc = metaDescription || SEO_DESCRIPTION_FALLBACK;
 
   upsert('meta[name="description"]', { content: desc });
   upsert('meta[property="og:title"]', { content: metaTitle });
