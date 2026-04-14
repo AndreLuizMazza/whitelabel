@@ -1,19 +1,31 @@
 {
-  "name": "Rosapax",
-  "short_name": "Rosapax",
-  "description": "Rosapax",
+  "name": "Provida",
+  "short_name": "Provida",
+  "description": "Área do associado",
   "display": "standalone",
   "orientation": "portrait",
   "start_url": "/",
   "scope": "/",
-  "theme_color": "#D643D9",
-  "background_color": "#ffffff",
+  "theme_color": "#DC2626",
+  "background_color": "#FFFFFF",
   "icons": [
     {
-      "src": "https://whitelabel.progem.com.br/arquivos/257/logorosapax.png",
+      "src": "https://whitelabel.progem.com.br/arquivos/70/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "https://whitelabel.progem.com.br/arquivos/70/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://whitelabel.progem.com.br/arquivos/70/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
