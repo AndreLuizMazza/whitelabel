@@ -1,0 +1,107 @@
+{
+  "slug": "reieterno",
+  "v": 1,
+
+  "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/395/",
+
+  "vars": {
+    "--primary": "#1447B0",
+    "--primary-dark": "#0F2F78",
+    "--primary-light": "#3B82F6",
+    "--secondary": "#5B6474",
+    "--on-primary": "#FFFFFF",
+
+    "--surface": "#FFFFFF",
+    "--surface-alt": "#F4F8FF",
+
+    "--text": "#0F172A",
+    "--text-muted": "#667085",
+
+    "--c-border": "rgba(20,71,176,0.12)",
+
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 12%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 22%, transparent)",
+    "--nav-active-color": "#1447B0",
+
+    "--highlight": "#D9A91A",
+    "--button-hover": "color-mix(in srgb, var(--primary) 30%, #000000)"
+  },
+
+  "varsDark": {
+    "--surface": "#090B10",
+    "--surface-alt": "#0F1522",
+
+    "--text": "#F8FAFC",
+    "--text-muted": "#CBD5E1",
+
+    "--c-border": "rgba(255,255,255,0.16)",
+
+    "--primary": "#3F86FF",
+    "--primary-dark": "#1447B0",
+    "--primary-light": "#74A9FF",
+    "--secondary": "#98A2B3",
+
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 18%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 30%, transparent)",
+    "--nav-active-color": "#FFFFFF",
+
+    "--highlight": "#E3BC4A",
+    "--button-hover": "color-mix(in srgb, var(--primary) 40%, #000000)"
+  },
+
+  "brand": {
+    "name": "Rei Eterno Assistencial",
+    "legalName": "Rei Eterno Assistencial",
+    "shortName": "Rei Eterno",
+
+    "logo": "logo.png",
+    "logoDark": "logo-dark.png",
+
+    "favicon": "icons/favicon.png",
+    "faviconSvg": "icons/favicon.svg",
+
+    "appleTouchIcon": "icons/apple-touch-icon.png",
+
+    "pwaIcon192": "icons/icon-192.png",
+    "pwaIcon512": "icons/icon-512.png",
+    "maskableIcon512": "icons/icon-maskable-512.png",
+
+    "ogImage": "icons/og-image.png",
+
+    "pushIcon": "icons/push-icon.png",
+    "pushBadge": "icons/push-badge.png"
+  },
+
+  "shell": {
+    "title": "Rei Eterno",
+    "titleTemplate": "%s • Rei Eterno",
+    "themeColor": "#1447B0",
+    "backgroundColor": "#FFFFFF"
+  },
+
+  "seo": {
+    "metaTitle": "Rei Eterno Assistencial",
+    "metaDescription": "Cuidado e proteção com excelência. Planos assistenciais com atendimento humanizado, oferecendo segurança e tranquilidade para você e sua família."
+  },
+
+  "pwa": {
+    "name": "Rei Eterno Assistencial",
+    "shortName": "Rei Eterno",
+    "description": "Área do associado",
+    "display": "standalone",
+    "orientation": "portrait",
+    "startUrl": "/",
+    "scope": "/"
+  },
+
+  "routing": {
+    "primaryDomain": "associado.funerariareieterno.com.br"
+  },
+
+  "logo": "logo.png",
+
+  "heroTitle": "Cuidado e proteção com excelência",
+  "heroSubtitle": "Planos assistenciais com atendimento humanizado, oferecendo segurança e tranquilidade para você e sua família.",
+
+  "domain": "associado.funerariareieterno.com.br"
+}
