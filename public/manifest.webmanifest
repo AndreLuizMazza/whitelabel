@@ -1,28 +1,28 @@
 {
-  "name": "Semeador Plano Familiar",
-  "short_name": "Semeador",
+  "name": "Rei Eterno Assistencial",
+  "short_name": "Rei Eterno",
   "description": "Área do associado",
   "display": "standalone",
   "orientation": "portrait",
   "start_url": "/",
   "scope": "/",
-  "theme_color": "#15803D",
+  "theme_color": "#1447B0",
   "background_color": "#FFFFFF",
   "icons": [
     {
-      "src": "https://whitelabel.progem.com.br/arquivos/437/icons/icon-192.png",
+      "src": "https://whitelabel.progem.com.br/arquivos/395/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://whitelabel.progem.com.br/arquivos/437/icons/icon-512.png",
+      "src": "https://whitelabel.progem.com.br/arquivos/395/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://whitelabel.progem.com.br/arquivos/437/icons/icon-maskable-512.png",
+      "src": "https://whitelabel.progem.com.br/arquivos/395/icons/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

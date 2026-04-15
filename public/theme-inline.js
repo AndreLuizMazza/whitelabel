@@ -1,5 +1,5 @@
-/* Gerado de D:\whitelabel-local\web-progem-white-label\config\tenants\semeador.json */
-window.__TENANT__ = {"slug":"semeador","v":2,"assetsBaseUrl":"https://whitelabel.progem.com.br/arquivos/437/","vars":{"--primary":"#15803D","--primary-dark":"#166534","--primary-light":"#22C55E","--secondary":"#6B7280","--on-primary":"#FFFFFF","--surface":"#FFFFFF","--surface-alt":"#F3F7F4","--text":"#111827","--text-muted":"#6B7280","--c-border":"rgba(17,24,39,0.08)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 10%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 18%, transparent)","--nav-active-color":"#15803D","--highlight":"#15803D","--button-hover":"color-mix(in srgb, var(--primary) 25%, #000000)"},"varsDark":{"--surface":"#0B0B0C","--surface-alt":"#141416","--text":"#F9FAFB","--text-muted":"#D1D5DB","--c-border":"rgba(255,255,255,0.14)","--primary":"#22C55E","--primary-dark":"#15803D","--primary-light":"#4ADE80","--secondary":"#9CA3AF","--nav-hover-bg":"color-mix(in srgb, var(--primary) 16%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 28%, transparent)","--nav-active-color":"#FFFFFF","--highlight":"#22C55E","--button-hover":"color-mix(in srgb, var(--primary) 35%, #000000)"},"brand":{"name":"Semeador Plano Familiar","legalName":"Semeador Plano Familiar","shortName":"Semeador","logo":"logo.png","logoDark":"logo-dark.png","favicon":"icons/favicon.png","faviconSvg":"icons/favicon.svg","appleTouchIcon":"icons/apple-touch-icon.png","pwaIcon192":"icons/icon-192.png","pwaIcon512":"icons/icon-512.png","maskableIcon512":"icons/icon-maskable-512.png","ogImage":"icons/og-image.png","pushIcon":"icons/push-icon.png","pushBadge":"icons/push-badge.png"},"shell":{"title":"Semeador","titleTemplate":"%s • Semeador","themeColor":"#15803D","backgroundColor":"#FFFFFF"},"seo":{"metaTitle":"Semeador Plano Familiar","metaDescription":"Cuidado e proteção para sua família. Planos familiares acessíveis com atendimento humanizado e suporte completo em todos os momentos."},"pwa":{"name":"Semeador Plano Familiar","shortName":"Semeador","description":"Área do associado","display":"standalone","orientation":"portrait","startUrl":"/","scope":"/"},"routing":{"primaryDomain":"planosemeador.com.br"},"logo":"logo.png","heroTitle":"Cuidado e proteção para sua família","heroSubtitle":"Planos familiares acessíveis com atendimento humanizado e suporte completo em todos os momentos.","domain":"planosemeador.com.br","logoDark":"logo-dark.png"};
+/* Gerado de D:\whitelabel-local\web-progem-white-label\config\tenants\reieterno.json */
+window.__TENANT__ = {"slug":"reieterno","v":1,"assetsBaseUrl":"https://whitelabel.progem.com.br/arquivos/395/","vars":{"--primary":"#1447B0","--primary-dark":"#0F2F78","--primary-light":"#3B82F6","--secondary":"#5B6474","--on-primary":"#FFFFFF","--surface":"#FFFFFF","--surface-alt":"#F4F8FF","--text":"#0F172A","--text-muted":"#667085","--c-border":"rgba(20,71,176,0.12)","--nav-hover-bg":"color-mix(in srgb, var(--primary) 12%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 22%, transparent)","--nav-active-color":"#1447B0","--highlight":"#D9A91A","--button-hover":"color-mix(in srgb, var(--primary) 30%, #000000)"},"varsDark":{"--surface":"#090B10","--surface-alt":"#0F1522","--text":"#F8FAFC","--text-muted":"#CBD5E1","--c-border":"rgba(255,255,255,0.16)","--primary":"#3F86FF","--primary-dark":"#1447B0","--primary-light":"#74A9FF","--secondary":"#98A2B3","--nav-hover-bg":"color-mix(in srgb, var(--primary) 18%, transparent)","--nav-active-bg":"color-mix(in srgb, var(--primary) 30%, transparent)","--nav-active-color":"#FFFFFF","--highlight":"#E3BC4A","--button-hover":"color-mix(in srgb, var(--primary) 40%, #000000)"},"brand":{"name":"Rei Eterno Assistencial","legalName":"Rei Eterno Assistencial","shortName":"Rei Eterno","logo":"logo.png","logoDark":"logo-dark.png","favicon":"icons/favicon.png","faviconSvg":"icons/favicon.svg","appleTouchIcon":"icons/apple-touch-icon.png","pwaIcon192":"icons/icon-192.png","pwaIcon512":"icons/icon-512.png","maskableIcon512":"icons/icon-maskable-512.png","ogImage":"icons/og-image.png","pushIcon":"icons/push-icon.png","pushBadge":"icons/push-badge.png"},"shell":{"title":"Rei Eterno","titleTemplate":"%s • Rei Eterno","themeColor":"#1447B0","backgroundColor":"#FFFFFF"},"seo":{"metaTitle":"Rei Eterno Assistencial","metaDescription":"Cuidado e proteção com excelência. Planos assistenciais com atendimento humanizado, oferecendo segurança e tranquilidade para você e sua família."},"pwa":{"name":"Rei Eterno Assistencial","shortName":"Rei Eterno","description":"Área do associado","display":"standalone","orientation":"portrait","startUrl":"/","scope":"/"},"routing":{"primaryDomain":"associado.funerariareieterno.com.br"},"logo":"logo.png","heroTitle":"Cuidado e proteção com excelência","heroSubtitle":"Planos assistenciais com atendimento humanizado, oferecendo segurança e tranquilidade para você e sua família.","domain":"associado.funerariareieterno.com.br","logoDark":"logo-dark.png"};
 
 (function(){
   try {
@@ -68,7 +68,7 @@ window.__TENANT__ = {"slug":"semeador","v":2,"assetsBaseUrl":"https://whitelabel
       }
     }
     if (docEl){
-      docEl.setAttribute("data-tenant", t.slug || "semeador");
+      docEl.setAttribute("data-tenant", t.slug || "reieterno");
       docEl.setAttribute("data-theme", choice);
       docEl.setAttribute("data-mode", mode);
       docEl.classList.remove("dark", "theme-dark", "theme-light");
@@ -77,8 +77,8 @@ window.__TENANT__ = {"slug":"semeador","v":2,"assetsBaseUrl":"https://whitelabel
       docEl.setAttribute("data-theme-ready", "1");
     }
 
-    var logoL = "https://whitelabel.progem.com.br/arquivos/437/logo.png";
-    var logoD = "https://whitelabel.progem.com.br/arquivos/437/logo-dark.png";
+    var logoL = "https://whitelabel.progem.com.br/arquivos/395/logo.png";
+    var logoD = "https://whitelabel.progem.com.br/arquivos/395/logo-dark.png";
     if (style) {
       if (logoL) style.setProperty("--tenant-logo-light", 'url("' + logoL + '")');
       if (logoD) style.setProperty("--tenant-logo-dark", 'url("' + logoD + '")');
@@ -86,12 +86,12 @@ window.__TENANT__ = {"slug":"semeador","v":2,"assetsBaseUrl":"https://whitelabel
       if (effLogo) style.setProperty("--tenant-logo", 'url("' + effLogo + '")');
     }
 
-    document.title = "Semeador";
+    document.title = "Rei Eterno";
 
-    var seoMetaTitle = "Semeador Plano Familiar";
-    var seoDesc = "Cuidado e proteção para sua família. Planos familiares acessíveis com atendimento humanizado e suporte completo em todos os momentos.";
-    var seoOgImage = "https://whitelabel.progem.com.br/arquivos/437/icons/og-image.png";
-    var seoOgUrl = "https://planosemeador.com.br/";
+    var seoMetaTitle = "Rei Eterno Assistencial";
+    var seoDesc = "Cuidado e proteção com excelência. Planos assistenciais com atendimento humanizado, oferecendo segurança e tranquilidade para você e sua família.";
+    var seoOgImage = "https://whitelabel.progem.com.br/arquivos/395/icons/og-image.png";
+    var seoOgUrl = "https://associado.funerariareieterno.com.br/";
     var seoTwCard = seoOgImage ? "summary_large_image" : "summary";
     upsertMetaName("description", seoDesc);
     upsertMetaProperty("og:title", seoMetaTitle);
@@ -104,11 +104,11 @@ window.__TENANT__ = {"slug":"semeador","v":2,"assetsBaseUrl":"https://whitelabel
     upsertMetaName("twitter:description", seoDesc);
     if (seoOgImage) upsertMetaName("twitter:image", seoOgImage);
 
-    var fav = "https://whitelabel.progem.com.br/arquivos/437/icons/favicon.png";
+    var fav = "https://whitelabel.progem.com.br/arquivos/395/icons/favicon.png";
     if (fav) upsertLink("icon", "tenant-favicon", fav);
-    var fsvg = "https://whitelabel.progem.com.br/arquivos/437/icons/favicon.svg";
+    var fsvg = "https://whitelabel.progem.com.br/arquivos/395/icons/favicon.svg";
     if (fsvg) upsertLink("icon", "tenant-favicon-svg", fsvg, "image/svg+xml");
-    var ap = "https://whitelabel.progem.com.br/arquivos/437/icons/apple-touch-icon.png";
+    var ap = "https://whitelabel.progem.com.br/arquivos/395/icons/apple-touch-icon.png";
     if (ap) upsertLink("apple-touch-icon", "tenant-apple-touch-icon", ap);
     upsertManifestLink();
 
