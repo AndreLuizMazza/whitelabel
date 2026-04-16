@@ -1,6 +1,6 @@
 {
   "slug": "reieterno",
-  "v": 1,
+  "v": 2,
 
   "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/395/",
 
@@ -54,7 +54,7 @@
     "legalName": "Rei Eterno Assistencial",
     "shortName": "Rei Eterno",
 
-    "logo": "logo.png",
+    "logo": "logo1.png",
     "logoDark": "logo-dark.png",
 
     "favicon": "icons/favicon.png",
@@ -100,7 +100,7 @@
     "primaryDomain": "associado.funerariareieterno.com.br"
   },
 
-  "logo": "logo.png",
+  "logo": "logo1.png",
 
   "heroTitle": "Cuidado e proteção com excelência",
   "heroSubtitle": "Planos assistenciais com atendimento humanizado, oferecendo segurança e tranquilidade para você e sua família.",
