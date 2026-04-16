@@ -175,5 +175,36 @@
     }
   ],
 
+  "content": {
+    "about": {
+      "enabled": true,
+      "photo": "sobre/hero-sobre.jpg",
+      "title": "Quem somos",
+      "description": "Há mais de uma década cuidamos de famílias e dos seus pets com proximidade, respeito e excelência no atendimento.\n\nAcreditamos que assistência de verdade combina proteção, benefícios e pessoas preparadas para ajudar quando mais importa.",
+      "mission": "Oferecer assistência e benefícios que tragam tranquilidade e dignidade às famílias que confiam em nós.",
+      "vision": "Ser referência regional em assistência familiar e pet, reconhecida pela qualidade humana e pela inovação nos serviços.",
+      "values": [
+        { "title": "Humanização", "text": "Cada atendimento é pensado para acolher e orientar com empatia." },
+        { "title": "Transparência", "text": "Informações claras, contratos e canais de contato acessíveis." },
+        "Compromisso com a comunidade"
+      ],
+      "differentials": [
+        { "title": "Rede e benefícios", "text": "Clube de vantagens e parcerias que ampliam o valor do plano." },
+        { "title": "Memorial digital", "text": "Espaço respeitoso para homenagens e memórias, quando necessário." }
+      ],
+      "closing": "Estamos ao seu lado nos momentos do dia a dia e nos que pedem cuidado especial. Fale connosco: a nossa equipa explica o plano certo para a sua realidade.",
+      "galleryTitle": "Ambiente e estrutura",
+      "gallery": [
+        { "image": "sobre/hero-sobre.jpg", "caption": "Presença e acolhimento nas nossas unidades." },
+        { "image": "sobre/og-sobre.png", "caption": "Compromisso com excelência no atendimento." }
+      ],
+      "seo": {
+        "metaTitle": "Sobre nós — São Bento Assistêncial",
+        "metaDescription": "Conheça a nossa história, missão e valores. Assistência familiar e pet com atendimento humanizado.",
+        "ogImage": "sobre/og-sobre.png"
+      }
+    }
+  },
+
   "domain": "demo.progem.com.br"
 }

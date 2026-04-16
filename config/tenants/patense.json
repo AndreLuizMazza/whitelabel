@@ -30,13 +30,13 @@
   "shell": {
     "title": "Grupo Patense",
     "titleTemplate": "%s • Grupo Patense",
-    "themeColor": "#0B82FF",
+    "themeColor": "#166E51",
     "backgroundColor": "#ffffff"
   },
 
   "seo": {
     "metaTitle": "Grupo Patense Serviços Funerários",
-    "metaDescription": "Serviços funerários completos com acolhimento, respeito e estrutura para atender famílias com dignidade em todos os momentos."
+    "metaDescription": "Planos de assistência familiar, memorial online e benefícios com a confiança de uma marca que acolhe famílias há mais de 30 anos."
   },
 
   "pwa": {
@@ -53,67 +53,67 @@
     "primaryDomain": "grupopatense.com.br"
   },
 
-
   "vars": {
-    "--primary": "#004C3F",
-    "--primary-dark": "#003B31",
-    "--primary-light": "#2E7A68",
+    "--primary": "#166E51",
+    "--primary-dark": "#13654A",
+    "--primary-light": "#3FA082",
     "--secondary": "#F2A900",
     "--on-primary": "#ffffff",
     "--surface": "#ffffff",
-    "--surface-alt": "#f6f7fb",
+    "--surface-alt": "#f0f3f1",
     "--text": "#0b1220",
-    "--text-muted": "#5f6b7a",
-    "--c-border": "rgba(0,0,0,0.08)",
-    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 12%, transparent)",
-    "--nav-active-bg": "color-mix(in srgb, var(--primary) 22%, transparent)",
-    "--nav-active-color": "#004C3F",
+    "--text-muted": "#6b7068",
+    "--c-border": "rgba(0,0,0,0.09)",
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 7%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 14%, transparent)",
+    "--nav-active-color": "#166E51",
     "--highlight": "#F2A900",
-    "--button-hover": "color-mix(in srgb, var(--primary) 18%, var(--secondary))"
+    "--button-hover": "color-mix(in srgb, var(--primary) 10%, var(--secondary))"
   },
+
   "varsDark": {
-    "--surface": "#0b1220",
-    "--surface-alt": "#0f172a",
+    "--surface": "#0d1211",
+    "--surface-alt": "#141c19",
     "--text": "#e5e7eb",
-    "--text-muted": "#94a3b8",
-    "--c-border": "rgba(255,255,255,0.12)",
-    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 22%, transparent)",
-    "--nav-active-bg": "color-mix(in srgb, var(--primary) 36%, transparent)",
+    "--text-muted": "#8f9790",
+    "--c-border": "rgba(255,255,255,0.13)",
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 16%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 26%, transparent)",
     "--nav-active-color": "#ffffff",
     "--highlight": "#F2A900",
-    "--button-hover": "color-mix(in srgb, var(--primary) 26%, var(--secondary))"
+    "--button-hover": "color-mix(in srgb, var(--primary) 20%, var(--secondary))"
   },
 
   "logo": "patense.png",
 
-  "heroTitle": "Proteção e tranquilidade para sua família",
-  "heroSubtitle": "Planos de assistência familiar da Funerária Patense, com benefícios exclusivos e atendimento humanizado.",
+  "heroTitle": "Segurança e cuidado para sua família, quando mais importa",
+  "heroSubtitle": "Planos de assistência familiar com benefícios reais, atendimento humanizado e a confiança de quem acolhe famílias há mais de 30 anos.",
   "heroImage": "https://patense.awis.com.br/assets/hero-familia-patense.jpg",
 
   "heroSlides": [
     {
       "id": "familia",
-      "tag": "Assistência familiar & benefícios",
-      "title": "Proteção e tranquilidade para sua família",
-      "subtitle": "Planos completos para garantir segurança financeira e acolhimento em todos os momentos.",
+      "tag": "Assistência familiar",
+      "title": "Proteção completa para sua família",
+      "subtitle": "Tenha segurança, benefícios e atendimento humano com quem tem mais de 30 anos de experiência no cuidado com famílias.",
       "image": "https://patense.awis.com.br/assets/hero-familia-patense.jpg",
       "primary": {
-        "label": "Ver planos agora",
+        "label": "Escolher plano",
         "to": "/planos",
         "variant": "primary"
       },
       "secondary": {
-        "label": "Área do associado",
-        "to": "/login",
+        "label": "Entender como funciona",
+        "to": "/planos",
         "variant": "outline"
       },
       "showValuePills": true
     },
     {
       "id": "memorial",
-      "tag": "Homenagens & lembranças",
-      "title": "Memorial online",
-      "subtitle": "Registre homenagens, mensagens de carinho e acompanhe informações das cerimônias em um só lugar.",
+      "tag": "Memorial online",
+      "title": "Um espaço para lembrar, homenagear e acompanhar",
+      "subtitle": "Acesse informações de cerimônias, publique mensagens e preserve memórias com respeito e acolhimento.",
       "image": "https://patense.awis.com.br/assets/hero-memorial-patense.jpg",
       "primary": {
         "label": "Acessar Memorial",
@@ -125,12 +125,12 @@
     },
     {
       "id": "parceiros",
-      "tag": "Benefícios exclusivos para sua empresa",
-      "title": "Seja nosso parceiro",
-      "subtitle": "Ofereça vantagens para associados e fortaleça sua marca com indicações qualificadas.",
+      "tag": "Parcerias",
+      "title": "Conecte sua empresa a uma rede de confiança",
+      "subtitle": "Gere novas oportunidades e ofereça benefícios relevantes aos associados do Grupo Patense.",
       "image": "https://patense.awis.com.br/assets/hero-parceiros-patense.jpg",
       "primary": {
-        "label": "Quero ser parceiro(a)",
+        "label": "Quero ser parceiro",
         "to": "/beneficios",
         "variant": "primary"
       },
@@ -142,6 +142,82 @@
       "showValuePills": false
     }
   ],
+
+  "content": {
+    "about": {
+      "enabled": true,
+      "photo": "sobre/sobre-nos.jpg",
+      "title": "Quem somos",
+      "description": "Há mais de três décadas, o Grupo Patense acolhe famílias com responsabilidade, respeito e presença verdadeira nos momentos de perda.\n\nNossa trajetória foi construída sobre confiança, continuidade e compromisso com um atendimento digno, sensível e bem conduzido em cada detalhe.",
+      "mission": "Acolher com dignidade, respeito e humanidade, especialmente nos momentos em que as famílias mais precisam.",
+      "vision": "Ser referência no setor funerário pela excelência dos serviços e pela forma humana com que acolhemos cada família.",
+      "values": [
+        {
+          "title": "Ética",
+          "text": "Conduta responsável, transparente e fiel à confiança depositada em nosso trabalho."
+        },
+        {
+          "title": "Empatia",
+          "text": "Escuta, sensibilidade e respeito ao momento de cada família."
+        },
+        {
+          "title": "Profissionalismo",
+          "text": "Equipe preparada, processos seguros e atendimento bem conduzido."
+        },
+        {
+          "title": "Respeito",
+          "text": "Valorização das crenças, tradições e particularidades de cada despedida."
+        },
+        {
+          "title": "Qualidade",
+          "text": "Excelência contínua na estrutura, no cuidado e na entrega."
+        },
+        {
+          "title": "Atendimento humanizado",
+          "text": "Presença genuína, acolhimento e atenção aos detalhes que importam."
+        }
+      ],
+      "differentials": [
+        {
+          "title": "Tradição que transmite confiança",
+          "text": "Mais de 30 anos de atuação dedicada ao acolhimento de famílias mineiras."
+        },
+        {
+          "title": "Presença regional",
+          "text": "Unidades em Patos de Minas, Lagoa Formosa, São Gonçalo do Abaeté, Serra do Salitre e Varjão de Minas."
+        },
+        {
+          "title": "Estrutura e suporte completos",
+          "text": "Organização, cuidado e suporte integral em todas as etapas do atendimento."
+        },
+        {
+          "title": "Memorial e homenagens",
+          "text": "Um espaço respeitoso para registros, mensagens e acompanhamento das cerimônias."
+        }
+      ],
+      "closing": "Cada despedida carrega uma história. Por isso, o Grupo Patense atua com seriedade, sensibilidade e responsabilidade, oferecendo às famílias a segurança de um cuidado verdadeiramente humano.",
+      "galleryTitle": "Nossas unidades e presença",
+      "gallery": [
+        {
+          "image": "sobre/sobre-nos2.jpg",
+          "caption": "Estrutura preparada para acolher com dignidade."
+        },
+        {
+          "image": "sobre/sobre-nos3.jpg",
+          "caption": "Presença regional e compromisso contínuo com as famílias mineiras."
+        },
+        {
+          "image": "sobre/sobre-nos4.jpg",
+          "caption": "Cuidamos de Cada Detalhe com Respeito e Dedicação."
+        }
+      ],
+      "seo": {
+        "metaTitle": "Sobre nós — Grupo Patense",
+        "metaDescription": "Há mais de 30 anos acolhendo famílias com dignidade, respeito e excelência em serviços funerários.",
+        "ogImage": "sobre/sobre-nos.jpg"
+      }
+    }
+  },
 
   "domain": "grupopatense.com.br"
 }

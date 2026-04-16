@@ -1,6 +1,7 @@
 // src/components/Footer.jsx
 import { Link } from "react-router-dom"
 import useTenant from "@/store/tenant"
+import { getTenantContract, isAboutPageVisible } from "@/lib/tenantContent"
 
 export default function Footer() {
   const empresa = useTenant((s) => s.empresa)
@@ -42,6 +43,14 @@ export default function Footer() {
           </div>
 
           <nav className="flex flex-col gap-2 text-xs text-[var(--text-muted)] md:flex-row md:items-center md:gap-6">
+            {isAboutPageVisible(getTenantContract()) && (
+              <Link
+                to="/sobre-nos"
+                className="hover:text-[var(--text)] transition-colors"
+              >
+                Sobre nós
+              </Link>
+            )}
             <Link
               to="/politica-privacidade"
               className="hover:text-[var(--text)] transition-colors"

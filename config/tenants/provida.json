@@ -4,50 +4,76 @@
 
   "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/70/",
 
-  "vars": {
+"vars": {
     "--primary": "#DC2626",
-    "--primary-dark": "#B91C1C",
-    "--primary-light": "#EF4444",
-    "--secondary": "#6B7280",
+    "--primary-dark": "#991B1B",
+    "--primary-light": "#F87171",
+
+    "--secondary": "#16A34A",
+    "--secondary-dark": "#15803D",
+    "--secondary-light": "#4ADE80",
+
     "--on-primary": "#FFFFFF",
 
     "--surface": "#FFFFFF",
-    "--surface-alt": "#F7F7F7",
+    "--surface-alt": "#F9FAFB",
 
-    "--text": "#111827",
-    "--text-muted": "#6B7280",
+    "--text": "#0F172A",
+    "--text-muted": "#64748B",
 
-    "--c-border": "rgba(17,24,39,0.08)",
+    "--c-border": "rgba(15,23,42,0.06)",
 
-    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 10%, transparent)",
-    "--nav-active-bg": "color-mix(in srgb, var(--primary) 18%, transparent)",
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 8%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 14%, transparent)",
     "--nav-active-color": "#DC2626",
 
     "--highlight": "#16A34A",
-    "--button-hover": "color-mix(in srgb, var(--primary) 25%, #000000)"
+
+    "--button-hover": "color-mix(in srgb, var(--primary) 18%, #000000)",
+
+    "--success": "#16A34A",
+    "--success-soft": "color-mix(in srgb, #16A34A 12%, transparent)",
+
+    "--card-bg": "#FFFFFF",
+    "--card-border": "rgba(15,23,42,0.04)",
+
+    "--shadow-soft": "0 4px 20px rgba(0,0,0,0.04)"
   },
 
   "varsDark": {
-    "--surface": "#0B0B0C",
-    "--surface-alt": "#141416",
+    "--surface": "#0A0A0B",
+    "--surface-alt": "#121214",
 
-    "--text": "#F9FAFB",
-    "--text-muted": "#D1D5DB",
+    "--text": "#F8FAFC",
+    "--text-muted": "#CBD5F5",
 
-    "--c-border": "rgba(255,255,255,0.14)",
+    "--c-border": "rgba(255,255,255,0.08)",
 
     "--primary": "#EF4444",
-    "--primary-dark": "#DC2626",
-    "--primary-light": "#F87171",
-    "--secondary": "#9CA3AF",
+    "--primary-dark": "#B91C1C",
+    "--primary-light": "#FCA5A5",
 
-    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 16%, transparent)",
-    "--nav-active-bg": "color-mix(in srgb, var(--primary) 28%, transparent)",
+    "--secondary": "#22C55E",
+    "--secondary-dark": "#16A34A",
+    "--secondary-light": "#86EFAC",
+
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 14%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 22%, transparent)",
     "--nav-active-color": "#FFFFFF",
 
     "--highlight": "#22C55E",
-    "--button-hover": "color-mix(in srgb, var(--primary) 35%, #000000)"
+
+    "--button-hover": "color-mix(in srgb, var(--primary) 28%, #000000)",
+
+    "--success": "#22C55E",
+    "--success-soft": "color-mix(in srgb, #22C55E 18%, transparent)",
+
+    "--card-bg": "#141416",
+    "--card-border": "rgba(255,255,255,0.06)",
+
+    "--shadow-soft": "0 6px 30px rgba(0,0,0,0.25)"
   },
+
 
   "brand": {
     "name": "Provida",
@@ -105,3 +131,5 @@
 
   "domain": "planoprovida.com.br"
 }
+
+

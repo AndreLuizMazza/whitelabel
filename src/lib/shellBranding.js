@@ -124,5 +124,6 @@ export function resolvePageTitle(pathname = "/") {
   if (pathname === "/area/pagamentos") return "Histórico de pagamentos";
   if (pathname === "/cadastro") return "Contratação";
   if (pathname === "/confirmacao") return "Confirmação";
+  if (pathname === "/sobre-nos") return "Sobre nós";
   return "";
 }
