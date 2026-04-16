@@ -4,6 +4,8 @@
  * Somente `=== false` desabilita.
  */
 
+import { getTenantContract, isAboutPageVisible } from "@/lib/tenantContent";
+
 /** @param {Record<string, unknown> | null | undefined} empresa */
 export function isMemorialEnabled(empresa) {
   return empresa?.habilitaMemorial !== false
@@ -15,7 +17,7 @@ export function isBeneficiosEnabled(empresa) {
 }
 
 /**
- * Remove itens de menu cujo módulo está desligado (keys `beneficios` e `memorial`).
+ * Remove itens de menu: módulos API (`beneficios`, `memorial`) e página Sobre (`sobre-nos` via contrato).
  * @param {readonly { key: string }[]} links
  * @param {Record<string, unknown> | null | undefined} empresa
  */
@@ -23,6 +25,7 @@ export function filterMainMenuLinksForTenant(links, empresa) {
   return links.filter((item) => {
     if (item.key === 'beneficios') return isBeneficiosEnabled(empresa)
     if (item.key === 'memorial') return isMemorialEnabled(empresa)
+    if (item.key === 'sobre-nos') return isAboutPageVisible(getTenantContract())
     return true
   })
 }

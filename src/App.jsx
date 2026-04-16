@@ -50,6 +50,8 @@ import Perfil from '@/pages/Perfil.jsx'
 // 🔐 Novas páginas da área do associado
 import DependentesPage from '@/pages/DependentesPage.jsx'
 import HistoricoPagamentos from '@/pages/HistoricoPagamentos.jsx'
+import SobreNos from '@/pages/SobreNos.jsx'
+import TenantAboutGate from '@/components/TenantAboutGate.jsx'
 
 // 🧩 Tenant (para título dinâmico)
 import useTenant from '@/store/tenant'
@@ -162,6 +164,14 @@ export default function App() {
               />
               <Route path="/termos-uso" element={<TermosUso />} />
               <Route path="/filiais" element={<Filiais />} />
+              <Route
+                path="/sobre-nos"
+                element={
+                  <TenantAboutGate>
+                    <SobreNos />
+                  </TenantAboutGate>
+                }
+              />
               <Route path="/verificar/:cpf" element={<VerificarCarteirinha />} />
 
               {/* Memorial */}

@@ -220,7 +220,7 @@ export default function Navbar() {
   // Links exibidos no DESKTOP: apenas Planos, Benefícios, Memorial
   // (no Capacitor: remove Benefícios)
   const DESKTOP_MENU = mainMenuForTenant
-    .filter((item) => ['planos', 'beneficios', 'memorial'].includes(item.key))
+    .filter((item) => ['planos', 'beneficios', 'memorial', 'sobre-nos'].includes(item.key))
     .filter((item) => !(inCapacitorApp && item.key === 'beneficios'))
 
   // Menu completo usado no MOBILE (global)

@@ -5,6 +5,7 @@ import {
   Layers,
   Gift,
   HeartHandshake,
+  Building2,
   FileText,
   Phone,
   UserSquare2,
@@ -56,6 +57,12 @@ export const MAIN_MENU_LINKS = [
     to: "/memorial",
     label: "Memorial",
     icon: HeartHandshake,
+  },
+  {
+    key: "sobre-nos",
+    to: "/sobre-nos",
+    label: "Sobre nós",
+    icon: Building2,
   },
 
   // Serviços
@@ -117,7 +124,7 @@ export const PRIVATE_MENU_LINKS = [
   },
 ]
 
-const MENU_ESSENTIAL_KEYS = ["home", "planos", "beneficios", "memorial"]
+const MENU_ESSENTIAL_KEYS = ["home", "planos", "beneficios", "memorial", "sobre-nos"]
 const MENU_SERVICOS_KEYS = ["segunda-via", "contatos"]
 const MENU_SUPORTE_KEYS = ["ajuda"]
 

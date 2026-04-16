@@ -1,28 +1,28 @@
 {
-  "name": "Rei Eterno Assistencial",
-  "short_name": "Rei Eterno",
+  "name": "Grupo Patense Serviços Funerários",
+  "short_name": "Patense",
   "description": "Área do associado",
   "display": "standalone",
   "orientation": "portrait",
   "start_url": "/",
   "scope": "/",
-  "theme_color": "#1447B0",
-  "background_color": "#FFFFFF",
+  "theme_color": "#166E51",
+  "background_color": "#ffffff",
   "icons": [
     {
-      "src": "https://whitelabel.progem.com.br/arquivos/395/icons/icon-192.png",
+      "src": "https://whitelabel.progem.com.br/arquivos/274/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://whitelabel.progem.com.br/arquivos/395/icons/icon-512.png",
+      "src": "https://whitelabel.progem.com.br/arquivos/274/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://whitelabel.progem.com.br/arquivos/395/icons/icon-maskable-512.png",
+      "src": "https://whitelabel.progem.com.br/arquivos/274/icons/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
