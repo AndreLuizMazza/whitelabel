@@ -28,7 +28,7 @@ import HeaderNotificationsBell from "@/components/HeaderNotificationsBell"
  * Referência única para Navbar, sidebar e mobile drawer.
  *
  * Organização premium (BigTech):
- * - Essencial: Home, Planos, Benefícios, Memorial
+ * - Essencial: Home, Planos, Produtos, Benefícios, Memorial
  * - Serviços: 2ª Via, Contatos
  * - Suporte: Ajuda
  */
@@ -131,7 +131,7 @@ export const PRIVATE_MENU_LINKS = [
   },
 ]
 
-const MENU_ESSENTIAL_KEYS = ["home", "planos", "beneficios", "memorial", "sobre-nos"]
+const MENU_ESSENTIAL_KEYS = ["home", "planos", "produtos", "beneficios", "memorial", "sobre-nos"]
 const MENU_SERVICOS_KEYS = ["segunda-via", "contatos"]
 const MENU_SUPORTE_KEYS = ["ajuda"]
 
