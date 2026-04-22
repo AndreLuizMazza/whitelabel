@@ -13,6 +13,8 @@ import Footer from './components/Footer.jsx'
 import Home from './pages/Home.jsx'
 import PlanosGrid from './pages/PlanosGrid.jsx'
 import PlanoDetalhe from './pages/PlanoDetalhe.jsx'
+import Produtos from './pages/Produtos.jsx'
+import ProdutoDetalhe from './pages/ProdutoDetalhe.jsx'
 import ContratoPage from './pages/ContratoPage.jsx'
 import PrivateRoute from './components/PrivateRoute'
 import AreaUsuario from './pages/AreaUsuario.jsx'
@@ -116,7 +118,8 @@ export default function App() {
     location.pathname === '/confirmacao' ||
     location.pathname === '/criar-conta' ||
     location.pathname === '/login' ||
-    location.pathname.startsWith('/planos/') // ✅ novo: esconde no detalhe do plano
+    location.pathname.startsWith('/planos/') ||
+    location.pathname.startsWith('/produtos/') // detalhe do produto: foco na vitrine
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -134,6 +137,8 @@ export default function App() {
               <Route path="/" element={<Home />} />
               <Route path="/planos" element={<PlanosGrid />} />
               <Route path="/planos/:id" element={<PlanoDetalhe />} />
+              <Route path="/produtos" element={<Produtos />} />
+              <Route path="/produtos/:id" element={<ProdutoDetalhe />} />
               <Route
                 path="/beneficios"
                 element={

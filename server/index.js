@@ -507,6 +507,36 @@ app.get('/api/v1/planos/:id', async (req, res) => {
   }
 });
 
+/* ===== Produtos (catálogo / vitrine) ===== */
+app.get('/api/v1/produtos', async (req, res) => {
+  try {
+    const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    const url = `${BASE}/api/v1/produtos${qs}`;
+    const r = await fetchWithClientTokenDedupRetry(url, req, { dedupMs: 400 });
+    const data = await readAsJsonOrText(r);
+    console.log('BFF /api/v1/produtos ->', r.status, r._cached ? '(cached/dedup)' : '');
+    if (r.status === 204) return res.status(204).end();
+    if (!r.ok) return res.status(r.status).json(data);
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: 'Falha ao buscar produtos', message: String(e) });
+  }
+});
+
+app.get('/api/v1/produtos/:id', async (req, res) => {
+  try {
+    const id = encodeURIComponent(req.params.id);
+    const url = `${BASE}/api/v1/produtos/${id}`;
+    const r = await fetchWithClientTokenDedupRetry(url, req, { dedupMs: 400 });
+    const data = await readAsJsonOrText(r);
+    console.log('BFF /api/v1/produtos/:id ->', r.status, r._cached ? '(cached/dedup)' : '');
+    if (!r.ok) return res.status(r.status).json(data);
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: 'Falha ao buscar produto', message: String(e) });
+  }
+});
+
 /* ===== Cupons ===== */
 app.get('/api/v1/cupons/:codigo', async (req, res) => {
   try {

@@ -3,6 +3,7 @@ import { NavLink, useLocation, Link } from "react-router-dom"
 import {
   Home,
   Layers,
+  Package,
   Gift,
   HeartHandshake,
   Building2,
@@ -45,6 +46,12 @@ export const MAIN_MENU_LINKS = [
     to: "/planos",
     label: "Planos",
     icon: Layers,
+  },
+  {
+    key: "produtos",
+    to: "/produtos",
+    label: "Produtos",
+    icon: Package,
   },
   {
     key: "beneficios",
