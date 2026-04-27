@@ -102,9 +102,17 @@ export default function App() {
 
   const location = useLocation()
 
-  // ✅ Dock NÃO deve existir no fluxo de contratação.
+  // ✅ Dock NÃO deve existir no fluxo de contratação, memorial, etc.
+  // Em produtos, cada cartão (e o detalhe) já têm CTA; evita CTA fixo a competir (mobile).
   const hideContactDock =
-    location.pathname === '/cadastro' || location.pathname === '/confirmacao' || location.pathname === '/criar-conta' || location.pathname === '/area'|| location.pathname === '/memorial' || location.pathname === '/login'
+    location.pathname === '/cadastro' ||
+    location.pathname === '/confirmacao' ||
+    location.pathname === '/criar-conta' ||
+    location.pathname === '/area' ||
+    location.pathname === '/memorial' ||
+    location.pathname === '/login' ||
+    location.pathname === '/produtos' ||
+    location.pathname.startsWith('/produtos/')
 
   // ✅ Footer NÃO deve aparecer na Área do Associado, no fluxo de contratação, e no PlanoDetalhe (/planos/:id).
   const hideFooter =

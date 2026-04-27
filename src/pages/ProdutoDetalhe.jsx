@@ -1,6 +1,6 @@
 // Detalhe do produto — layout premium, responsivo (stack mobile / 2 col desktop)
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 import { MessageCircle, ArrowLeft, ImageOff } from "lucide-react";
 import api from "@/lib/api.js";
 import useTenant from "@/store/tenant";
@@ -11,6 +11,8 @@ import {
   formatProdutoBrl,
   productShowcaseFontClass,
   formatProductNameForDisplay,
+  formatProdutoCategoriaLabel,
+  buildCatalogListSearchString,
 } from "@/lib/produtoUtils.js";
 
 function DetalheImage({ src, nome }) {
@@ -56,6 +58,7 @@ function DetalheImage({ src, nome }) {
 export default function ProdutoDetalhe() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const empresa = useTenant((s) => s.empresa);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -65,6 +68,11 @@ export default function ProdutoDetalhe() {
     () => (resolveTenantPhone(empresa) || resolveGlobalFallback() || "").toString(),
     [empresa]
   );
+
+  const backToList = useMemo(() => {
+    const s = buildCatalogListSearchString(location.search);
+    return s ? { pathname: "/produtos", search: s } : "/produtos";
+  }, [location.search]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -95,6 +103,7 @@ export default function ProdutoDetalhe() {
   const preco = data?.preco != null ? formatProdutoBrl(data.preco) : null;
   const nome =
     data?.nome != null ? formatProductNameForDisplay(data.nome) : "Produto";
+  const categoriaLabel = formatProdutoCategoriaLabel(data?.categoria);
   const hrefWa = buildWaHref({
     number: phoneBase,
     message: PRODUTO_WA_MSG(data?.nome != null ? data.nome : "Produto"),
@@ -132,7 +141,7 @@ export default function ProdutoDetalhe() {
       <div className={`min-h-[50vh] ${productShowcaseFontClass} px-4 py-20 text-center`}>
         <p className="text-[var(--text-muted)]">Produto não encontrado.</p>
         <Link
-          to="/produtos"
+          to={backToList}
           className="mt-6 inline-flex items-center gap-2 text-[var(--primary)] font-medium"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -148,7 +157,7 @@ export default function ProdutoDetalhe() {
         <p className="text-red-600 dark:text-red-400">Não foi possível carregar o produto.</p>
         <button
           type="button"
-          onClick={() => navigate("/produtos")}
+          onClick={() => navigate(backToList)}
           className="mt-4 text-[var(--primary)] underline"
         >
           Ver todos os produtos
@@ -161,7 +170,7 @@ export default function ProdutoDetalhe() {
     <div className={`min-h-screen pb-24 sm:pb-12 ${productShowcaseFontClass}`}>
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10">
         <Link
-          to="/produtos"
+          to={backToList}
           className="group inline-flex items-center gap-2 text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors"
         >
           <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
@@ -181,6 +190,21 @@ export default function ProdutoDetalhe() {
                 className="text-xs sm:text-sm tracking-[0.12em] uppercase text-[var(--text-muted)] font-medium"
               >
                 Ref. {data.sku}
+              </p>
+            ) : null}
+            {categoriaLabel ? (
+              <p className="mt-2">
+                <span
+                  className="inline-block rounded-full px-3 py-1 text-[0.7rem] sm:text-xs font-medium tracking-wide uppercase"
+                  style={{
+                    color: "var(--text)",
+                    background:
+                      "color-mix(in srgb, var(--primary) 12%, var(--surface) 88%)",
+                    border: "1px solid color-mix(in srgb, var(--c-border) 50%, transparent)",
+                  }}
+                >
+                  {categoriaLabel}
+                </span>
               </p>
             ) : null}
             <h1

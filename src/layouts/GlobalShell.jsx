@@ -22,6 +22,7 @@ import useTenant from "@/store/tenant"
 import { filterMainMenuLinksForTenant } from "@/lib/tenantModules"
 import ThemeToggle from "@/components/ThemeToggle"
 import HeaderNotificationsBell from "@/components/HeaderNotificationsBell"
+import { getProdutosMenuTo } from "@/lib/produtoUtils"
 
 /**
  * MENU PRINCIPAL – PÚBLICO
@@ -289,8 +290,12 @@ export default function GlobalShell({ children }) {
             ) : (
               <NavLink
                 key={item.key}
-                to={item.to}
-                end={item.exact}
+                to={
+                  item.key === "produtos"
+                    ? getProdutosMenuTo(location.pathname, location.search)
+                    : item.to
+                }
+                end={item.exact || item.key === "produtos"}
                 className={({ isActive }) =>
                   baseItemClass + " " + (isActive ? activeClass : inactiveClass)
                 }

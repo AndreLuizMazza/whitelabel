@@ -300,6 +300,24 @@ async function fetchDedup(url, options = {}, { dedupMs = 400, cacheMs = 0 } = {}
   return p;
 }
 
+/** Repassa query do Express para a API (confiável após rewrites / trust proxy; `req.url` pode perder `?`). */
+function buildUpstreamQueryFromExpressQuery(query) {
+  if (!query || typeof query !== 'object') return '';
+  const usp = new URLSearchParams();
+  for (const [k, v] of Object.entries(query)) {
+    if (v == null || v === '') continue;
+    if (Array.isArray(v)) {
+      for (const x of v) {
+        if (x != null && x !== '') usp.append(k, String(x));
+      }
+    } else {
+      usp.append(k, String(v));
+    }
+  }
+  const s = usp.toString();
+  return s ? `?${s}` : '';
+}
+
 /** Combina client token + dedup + retry 401 (1x) */
 async function fetchWithClientTokenDedupRetry(url, req, { dedupMs = 400, cacheMs = 0 } = {}) {
   const baseHeaders = injectHeadersFromReq(req);
@@ -510,7 +528,7 @@ app.get('/api/v1/planos/:id', async (req, res) => {
 /* ===== Produtos (catálogo / vitrine) ===== */
 app.get('/api/v1/produtos', async (req, res) => {
   try {
-    const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    const qs = buildUpstreamQueryFromExpressQuery(req.query);
     const url = `${BASE}/api/v1/produtos${qs}`;
     const r = await fetchWithClientTokenDedupRetry(url, req, { dedupMs: 400 });
     const data = await readAsJsonOrText(r);

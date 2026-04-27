@@ -1,5 +1,73 @@
 /** Utilitários compartilhados — catálogo de produtos (vitrine) */
 
+const CATALOG_QUERY_KEYS = ["categoria", "q", "page"];
+
+export const CATALOG_CATEGORIA_VALIDAS = new Set(["URNA", "COROA", "VESTIMENTA", "OUTROS"]);
+
+/**
+ * URNA, COROA, VESTIMENTA, OUTROS — aceita uRnA, etc. (NFKC + en-US).
+ * @param {string|null|undefined} raw
+ * @returns {string} códigos válidos ou `""`
+ */
+export function normalizeCatalogCategoriaValue(raw) {
+  if (raw == null) return "";
+  const u = String(raw).normalize("NFKC").trim().toLocaleUpperCase("en-US");
+  return CATALOG_CATEGORIA_VALIDAS.has(u) ? u : "";
+}
+
+/**
+ * Reconstrói a query do catálogo a partir de `location.search` (só categoria, q, page).
+ * @param {string} [search] — ex.: `?categoria=URNA&q=foo` ou com `?`
+ * @returns {string} `?...` ou `""`
+ */
+export function buildCatalogListSearchString(search) {
+  if (search == null) return "";
+  const raw = String(search);
+  const q0 = raw.startsWith("?") ? raw.slice(1) : raw;
+  if (!q0) return "";
+  const p = new URLSearchParams(q0);
+  const n = new URLSearchParams();
+  for (const k of CATALOG_QUERY_KEYS) {
+    if (!p.has(k)) continue;
+    const v = p.get(k);
+    if (k === "categoria") {
+      const c = normalizeCatalogCategoriaValue(v);
+      if (c) n.set(k, c);
+      continue;
+    }
+    if (k === "q" && !(v && String(v).trim())) continue;
+    n.set(k, v);
+  }
+  const s = n.toString();
+  return s ? `?${s}` : "";
+}
+
+/**
+ * Destino do item "Produtos" no menu: mantém filtros ao voltar do detalhe (`/produtos/:id?…`) ou na própria lista.
+ * @param {string} pathname
+ * @param {string} search
+ * @returns {import("react-router-dom").To}
+ */
+export function getProdutosMenuTo(pathname, search) {
+  const s = buildCatalogListSearchString(search);
+  if (pathname === "/produtos" || (pathname.startsWith("/produtos/") && pathname !== "/produtos")) {
+    if (s) return { pathname: "/produtos", search: s };
+  }
+  return "/produtos";
+}
+
+/** Rótulo curto para chips/badges (valores da API: URNA, COROA, …). */
+export function formatProdutoCategoriaLabel(categoria) {
+  if (!categoria || typeof categoria !== "string") return null;
+  const m = {
+    URNA: "Urna",
+    COROA: "Coroa",
+    VESTIMENTA: "Vestimenta",
+    OUTROS: "Outros",
+  };
+  return m[normalizeCatalogCategoriaValue(categoria)] || null;
+}
+
 export const PRODUTO_WA_MSG = (nome) =>
   `Olá! Tenho interesse no produto: ${nome}. Pode me passar mais informações?`;
 
