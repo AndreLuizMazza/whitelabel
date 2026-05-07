@@ -13,6 +13,7 @@ import { MAIN_MENU_LINKS, PRIVATE_MENU_LINKS } from '@/layouts/GlobalShell.jsx'
 import { filterMainMenuLinksForTenant } from '@/lib/tenantModules'
 import { getTenantInitials } from '@/lib/tenantBranding'
 import { useTenantLogoUrl } from '@/lib/tenantLogoRuntime'
+import { getProdutosMenuTo } from '@/lib/produtoUtils'
 
 /* ===================== runtime (Capacitor) ===================== */
 function isCapacitorRuntime() {
@@ -217,10 +218,10 @@ export default function Navbar() {
     [empresa]
   )
 
-  // Links exibidos no DESKTOP: apenas Planos, Benefícios, Memorial
+  // Links exibidos no DESKTOP: Planos, Produtos, Benefícios, Memorial, Sobre
   // (no Capacitor: remove Benefícios)
   const DESKTOP_MENU = mainMenuForTenant
-    .filter((item) => ['planos', 'beneficios', 'memorial', 'sobre-nos'].includes(item.key))
+    .filter((item) => ['planos', 'produtos', 'beneficios', 'memorial', 'sobre-nos'].includes(item.key))
     .filter((item) => !(inCapacitorApp && item.key === 'beneficios'))
 
   // Menu completo usado no MOBILE (global)
@@ -270,7 +271,16 @@ export default function Navbar() {
             {DESKTOP_MENU.map((item) => {
               const Icon = item.icon
               return (
-                <NavLink key={item.key} to={item.to} className={linkClass} end={item.exact}>
+                <NavLink
+                  key={item.key}
+                  to={
+                    item.key === 'produtos'
+                      ? getProdutosMenuTo(location.pathname, location.search)
+                      : item.to
+                  }
+                  className={linkClass}
+                  end={item.exact || item.key === 'produtos'}
+                >
                   {({ isActive }) => (
                     <>
                       <ActiveBar isActive={isActive} />
@@ -570,8 +580,12 @@ export default function Navbar() {
                 ) : (
                   <NavLink
                     key={item.key}
-                    to={item.to}
-                    end={item.exact}
+                    to={
+                      item.key === 'produtos'
+                        ? getProdutosMenuTo(location.pathname, location.search)
+                        : item.to
+                    }
+                    end={item.exact || item.key === 'produtos'}
                     onClick={() => setMobileOpen(false)}
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-5 py-3 mx-3 rounded-lg ${

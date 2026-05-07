@@ -3,6 +3,7 @@ import { NavLink, useLocation, Link } from "react-router-dom"
 import {
   Home,
   Layers,
+  Package,
   Gift,
   HeartHandshake,
   Building2,
@@ -21,13 +22,14 @@ import useTenant from "@/store/tenant"
 import { filterMainMenuLinksForTenant } from "@/lib/tenantModules"
 import ThemeToggle from "@/components/ThemeToggle"
 import HeaderNotificationsBell from "@/components/HeaderNotificationsBell"
+import { getProdutosMenuTo } from "@/lib/produtoUtils"
 
 /**
  * MENU PRINCIPAL – PÚBLICO
  * Referência única para Navbar, sidebar e mobile drawer.
  *
  * Organização premium (BigTech):
- * - Essencial: Home, Planos, Benefícios, Memorial
+ * - Essencial: Home, Planos, Produtos, Benefícios, Memorial
  * - Serviços: 2ª Via, Contatos
  * - Suporte: Ajuda
  */
@@ -45,6 +47,12 @@ export const MAIN_MENU_LINKS = [
     to: "/planos",
     label: "Planos",
     icon: Layers,
+  },
+  {
+    key: "produtos",
+    to: "/produtos",
+    label: "Produtos",
+    icon: Package,
   },
   {
     key: "beneficios",
@@ -124,7 +132,7 @@ export const PRIVATE_MENU_LINKS = [
   },
 ]
 
-const MENU_ESSENTIAL_KEYS = ["home", "planos", "beneficios", "memorial", "sobre-nos"]
+const MENU_ESSENTIAL_KEYS = ["home", "planos", "produtos", "beneficios", "memorial", "sobre-nos"]
 const MENU_SERVICOS_KEYS = ["segunda-via", "contatos"]
 const MENU_SUPORTE_KEYS = ["ajuda"]
 
@@ -282,8 +290,12 @@ export default function GlobalShell({ children }) {
             ) : (
               <NavLink
                 key={item.key}
-                to={item.to}
-                end={item.exact}
+                to={
+                  item.key === "produtos"
+                    ? getProdutosMenuTo(location.pathname, location.search)
+                    : item.to
+                }
+                end={item.exact || item.key === "produtos"}
                 className={({ isActive }) =>
                   baseItemClass + " " + (isActive ? activeClass : inactiveClass)
                 }

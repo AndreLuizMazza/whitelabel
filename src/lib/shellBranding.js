@@ -99,6 +99,8 @@ export function resolvePageTitle(pathname = "/") {
   if (pathname === "/") return "Início";
   if (pathname === "/planos") return "Planos";
   if (pathname.startsWith("/planos/")) return "Detalhes do plano";
+  if (pathname === "/produtos") return "Produtos";
+  if (pathname.startsWith("/produtos/")) return "Detalhe do produto";
   if (pathname === "/beneficios") return "Clube de Benefícios";
   if (pathname.startsWith("/beneficios/")) return "Benefício";
   if (pathname === "/contratos") return "Contratos";
