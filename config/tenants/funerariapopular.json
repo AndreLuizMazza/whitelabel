@@ -1,58 +1,13 @@
 {
   "slug": "funerariapopular",
-  "v": 1,
+  "v": 2,
 
   "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/438/",
 
-  "vars": {
-    "--primary": "#1E3A8A",
-    "--primary-dark": "#172554",
-    "--primary-light": "#3B5FCC",
-    "--secondary": "#6B7280",
-    "--on-primary": "#FFFFFF",
-
-    "--surface": "#FFFFFF",
-    "--surface-alt": "#F3F6FB",
-
-    "--text": "#0B1220",
-    "--text-muted": "#6B7280",
-
-    "--c-border": "rgba(17,24,39,0.10)",
-
-    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 14%, transparent)",
-    "--nav-active-bg": "color-mix(in srgb, var(--primary) 24%, transparent)",
-    "--nav-active-color": "#1E3A8A",
-
-    "--highlight": "#C9A227",
-    "--button-hover": "color-mix(in srgb, var(--primary) 32%, #000000)"
-  },
-
-  "varsDark": {
-    "--surface": "#0A0A0B",
-    "--surface-alt": "#121214",
-
-    "--text": "#F9FAFB",
-    "--text-muted": "#D1D5DB",
-
-    "--c-border": "rgba(255,255,255,0.18)",
-
-    "--primary": "#4F6DFF",
-    "--primary-dark": "#1E3A8A",
-    "--primary-light": "#7C93FF",
-    "--secondary": "#9CA3AF",
-
-    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 22%, transparent)",
-    "--nav-active-bg": "color-mix(in srgb, var(--primary) 36%, transparent)",
-    "--nav-active-color": "#FFFFFF",
-
-    "--highlight": "#F2D06B",
-    "--button-hover": "color-mix(in srgb, var(--primary) 42%, #000000)"
-  },
-
-  "brand": {
-    "name": "Funerária Popular",
-    "legalName": "Funerária Popular",
-    "shortName": "Popular",
+"brand": {
+    "name": "Assistência Funerária Popular",
+    "legalName": "Assistência Funerária Popular",
+    "shortName": "Plano Vida Popular",
 
     "logo": "logo.png",
     "logoDark": "logo-dark.png",
@@ -73,20 +28,20 @@
   },
 
   "shell": {
-    "title": "Funerária Popular",
-    "titleTemplate": "%s • Funerária Popular",
-    "themeColor": "#1E3A8A",
-    "backgroundColor": "#FFFFFF"
+    "title": "Plano Vida Popular",
+    "titleTemplate": "%s • Plano Vida Popular",
+    "themeColor": "#1E2F6F",
+    "backgroundColor": "#ffffff"
   },
 
   "seo": {
-    "metaTitle": "Funerária Popular",
-    "metaDescription": "Proteção e cuidado para sua família. Planos acessíveis com atendimento humanizado e segurança para garantir tranquilidade em todos os momentos."
+    "metaTitle": "Assistência Funerária Popular",
+    "metaDescription": "Proteção, economia e tranquilidade para toda a família."
   },
 
   "pwa": {
-    "name": "Funerária Popular",
-    "shortName": "Popular",
+    "name": "Assistência Funerária Popular",
+    "shortName": "Plano Vida Popular",
     "description": "Área do associado",
     "display": "standalone",
     "orientation": "portrait",
@@ -98,10 +53,176 @@
     "primaryDomain": "planovidapopular.com.br"
   },
 
+
+  "vars": {
+    "--primary": "#1E3A8A",
+    "--primary-dark": "#1E2F6F",
+    "--primary-light": "#3B5FCC",
+    "--secondary": "#6B7280",
+    "--on-primary": "#FFFFFF",
+    "--surface": "#FFFFFF",
+    "--surface-alt": "#F5F7FB",
+    "--text": "#111827",
+    "--text-muted": "#6B7280",
+    "--c-border": "rgba(17,24,39,0.08)",
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 10%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 18%, transparent)",
+    "--nav-active-color": "#1E3A8A",
+    "--highlight": "#D4AF37",
+    "--button-hover": "color-mix(in srgb, var(--primary) 25%, #000000)"
+  },
+
+  "varsDark": {
+    "--surface": "#0B0B0C",
+    "--surface-alt": "#141416",
+    "--text": "#F9FAFB",
+    "--text-muted": "#D1D5DB",
+    "--c-border": "rgba(255,255,255,0.14)",
+    "--primary": "#3B5FCC",
+    "--primary-dark": "#1E3A8A",
+    "--primary-light": "#6B85FF",
+    "--secondary": "#9CA3AF",
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 16%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 28%, transparent)",
+    "--nav-active-color": "#FFFFFF",
+
+    "--highlight": "#E6C55A",
+    "--button-hover": "color-mix(in srgb, var(--primary) 35%, #000000)"
+  },
+
   "logo": "logo.png",
 
   "heroTitle": "Proteção e cuidado para sua família",
   "heroSubtitle": "Planos acessíveis com atendimento humanizado e segurança para garantir tranquilidade em todos os momentos.",
+  "heroImage": "https://funerariapopular.awis.com.br/assets/hero-funeraria-popular.png",
+
+  "heroSlides": [
+    {
+      "id": "familia",
+      "tag": "Assistência familiar",
+      "title": "Proteção completa para sua família",
+      "subtitle": "Tenha segurança, benefícios e atendimento humano com quem tem mais de 30 anos de experiência no cuidado com famílias.",
+      "image": "https://funerariapopular.awis.com.br/assets/hero-funeraria-popular.png",
+      "primary": {
+        "label": "Escolher plano",
+        "to": "/planos",
+        "variant": "primary"
+      },
+      "showValuePills": true
+    },
+    {
+      "id": "memorial",
+      "tag": "Memorial online",
+      "title": "Visite nosso Memorial Online",
+      "subtitle": "Acompanhe informações das cerimônias, acenda uma vela virtual e deixe sua mensagem de carinho.",
+      "image": "https://funerariapopular.awis.com.br/assets/hero-memorial-popular.png",
+      "primary": {
+        "label": "Acessar Memorial",
+        "to": "/memorial",
+        "variant": "primary"
+      },
+      "secondary": null,
+      "showValuePills": false
+    },
+    {
+      "id": "parceiros",
+      "tag": "Parcerias",
+      "title": "Conecte sua empresa a uma rede de confiança",
+      "subtitle": "Gere novas oportunidades e ofereça benefícios relevantes aos associados do Grupo Popular.",
+      "image": "https://funerariapopular.awis.com.br/assets/hero-parceiros-popular.png",
+      "primary": {
+        "label": "Quero ser parceiro",
+        "to": "/beneficios",
+        "variant": "primary"
+      },
+      "secondary": {
+        "label": "Falar com o time",
+        "to": "https://wa.me//5548996252533?text=Ola!%20Quero%20ser%20parceiro%20do%20Grupo%20Popular",
+        "variant": "outline"
+      },
+      "showValuePills": false
+    }
+  ],
+
+  "content": {
+    "about": {
+      "enabled": true,
+      "photo": "sobre/sobre-nos.png",
+      "title": "Quem somos",
+      "description": "Estamos há mais de 40 anos no ramo funerário, por meio do fundador Hélio Monteiro, construindo uma trajetória baseada na confiança, seriedade e compromisso com as famílias.",
+      "mission": "Proteger e cuidar das famílias com dignidade, oferecendo assistência familiar acessível, com transparência, suporte completo e acolhimento verdadeiro em todos os momentos.",
+      "vision": "Levar proteção, tranquilidade e acesso a serviços essenciais de forma acessível e transparente.",
+      "values": [
+        {
+          "title": "Ética",
+          "text": "Preço justo e acessível para as famílias."
+        },
+        {
+          "title": "Empatia",
+          "text": "Acolhimento humano com empatia e respeito."
+        },
+        {
+          "title": "Profissionalismo",
+          "text": "Transparência total, sem surpresas."
+        },
+        {
+          "title": "Respeito",
+          "text": "Dignidade em cada atendimento."
+        },
+        {
+          "title": "Qualidade",
+          "text": "Agilidade e suporte imediato."
+        },
+        {
+          "title": "Atendimento humanizado",
+          "text": "Suporte completo antes, durante e após os momentos mais difíceis."
+        }
+      ],
+      "differentials": [
+        {
+          "title": "Estrutura e suporte completos",
+          "text": "Organização, cuidado e suporte integral em todas as etapas do atendimento."
+        },
+        {
+          "title": "Memorial e homenagens",
+          "text": "Um espaço respeitoso para registros, mensagens e acompanhamento das cerimônias."
+        }
+      ],
+      "closing": "Cada despedida representa uma história única. Por isso, a Funerária Popular oferece serviços funerários com seriedade, sensibilidade e responsabilidade, garantindo às famílias um atendimento humano, seguro e acolhedor em todos os momentos.",
+      "galleryTitle": "Ambiente e estrutura",
+      "gallery": [
+        {
+          "image": "sobre/sobre-nos2.png",
+          "caption": "Presença e acolhimento na nossa unidade."
+        },
+        {
+          "image": "sobre/sobre-nos3.png",
+          "caption": "Compromisso com excelência no atendimento."
+        },
+        {
+          "image": "sobre/sobre-nos4.png",
+          "caption": "Cuidando de cada detalhe."
+        },
+        {
+          "image": "sobre/sobre-nos5.png",
+          "caption": "Cuidando de cada detalhe."
+        },
+        {
+          "image": "sobre/sobre-nos6.png",
+          "caption": "Cuidando de cada detalhe."
+        },
+        {
+          "image": "sobre/sobre-nos7.png",
+          "caption": "Cuidando de cada detalhe."
+        }
+      ],
+      "seo": {
+        "metaTitle": "Sobre nós — Funerária Popular",
+        "metaDescription": "Há mais de 40 anos oferecendo acolhimento, dignidade e respeito às famílias, com excelência em serviços funerários e assistência em momentos delicados.",
+        "ogImage": "sobre/sobre-nos.png"
+      }
+    }
+  },
 
   "domain": "planovidapopular.com.br"
 }
