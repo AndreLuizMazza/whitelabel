@@ -755,6 +755,36 @@ app.get('/api/v1/unidades/me', async (req, res) => {
   }
 });
 
+/* ===== Branding público (manifest versionado) ===== */
+app.get('/api/v1/public/branding', async (req, res) => {
+  try {
+    const url = `${BASE}/api/v1/public/branding`;
+    const headers = injectHeadersFromReq(req);
+    const inm = req.header('If-None-Match') || req.header('if-none-match');
+    if (inm) headers['If-None-Match'] = inm;
+
+    const r = await fetch(url, { headers });
+
+    const etag = r.headers.get('etag');
+    const cacheControl = r.headers.get('cache-control');
+    if (etag) res.setHeader('ETag', etag);
+    if (cacheControl) res.setHeader('Cache-Control', cacheControl);
+    else res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+
+    if (r.status === 304) {
+      return res.status(304).end();
+    }
+
+    const data = await readAsJsonOrText(r);
+    console.log('[BFF] GET /api/v1/public/branding ->', r.status);
+    if (!r.ok) return res.status(r.status).send(data);
+    return res.status(r.status).send(data);
+  } catch (e) {
+    console.error('[BFF] /api/v1/public/branding ERRO:', e);
+    return res.status(500).json({ error: 'Falha ao buscar branding público', message: String(e) });
+  }
+});
+
 /* ===== Unidades (todas) ===== */
 app.get('/api/v1/unidades/all', async (req, res) => {
   try {

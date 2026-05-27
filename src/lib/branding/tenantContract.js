@@ -5,7 +5,7 @@
  * @see {BRAND_ICON_FIELD_KEYS} — chaves auditáveis de ícones em `brand`.
  * @see {BRAND_LOGO_FIELD_KEYS} — logos (light/dark) para UI e fallbacks.
  */
-import { resolveAssetUrl, safeUrl } from "./urls.js";
+import { resolveAssetUrl, safeUrl, isRelativeCdnAssetInput, appendAssetsRevisionQuery } from "./urls.js";
 
 /**
  * Ícones de marca no contrato (paths relativos a assetsBaseUrl ou absolutos).
@@ -143,7 +143,14 @@ export function resolveContractAssetUrl(t, raw, originOverride) {
   const base = assetsBaseFromContract(t);
   const r = String(raw || "").trim();
   if (!r) return "";
-  return safeUrl(resolveAssetUrl(r, base, originOverride));
+  let url = safeUrl(resolveAssetUrl(r, base, originOverride));
+  if (!url) return "";
+
+  const rev = Number(t?.assetsRevision ?? t?.v ?? 0);
+  if (isRelativeCdnAssetInput(r, base)) {
+    url = appendAssetsRevisionQuery(url, rev);
+  }
+  return url;
 }
 
 /**

@@ -257,6 +257,7 @@ export default function Navbar() {
           aria-label={nomeEmpresa}
         >
           <img
+            key={logoUrl}
             src={logoUrl}
             alt={nomeEmpresa}
             className="h-10 md:h-12 lg:h-14 w-auto max-w-full object-contain"
