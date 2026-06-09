@@ -52,3 +52,27 @@ export function safeUrl(u) {
   if (!s0) return "";
   return s0.replace(/ /g, "%20");
 }
+
+/** Path relativo resolvido via assetsBaseUrl (CDN tenant), não URL absoluta nem path do site. */
+export function isRelativeCdnAssetInput(raw, base) {
+  const r = cleanUrlInput(raw);
+  if (!r) return false;
+  if (/^(https?:)?\/\//i.test(r)) return false;
+  if (/^(data|blob):/i.test(r)) return false;
+  if (r.startsWith("/")) return false;
+  return Boolean(normalizeBase(base));
+}
+
+/** Cache bust controlado pelo manifest (assetsRevision). */
+export function appendAssetsRevisionQuery(url, revision) {
+  const rev = Number(revision);
+  if (!url || !Number.isFinite(rev) || rev <= 0) return url;
+  try {
+    const u = new URL(url);
+    u.searchParams.set("v", String(rev));
+    return u.toString();
+  } catch {
+    const sep = url.includes("?") ? "&" : "?";
+    return `${url}${sep}v=${encodeURIComponent(String(rev))}`;
+  }
+}

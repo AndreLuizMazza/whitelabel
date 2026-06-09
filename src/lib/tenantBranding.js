@@ -4,6 +4,7 @@ import { resolveAssetUrl, safeUrl } from "@/lib/branding/urls.js";
 import {
   LS_TENANT_CONTRACT_KEY,
   LS_TENANT_EMPRESA_KEY,
+  LS_TENANT_ASSETS_REVISION_KEY,
 } from "@/lib/tenantStorageKeys.js";
 import {
   formatSlugAsShellTitle,
@@ -11,6 +12,8 @@ import {
   resolveShellFaviconHref,
   resolveFaviconSvgUrl,
   resolveAppleTouchIconUrl,
+  normalizeTenantLogoFields,
+  buildWebManifestPayload,
 } from "@/lib/branding/tenantContract.js";
 
 export { resolveAssetUrl, safeUrl } from "@/lib/branding/urls.js";
@@ -40,7 +43,136 @@ export {
   resolveAllBrandIconUrls,
   BRAND_ICON_FIELD_KEYS,
   BRAND_LOGO_FIELD_KEYS,
+  normalizeTenantLogoFields,
 } from "@/lib/branding/tenantContract.js";
+
+let runtimeManifestBlobUrl = null;
+
+function mergeContentSection(current, incoming) {
+  const c0 =
+    current?.content && typeof current.content === "object" ? current.content : {};
+  const c1 =
+    incoming?.content && typeof incoming.content === "object" ? incoming.content : null;
+  if (!c1) {
+    return current?.content ?? (Object.keys(c0).length ? c0 : undefined);
+  }
+
+  const about0 =
+    c0.about && typeof c0.about === "object" ? c0.about : {};
+  const about1 = c1.about && typeof c1.about === "object" ? c1.about : null;
+
+  return {
+    ...c0,
+    ...c1,
+    ...(about1 ? { about: { ...about0, ...about1 } } : {}),
+  };
+}
+
+/** Propaga hero/conteúdo do contrato para o store (Home lê empresa.heroSlides). */
+function syncEmpresaFromTenantContract(t) {
+  if (!t || typeof t !== "object") return;
+  try {
+    const st = useTenant.getState?.();
+    const empresa = st?.empresa || {};
+    const heroSlides = Array.isArray(t.heroSlides) ? t.heroSlides : empresa.heroSlides;
+
+    useTenant.setState({
+      empresa: {
+        ...empresa,
+        heroTitle: t.heroTitle ?? empresa.heroTitle,
+        heroSubtitle: t.heroSubtitle ?? empresa.heroSubtitle,
+        heroImage: t.heroImage ?? empresa.heroImage,
+        heroSlides,
+        tema: {
+          ...(empresa.tema || {}),
+          heroTitle: t.heroTitle ?? empresa.tema?.heroTitle,
+          heroSubtitle: t.heroSubtitle ?? empresa.tema?.heroSubtitle,
+          heroImage: t.heroImage ?? empresa.tema?.heroImage,
+          heroSlides,
+        },
+      },
+    });
+  } catch {}
+}
+
+export function getCachedAssetsRevision() {
+  try {
+    const inline = typeof window !== "undefined" && window.__TENANT__;
+    const fromInline = Number(inline?.assetsRevision ?? inline?.v ?? 0);
+    const raw = localStorage.getItem(LS_TENANT_ASSETS_REVISION_KEY);
+    const fromLs = raw ? Number(raw) : 0;
+    return Math.max(fromInline || 0, fromLs || 0);
+  } catch {
+    return 0;
+  }
+}
+
+function applyRuntimeWebManifest(t) {
+  if (typeof document === "undefined" || !t) return;
+  try {
+    const payload = buildWebManifestPayload(t);
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/manifest+json",
+    });
+    const url = URL.createObjectURL(blob);
+    if (runtimeManifestBlobUrl) {
+      URL.revokeObjectURL(runtimeManifestBlobUrl);
+    }
+    runtimeManifestBlobUrl = url;
+
+    let link = document.getElementById("tenant-manifest");
+    if (!link) {
+      link = document.createElement("link");
+      link.id = "tenant-manifest";
+      link.rel = "manifest";
+      document.head.appendChild(link);
+    }
+    link.href = url;
+  } catch {}
+}
+
+/**
+ * Hot-swap de branding a partir do manifest da API (assets imutáveis + revision bump).
+ */
+export function applyBrandingManifest(manifest) {
+  if (typeof window === "undefined" || !manifest || typeof manifest !== "object") {
+    return false;
+  }
+
+  const current = window.__TENANT__ || {};
+  const remoteRevision = Number(manifest.assetsRevision ?? manifest.v ?? 0);
+  const localRevision = getCachedAssetsRevision();
+  const revision = Math.max(localRevision, remoteRevision);
+
+  const merged = normalizeTenantLogoFields({
+    ...current,
+    ...manifest,
+    brand: {
+      ...(current.brand && typeof current.brand === "object" ? current.brand : {}),
+      ...(manifest.brand && typeof manifest.brand === "object" ? manifest.brand : {}),
+    },
+    heroSlides: Array.isArray(manifest.heroSlides)
+      ? manifest.heroSlides
+      : current.heroSlides,
+    content: mergeContentSection(current, manifest),
+    assetsRevision: revision,
+    v: revision,
+  });
+
+  window.__TENANT__ = merged;
+
+  try {
+    localStorage.setItem(LS_TENANT_CONTRACT_KEY, JSON.stringify(merged));
+    localStorage.setItem(LS_TENANT_ASSETS_REVISION_KEY, String(revision));
+  } catch {}
+
+  applyTenantBrandLogoCssVars(merged);
+  applyTenantShellIconsFromContract();
+  applyRuntimeWebManifest(merged);
+  syncEmpresaFromTenantContract(merged);
+
+  return true;
+}
 
 function currentThemeModeFromDom() {
   try {

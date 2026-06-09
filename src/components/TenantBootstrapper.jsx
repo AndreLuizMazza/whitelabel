@@ -7,6 +7,7 @@ import {
   applyTenantBrandLogoCssVars,
 } from '@/lib/tenantBranding'
 import { LS_TENANT_CONTRACT_KEY, LS_TENANT_EMPRESA_KEY } from '@/lib/tenantStorageKeys'
+import { startBrandingSync, invalidateBrandingCacheIfSlugMismatch } from '@/boot/brandingSync'
 
 /* ===================== slug ===================== */
 
@@ -241,23 +242,24 @@ function normalizeTenant(empresaRaw, temaRaw, slugFallback) {
       empresa0?.logo_path
   )
 
-  const heroImageResolved = resolve(tema0?.heroImage || empresa0?.heroImage)
+  const heroImageRaw = tema0?.heroImage || empresa0?.heroImage || ''
 
   const heroSlidesRaw =
     (Array.isArray(tema0?.heroSlides) && tema0.heroSlides) ||
     (Array.isArray(empresa0?.heroSlides) && empresa0.heroSlides) ||
     []
 
+  // Paths relativos — resolução com ?v={assetsRevision} na renderização (Home/Sobre)
   const heroSlidesResolved = heroSlidesRaw.map((s) => ({
     ...s,
-    image: resolve(s?.image || s?.heroImage),
+    image: s?.image || s?.heroImage || '',
   }))
 
   const temaNormalized = {
     ...tema0,
     assetsBaseUrl,
     logo: logoResolved || tema0?.logo || '',
-    heroImage: heroImageResolved || tema0?.heroImage || '',
+    heroImage: heroImageRaw,
     heroSlides: heroSlidesResolved,
   }
 
@@ -269,7 +271,7 @@ function normalizeTenant(empresaRaw, temaRaw, slugFallback) {
 
     // atalhos comuns
     urlLogo: logoResolved || empresa0?.urlLogo || empresa0?.logoUrl || empresa0?.logo || '',
-    heroImage: heroImageResolved || empresa0?.heroImage || '',
+    heroImage: heroImageRaw,
     heroSlides: heroSlidesResolved,
   }
 
@@ -294,6 +296,7 @@ export default function TenantBootstrapper() {
       }
 
       const slug = pickTenantSlugFromAny(r)
+      invalidateBrandingCacheIfSlugMismatch(slug)
       const ok = applyTenantSlug(slug)
 
       const maxTries = 25
@@ -384,6 +387,8 @@ export default function TenantBootstrapper() {
           '| sem tema/empresa útil após retry'
         )
       }
+
+      startBrandingSync()
     })()
   }, [])
 
