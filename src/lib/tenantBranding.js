@@ -48,6 +48,31 @@ export {
 
 let runtimeManifestBlobUrl = null;
 
+function mergeAboutSection(about0, about1) {
+  if (!about1 || typeof about1 !== "object") {
+    return about0 && typeof about0 === "object" ? about0 : {};
+  }
+  const base0 = about0 && typeof about0 === "object" ? about0 : {};
+  const merged = { ...base0, ...about1 };
+
+  const g0 = Array.isArray(base0.gallery) ? base0.gallery : [];
+  const g1 = Array.isArray(about1.gallery) ? about1.gallery : [];
+  // API com gallery vazio (ex.: init parcial) não deve apagar galeria do build local.
+  if (g1.length === 0 && g0.length > 0) {
+    merged.gallery = g0;
+  } else if (g1.length > 0) {
+    merged.gallery = g1;
+  }
+
+  const seo0 = base0.seo && typeof base0.seo === "object" ? base0.seo : {};
+  const seo1 = about1.seo && typeof about1.seo === "object" ? about1.seo : {};
+  if (Object.keys(seo0).length || Object.keys(seo1).length) {
+    merged.seo = { ...seo0, ...seo1 };
+  }
+
+  return merged;
+}
+
 function mergeContentSection(current, incoming) {
   const c0 =
     current?.content && typeof current.content === "object" ? current.content : {};
@@ -64,7 +89,7 @@ function mergeContentSection(current, incoming) {
   return {
     ...c0,
     ...c1,
-    ...(about1 ? { about: { ...about0, ...about1 } } : {}),
+    ...(about1 ? { about: mergeAboutSection(about0, about1) } : {}),
   };
 }
 
