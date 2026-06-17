@@ -136,8 +136,7 @@ export default function HistoricoPagamentos() {
   const isLoading = loading && historico.length === 0
 
   return (
-    <section className="section">
-      <div className="container-max">
+    <div className="w-full max-w-6xl mx-auto">
         {/* Barra superior com Voltar */}
         <div className="mb-4 flex items-center justify-between">
           <BackButton to="/area" className="mb-4" />
@@ -237,7 +236,6 @@ export default function HistoricoPagamentos() {
             </table>
           </div>
         )}
-      </div>
-    </section>
+    </div>
   )
 }

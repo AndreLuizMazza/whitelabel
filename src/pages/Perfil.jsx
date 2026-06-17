@@ -29,7 +29,7 @@ import AvatarUploader from "@/components/AvatarUploader";
 import { displayCPF } from "@/lib/cpf";
 
 /* ====== Config rotas ====== */
-const FALLBACK_ROUTE = "/area-do-associado"; // ajuste se necessário
+const FALLBACK_ROUTE = "/area";
 
 /* ====== UI Primitives ====== */
 const Card = ({ icon: Icon, title, description, footer, children, className = "", id }) => (

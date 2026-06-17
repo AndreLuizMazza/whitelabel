@@ -8,19 +8,7 @@ import { showToast } from '@/lib/toast'
 
 import DependentesList from '@/components/DependentesList'
 import BackButton from '@/components/BackButton'
-
-function Skeleton({ className = '' }) {
-  return (
-    <div
-      className={`animate-pulse rounded-xl ${className}`}
-      style={{
-        background:
-          'linear-gradient(90deg, rgba(0,0,0,0.06), rgba(0,0,0,0.10), rgba(0,0,0,0.06))',
-        backgroundSize: '200% 100%',
-      }}
-    />
-  )
-}
+import Skeleton from '@/components/ui/Skeleton.jsx'
 
 export default function DependentesPage() {
   const location = useLocation()
@@ -102,9 +90,8 @@ export default function DependentesPage() {
   const isLoading = loading && shouldFetchFromHook && !hasData
 
   return (
-    <section className="section">
-      <div className="container-max">
-        <div className="mb-4">
+    <div className="w-full max-w-6xl mx-auto">
+      <div className="mb-4">
           <BackButton to="/area" />
         </div>
 
@@ -153,7 +140,6 @@ export default function DependentesPage() {
             </p>
           </div>
         )}
-      </div>
-    </section>
+    </div>
   )
 }

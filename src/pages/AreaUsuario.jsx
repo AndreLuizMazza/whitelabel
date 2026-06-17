@@ -668,7 +668,7 @@ export default function AreaUsuario() {
   }
 
   return (
-    <section className="section relative" key={cpf}>
+    <div className="relative w-full max-w-6xl mx-auto" key={cpf}>
       {/* halo de fundo geral da página */}
       <div
         aria-hidden="true"
@@ -1049,6 +1049,6 @@ export default function AreaUsuario() {
           )
         )}
       </div>
-    </section>
+    </div>
   )
 }
