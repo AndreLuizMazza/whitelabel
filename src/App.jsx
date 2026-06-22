@@ -37,6 +37,7 @@ import CarteirinhaPrint from '@/pages/CarteirinhaPrint.jsx'
 import ServicosDigitais from '@/pages/ServicosDigitais.jsx'
 import CarteirinhaPage from '@/pages/CarteirinhaPage.jsx'
 import Perfil from '@/pages/Perfil.jsx'
+import PerfilAlterarSenha from '@/pages/PerfilAlterarSenha.jsx'
 import DependentesPage from '@/pages/DependentesPage.jsx'
 import HistoricoPagamentos from '@/pages/HistoricoPagamentos.jsx'
 import SobreNos from '@/pages/SobreNos.jsx'
@@ -110,6 +111,7 @@ export default function App() {
             <Route path="/area/dependentes" element={<DependentesPage />} />
             <Route path="/area/pagamentos" element={<HistoricoPagamentos />} />
             <Route path="/perfil" element={<Perfil />} />
+            <Route path="/perfil/senha" element={<PerfilAlterarSenha />} />
             <Route path="/carteirinha" element={<CarteirinhaPage />} />
             <Route path="/servicos-digitais" element={<ServicosDigitais />} />
           </Route>

@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, Trash2, Loader2 } from "lucide-react";
 import { showToast } from "@/lib/toast";
 
-const MAX_BYTES = 1 * 1024 * 1024; // 1 MB
+const MAX_BYTES = 1 * 1024 * 1024;
 
-export default function AvatarUploader({ fotoUrl, onUpload, onDelete }) {
+export default function AvatarUploader({ fotoUrl, onUpload, onDelete, disabled = false }) {
   const fileRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState(fotoUrl || "");
@@ -13,18 +13,18 @@ export default function AvatarUploader({ fotoUrl, onUpload, onDelete }) {
     setPreview(fotoUrl || "");
   }, [fotoUrl]);
 
+  const isBusy = loading || disabled;
+
   const handleSelectFile = (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || isBusy) return;
 
-    // valida tipo
     if (!file.type.startsWith("image/")) {
       showToast("Envie apenas imagens (JPG, PNG, etc.)", "warning");
       e.target.value = "";
       return;
     }
 
-    // valida tamanho (máximo 1MB)
     if (file.size > MAX_BYTES) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
       showToast(`A imagem deve ter no máximo 1 MB (arquivo atual: ${sizeMB} MB).`, "warning");
@@ -32,7 +32,6 @@ export default function AvatarUploader({ fotoUrl, onUpload, onDelete }) {
       return;
     }
 
-    // preview imediato
     const reader = new FileReader();
     reader.onload = (ev) => setPreview(ev.target.result);
     reader.readAsDataURL(file);
@@ -40,28 +39,25 @@ export default function AvatarUploader({ fotoUrl, onUpload, onDelete }) {
     if (onUpload) {
       setLoading(true);
       Promise.resolve(onUpload(file))
-        .then(() => showToast("Foto atualizada com sucesso."))
         .catch(() => {
           showToast("Falha ao enviar foto.", "error");
-          // em caso de falha, restaura estado visual anterior
           setPreview(fotoUrl || "");
         })
         .finally(() => {
           setLoading(false);
-          // permite selecionar o mesmo arquivo novamente se quiser
           if (fileRef.current) fileRef.current.value = "";
         });
     }
   };
 
   const handleDelete = () => {
-    if (!onDelete) return;
-    if (!confirm("Tem certeza que deseja remover sua foto de perfil?")) return;
+    if (!onDelete || isBusy) return;
+    if (!confirm("Remover sua foto de perfil?")) return;
+
     setLoading(true);
     Promise.resolve(onDelete())
       .then(() => {
         setPreview("");
-        showToast("Foto removida com sucesso.");
         if (fileRef.current) fileRef.current.value = "";
       })
       .catch(() => showToast("Falha ao remover foto.", "error"))
@@ -69,41 +65,53 @@ export default function AvatarUploader({ fotoUrl, onUpload, onDelete }) {
   };
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      <div className="relative w-32 h-32 rounded-full overflow-hidden border border-[var(--c-border)] bg-[var(--surface-alt)]">
+    <div className="flex flex-col items-center gap-4 w-full">
+      <button
+        type="button"
+        onClick={() => !isBusy && fileRef.current?.click()}
+        disabled={isBusy}
+        className="relative h-[112px] w-[112px] rounded-full overflow-hidden transition active:scale-[0.98] disabled:opacity-60"
+        style={{
+          background: "color-mix(in srgb, var(--text) 5%, var(--surface))",
+          boxShadow: "0 0 0 0.5px var(--separator, var(--c-border))",
+        }}
+        aria-label="Alterar foto de perfil"
+      >
         {preview ? (
-          <img src={preview} alt="Foto do perfil" className="object-cover w-full h-full" />
+          <img src={preview} alt="" className="object-cover w-full h-full" />
         ) : (
-          <div className="flex items-center justify-center w-full h-full text-[var(--text-muted)]">
-            <Camera size={36} />
-          </div>
+          <span className="flex items-center justify-center w-full h-full" style={{ color: "var(--text-muted)" }}>
+            <Camera size={32} strokeWidth={1.75} />
+          </span>
         )}
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-white">
-            <Loader2 className="animate-spin" size={28} />
-          </div>
-        )}
-      </div>
+        {loading ? (
+          <span className="absolute inset-0 flex items-center justify-center bg-black/35 text-white">
+            <Loader2 className="animate-spin" size={28} strokeWidth={2} />
+          </span>
+        ) : null}
+      </button>
 
-      <div className="flex gap-3">
+      <div className="flex items-center gap-4">
         <button
           type="button"
-          className="btn-outline text-sm flex items-center gap-1"
+          className="text-[15px] font-medium min-h-[44px] px-2 transition active:opacity-60 disabled:opacity-40"
+          style={{ color: "var(--primary)" }}
           onClick={() => fileRef.current?.click()}
-          disabled={loading}
+          disabled={isBusy}
         >
-          <Camera size={16} /> Alterar
+          Alterar foto
         </button>
-        {preview && (
+        {preview ? (
           <button
             type="button"
-            className="btn-outline text-sm flex items-center gap-1"
+            className="text-[15px] font-medium min-h-[44px] px-2 transition active:opacity-60 disabled:opacity-40"
+            style={{ color: "var(--danger, #ff3b30)" }}
             onClick={handleDelete}
-            disabled={loading}
+            disabled={isBusy}
           >
-            <Trash2 size={16} /> Remover
+            Remover
           </button>
-        )}
+        ) : null}
       </div>
 
       <input
@@ -112,6 +120,7 @@ export default function AvatarUploader({ fotoUrl, onUpload, onDelete }) {
         accept="image/*"
         className="hidden"
         onChange={handleSelectFile}
+        disabled={isBusy}
       />
     </div>
   );
