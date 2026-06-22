@@ -7,14 +7,26 @@ import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
 import { showToast } from '@/lib/toast'
 
 import DependentesList from '@/components/DependentesList'
-import BackButton from '@/components/BackButton'
+import {
+  MemberSubpageNav,
+  MemberSubpageHeader,
+  formatDisplayLabel,
+} from '@/components/member/MemberDashboardUI'
+import { MemberGroupedList } from '@/components/member/MemberGroupedList'
 import Skeleton from '@/components/ui/Skeleton.jsx'
+
+function buildMeta({ nomePlano, numeroContrato, unidadeNome }) {
+  const parts = []
+  if (nomePlano) parts.push(formatDisplayLabel(nomePlano))
+  if (numeroContrato) parts.push(`Contrato #${numeroContrato}`)
+  if (unidadeNome) parts.push(formatDisplayLabel(unidadeNome))
+  return parts.length ? parts.join(' · ') : null
+}
 
 export default function DependentesPage() {
   const location = useLocation()
   const state = location.state || {}
 
-  // Dados que podem vir da Área do Associado
   const stateDependentes = state.dependentes || null
   const stateNumeroContrato = state.numeroContrato || null
   const stateNomePlano = state.nomePlano || null
@@ -23,7 +35,6 @@ export default function DependentesPage() {
 
   const user = useAuth((s) => s.user)
 
-  // CPF para buscar contratos quando a navegação vem do menu
   const cpf =
     user?.cpf ||
     user?.documento ||
@@ -86,60 +97,47 @@ export default function DependentesPage() {
     contratoFinal?.empresa?.razaoSocial ||
     null
 
+  const meta = buildMeta({ nomePlano, numeroContrato, unidadeNome })
   const hasData = Array.isArray(dependentes) && dependentes.length > 0
   const isLoading = loading && shouldFetchFromHook && !hasData
 
   return (
     <div className="w-full max-w-6xl mx-auto">
-      <div className="mb-4">
-          <BackButton to="/area" />
+      <MemberSubpageNav to="/area" label="Início" />
+
+      <MemberSubpageHeader title="Dependentes" meta={meta} />
+
+      {isLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-32 rounded-md" />
+          <MemberGroupedList>
+            <div className="px-4 py-4 space-y-3">
+              <Skeleton className="h-[68px] rounded-lg" />
+              <Skeleton className="h-[68px] rounded-lg" />
+            </div>
+          </MemberGroupedList>
         </div>
+      ) : null}
 
-        <header className="mb-6">
-          <p className="text-[11px] uppercase tracking-[0.2em] opacity-70">
-            Área do associado
-          </p>
+      {!isLoading && hasData ? (
+        <DependentesList dependentes={dependentes} contrato={contratoFinal} />
+      ) : null}
 
-          <h1 className="text-2xl font-semibold mt-1">
-            Dependentes e Beneficiários
-          </h1>
-
-          {(nomePlano || numeroContrato || unidadeNome) && (
-            <p className="text-sm mt-1 opacity-75">
-              {nomePlano && (
-                <>
-                  Plano <strong>{nomePlano}</strong>
-                </>
-              )}
-              {numeroContrato && <> • Contrato #{numeroContrato}</>}
-              {unidadeNome && <> • Administrado por {unidadeNome}</>}
+      {!isLoading && !hasData ? (
+        <MemberGroupedList>
+          <div className="px-4 py-8 text-center">
+            <p className="text-[17px] font-medium leading-snug" style={{ color: 'var(--text)' }}>
+              Nenhum dependente cadastrado
             </p>
-          )}
-        </header>
-
-        {isLoading && (
-          <div className="card p-5">
-            <Skeleton className="h-5 w-40 mb-3" />
-            <Skeleton className="h-20 mb-2" />
-            <Skeleton className="h-20 mb-2" />
-          </div>
-        )}
-
-        {!isLoading && hasData && (
-          <DependentesList dependentes={dependentes} contrato={contratoFinal} />
-        )}
-
-        {!isLoading && !hasData && (
-          <div className="card p-6">
-            <p className="text-sm opacity-80">
-              Não encontramos dependentes cadastrados para este contrato.
-            </p>
-            <p className="text-xs mt-1 opacity-70">
-              Caso a informação esteja incorreta, entre em contato com a unidade
-              de atendimento.
+            <p
+              className="text-[15px] mt-2 leading-relaxed max-w-sm mx-auto"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Se a informação estiver incorreta, fale com a unidade de atendimento.
             </p>
           </div>
-        )}
+        </MemberGroupedList>
+      ) : null}
     </div>
   )
 }

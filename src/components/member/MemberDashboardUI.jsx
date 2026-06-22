@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import {
   CalendarDays,
   ChevronRight,
+  ChevronLeft,
   CheckCircle2,
   ShieldCheck,
   Clock3,
@@ -208,6 +209,46 @@ export function MemberSectionHeading({ children, action, grouped = false }) {
       </h2>
       {action || null}
     </div>
+  );
+}
+
+/** Navegação voltar estilo iOS (chevron + label) */
+export function MemberSubpageNav({
+  to = "/area",
+  label = "Início",
+  className = "",
+}) {
+  return (
+    <div className={`mb-1 ${className}`}>
+      <Link
+        to={to}
+        className="inline-flex items-center gap-0.5 min-h-[44px] -ml-1 pl-1 pr-2 text-[17px] transition active:opacity-60"
+        style={{ color: "var(--primary)" }}
+      >
+        <ChevronLeft size={22} strokeWidth={2.25} aria-hidden="true" />
+        {label}
+      </Link>
+    </div>
+  );
+}
+
+/** Cabeçalho de subpágina da área privada */
+export function MemberSubpageHeader({ title, meta, children }) {
+  return (
+    <header className="mb-5">
+      <h1
+        className="text-[34px] font-bold leading-[1.08] tracking-tight md:text-[28px]"
+        style={{ color: "var(--text)" }}
+      >
+        {title}
+      </h1>
+      {meta ? (
+        <p className="mt-2 text-[15px] leading-snug" style={{ color: "var(--text-muted)" }}>
+          {meta}
+        </p>
+      ) : null}
+      {children}
+    </header>
   );
 }
 
