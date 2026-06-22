@@ -12,6 +12,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import HeaderNotificationsBell from "@/components/HeaderNotificationsBell.jsx";
+import ThemeToggle from "@/components/ThemeToggle.jsx";
 import useTenant from "@/store/tenant";
 import { useTenantLogoUrl } from "@/lib/tenantLogoRuntime";
 
@@ -101,7 +102,7 @@ export function MemberHero({
       />
 
       <div className="relative z-[1] px-4 pt-1">
-        <div className="grid grid-cols-[44px_1fr_44px] items-center gap-2">
+        <div className="grid grid-cols-[44px_1fr_auto] items-center gap-2">
           <Link
             to="/perfil"
             className="inline-flex h-11 w-11 items-center justify-center rounded-full shrink-0 text-[13px] font-semibold"
@@ -118,8 +119,9 @@ export function MemberHero({
             <MemberHeroLogo />
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-1.5 shrink-0">
             <HeaderNotificationsBell tone="onDark" />
+            <ThemeToggle tone="onDark" />
           </div>
         </div>
 

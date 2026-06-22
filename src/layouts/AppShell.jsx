@@ -139,12 +139,18 @@ export default function AppShell({ children }) {
           ))}
         </nav>
 
-        <div className="border-t border-[var(--c-border)] p-4">
+        <div className="border-t border-[var(--c-border)] p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3 px-1">
+            <span className="text-[13px]" style={{ color: "var(--text-muted)" }}>
+              Aparência
+            </span>
+            <ThemeToggle />
+          </div>
           <button
             type="button"
             onClick={logout}
             className="flex items-center gap-3 px-4 py-2 w-full text-[15px] rounded-[10px] hover:bg-[var(--nav-hover-bg)] min-h-[44px]"
-            style={{ color: 'var(--danger, #dc2626)' }}
+            style={{ color: "var(--danger, #dc2626)" }}
           >
             <LogOut size={18} />
             <span>Sair</span>

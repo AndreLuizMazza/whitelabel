@@ -17,6 +17,7 @@ import {
 } from "@/lib/profile";
 import { User2, IdCard, Mail, KeyRound } from "lucide-react";
 import AvatarUploader from "@/components/AvatarUploader";
+import MemberThemeSettings from "@/components/member/MemberThemeSettings";
 import { displayCPF } from "@/lib/cpf";
 import Skeleton from "@/components/ui/Skeleton.jsx";
 
@@ -224,6 +225,14 @@ export default function Perfil() {
           </MemberGroupedList>
           <p className="px-1 mt-2 text-[13px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
             Para alterar dados cadastrais, contate a unidade.
+          </p>
+        </section>
+
+        <section aria-labelledby="sec-aparencia">
+          <GroupLabel id="sec-aparencia">Aparência</GroupLabel>
+          <MemberThemeSettings />
+          <p className="px-1 mt-2 text-[13px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            Escolha como o app deve ser exibido neste dispositivo.
           </p>
         </section>
 
