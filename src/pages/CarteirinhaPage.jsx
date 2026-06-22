@@ -6,23 +6,17 @@ import useAuth from '@/store/auth'
 import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
 import CarteirinhaAssociado from '@/components/CarteirinhaAssociado'
 import { displayCPF, formatCPF } from '@/lib/cpf'
-import { Lock, X, Maximize2, RotateCw } from 'lucide-react'
+import { Eye, EyeOff, X, Maximize2, RotateCw, Printer } from 'lucide-react'
 import { showToast } from '@/lib/toast'
-import BackButton from '@/components/BackButton'
-
-/* simples helper para skeleton */
-function Skeleton({ className = '' }) {
-  return (
-    <div
-      className={`animate-pulse rounded ${className}`}
-      style={{
-        background:
-          'linear-gradient(90deg, rgba(0,0,0,0.06), rgba(0,0,0,0.10), rgba(0,0,0,0.06))',
-        backgroundSize: '200% 100%',
-      }}
-    />
-  )
-}
+import {
+  MemberSubpageNav,
+  MemberSubpageHeader,
+} from '@/components/member/MemberDashboardUI'
+import {
+  MemberGroupedList,
+  MemberListRow,
+} from '@/components/member/MemberGroupedList'
+import Skeleton from '@/components/ui/Skeleton.jsx'
 
 function useMediaQuery(query) {
   const [matches, setMatches] = useState(() => {
@@ -68,17 +62,15 @@ export default function CarteirinhaPage() {
     [user]
   )
 
-  /* revelação de CPF */
   const [cpfReveal, setCpfReveal] = useState(false)
   const [cpfSeconds, setCpfSeconds] = useState(0)
   const timerRef = useRef(null)
   const tickRef = useRef(null)
 
   function startReveal10s() {
-    if (!cpf) return
+    if (!cpf || cpfReveal) return
     setCpfReveal(true)
     setCpfSeconds(10)
-    showToast('CPF visível por 10 segundos.', null, null, 3500)
 
     tickRef.current && clearInterval(tickRef.current)
     tickRef.current = setInterval(
@@ -92,7 +84,6 @@ export default function CarteirinhaPage() {
       setCpfSeconds(0)
       clearInterval(tickRef.current)
       tickRef.current = null
-      showToast('CPF ocultado novamente.')
     }, 10000)
   }
 
@@ -113,10 +104,7 @@ export default function CarteirinhaPage() {
   const printableState =
     contrato && user ? { user, contrato, side: 'both' } : null
 
-  // ===== Fullscreen =====
   const [fsOpen, setFsOpen] = useState(false)
-
-  // ✅ SEM AUTO-ROTAÇÃO: apenas manual (portrait | landscape)
   const [fsOrientation, setFsOrientation] = useState('portrait')
   const toggleOrientation = () =>
     setFsOrientation((v) => (v === 'portrait' ? 'landscape' : 'portrait'))
@@ -134,178 +122,106 @@ export default function CarteirinhaPage() {
     if (!contrato || !user) return
     setFsOpen(true)
   }
+
   function closeFullscreen() {
     setFsOpen(false)
   }
 
-  // ===== UI helpers (legibilidade premium) =====
-  const topTextStyle = {
-    color: 'rgba(255,255,255,0.95)',
-    textShadow: '0 2px 12px rgba(0,0,0,0.55), 0 1px 2px rgba(0,0,0,0.35)',
-  }
-  const subTextStyle = {
-    color: 'rgba(255,255,255,0.78)',
-    textShadow: '0 2px 12px rgba(0,0,0,0.55), 0 1px 2px rgba(0,0,0,0.35)',
-  }
-  const chipStyle = {
-    color: 'rgba(255,255,255,0.90)',
-    background: 'rgba(0,0,0,0.26)',
-    border: '1px solid rgba(255,255,255,0.14)',
-    boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
-    backdropFilter: 'blur(12px)',
-    WebkitBackdropFilter: 'blur(12px)',
-  }
-  const iconBtnStyle = (active = false) => ({
-    width: 40,
-    height: 40,
-    background: active ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.22)',
-    border: '1px solid rgba(255,255,255,0.16)',
-    color: 'rgba(255,255,255,0.95)',
-    boxShadow: '0 12px 36px rgba(0,0,0,0.28)',
-    backdropFilter: 'blur(14px)',
-    WebkitBackdropFilter: 'blur(14px)',
-  })
+  const cpfDisplay = cpf
+    ? cpfReveal
+      ? formatCPF(cpf)
+      : displayCPF(cpf, 'last2')
+    : null
 
-  const rotationLabel = fsOrientation === 'landscape' ? 'Paisagem' : 'Retrato'
+  const headerMeta = useMemo(() => {
+    const parts = [nomeExibicao]
+    if (cpfDisplay) parts.push(`CPF ${cpfDisplay}`)
+    return parts.join(' · ')
+  }, [nomeExibicao, cpfDisplay])
 
-  // ✅ Maximização real em tela cheia (cresce no limite do viewport sem cortar)
-  // Reservamos espaço para a top-bar (títulos/botões). Ajuste o toolbarPx se mudar a barra.
-  const toolbarPx = 120
+  const numeroContrato = contrato?.numeroContrato ?? contrato?.id ?? null
+  const nomePlano = contrato?.nomePlano ?? contrato?.plano?.nome ?? null
+
+  const planMeta = useMemo(() => {
+    const parts = []
+    if (nomePlano) parts.push(nomePlano)
+    if (numeroContrato) parts.push(`Contrato #${numeroContrato}`)
+    return parts.length ? parts.join(' · ') : null
+  }, [nomePlano, numeroContrato])
+
+  const toolbarPx = 88
   const safePad = 16
-
-  const portraitW = `min(calc(100svw - ${safePad * 2}px), calc((100svh - ${toolbarPx}px - ${
-    safePad * 2
-  }px) * (85.6 / 54)))`
-
-  // No paisagem (rotacionado 90°): a "largura" vira a altura disponível.
-  // Fica visivelmente maior (estilo Apple Wallet).
-  const landscapeW = `min(calc(100svh - ${safePad * 2}px), calc((100svw - ${toolbarPx}px - ${
-    safePad * 2
-  }px) * (85.6 / 54)))`
+  const portraitW = `min(calc(100svw - ${safePad * 2}px), calc((100svh - ${toolbarPx}px - ${safePad * 2}px) * (85.6 / 54)))`
+  const landscapeW = `min(calc(100svh - ${safePad * 2}px), calc((100svw - ${toolbarPx}px - ${safePad * 2}px) * (85.6 / 54)))`
 
   const cardWrapStyle =
     fsOrientation === 'portrait'
-      ? {
-          width: portraitW,
-          transform: 'rotate(0deg)',
-        }
-      : {
-          width: landscapeW,
-          transform: 'rotate(90deg)',
-        }
+      ? { width: portraitW, transform: 'rotate(0deg)' }
+      : { width: landscapeW, transform: 'rotate(90deg)' }
+
+  const rotationLabel = fsOrientation === 'landscape' ? 'Paisagem' : 'Retrato'
 
   const fullscreenOverlay =
     fsOpen && contrato && user
       ? createPortal(
           <div
-            className="fixed inset-0 z-[100] flex"
+            className="fixed inset-0 z-[100] flex flex-col"
             role="dialog"
             aria-modal="true"
             aria-label="Carteirinha em tela cheia"
             style={{
-              background:
-                'radial-gradient(circle at 20% 10%, rgba(255,255,255,0.10) 0, rgba(0,0,0,0.58) 55%, rgba(0,0,0,0.76) 100%)',
-              backdropFilter: 'blur(10px)',
-              WebkitBackdropFilter: 'blur(10px)',
+              background: 'rgba(0,0,0,0.88)',
               paddingTop: 'env(safe-area-inset-top)',
               paddingBottom: 'env(safe-area-inset-bottom)',
-              paddingLeft: 'env(safe-area-inset-left)',
-              paddingRight: 'env(safe-area-inset-right)',
             }}
             onMouseDown={(e) => {
               if (e.target === e.currentTarget) closeFullscreen()
             }}
           >
-            <div
-              className="relative w-full"
-              style={{
-                height: '100svh',
-                maxHeight: '100svh',
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-            >
-              {/* TOP GLASS BAR (legível) */}
-              <div className="px-4 pt-4">
-                <div
-                  className="rounded-2xl px-4 py-3"
-                  style={{
-                    background:
-                      'linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.28) 100%)',
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    boxShadow: '0 18px 50px rgba(0,0,0,0.30)',
-                    backdropFilter: 'blur(16px)',
-                    WebkitBackdropFilter: 'blur(16px)',
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-[12px] font-semibold tracking-tight" style={topTextStyle}>
-                        Carteirinha do Associado
-                      </div>
-                      <div className="text-[12px] mt-0.5 truncate" style={subTextStyle} title={nomeExibicao}>
-                        {nomeExibicao}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={toggleOrientation}
-                        className="inline-flex items-center justify-center rounded-full"
-                        aria-label="Girar carteirinha (Retrato/Paisagem)"
-                        title={`Rotação: ${rotationLabel}`}
-                        style={iconBtnStyle(fsOrientation === 'landscape')}
-                      >
-                        <RotateCw size={18} />
-                      </button>
-
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center rounded-full"
-                        onClick={closeFullscreen}
-                        aria-label="Fechar tela cheia"
-                        style={iconBtnStyle(false)}
-                      >
-                        <X size={18} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex items-center gap-2 flex-wrap">
-                    <div className="text-[11px] px-2 py-1 rounded-full" style={chipStyle}>
-                      Rotação:{' '}
-                      <strong style={{ color: 'rgba(255,255,255,0.95)' }}>
-                        {rotationLabel}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
+            <div className="flex items-center justify-between gap-3 px-4 py-3 shrink-0">
+              <div className="min-w-0">
+                <p className="text-[13px] font-medium text-white/70">Carteirinha</p>
+                <p className="text-[15px] font-semibold text-white truncate">{nomeExibicao}</p>
               </div>
-
-              {/* Card fullscreen */}
-              <div
-                className="flex-1 flex items-center justify-center px-4 pb-6"
-                style={{ minHeight: 0 }}
-              >
-                <div
-                  style={{
-                    ...cardWrapStyle,
-                    transformOrigin: 'center center',
-                    transition: 'transform 220ms ease, width 220ms ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={toggleOrientation}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/90 active:opacity-60"
+                  aria-label={`Girar: ${rotationLabel}`}
+                  title={rotationLabel}
+                  style={{ background: 'rgba(255,255,255,0.12)' }}
                 >
-                  <CarteirinhaAssociado
-                    user={user}
-                    contrato={contrato}
-                    printable={false}
-                    matchContratoHeight={false}
-                    loadAvatar={true}
-                  />
-                </div>
+                  <RotateCw size={20} strokeWidth={1.85} />
+                </button>
+                <button
+                  type="button"
+                  onClick={closeFullscreen}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white active:opacity-60"
+                  aria-label="Fechar"
+                  style={{ background: 'rgba(255,255,255,0.12)' }}
+                >
+                  <X size={20} strokeWidth={2} />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 flex items-center justify-center px-4 min-h-0">
+              <div
+                style={{
+                  ...cardWrapStyle,
+                  transformOrigin: 'center center',
+                  transition: 'transform 220ms ease, width 220ms ease',
+                }}
+              >
+                <CarteirinhaAssociado
+                  user={user}
+                  contrato={contrato}
+                  printable={false}
+                  matchContratoHeight={false}
+                  loadAvatar
+                  showSideTabs={false}
+                />
               </div>
             </div>
           </div>,
@@ -314,126 +230,111 @@ export default function CarteirinhaPage() {
       : null
 
   return (
-    <section className="section">
+    <div className="w-full max-w-6xl mx-auto">
       {fullscreenOverlay}
 
-      <div className="container-max max-w-5xl">
-        {/* Barra superior com Voltar */}
-        <div className="mb-4 flex items-center justify-between">
-          <BackButton to="/area" className="mb-4" />
+      <MemberSubpageNav to="/area" label="Início" />
+
+      <MemberSubpageHeader title="Carteirinha" meta={headerMeta} />
+
+      {loading ? (
+        <div className="space-y-5">
+          <Skeleton className="h-[220px] rounded-[20px] max-w-[480px] mx-auto" />
+          <MemberGroupedList>
+            <div className="px-4 py-4 space-y-3">
+              <Skeleton className="h-11 rounded-lg" />
+              <Skeleton className="h-11 rounded-lg" />
+            </div>
+          </MemberGroupedList>
         </div>
+      ) : null}
 
-        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              Carteirinha do Associado
-            </h1>
-            <p className="mt-1 text-sm" style={{ color: 'var(--text)' }}>
-              {nomeExibicao}
-              {cpf && (
-                <>
-                  {' '}
-                  • CPF{' '}
-                  {cpfReveal ? formatCPF(cpf) : displayCPF(cpf, 'last2')}
-                </>
-              )}
+      {!loading && !contrato && !erro ? (
+        <MemberGroupedList>
+          <div className="px-4 py-8 text-center">
+            <p className="text-[17px] font-medium leading-snug">Carteirinha indisponível</p>
+            <p className="text-[15px] mt-2 leading-relaxed max-w-sm mx-auto" style={{ color: 'var(--text-muted)' }}>
+              Assim que seu contrato for efetivado, sua carteirinha digital aparecerá aqui.
             </p>
+            <Link to="/planos" className="btn-primary inline-flex mt-5 text-[15px]">
+              Ver planos
+            </Link>
           </div>
+        </MemberGroupedList>
+      ) : null}
 
-          <div className="flex items-center gap-2 self-start">
-            {cpf && (
-              <button
-                type="button"
-                className="btn-outline text-xs"
-                onClick={startReveal10s}
-                disabled={cpfReveal}
+      {!loading && contrato ? (
+        <div className="space-y-5">
+          <section aria-label="Documento digital">
+            {planMeta ? (
+              <p
+                className="text-[13px] text-center mb-3 px-2 leading-snug"
+                style={{ color: 'var(--text-muted)' }}
               >
-                <Lock size={14} className="mr-1" />
-                {cpfReveal ? `CPF visível (${cpfSeconds}s)` : 'Mostrar CPF por 10s'}
-              </button>
-            )}
+                {planMeta}
+              </p>
+            ) : null}
 
-            {isMobile && contrato && user && (
-              <button
-                type="button"
-                className="btn-primary text-xs inline-flex items-center gap-1"
-                onClick={openFullscreen}
-              >
-                <Maximize2 size={14} />
-                Tela cheia
-              </button>
-            )}
-          </div>
-        </header>
-
-        {loading && (
-          <div className="mt-6 space-y-4">
-            <Skeleton className="h-56" />
-            <Skeleton className="h-10" />
-          </div>
-        )}
-
-        {!loading && !contrato && !erro && (
-          <div className="mt-6 card p-6 text-center">
-            <p className="font-medium">
-              Nenhum contrato localizado para exibir a carteirinha.
-            </p>
-            <p className="mt-2 text-sm" style={{ color: 'var(--text)' }}>
-              Assim que seu contrato for efetivado, sua carteirinha digital
-              ficará disponível aqui.
-            </p>
-            <div className="mt-4">
-              <Link to="/planos" className="btn-primary">
-                Conhecer planos
-              </Link>
+            <div className="flex justify-center px-1">
+              <CarteirinhaAssociado
+                user={user}
+                contrato={contrato}
+                printable={false}
+                matchContratoHeight={false}
+                loadAvatar
+                showSideTabs={false}
+              />
             </div>
-          </div>
-        )}
+          </section>
 
-        {!loading && contrato && (
-          <>
-            <div className="mt-6 flex justify-center">
-              <div
-                role={isMobile ? 'button' : undefined}
-                tabIndex={isMobile ? 0 : -1}
-                onClick={() => {
-                  if (isMobile) openFullscreen()
-                }}
-                onKeyDown={(e) => {
-                  if (!isMobile) return
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    openFullscreen()
+          <section aria-label="Ações">
+            <p
+              className="px-1 mb-2 text-[13px] font-normal uppercase tracking-[0.02em]"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Ações
+            </p>
+
+            <MemberGroupedList>
+              {cpf ? (
+                <MemberListRow
+                  icon={cpfReveal ? EyeOff : Eye}
+                  label={cpfReveal ? `CPF visível · ${cpfSeconds}s` : 'Mostrar CPF'}
+                  detail={
+                    cpfReveal
+                      ? 'Ocultando automaticamente'
+                      : 'Exibe o número completo por 10 segundos'
                   }
-                }}
-                className={isMobile ? 'cursor-pointer' : ''}
-                aria-label={isMobile ? 'Abrir carteirinha em tela cheia' : undefined}
-              >
-                <CarteirinhaAssociado
-                  user={user}
-                  contrato={contrato}
-                  printable={false}
-                  matchContratoHeight={false}
-                  loadAvatar={true}
+                  onClick={startReveal10s}
+                  showChevron={false}
                 />
-              </div>
-            </div>
+              ) : null}
 
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-              {printableState && (
-                <Link
+              <MemberListRow
+                icon={Maximize2}
+                label="Tela cheia"
+                detail={isMobile ? 'Ideal para apresentar na unidade' : 'Modo apresentação ampliado'}
+                onClick={openFullscreen}
+              />
+
+              {printableState ? (
+                <MemberListRow
+                  icon={Printer}
+                  label="Imprimir"
+                  detail="Frente e verso em PDF"
                   to="/carteirinha/print"
                   state={printableState}
-                  className="btn-outline text-sm inline-flex items-center gap-1"
-                >
-                  <Lock size={14} />
-                  Imprimir (frente e verso)
-                </Link>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-    </section>
+                />
+              ) : null}
+            </MemberGroupedList>
+
+            <p className="px-1 mt-2 text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              Documento digital válido enquanto exibido pelo associado. Em caso de dúvida, contate
+              a unidade responsável.
+            </p>
+          </section>
+        </div>
+      ) : null}
+    </div>
   )
 }
