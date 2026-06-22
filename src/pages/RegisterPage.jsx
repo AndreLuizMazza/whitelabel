@@ -29,22 +29,14 @@ import useAuth from "@/store/auth";
 import { registerUser } from "@/lib/authApi";
 import { registrarDispositivoFcmWeb } from "@/lib/fcm";
 import VoiceTextInput from "@/components/VoiceTextInput";
+import DateSelectBR from "@/components/DateSelectBR";
 import Button from "@/components/ui/Button.jsx";
 import {
   AlertTriangle,
   ArrowRight,
   ChevronLeft,
-  CheckCircle2,
-  ShieldCheck,
-  Phone,
-  Fingerprint,
   Eye,
   EyeOff,
-  Copy,
-  Wand2,
-  Check,
-  X,
-  LockKeyhole,
 } from "lucide-react";
 
 /* =========================
@@ -290,347 +282,33 @@ function generatePassword(length = 14) {
   return arr.join("");
 }
 
-function StrengthPill({ score, label }) {
-  const width = `${Math.max(6, Math.min(100, score))}%`;
-  const strong = score >= 70;
-  const good = score >= 40 && score < 70;
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-3">
-        <div className="inline-flex items-center gap-2">
-          <span
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full border"
-            style={{
-              background: "color-mix(in srgb, var(--primary) 14%, transparent)",
-              borderColor: "color-mix(in srgb, var(--primary) 24%, transparent)",
-              color: "var(--primary)",
-            }}
-            aria-hidden="true"
-          >
-            <LockKeyhole size={14} />
-          </span>
-          <span className="text-sm font-semibold" style={{ color: "var(--text)" }}>
-            Força:{" "}
-            <span style={{ color: strong || good ? "var(--text)" : "var(--text-muted)" }}>
-              {label}
-            </span>
-          </span>
-        </div>
-
-        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-          {score}%
-        </span>
-      </div>
-
-      <div
-        className="h-2 rounded-full overflow-hidden border"
-        style={{
-          background: "color-mix(in srgb, var(--text) 8%, transparent)",
-          borderColor: "color-mix(in srgb, var(--text) 12%, transparent)",
-        }}
-        aria-hidden="true"
-      >
-        <div
-          className="h-full rounded-full"
-          style={{
-            width,
-            background: `linear-gradient(90deg,
-              color-mix(in srgb, var(--primary) ${Math.min(88, 35 + score * 0.6)}%, transparent),
-              color-mix(in srgb, var(--primary) ${Math.min(95, 45 + score * 0.6)}%, transparent)
-            )`,
-            boxShadow: score >= 40 ? "0 10px 18px rgba(0,0,0,0.10)" : "none",
-            transition: "width 180ms ease",
-          }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function LiveCheck({ ok, text }) {
-  return (
-    <li className="flex items-start gap-2 text-xs md:text-sm">
-      <span
-        className="mt-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full border"
-        style={{
-          background: ok
-            ? "color-mix(in srgb, var(--primary) 16%, transparent)"
-            : "color-mix(in srgb, var(--text) 10%, transparent)",
-          borderColor: ok
-            ? "color-mix(in srgb, var(--primary) 30%, transparent)"
-            : "color-mix(in srgb, var(--text) 14%, transparent)",
-          color: ok ? "var(--primary)" : "var(--text-muted)",
-          flex: "0 0 auto",
-        }}
-        aria-hidden="true"
-      >
-        {ok ? <Check size={12} /> : <X size={12} />}
-      </span>
-      <span style={{ color: ok ? "var(--text)" : "var(--text-muted)" }}>{text}</span>
-    </li>
-  );
-}
-
-/* =========================
-   DateSelectBR (mantido)
-========================= */
-
-function DateSelectBR({
-  valueISO,
-  onChangeISO,
-  invalid = false,
-  className = "",
-  maxAge = 100,
-  minAge = 18,
-  idPrefix,
-}) {
-  const [dia, setDia] = useState("");
-  const [mes, setMes] = useState("");
-  const [ano, setAno] = useState("");
-  const [softWarn, setSoftWarn] = useState("");
-
-  useEffect(() => {
-    const m =
-      typeof valueISO === "string" && /^(\d{4})-(\d{2})-(\d{2})$/.exec(valueISO);
-    if (!m) return;
-    const [, yy, mm, dd] = m;
-    if (ano !== yy) setAno(yy);
-    if (mes !== mm) setMes(mm);
-    if (dia !== dd) setDia(dd);
-  }, [valueISO]); // eslint-disable-line
-
-  const today = new Date();
-  const minDate = (() => {
-    const d = new Date(today);
-    d.setFullYear(d.getFullYear() - (maxAge || 100));
-    return d;
-  })();
-  const maxDate = (() => {
-    const d = new Date(today);
-    d.setFullYear(d.getFullYear() - (minAge || 18));
-    return d;
-  })();
-
-  const minY = minDate.getFullYear();
-  const maxY = maxDate.getFullYear();
-
-  const anos = useMemo(() => {
-    const arr = [];
-    for (let y = maxY; y >= minY; y--) arr.push(String(y));
-    return arr;
-  }, [minY, maxY]);
-
-  const mesesAll = [
-    ["01", "Janeiro"],
-    ["02", "Fevereiro"],
-    ["03", "Março"],
-    ["04", "Abril"],
-    ["05", "Maio"],
-    ["06", "Junho"],
-    ["07", "Julho"],
-    ["08", "Agosto"],
-    ["09", "Setembro"],
-    ["10", "Outubro"],
-    ["11", "Novembro"],
-    ["12", "Dezembro"],
-  ];
-  const str2int = (s) => parseInt(s, 10) || 0;
-  const daysInMonth = (y, m) => new Date(y, m, 0).getDate();
-
-  const mesesFiltrados = useMemo(() => {
-    if (!ano) return mesesAll;
-    const y = str2int(ano);
-    const minM = y === minY ? minDate.getMonth() + 1 : 1;
-    const maxM = y === maxY ? maxDate.getMonth() + 1 : 12;
-    return mesesAll.filter(([v]) => {
-      const mm = str2int(v);
-      return mm >= minM && mm <= maxM;
-    });
-  }, [ano, minY, maxY]); // eslint-disable-line
-
-  function clampDayIfNeeded(y, m, d) {
-    if (!y || !m || !d) return d;
-    const maxDMonth = daysInMonth(y, m);
-    let minD = 1,
-      maxD = maxDMonth;
-    if (y === minY && m === minDate.getMonth() + 1) minD = minDate.getDate();
-    if (y === maxY && m === maxDate.getMonth() + 1)
-      maxD = Math.min(maxDMonth, maxDate.getDate());
-    if (d < minD) return minD;
-    if (d > maxD) return maxD;
-    return d;
-  }
-
-  function inRange(iso) {
-    const d = new Date(iso);
-    const a = new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
-    const b = new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate());
-    return !isNaN(d) && d >= a && d <= b;
-  }
-
-  useEffect(() => {
-    setSoftWarn("");
-    if (!(dia && mes && ano)) return;
-    const iso = `${ano}-${mes}-${dia}`;
-    const ok = inRange(iso);
-    if (!ok) setSoftWarn("Data fora do intervalo permitido entre 18 e 100 anos");
-    onChangeISO?.(iso);
-  }, [dia, mes, ano]); // eslint-disable-line
-
-  function handleChangeMes(nextMesStr) {
-    setSoftWarn("");
-    setMes(nextMesStr);
-    const y = str2int(ano);
-    const m = str2int(nextMesStr);
-    const d = str2int(dia);
-    if (y && m && d) {
-      const dClamped = clampDayIfNeeded(y, m, d);
-      if (dClamped !== d) {
-        setDia(String(dClamped).padStart(2, "0"));
-        setSoftWarn("Ajustamos o dia para o máximo permitido no mês");
-      }
-    }
-  }
-
-  const idDia = `${idPrefix || "date"}-dia`;
-  const idMes = `${idPrefix || "date"}-mes`;
-  const idAno = `${idPrefix || "date"}-ano`;
-
-  const selectBg = "var(--surface)";
-
-  return (
-    <div>
-      <div
-        className={`grid grid-cols-3 gap-2 ${
-          invalid ? "ring-1 ring-red-500 rounded-xl p-1" : ""
-        } ${className}`}
-      >
-        <label htmlFor={idDia} className="sr-only">
-          Dia
-        </label>
-        <select
-          id={idDia}
-          className="input h-12 text-base"
-          style={{ background: selectBg }}
-          value={dia}
-          onChange={(e) => setDia(e.target.value)}
-        >
-          <option value="">Dia</option>
-          {(() => {
-            const y = parseInt(ano || "", 10) || 0;
-            const m = parseInt(mes || "", 10) || 0;
-            let minD = 1,
-              maxD = 31;
-            if (y && m) {
-              const maxDMonth = daysInMonth(y, m);
-              minD = y === minY && m === minDate.getMonth() + 1 ? minDate.getDate() : 1;
-              maxD =
-                y === maxY && m === maxDate.getMonth() + 1
-                  ? Math.min(maxDMonth, maxDate.getDate())
-                  : maxDMonth;
-            }
-            const arr = [];
-            for (let d = minD; d <= maxD; d++) arr.push(String(d).padStart(2, "0"));
-            return arr.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ));
-          })()}
-        </select>
-
-        <label htmlFor={idMes} className="sr-only">
-          Mês
-        </label>
-        <select
-          id={idMes}
-          className="input h-12 text-base"
-          style={{ background: selectBg }}
-          value={mes}
-          onChange={(e) => handleChangeMes(e.target.value)}
-        >
-          <option value="">Mês</option>
-          {mesesFiltrados.map(([v, l]) => (
-            <option key={v} value={v}>
-              {l}
-            </option>
-          ))}
-        </select>
-
-        <label htmlFor={idAno} className="sr-only">
-          Ano
-        </label>
-        <select
-          id={idAno}
-          className="input h-12 text-base"
-          style={{ background: selectBg }}
-          value={ano}
-          onChange={(e) => setAno(e.target.value)}
-        >
-          <option value="">Ano</option>
-          {anos.map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {(invalid || softWarn) && (
-        <p
-          className={`mt-1 text-xs md:text-sm inline-flex items-center gap-1 ${
-            invalid ? "text-red-600" : "text-amber-600"
-          }`}
-          role="alert"
-        >
-          <AlertTriangle size={14} />{" "}
-          {invalid ? "Você precisa ter entre 18 e 100 anos" : softWarn}
-        </p>
-      )}
-    </div>
-  );
-}
-
 /* =========================
    UI pieces (Apple-simple)
 ========================= */
 
-function Rule({ ok, children }) {
-  return (
-    <li className="flex items-center gap-2 text-xs md:text-sm">
-      <span
-        aria-hidden="true"
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px]"
-        style={{
-          background: ok
-            ? "color-mix(in srgb, var(--primary) 18%, transparent)"
-            : "color-mix(in srgb, var(--text) 15%, transparent)",
-          color: ok ? "var(--primary)" : "var(--text-muted)",
-        }}
-      >
-        {ok ? "✓" : "•"}
-      </span>
-      <span style={{ color: ok ? "var(--text)" : "var(--text-muted)" }}>{children}</span>
-    </li>
-  );
-}
+function FormPanel({ title, subtitle, plain, children }) {
+  if (plain) {
+    return (
+      <div>
+        {(title || subtitle) && (
+          <header className="space-y-1 mb-6">
+            {title && (
+              <h2 className="text-xl md:text-2xl font-semibold tracking-tight text-[var(--text)]">
+                {title}
+              </h2>
+            )}
+            {subtitle && (
+              <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                {subtitle}
+              </p>
+            )}
+          </header>
+        )}
+        {children}
+      </div>
+    );
+  }
 
-function MasterCard({ children }) {
-  return (
-    <div
-      className="relative overflow-hidden rounded-2xl md:rounded-3xl border shadow-sm"
-      style={{
-        background: "var(--surface)",
-        borderColor: "var(--c-border)",
-      }}
-    >
-      <div className="relative p-4 md:p-7">{children}</div>
-    </div>
-  );
-}
-
-function FormPanel({ title, subtitle, children }) {
   return (
     <div
       className="rounded-2xl border px-4 py-4 md:px-5 md:py-5"
@@ -654,6 +332,87 @@ function FormPanel({ title, subtitle, children }) {
         </div>
       )}
       {children}
+    </div>
+  );
+}
+
+function AppleFieldGroup({ children }) {
+  return (
+    <div
+      className="rounded-xl border overflow-hidden divide-y"
+      style={{
+        background: "var(--surface)",
+        borderColor: "var(--c-border)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ApplePasswordField({
+  id,
+  label,
+  inputRef,
+  value,
+  onChange,
+  onKeyUp,
+  show,
+  onToggleShow,
+  toggleLabel,
+  placeholder,
+  invalid,
+  describedBy,
+  name,
+  autoComplete = "new-password",
+}) {
+  return (
+    <div
+      className={`relative px-4 py-3 ${invalid ? "bg-[color-mix(in_srgb,#dc2626_4%,transparent)]" : ""}`}
+      style={{ borderColor: "var(--c-border)" }}
+    >
+      <label htmlFor={id} className="block text-xs font-medium mb-1" style={{ color: "var(--text-muted)" }}>
+        {label}
+      </label>
+      <input
+        id={id}
+        name={name}
+        ref={inputRef}
+        type={show ? "text" : "password"}
+        value={value}
+        onChange={onChange}
+        onKeyUp={onKeyUp}
+        className="w-full h-11 pr-10 bg-transparent border-0 p-0 text-base text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-0"
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        aria-required="true"
+        aria-invalid={invalid}
+        aria-describedby={describedBy}
+      />
+      <button
+        type="button"
+        onClick={onToggleShow}
+        className="absolute right-3 bottom-3.5 p-2 -mr-1 rounded-lg min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
+        style={{ color: "var(--text-muted)" }}
+        aria-label={toggleLabel}
+        aria-pressed={show}
+      >
+        {show ? <EyeOff size={18} /> : <Eye size={18} />}
+      </button>
+    </div>
+  );
+}
+
+function MasterCard({ children }) {
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl md:rounded-3xl border shadow-sm"
+      style={{
+        background: "var(--surface)",
+        borderColor: "var(--c-border)",
+      }}
+    >
+      <div className="relative p-4 md:p-7">{children}</div>
     </div>
   );
 }
@@ -869,8 +628,6 @@ export default function RegisterPage() {
     if (error) setTimeout(() => alertRef.current?.focus(), 0);
   }, [error]);
 
-  const passScore = useMemo(() => scorePassword(form.senha), [form.senha]);
-
   function buildErrorList(values) {
     const items = [];
     const age = ageFromISO(values.dataNascimento);
@@ -1031,15 +788,6 @@ export default function RegisterPage() {
 
   const sendLabel = step === 3 ? "Criar conta" : "Continuar";
 
-  const asideInfo =
-    step === 1
-      ? { icon: Fingerprint, title: "Validação do titular", bullets: ["Evita fraudes", "Cadastro rápido", "Sem papelada"] }
-      : step === 2
-      ? { icon: Phone, title: "Recuperação e avisos", bullets: ["Recuperar senha", "Avisos do contrato", "Suporte"] }
-      : { icon: ShieldCheck, title: "Senha forte", bullets: ["Mais proteção", "Menos tentativas indevidas", "Você altera depois"] };
-
-  const AsideIcon = asideInfo.icon;
-
   const loginNavigationState = useMemo(
     () => (location.state?.from ? { from: location.state.from } : undefined),
     [location.state]
@@ -1074,8 +822,9 @@ export default function RegisterPage() {
     const pw = generatePassword(14);
     const next = { ...form, senha: pw, confirmSenha: pw };
     setForm(next);
+    setShowPass(true);
     setGenOk(true);
-    setTimeout(() => setGenOk(false), 1200);
+    setTimeout(() => setGenOk(false), 4000);
     if (submitted) setErrorList(buildStepErrors(next, 3));
     setTimeout(() => confirmRef.current?.focus(), 0);
   }
@@ -1142,12 +891,16 @@ export default function RegisterPage() {
             <form onSubmit={onSubmit} noValidate>
               <fieldset
                 disabled={loading}
-                className="grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)] gap-6 md:gap-8 items-start"
+                className="grid grid-cols-1 gap-6 items-start"
               >
-                {/* FORM */}
                 <FormPanel
-                  title="Crie sua conta"
-                  subtitle="Use o microfone nos campos disponíveis, se preferir."
+                  plain={step === 3}
+                  title={step === 3 ? "Proteja sua conta" : "Crie sua conta"}
+                  subtitle={
+                    step === 3
+                      ? "Crie uma senha difícil de adivinhar."
+                      : "Use o microfone nos campos disponíveis, se preferir."
+                  }
                 >
                   <div className="grid gap-4" style={stepTransitionStyle} key={step}>
                     {step === 1 && (
@@ -1342,380 +1095,142 @@ export default function RegisterPage() {
                       </div>
                     )}
 
-                    {/* =========================
-                        STEP 3 – SENHA (despoluída, leiga-friendly)
-                       ========================= */}
                     {step === 3 && (
-                      <div className="space-y-4">
-                        {/* Linha 1: Senha */}
-                        <div>
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <label htmlFor="senha" className="label font-medium text-sm md:text-base">
-                                Senha <span aria-hidden="true" className="text-red-600">*</span>
-                              </label>
-                              <p className="text-[11px] md:text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                                Use 8+ caracteres com letras e número (ou gere automaticamente).
-                              </p>
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => applyGeneratedPassword()}
-                              className="inline-flex items-center gap-2 rounded-full h-10 px-4 border text-xs md:text-sm font-semibold hover:opacity-90 active:opacity-80 flex-shrink-0"
-                              style={{
-                                background: "var(--surface)",
-                                borderColor: "var(--c-border)",
-                                color: "var(--text)",
-                              }}
-                              disabled={loading}
-                              title="Gerar senha forte"
-                            >
-                              <Wand2 size={16} style={{ color: "var(--primary)" }} />
-                              {genOk ? "Gerada!" : "Gerar"}
-                            </button>
-                          </div>
-
-                          <div className={`mt-2 relative ${submitted && !senhaOk ? "ring-1 ring-red-500 rounded-2xl" : ""}`}>
-                            <input
-                              id="senha"
-                              type={showPass ? "text" : "password"}
-                              name="senha"
-                              ref={senhaRef}
-                              value={form.senha}
-                              onChange={(e) => {
-                                const next = { ...form, senha: e.target.value };
-                                setForm(next);
-                                recomputeErrorsIfSubmitted(next);
-                              }}
-                              onKeyUp={(e) => {
-                                try {
-                                  setCapsOn(!!e.getModifierState?.("CapsLock"));
-                                } catch {}
-                              }}
-                              className="input pr-[104px] h-12 text-xs sm:text-sm md:text-base"
-                              style={{ background: inputBg, borderColor: inputBorder }}
-                              placeholder="Digite sua senha"
-                              autoComplete="new-password"
-                              aria-required="true"
-                              aria-invalid={submitted && !senhaOk}
-                              aria-describedby="senha-ux senha-policy"
-                            />
-
-                            <div className="absolute inset-y-0 right-0 flex items-center gap-1 pr-2">
-                              <button
-                                type="button"
-                                onClick={() => setShowPass((v) => !v)}
-                                className="h-9 w-9 inline-flex items-center justify-center rounded-full border hover:opacity-90 active:opacity-80"
-                                style={{
-                                  background: "var(--surface)",
-                                  borderColor: "var(--c-border)",
-                                  color: "var(--text)",
-                                }}
-                                aria-label={showPass ? "Ocultar senha" : "Mostrar senha"}
-                                aria-pressed={showPass}
-                                title={showPass ? "Ocultar" : "Mostrar"}
-                              >
-                                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => copyToClipboard(form.senha || "")}
-                                className="h-9 w-9 inline-flex items-center justify-center rounded-full border hover:opacity-90 active:opacity-80 disabled:opacity-60 disabled:cursor-not-allowed"
-                                style={{
-                                  background: "var(--surface)",
-                                  borderColor: "var(--c-border)",
-                                  color: "var(--text)",
-                                }}
-                                disabled={!form.senha}
-                                aria-label="Copiar senha"
-                                title={copyOk ? "Copiada!" : "Copiar"}
-                              >
-                                <Copy size={16} style={{ color: copyOk ? "var(--primary)" : "currentColor" }} />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Feedback mínimo e claro */}
-                          <div id="senha-ux" className="mt-2 space-y-2">
-                            {capsOn && (
-                              <div
-                                className="rounded-2xl px-3 py-2 border text-xs md:text-sm inline-flex items-center gap-2"
-                                style={{
-                                  background: "color-mix(in srgb, var(--primary) 10%, transparent)",
-                                  borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)",
-                                  color: "var(--text)",
-                                }}
-                                role="status"
-                              >
-                                <AlertTriangle size={14} style={{ color: "var(--primary)" }} />
-                                Caps Lock ativado
-                              </div>
-                            )}
-
-                            {/* Força: mantém a barra (alto valor), remove “cards” extras */}
-                            <div
-                              className="rounded-2xl px-4 py-3 border"
-                              style={{
-                                background: "var(--surface)",
-                                borderColor: "var(--c-border)",
-                              }}
-                            >
-                              <StrengthPill score={passScore.score} label={passScore.label} />
-                              <p className="mt-2 text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
-                                {passScore.hint}
-                              </p>
-
-                              {/* Requisitos em 1 linha (para leigo) */}
-                              <div className="mt-3 flex flex-wrap items-center gap-2">
-                                <span className="text-[11px] md:text-xs font-semibold" style={{ color: "var(--text)" }}>
-                                  Requisitos:
-                                </span>
-
-                                <span
-                                  className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] md:text-xs"
-                                  style={{
-                                    background: senhaChecks.len
-                                      ? "color-mix(in srgb, var(--primary) 10%, transparent)"
-                                      : "color-mix(in srgb, var(--text) 7%, transparent)",
-                                    borderColor: senhaChecks.len
-                                      ? "color-mix(in srgb, var(--primary) 18%, transparent)"
-                                      : "color-mix(in srgb, var(--text) 14%, transparent)",
-                                    color: senhaChecks.len ? "var(--text)" : "var(--text-muted)",
-                                  }}
-                                >
-                                  {senhaChecks.len ? <Check size={12} style={{ color: "var(--primary)" }} /> : <X size={12} />}
-                                  8+
-                                </span>
-
-                                <span
-                                  className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] md:text-xs"
-                                  style={{
-                                    background: senhaChecks.upper
-                                      ? "color-mix(in srgb, var(--primary) 10%, transparent)"
-                                      : "color-mix(in srgb, var(--text) 7%, transparent)",
-                                    borderColor: senhaChecks.upper
-                                      ? "color-mix(in srgb, var(--primary) 18%, transparent)"
-                                      : "color-mix(in srgb, var(--text) 14%, transparent)",
-                                    color: senhaChecks.upper ? "var(--text)" : "var(--text-muted)",
-                                  }}
-                                >
-                                  {senhaChecks.upper ? <Check size={12} style={{ color: "var(--primary)" }} /> : <X size={12} />}
-                                  A-Z
-                                </span>
-
-                                <span
-                                  className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] md:text-xs"
-                                  style={{
-                                    background: senhaChecks.lower
-                                      ? "color-mix(in srgb, var(--primary) 10%, transparent)"
-                                      : "color-mix(in srgb, var(--text) 7%, transparent)",
-                                    borderColor: senhaChecks.lower
-                                      ? "color-mix(in srgb, var(--primary) 18%, transparent)"
-                                      : "color-mix(in srgb, var(--text) 14%, transparent)",
-                                    color: senhaChecks.lower ? "var(--text)" : "var(--text-muted)",
-                                  }}
-                                >
-                                  {senhaChecks.lower ? <Check size={12} style={{ color: "var(--primary)" }} /> : <X size={12} />}
-                                  a-z
-                                </span>
-
-                                <span
-                                  className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border text-[11px] md:text-xs"
-                                  style={{
-                                    background: senhaChecks.digit
-                                      ? "color-mix(in srgb, var(--primary) 10%, transparent)"
-                                      : "color-mix(in srgb, var(--text) 7%, transparent)",
-                                    borderColor: senhaChecks.digit
-                                      ? "color-mix(in srgb, var(--primary) 18%, transparent)"
-                                      : "color-mix(in srgb, var(--text) 14%, transparent)",
-                                    color: senhaChecks.digit ? "var(--text)" : "var(--text-muted)",
-                                  }}
-                                >
-                                  {senhaChecks.digit ? <Check size={12} style={{ color: "var(--primary)" }} /> : <X size={12} />}
-                                  0-9
-                                </span>
-                              </div>
-
-                              {/* Só mostra “detalhes” quando necessário (reduz poluição) */}
-                              <details className="mt-3">
-                                <summary
-                                  className="text-xs md:text-sm font-semibold cursor-pointer select-none"
-                                  style={{ color: "var(--text)" }}
-                                >
-                                  Ver detalhes
-                                </summary>
-
-                                <div
-                                  id="senha-policy"
-                                  className="mt-2 rounded-2xl px-4 py-3 border"
-                                  style={{
-                                    background: "var(--surface)",
-                                    borderColor: "var(--c-border)",
-                                  }}
-                                  aria-live="polite"
-                                >
-                                  <p className="text-[11px] md:text-xs mb-2 font-semibold" style={{ color: "var(--text)" }}>
-                                    Requisitos mínimos
-                                  </p>
-                                  <ul className="space-y-1.5">
-                                    <LiveCheck ok={senhaChecks.len} text="8 ou mais caracteres" />
-                                    <LiveCheck ok={senhaChecks.upper} text="1 letra maiúscula (A-Z)" />
-                                    <LiveCheck ok={senhaChecks.lower} text="1 letra minúscula (a-z)" />
-                                    <LiveCheck ok={senhaChecks.digit} text="1 número (0-9)" />
-                                  </ul>
-                                </div>
-                              </details>
-
-                              {senhaOk && (
-                                <div
-                                  className="mt-3 rounded-xl px-3 py-2 border text-xs md:text-sm inline-flex items-center gap-2"
-                                  style={{
-                                    background: "color-mix(in srgb, var(--primary) 12%, transparent)",
-                                    borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)",
-                                    color: "var(--text)",
-                                  }}
-                                  role="status"
-                                >
-                                  <CheckCircle2 size={16} style={{ color: "var(--primary)" }} />
-                                  Senha aprovada
-                                </div>
-                              )}
-
-                              {submitted && !senhaOk && (
-                                <p className="text-xs md:text-sm mt-3 text-red-600">
-                                  Falta: <b>{requirementsSummary.join(", ")}</b>.
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Linha 2: Confirmar */}
-                        <div>
-                          <label htmlFor="confirmSenha" className="label font-medium text-sm md:text-base">
-                            Confirmar senha <span aria-hidden="true" className="text-red-600">*</span>
-                          </label>
-
-                          <div className={`mt-2 relative ${submitted && !confirmOk ? "ring-1 ring-red-500 rounded-2xl" : ""}`}>
-                            <input
-                              id="confirmSenha"
-                              ref={confirmRef}
-                              type={showConfirm ? "text" : "password"}
-                              name="confirmSenha"
-                              value={form.confirmSenha}
-                              onChange={(e) => {
-                                const next = { ...form, confirmSenha: e.target.value };
-                                setForm(next);
-                                recomputeErrorsIfSubmitted(next);
-                              }}
-                              className="input pr-[56px] h-12 text-xs sm:text-sm md:text-base"
-                              style={{ background: inputBg, borderColor: inputBorder }}
-                              placeholder="Digite novamente"
-                              autoComplete="new-password"
-                              aria-required="true"
-                              aria-invalid={submitted && !confirmOk}
-                              aria-describedby="confirm-feedback"
-                            />
-
-                            <button
-                              type="button"
-                              onClick={() => setShowConfirm((v) => !v)}
-                              className="absolute inset-y-0 right-0 my-auto mr-2 h-9 w-9 inline-flex items-center justify-center rounded-full border hover:opacity-90 active:opacity-80"
-                              style={{
-                                background: "var(--surface)",
-                                borderColor: "var(--c-border)",
-                                color: "var(--text)",
-                              }}
-                              aria-label={showConfirm ? "Ocultar confirmação" : "Mostrar confirmação"}
-                              aria-pressed={showConfirm}
-                              title={showConfirm ? "Ocultar" : "Mostrar"}
-                            >
-                              {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                          </div>
-
-                          <div id="confirm-feedback" className="mt-2">
-                            {form.confirmSenha.length > 0 && (
-                              <div
-                                className="rounded-2xl px-3 py-2 border text-xs md:text-sm inline-flex items-center gap-2"
-                                style={{
-                                  background: confirmOk
-                                    ? "color-mix(in srgb, var(--primary) 12%, transparent)"
-                                    : "color-mix(in srgb, var(--text) 8%, transparent)",
-                                  borderColor: confirmOk
-                                    ? "color-mix(in srgb, var(--primary) 22%, transparent)"
-                                    : "color-mix(in srgb, var(--text) 14%, transparent)",
-                                  color: "var(--text)",
-                                }}
-                                role="status"
-                              >
-                                {confirmOk ? (
-                                  <>
-                                    <Check size={16} style={{ color: "var(--primary)" }} />
-                                    Senhas conferem
-                                  </>
-                                ) : (
-                                  <>
-                                    <X size={16} style={{ color: "var(--text-muted)" }} />
-                                    Não confere
-                                  </>
-                                )}
-                              </div>
-                            )}
-
-                            {submitted && !confirmOk && (
-                              <p className="text-xs md:text-sm mt-2 text-red-600">As senhas precisam ser iguais.</p>
-                            )}
-                          </div>
-
-                          {/* Termos LGPD — aceite explicito */}
-                          <label
-                            className={`mt-4 flex items-start gap-3 rounded-2xl px-4 py-3 border cursor-pointer min-h-[44px] ${
-                              submitted && !termsOk ? "ring-1 ring-red-500" : ""
-                            }`}
-                            style={{
-                              background: "var(--surface)",
-                              borderColor: "var(--c-border)",
+                      <div className="space-y-5">
+                        <AppleFieldGroup>
+                          <ApplePasswordField
+                            id="senha"
+                            label="Senha"
+                            inputRef={senhaRef}
+                            name="senha"
+                            value={form.senha}
+                            onChange={(e) => {
+                              const next = { ...form, senha: e.target.value };
+                              setForm(next);
+                              recomputeErrorsIfSubmitted(next);
                             }}
-                          >
-                            <input
-                              type="checkbox"
-                              className="mt-1 h-4 w-4 rounded border shrink-0"
-                              style={{ borderColor: "var(--c-border)" }}
-                              checked={form.aceiteTermos && form.aceitePrivacidade}
-                              onChange={(e) => {
-                                const checked = e.target.checked;
-                                const next = {
-                                  ...form,
-                                  aceiteTermos: checked,
-                                  aceitePrivacidade: checked,
-                                };
-                                setForm(next);
-                                if (submitted) setErrorList(buildStepErrors(next, 3));
-                              }}
-                              aria-required="true"
-                              aria-invalid={submitted && !termsOk}
-                            />
-                            <span className="text-xs md:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                              Li e aceito os{" "}
-                              <a href="/termos-uso" target="_blank" rel="noreferrer" className="underline">
-                                Termos de Uso
-                              </a>{" "}
-                              e a{" "}
-                              <a href="/politica-privacidade" target="_blank" rel="noreferrer" className="underline">
-                                Política de Privacidade
-                              </a>
-                              .
-                            </span>
-                          </label>
-                          {submitted && !termsOk && (
-                            <p className="text-xs md:text-sm mt-1 text-red-600">
-                              É necessário aceitar os termos para criar sua conta.
+                            onKeyUp={(e) => {
+                              try {
+                                setCapsOn(!!e.getModifierState?.("CapsLock"));
+                              } catch {}
+                            }}
+                            show={showPass}
+                            onToggleShow={() => setShowPass((v) => !v)}
+                            toggleLabel={showPass ? "Ocultar senha" : "Mostrar senha"}
+                            placeholder="Senha"
+                            invalid={submitted && !senhaOk}
+                            describedBy="senha-feedback senha-policy"
+                          />
+                          <ApplePasswordField
+                            id="confirmSenha"
+                            label="Confirmar senha"
+                            inputRef={confirmRef}
+                            value={form.confirmSenha}
+                            onChange={(e) => {
+                              const next = { ...form, confirmSenha: e.target.value };
+                              setForm(next);
+                              recomputeErrorsIfSubmitted(next);
+                            }}
+                            show={showConfirm}
+                            onToggleShow={() => setShowConfirm((v) => !v)}
+                            toggleLabel={showConfirm ? "Ocultar confirmação" : "Mostrar confirmação"}
+                            placeholder="Repita a senha"
+                            invalid={submitted && !confirmOk}
+                            describedBy="confirm-feedback senha-policy"
+                          />
+                        </AppleFieldGroup>
+
+                        <p id="senha-policy" className="sr-only">
+                          A senha precisa de 8 ou mais caracteres, com letra maiúscula, minúscula e número.
+                        </p>
+
+                        <div id="senha-feedback" className="space-y-1 px-1 min-h-[1.25rem]" aria-live="polite">
+                          {capsOn && (
+                            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                              Caps Lock está ativado.
+                            </p>
+                          )}
+                          {submitted && !senhaOk && (
+                            <p className="text-xs text-red-600">
+                              {requirementsSummary.length > 0
+                                ? `A senha precisa de ${requirementsSummary.join(", ")}.`
+                                : "Escolha uma senha mais forte."}
+                            </p>
+                          )}
+                          {genOk && (
+                            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+                              Senha sugerida.{" "}
+                              <button
+                                type="button"
+                                onClick={() => copyToClipboard(form.senha)}
+                                className="font-medium hover:underline"
+                                style={{ color: "var(--primary)" }}
+                              >
+                                {copyOk ? "Copiada" : "Copiar"}
+                              </button>
                             </p>
                           )}
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={() => applyGeneratedPassword()}
+                          disabled={loading}
+                          className="w-full text-center text-sm font-medium min-h-[44px] hover:underline disabled:opacity-50"
+                          style={{ color: "var(--primary)" }}
+                        >
+                          Sugerir senha segura
+                        </button>
+
+                        <div id="confirm-feedback" className="px-1 min-h-[1rem]" aria-live="polite">
+                          {form.confirmSenha.length > 0 && !confirmOk && (
+                            <p className="text-xs text-red-600">As senhas não coincidem.</p>
+                          )}
+                          {submitted && !confirmOk && form.confirmSenha.length === 0 && (
+                            <p className="text-xs text-red-600">Confirme sua senha.</p>
+                          )}
+                        </div>
+
+                        <label
+                          className={`flex items-start gap-3 pt-1 cursor-pointer min-h-[44px] ${
+                            submitted && !termsOk ? "ring-1 ring-red-500 rounded-lg px-1 -mx-1" : ""
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            className="mt-1 h-4 w-4 rounded border shrink-0"
+                            style={{ borderColor: "var(--c-border)" }}
+                            checked={form.aceiteTermos && form.aceitePrivacidade}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              const next = {
+                                ...form,
+                                aceiteTermos: checked,
+                                aceitePrivacidade: checked,
+                              };
+                              setForm(next);
+                              if (submitted) setErrorList(buildStepErrors(next, 3));
+                            }}
+                            aria-required="true"
+                            aria-invalid={submitted && !termsOk}
+                          />
+                          <span className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                            Li e aceito os{" "}
+                            <a href="/termos-uso" target="_blank" rel="noreferrer" className="underline">
+                              Termos de Uso
+                            </a>{" "}
+                            e a{" "}
+                            <a href="/politica-privacidade" target="_blank" rel="noreferrer" className="underline">
+                              Política de Privacidade
+                            </a>
+                            .
+                          </span>
+                        </label>
+                        {submitted && !termsOk && (
+                          <p className="text-xs text-red-600 px-1">
+                            Aceite os termos para continuar.
+                          </p>
+                        )}
                       </div>
                     )}
 
@@ -1831,47 +1346,6 @@ export default function RegisterPage() {
                     </div>
                   </div>
                 </FormPanel>
-
-                {/* COLUNA DIREITA – MINIMAL; escondida no mobile */}
-                <aside
-                  className="hidden md:flex rounded-2xl border px-5 py-5 flex-col justify-between gap-4"
-                  style={{
-                    background: "var(--surface-alt, var(--surface))",
-                    borderColor: "var(--c-border)",
-                  }}
-                >
-                  <div className="space-y-2">
-                    <div className="inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[11px]">
-                      <span
-                        className="inline-flex h-5 w-5 items-center justify-center rounded-full"
-                        style={{ background: "var(--primary)", color: "var(--on-primary, #fff)" }}
-                      >
-                        <AsideIcon size={12} />
-                      </span>
-                      <span style={{ color: "var(--text-muted)" }}>{asideInfo.title}</span>
-                    </div>
-
-                    <ul className="mt-2 space-y-2 text-sm">
-                      {asideInfo.bullets.map((b, idx) => (
-                        <li key={idx} className="flex items-start gap-2">
-                          <span className="mt-2 inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--primary)" }} />
-                          <span style={{ color: "var(--text)" }}>{b}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      onClick={() => navigate("/login", { state: loginNavigationState })}
-                      className="btn-outline w-full justify-center rounded-2xl h-11 md:h-12 text-sm md:text-base font-semibold"
-                      disabled={loading}
-                    >
-                      Já tenho conta
-                    </button>
-                  </div>
-                </aside>
               </fieldset>
             </form>
           </MasterCard>
