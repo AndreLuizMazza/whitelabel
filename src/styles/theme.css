@@ -16,6 +16,9 @@
   --nav-active-bg: color-mix(in srgb, var(--primary) 18%, transparent);
   --nav-active-color: var(--primary);
 
+  /* Hover secundário (outline/ghost) — derivado da paleta do tenant */
+  --button-hover: color-mix(in srgb, var(--primary) 8%, var(--surface));
+
   /* Tenant: definidos em JS a partir do contrato (theme-inline / TenantBootstrapper / initTheme) */
   --tenant-logo-light: none;
   --tenant-logo-dark: none;

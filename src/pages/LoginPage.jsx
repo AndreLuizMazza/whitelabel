@@ -110,21 +110,21 @@ export default function LoginPage() {
 
   return (
     <div className="w-full">
-      <header className="mb-6 text-center">
-        <h1 className="text-xl font-semibold tracking-tight">
+      <header className="mb-6 md:mb-8 text-center md:text-left">
+        <h1 className="text-2xl md:text-xl font-semibold tracking-tight text-[var(--text)]">
           Entrar na sua conta
         </h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
+        <p className="mt-1.5 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
           Acesse planos, dependentes e pagamentos.
         </p>
       </header>
 
       {veioDoCadastro && (
         <div
-          className="mb-4 rounded-xl px-4 py-3 text-sm flex gap-2 items-start border"
+          className="mb-4 rounded-xl px-4 py-3 text-sm flex gap-2.5 items-start border"
           style={{
-            borderColor: 'color-mix(in srgb, var(--primary) 25%, transparent)',
-            background: 'color-mix(in srgb, var(--primary) 8%, transparent)',
+            borderColor: 'color-mix(in srgb, var(--primary) 20%, transparent)',
+            background: 'color-mix(in srgb, var(--primary) 6%, transparent)',
           }}
           role="status"
         >
@@ -144,8 +144,8 @@ export default function LoginPage() {
           tabIndex={-1}
           className="mb-4 rounded-xl px-4 py-3 text-sm border"
           style={{
-            borderColor: 'color-mix(in srgb, #dc2626 30%, transparent)',
-            background: 'color-mix(in srgb, #dc2626 8%, transparent)',
+            borderColor: 'color-mix(in srgb, #dc2626 25%, transparent)',
+            background: 'color-mix(in srgb, #dc2626 6%, transparent)',
             color: 'var(--text)',
           }}
           aria-live="assertive"
@@ -157,7 +157,7 @@ export default function LoginPage() {
       <form
         onSubmit={onSubmit}
         noValidate
-        className="rounded-2xl border p-6 shadow-sm"
+        className="rounded-2xl border p-5 md:p-6 shadow-sm"
         style={{
           background: 'var(--surface)',
           borderColor: 'var(--c-border)',
@@ -172,7 +172,7 @@ export default function LoginPage() {
               id="ident"
               ref={identRef}
               name="username"
-              className={`input h-11 w-full text-sm ${
+              className={`input h-12 md:h-11 w-full text-base md:text-sm rounded-xl ${
                 !identValido && identificador ? 'ring-1 ring-red-500' : ''
               }`}
               placeholder="ex.: joao@email.com"
@@ -193,7 +193,7 @@ export default function LoginPage() {
               </label>
               <Link
                 to="/recuperar-senha"
-                className="text-xs font-medium hover:underline"
+                className="text-xs font-medium hover:underline min-h-[44px] inline-flex items-center"
                 style={{ color: 'var(--primary)' }}
               >
                 Esqueci minha senha
@@ -204,7 +204,7 @@ export default function LoginPage() {
                 id="senha"
                 ref={senhaRef}
                 name="password"
-                className={`input h-11 w-full pr-12 text-sm ${
+                className={`input h-12 md:h-11 w-full pr-12 text-base md:text-sm rounded-xl ${
                   !senhaValida && senha ? 'ring-1 ring-red-500' : ''
                 }`}
                 placeholder="Sua senha"
@@ -218,7 +218,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute inset-y-0 right-0 px-3 text-sm min-h-[44px] min-w-[44px] flex items-center justify-center"
+                className="absolute inset-y-0 right-0 px-3 min-h-[48px] min-w-[48px] flex items-center justify-center rounded-r-xl"
                 style={{ color: 'var(--text-muted)' }}
                 aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                 aria-pressed={showPassword}
@@ -234,7 +234,7 @@ export default function LoginPage() {
           </div>
 
           <label
-            className="inline-flex items-center gap-2 select-none text-sm min-h-[44px]"
+            className="inline-flex items-center gap-2.5 select-none text-sm min-h-[44px]"
             style={{ color: 'var(--text)' }}
           >
             <input
@@ -254,7 +254,7 @@ export default function LoginPage() {
             full
             loading={loading}
             disabled={!formValido}
-            className="min-h-[44px] font-semibold"
+            className="min-h-[48px] font-semibold rounded-xl md:rounded-lg"
           >
             {loading ? 'Entrando…' : 'Entrar'}
           </Button>
@@ -265,7 +265,8 @@ export default function LoginPage() {
         Não tem conta?{' '}
         <Link
           to="/criar-conta"
-          className="font-medium hover:underline"
+          state={location.state?.from ? { from: location.state.from } : undefined}
+          className="font-semibold hover:underline"
           style={{ color: 'var(--primary)' }}
         >
           Criar conta

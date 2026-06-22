@@ -2,7 +2,7 @@
 // RegisterPage – Apple-level (simplicidade + confiança)
 // Ajustes aplicados:
 // 1) Remove voz do campo e-mail (mantém voz nos demais campos que já tinham)
-// 2) Ordem: a) Criar conta  b) Stepper  c) Dica
+// 2) Ordem: Stepper + formulário (cards auxiliares removidos)
 // 3) Stepper apenas com número (sem textos)
 // 4) Harmonia de cor: remove “brancos” próximos de inputs/botões (usa surfaces)
 // 5) Stepper sticky: ao rolar, bate no topo e fica sempre visível (com offset do header)
@@ -29,15 +29,13 @@ import useAuth from "@/store/auth";
 import { registerUser } from "@/lib/authApi";
 import { registrarDispositivoFcmWeb } from "@/lib/fcm";
 import VoiceTextInput from "@/components/VoiceTextInput";
+import Button from "@/components/ui/Button.jsx";
 import {
   AlertTriangle,
-  UserPlus,
   ArrowRight,
   ChevronLeft,
   CheckCircle2,
   ShieldCheck,
-  Mail,
-  User,
   Phone,
   Fingerprint,
   Eye,
@@ -61,9 +59,34 @@ const initial = {
   cpf: "",
   celular: "",
   dataNascimento: "",
-  aceiteTermos: true,
-  aceitePrivacidade: true,
+  aceiteTermos: false,
+  aceitePrivacidade: false,
 };
+
+function mapRegisterApiError(err) {
+  const raw =
+    err?.response?.data?.message ||
+    err?.response?.data?.error ||
+    (typeof err?.response?.data === "string" ? err?.response?.data : null) ||
+    err?.message ||
+    "";
+
+  const msg = String(raw).toLowerCase();
+
+  if (msg.includes("cpf") && (msg.includes("cadastr") || msg.includes("exist") || msg.includes("duplic"))) {
+    return "Este CPF já possui conta. Faça login ou recupere a senha.";
+  }
+  if (msg.includes("e-mail") || msg.includes("email")) {
+    if (msg.includes("cadastr") || msg.includes("exist") || msg.includes("duplic")) {
+      return "Este e-mail já possui conta. Faça login ou recupere a senha.";
+    }
+  }
+  if (msg.includes("termos") || msg.includes("privacidade")) {
+    return "É necessário aceitar os Termos de Uso e a Política de Privacidade.";
+  }
+  if (raw) return raw;
+  return "Não foi possível concluir o cadastro. Tente novamente.";
+}
 
 /* =========================
    Validadores / formatters
@@ -474,7 +497,7 @@ function DateSelectBR({
   const idMes = `${idPrefix || "date"}-mes`;
   const idAno = `${idPrefix || "date"}-ano`;
 
-  const selectBg = "color-mix(in srgb, var(--surface-elevated) 92%, transparent)";
+  const selectBg = "var(--surface)";
 
   return (
     <div>
@@ -596,22 +619,13 @@ function Rule({ ok, children }) {
 function MasterCard({ children }) {
   return (
     <div
-      className="relative overflow-hidden rounded-3xl border shadow-xl"
+      className="relative overflow-hidden rounded-2xl md:rounded-3xl border shadow-sm"
       style={{
-        background: "color-mix(in srgb, var(--surface) 88%, var(--text) 6%)",
-        borderColor: "color-mix(in srgb, var(--text) 18%, transparent)",
+        background: "var(--surface)",
+        borderColor: "var(--c-border)",
       }}
     >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
-        style={{
-          background:
-            "radial-gradient(120% 140% at 50% 120%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)",
-          opacity: 0.6,
-        }}
-      />
-      <div className="relative z-[1] p-5 md:p-7">{children}</div>
+      <div className="relative p-4 md:p-7">{children}</div>
     </div>
   );
 }
@@ -621,15 +635,19 @@ function FormPanel({ title, subtitle, children }) {
     <div
       className="rounded-2xl border px-4 py-4 md:px-5 md:py-5"
       style={{
-        background: "color-mix(in srgb, var(--surface-elevated) 92%, var(--text) 5%)",
-        borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+        background: "var(--surface-alt, color-mix(in srgb, var(--primary) 4%, var(--surface)))",
+        borderColor: "var(--c-border)",
       }}
     >
       {(title || subtitle) && (
-        <div className="space-y-1 mb-4">
-          {title && <p className="text-xs md:text-sm font-semibold tracking-wide uppercase">{title}</p>}
+        <div className="space-y-1 mb-5 md:mb-4">
+          {title && (
+            <h2 className="text-lg font-semibold text-[var(--text)]">
+              {title}
+            </h2>
+          )}
           {subtitle && (
-            <p className="text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
+            <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
               {subtitle}
             </p>
           )}
@@ -672,24 +690,22 @@ function StepCircle({ n, active, done, onClick, disabled }) {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="h-11 w-11 md:h-12 md:w-12 rounded-full border inline-flex items-center justify-center font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
+      className="h-10 w-10 md:h-12 md:w-12 rounded-full border inline-flex items-center justify-center font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed transition-transform"
       style={{
         background: isPrimary
           ? "var(--primary)"
-          : "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
+          : "var(--surface-alt, var(--surface))",
         borderColor: isPrimary
-          ? "color-mix(in srgb, var(--primary) 65%, #000 0%)"
-          : "color-mix(in srgb, var(--text) 14%, transparent)",
+          ? "transparent"
+          : "var(--c-border)",
         color: isPrimary ? onPrimary : "var(--text-muted)",
         boxShadow: active
-          ? "0 14px 30px color-mix(in srgb, var(--primary) 28%, rgba(0,0,0,0.35))"
-          : done
-          ? "0 10px 22px rgba(0,0,0,0.10)"
+          ? "0 4px 14px color-mix(in srgb, var(--primary) 35%, transparent)"
           : "none",
-        transform: active ? "translateY(-1px)" : "translateY(0)",
+        transform: active ? "scale(1.05)" : "scale(1)",
         transition: reduceMotion
           ? "none"
-          : "transform 160ms ease, box-shadow 180ms ease, background 180ms ease, border-color 180ms ease",
+          : "transform 160ms ease, box-shadow 180ms ease, background 180ms ease",
       }}
       aria-current={active ? "step" : undefined}
       aria-label={`Etapa ${n}`}
@@ -723,33 +739,30 @@ function StepperDock({ step, onStep, drawerOpen, disabled }) {
   }, []);
 
   const hiddenMobile = !isMdUp && drawerOpen;
-  const top = "calc(var(--app-header-h, 72px) + env(safe-area-inset-top, 0px) + 10px)";
+  const top = "calc(env(safe-area-inset-top, 0px) + 56px + 8px)";
 
-  const trackOff = "color-mix(in srgb, var(--text) 12%, transparent)";
+  const trackOff = "var(--c-border)";
   const trackOn = "var(--primary)";
 
   const connectorStyle = (filled) => ({
-    background: filled
-      ? `linear-gradient(90deg, ${trackOn}, color-mix(in srgb, var(--primary) 70%, transparent))`
-      : trackOff,
-    boxShadow: filled ? "0 8px 18px rgba(0,0,0,0.10)" : "none",
+    background: filled ? trackOn : trackOff,
+    opacity: filled ? 1 : 0.6,
   });
 
   return (
-    <div className={`${hiddenMobile ? "hidden" : ""} z-[50]`} style={{ position: "sticky", top }}>
+    <div className={`${hiddenMobile ? "hidden" : ""} z-[40]`} style={{ position: "sticky", top }}>
       <div
-        className="rounded-[22px] border shadow-lg px-3 py-2.5 flex items-center justify-center gap-3"
+        className="rounded-2xl border px-3 py-2.5 flex items-center justify-center gap-2 md:gap-3"
         style={{
-          background: "color-mix(in srgb, var(--surface) 86%, var(--text) 6%)",
-          borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
+          borderColor: "var(--c-border)",
+          background: "var(--surface)",
+          boxShadow: "0 1px 3px color-mix(in srgb, var(--text) 8%, transparent)",
         }}
       >
         <StepCircle n={1} active={step === 1} done={step > 1} disabled={disabled} onClick={() => onStep?.(1)} />
-        <span aria-hidden="true" className="h-[3px] w-10 md:w-14 rounded-full" style={connectorStyle(step >= 2)} />
+        <span aria-hidden="true" className="h-0.5 w-8 md:w-14 rounded-full" style={connectorStyle(step >= 2)} />
         <StepCircle n={2} active={step === 2} done={step > 2} disabled={disabled} onClick={() => onStep?.(2)} />
-        <span aria-hidden="true" className="h-[3px] w-10 md:w-14 rounded-full" style={connectorStyle(step >= 3)} />
+        <span aria-hidden="true" className="h-0.5 w-8 md:w-14 rounded-full" style={connectorStyle(step >= 3)} />
         <StepCircle n={3} active={step === 3} done={false} disabled={disabled} onClick={() => onStep?.(3)} />
       </div>
     </div>
@@ -845,7 +858,8 @@ export default function RegisterPage() {
 
   const step1Valid = nomeOk && cpfOk && idadeOk;
   const step2Valid = emailOk && celularOk;
-  const step3Valid = senhaOk && confirmOk;
+  const termsOk = form.aceiteTermos && form.aceitePrivacidade;
+  const step3Valid = senhaOk && confirmOk && termsOk;
 
   useEffect(() => {
     setError("");
@@ -883,6 +897,10 @@ export default function RegisterPage() {
       items.push({ field: "confirmSenha", label: "As senhas precisam ser iguais" });
     }
 
+    if (!values.aceiteTermos || !values.aceitePrivacidade) {
+      items.push({ field: "termos", label: "Aceite os Termos de Uso e a Política de Privacidade" });
+    }
+
     return items;
   }
 
@@ -891,7 +909,7 @@ export default function RegisterPage() {
     const fields =
       stepN === 1 ? ["nome", "cpf", "dataNascimento"] :
       stepN === 2 ? ["email", "celular"] :
-      stepN === 3 ? ["senha", "confirmSenha"] :
+      stepN === 3 ? ["senha", "confirmSenha", "termos"] :
       null;
     return fields ? all.filter((it) => fields.includes(it.field)) : all;
   }
@@ -983,7 +1001,11 @@ export default function RegisterPage() {
         : "/area";
 
     const identificador = form.email?.trim() || onlyDigits(form.cpf);
-    const payload = { ...form, aceiteTermos: true, aceitePrivacidade: true };
+    const payload = {
+      ...form,
+      aceiteTermos: !!form.aceiteTermos,
+      aceitePrivacidade: !!form.aceitePrivacidade,
+    };
 
     try {
       setLoading(true);
@@ -998,34 +1020,15 @@ export default function RegisterPage() {
 
       navigate(from, { replace: true });
     } catch (err) {
-      const apiMsg =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        (typeof err?.response?.data === "string" ? err?.response?.data : null) ||
-        "Não foi possível concluir o cadastro";
-      setError(apiMsg);
+      setError(mapRegisterApiError(err));
       setTimeout(() => alertRef.current?.focus(), 0);
     } finally {
       setLoading(false);
     }
   }
 
-  const firstName = useMemo(() => {
-    const n = (form.nome || "").trim();
-    if (!n) return "";
-    return n.split(" ")[0];
-  }, [form.nome]);
-
   const canGoBack = step > 1;
 
-  const headerHint =
-    step === 1
-      ? { icon: User, title: "Dados", text: "Informações básicas para validar seu acesso." }
-      : step === 2
-      ? { icon: Mail, title: "Contato", text: "E-mail e celular para recuperação e avisos." }
-      : { icon: ShieldCheck, title: "Segurança", text: "Uma senha forte protege sua conta." };
-
-  const IconHint = headerHint.icon;
   const sendLabel = step === 3 ? "Criar conta" : "Continuar";
 
   const asideInfo =
@@ -1037,7 +1040,13 @@ export default function RegisterPage() {
 
   const AsideIcon = asideInfo.icon;
 
-  const inputBg = "color-mix(in srgb, var(--surface-elevated) 92%, transparent)";
+  const loginNavigationState = useMemo(
+    () => (location.state?.from ? { from: location.state.from } : undefined),
+    [location.state]
+  );
+
+  const inputBg = "var(--surface)";
+  const inputBorder = "var(--c-border)";
 
   async function copyToClipboard(text) {
     try {
@@ -1092,69 +1101,8 @@ export default function RegisterPage() {
   }, [stepFxOn, reduceMotion]);
 
   return (
-    <section className="section">
-      <div className="container-max max-w-5xl relative">
-        <div className="min-h-[60vh] py-6 md:py-8 flex flex-col gap-5">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 -z-10 rounded-[48px]"
-            style={{
-              background:
-                "radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--primary) 14%, transparent) 0, transparent 70%)," +
-                "radial-gradient(80% 80% at 12% 25%, color-mix(in srgb, var(--text) 9%, transparent) 0, transparent 60%)," +
-                "radial-gradient(80% 80% at 90% 30%, color-mix(in srgb, var(--text) 7%, transparent) 0, transparent 60%)," +
-                "linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, transparent), color-mix(in srgb, var(--surface) 82%, transparent))",
-              maskImage:
-                "radial-gradient(120% 90% at 50% 0%, #000 0, #000 45%, transparent 78%)",
-              opacity: 0.95,
-            }}
-          />
-
-          {/* a) Criar conta */}
-          <header className="pt-1">
-            <div
-              className="rounded-3xl border shadow-lg px-4 py-3 flex items-center justify-between gap-3"
-              style={{
-                background: "color-mix(in srgb, var(--surface) 88%, var(--text) 6%)",
-                borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-              }}
-            >
-              <div className="flex items-center gap-3 min-w-0">
-                <span
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border flex-shrink-0"
-                  style={{
-                    background: "color-mix(in srgb, var(--primary) 16%, transparent)",
-                    borderColor: "color-mix(in srgb, var(--primary) 32%, transparent)",
-                    color: "var(--primary)",
-                  }}
-                >
-                  <UserPlus size={18} />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm md:text-base font-semibold leading-tight truncate">Criar conta</p>
-                  <p className="text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
-                    3 etapas • rápido e seguro
-                  </p>
-                </div>
-              </div>
-
-              <div className="hidden sm:flex items-center gap-2">
-                <span
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs md:text-sm"
-                  style={{
-                    borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-                    background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  <IconHint size={14} style={{ color: "var(--primary)" }} />
-                  <span className="truncate">{headerHint.title}</span>
-                </span>
-              </div>
-            </div>
-          </header>
-
-          {/* b) Stepper (sticky) */}
+    <div className="w-full relative">
+        <div className="flex flex-col gap-3 md:gap-5">
           <StepperDock
             step={step}
             drawerOpen={drawerOpen}
@@ -1172,43 +1120,6 @@ export default function RegisterPage() {
               }
             }}
           />
-
-          {/* c) Dica */}
-          <div>
-            <div
-              className="rounded-3xl border px-4 py-3 flex items-start gap-3"
-              style={{
-                background: "color-mix(in srgb, var(--surface) 92%, transparent)",
-                borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-              }}
-            >
-              <span
-                className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-2xl border"
-                style={{
-                  background: "color-mix(in srgb, var(--primary) 12%, transparent)",
-                  borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)",
-                  color: "var(--primary)",
-                }}
-                aria-hidden="true"
-              >
-                <IconHint size={16} />
-              </span>
-              <div className="min-w-0">
-                <p className="text-sm md:text-base font-semibold leading-tight" style={{ color: "var(--text)" }}>
-                  {headerHint.title}
-                </p>
-                <p className="text-xs md:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                  {step === 3 && firstName ? (
-                    <>
-                      {firstName}, falta pouco. {headerHint.text}
-                    </>
-                  ) : (
-                    headerHint.text
-                  )}
-                </p>
-              </div>
-            </div>
-          </div>
 
           {error && (
             <div
@@ -1234,7 +1145,10 @@ export default function RegisterPage() {
                 className="grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)] gap-6 md:gap-8 items-start"
               >
                 {/* FORM */}
-                <FormPanel title="Crie sua conta" subtitle="Use o microfone nos campos disponíveis, se preferir.">
+                <FormPanel
+                  title="Crie sua conta"
+                  subtitle="Use o microfone nos campos disponíveis, se preferir."
+                >
                   <div className="grid gap-4" style={stepTransitionStyle} key={step}>
                     {step === 1 && (
                       <div className="space-y-5">
@@ -1260,7 +1174,7 @@ export default function RegisterPage() {
                               if (submitted) setErrorList(buildStepErrors(next, 1));
                             }}
                             className={`input h-12 text-base ${submitted && !nomeOk ? "ring-1 ring-red-500" : ""}`}
-                            style={{ background: inputBg }}
+                            style={{ background: inputBg, borderColor: inputBorder }}
                             placeholder="Maria Oliveira"
                             autoComplete="name"
                             ariaRequired="true"
@@ -1299,7 +1213,7 @@ export default function RegisterPage() {
                                 if (submitted) setErrorList(buildStepErrors(next, 1));
                               }}
                               className={`input h-12 text-base ${submitted && !cpfOk ? "ring-1 ring-red-500" : ""}`}
-                              style={{ background: inputBg }}
+                              style={{ background: inputBg, borderColor: inputBorder }}
                               placeholder="000.000.000-00"
                               inputMode="numeric"
                               autoComplete="off"
@@ -1372,7 +1286,7 @@ export default function RegisterPage() {
                               autoCorrect="off"
                               spellCheck={false}
                               className={`input h-12 text-base ${submitted && !emailOk ? "ring-1 ring-red-500" : ""}`}
-                              style={{ background: inputBg }}
+                              style={{ background: inputBg, borderColor: inputBorder }}
                               placeholder="maria@exemplo.com"
                               autoComplete="email"
                               aria-required="true"
@@ -1405,7 +1319,7 @@ export default function RegisterPage() {
                                 recomputeErrorsIfSubmitted(next);
                               }}
                               className={`input h-12 text-base ${submitted && !celularOk ? "ring-1 ring-red-500" : ""}`}
-                              style={{ background: inputBg }}
+                              style={{ background: inputBg, borderColor: inputBorder }}
                               placeholder="(00) 90000-0000"
                               inputMode="tel"
                               autoComplete="tel"
@@ -1450,8 +1364,8 @@ export default function RegisterPage() {
                               onClick={() => applyGeneratedPassword()}
                               className="inline-flex items-center gap-2 rounded-full h-10 px-4 border text-xs md:text-sm font-semibold hover:opacity-90 active:opacity-80 flex-shrink-0"
                               style={{
-                                background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
-                                borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)",
+                                background: "var(--surface)",
+                                borderColor: "var(--c-border)",
                                 color: "var(--text)",
                               }}
                               disabled={loading}
@@ -1480,7 +1394,7 @@ export default function RegisterPage() {
                                 } catch {}
                               }}
                               className="input pr-[104px] h-12 text-xs sm:text-sm md:text-base"
-                              style={{ background: inputBg }}
+                              style={{ background: inputBg, borderColor: inputBorder }}
                               placeholder="Digite sua senha"
                               autoComplete="new-password"
                               aria-required="true"
@@ -1494,8 +1408,8 @@ export default function RegisterPage() {
                                 onClick={() => setShowPass((v) => !v)}
                                 className="h-9 w-9 inline-flex items-center justify-center rounded-full border hover:opacity-90 active:opacity-80"
                                 style={{
-                                  background: "color-mix(in srgb, var(--surface) 86%, transparent)",
-                                  borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                                  background: "var(--surface)",
+                                  borderColor: "var(--c-border)",
                                   color: "var(--text)",
                                 }}
                                 aria-label={showPass ? "Ocultar senha" : "Mostrar senha"}
@@ -1510,8 +1424,8 @@ export default function RegisterPage() {
                                 onClick={() => copyToClipboard(form.senha || "")}
                                 className="h-9 w-9 inline-flex items-center justify-center rounded-full border hover:opacity-90 active:opacity-80 disabled:opacity-60 disabled:cursor-not-allowed"
                                 style={{
-                                  background: "color-mix(in srgb, var(--surface) 86%, transparent)",
-                                  borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                                  background: "var(--surface)",
+                                  borderColor: "var(--c-border)",
                                   color: "var(--text)",
                                 }}
                                 disabled={!form.senha}
@@ -1544,8 +1458,8 @@ export default function RegisterPage() {
                             <div
                               className="rounded-2xl px-4 py-3 border"
                               style={{
-                                background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
-                                borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                                background: "var(--surface)",
+                                borderColor: "var(--c-border)",
                               }}
                             >
                               <StrengthPill score={passScore.score} label={passScore.label} />
@@ -1637,8 +1551,8 @@ export default function RegisterPage() {
                                   id="senha-policy"
                                   className="mt-2 rounded-2xl px-4 py-3 border"
                                   style={{
-                                    background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
-                                    borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                                    background: "var(--surface)",
+                                    borderColor: "var(--c-border)",
                                   }}
                                   aria-live="polite"
                                 >
@@ -1697,7 +1611,7 @@ export default function RegisterPage() {
                                 recomputeErrorsIfSubmitted(next);
                               }}
                               className="input pr-[56px] h-12 text-xs sm:text-sm md:text-base"
-                              style={{ background: inputBg }}
+                              style={{ background: inputBg, borderColor: inputBorder }}
                               placeholder="Digite novamente"
                               autoComplete="new-password"
                               aria-required="true"
@@ -1710,8 +1624,8 @@ export default function RegisterPage() {
                               onClick={() => setShowConfirm((v) => !v)}
                               className="absolute inset-y-0 right-0 my-auto mr-2 h-9 w-9 inline-flex items-center justify-center rounded-full border hover:opacity-90 active:opacity-80"
                               style={{
-                                background: "color-mix(in srgb, var(--surface) 86%, transparent)",
-                                borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                                background: "var(--surface)",
+                                borderColor: "var(--c-border)",
                                 color: "var(--text)",
                               }}
                               aria-label={showConfirm ? "Ocultar confirmação" : "Mostrar confirmação"}
@@ -1756,17 +1670,36 @@ export default function RegisterPage() {
                             )}
                           </div>
 
-                          {/* Termos (mantido) — mais compacto */}
-                          <div
-                            className="mt-4 rounded-2xl px-4 py-3 border flex items-start gap-2"
+                          {/* Termos LGPD — aceite explicito */}
+                          <label
+                            className={`mt-4 flex items-start gap-3 rounded-2xl px-4 py-3 border cursor-pointer min-h-[44px] ${
+                              submitted && !termsOk ? "ring-1 ring-red-500" : ""
+                            }`}
                             style={{
-                              background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
-                              borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                              background: "var(--surface)",
+                              borderColor: "var(--c-border)",
                             }}
                           >
-                            <CheckCircle2 size={18} className="mt-0.5" style={{ color: "var(--primary)" }} />
-                            <div className="text-xs md:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-                              Ao criar sua conta, você concorda com os{" "}
+                            <input
+                              type="checkbox"
+                              className="mt-1 h-4 w-4 rounded border shrink-0"
+                              style={{ borderColor: "var(--c-border)" }}
+                              checked={form.aceiteTermos && form.aceitePrivacidade}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                const next = {
+                                  ...form,
+                                  aceiteTermos: checked,
+                                  aceitePrivacidade: checked,
+                                };
+                                setForm(next);
+                                if (submitted) setErrorList(buildStepErrors(next, 3));
+                              }}
+                              aria-required="true"
+                              aria-invalid={submitted && !termsOk}
+                            />
+                            <span className="text-xs md:text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                              Li e aceito os{" "}
                               <a href="/termos-uso" target="_blank" rel="noreferrer" className="underline">
                                 Termos de Uso
                               </a>{" "}
@@ -1775,8 +1708,13 @@ export default function RegisterPage() {
                                 Política de Privacidade
                               </a>
                               .
-                            </div>
-                          </div>
+                            </span>
+                          </label>
+                          {submitted && !termsOk && (
+                            <p className="text-xs md:text-sm mt-1 text-red-600">
+                              É necessário aceitar os termos para criar sua conta.
+                            </p>
+                          )}
                         </div>
                       </div>
                     )}
@@ -1809,41 +1747,28 @@ export default function RegisterPage() {
                       </div>
                     )}
 
-                    {/* Bottom bar – simples e direto */}
-                    <div
-                      className="sticky bottom-0 pt-2"
-                      style={{
-                        background:
-                          "linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--surface-elevated) 92%, transparent) 30%, color-mix(in srgb, var(--surface-elevated) 96%, transparent) 100%)",
-                        paddingBottom: 2,
-                      }}
-                    >
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <button
+                    {/* Bottom bar */}
+                    <div className="sticky bottom-0 pt-4 md:pt-2 pb-1">
+                      <div className="flex flex-col gap-3">
+                        <Button
                           type="submit"
-                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-[15px] md:text-base font-semibold disabled:opacity-60 disabled:cursor-not-allowed shadow-lg"
+                          variant="primary"
+                          size="lg"
+                          full
+                          loading={loading}
                           disabled={loading}
-                          style={{
-                            background:
-                              "linear-gradient(180deg, color-mix(in srgb, var(--primary) 88%, #000 0%), color-mix(in srgb, var(--primary) 74%, #000 0%))",
-                            color: "var(--on-primary)",
-                          }}
+                          className="min-h-[48px] font-semibold rounded-xl md:rounded-full"
                         >
-                          <span>{loading ? "Processando…" : sendLabel}</span>
-                          <span
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full"
-                            style={{
-                              background: "color-mix(in srgb, var(--on-primary) 18%, transparent)",
-                            }}
-                            aria-hidden="true"
-                          >
-                            <ArrowRight size={16} />
-                          </span>
-                        </button>
+                          {!loading && <ArrowRight size={18} aria-hidden="true" />}
+                          {loading ? "Processando…" : sendLabel}
+                        </Button>
 
                         {canGoBack ? (
-                          <button
+                          <Button
                             type="button"
+                            variant="outline"
+                            size="lg"
+                            full
                             onClick={() => {
                               const prev = Math.max(1, step - 1);
                               setStep(prev);
@@ -1855,24 +1780,27 @@ export default function RegisterPage() {
                                 if (prev === 3) senhaRef.current?.focus();
                               }, 0);
                             }}
-                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-sm md:text-base font-medium border hover:opacity-90"
-                            style={{
-                              background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
-                              borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-                              color: "var(--text)",
-                            }}
+                            className="min-h-[48px] rounded-xl md:rounded-full md:w-auto md:px-6"
                           >
                             <ChevronLeft size={18} />
                             Voltar
-                          </button>
+                          </Button>
                         ) : (
                           <Link
                             to="/login"
-                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full h-12 px-6 text-sm md:text-base font-medium border hover:opacity-90"
+                            state={loginNavigationState}
+                            className="w-full inline-flex items-center justify-center min-h-[48px] rounded-xl md:rounded-full text-sm font-medium border transition"
                             style={{
-                              background: "color-mix(in srgb, var(--surface-elevated) 92%, transparent)",
-                              borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
+                              background: "var(--surface)",
+                              borderColor: "var(--c-border)",
                               color: "var(--text)",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background =
+                                "var(--nav-hover-bg, color-mix(in srgb, var(--primary) 8%, var(--surface)))";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "var(--surface)";
                             }}
                           >
                             Já tenho conta
@@ -1881,11 +1809,25 @@ export default function RegisterPage() {
                       </div>
 
                       <p
-                        className="mt-3 text-[11px] md:text-xs text-center leading-relaxed"
+                        className="mt-4 text-xs text-center leading-relaxed"
                         style={{ color: "var(--text-muted)" }}
                       >
                         Seus dados são tratados conforme a LGPD.
                       </p>
+
+                      {canGoBack && (
+                        <p className="mt-3 text-center text-sm md:hidden" style={{ color: "var(--text-muted)" }}>
+                          Já tem conta?{" "}
+                          <Link
+                            to="/login"
+                            state={loginNavigationState}
+                            className="font-semibold hover:underline"
+                            style={{ color: "var(--primary)" }}
+                          >
+                            Fazer login
+                          </Link>
+                        </p>
+                      )}
                     </div>
                   </div>
                 </FormPanel>
@@ -1894,8 +1836,8 @@ export default function RegisterPage() {
                 <aside
                   className="hidden md:flex rounded-2xl border px-5 py-5 flex-col justify-between gap-4"
                   style={{
-                    background: "color-mix(in srgb, var(--surface-elevated) 94%, transparent)",
-                    borderColor: "color-mix(in srgb, var(--primary) 20%, transparent)",
+                    background: "var(--surface-alt, var(--surface))",
+                    borderColor: "var(--c-border)",
                   }}
                 >
                   <div className="space-y-2">
@@ -1922,7 +1864,7 @@ export default function RegisterPage() {
                   <div className="space-y-2">
                     <button
                       type="button"
-                      onClick={() => navigate("/login")}
+                      onClick={() => navigate("/login", { state: loginNavigationState })}
                       className="btn-outline w-full justify-center rounded-2xl h-11 md:h-12 text-sm md:text-base font-semibold"
                       disabled={loading}
                     >
@@ -1934,7 +1876,6 @@ export default function RegisterPage() {
             </form>
           </MasterCard>
         </div>
-      </div>
-    </section>
+    </div>
   );
 }

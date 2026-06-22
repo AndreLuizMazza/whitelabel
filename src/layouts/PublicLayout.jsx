@@ -10,7 +10,6 @@ function useHideContactDock(pathname) {
   return (
     pathname === '/cadastro' ||
     pathname === '/confirmacao' ||
-    pathname === '/criar-conta' ||
     pathname === '/memorial' ||
     pathname.startsWith('/memorial/') ||
     pathname === '/produtos' ||
@@ -22,7 +21,6 @@ function useHideFooter(pathname) {
   return (
     pathname === '/cadastro' ||
     pathname === '/confirmacao' ||
-    pathname === '/criar-conta' ||
     pathname.startsWith('/planos/') ||
     pathname.startsWith('/produtos/')
   )

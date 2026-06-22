@@ -13,8 +13,8 @@ Regras específicas deste repositório.
 | `/contratos`, `/contratos/:id/pagamentos` | PublicLayout | public |
 | `/filiais`, `/sobre-nos`, `/verificar/:cpf` | PublicLayout | public |
 | `/politica-*`, `/termos-uso` | PublicLayout | public |
-| `/login`, `/criar-conta` | AuthLayout | auth |
-| `/recuperar-senha`, `/redefinir-senha`, `/trocar-senha` | AuthLayout | auth |
+| `/login`, `/recuperar-senha`, etc. | `AuthLayout` (max-w 400px) | auth |
+| `/criar-conta` | `AuthLayout` (max-w 5xl) | auth |
 | `/area`, `/area/dependentes`, `/area/pagamentos` | MemberLayout | member |
 | `/perfil`, `/carteirinha`, `/servicos-digitais` | MemberLayout | member |
 | `/cadastro`, `/confirmacao` | PublicLayout + PrivateRoute | member flow in public chrome |

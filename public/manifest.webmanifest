@@ -1,28 +1,28 @@
 {
-  "name": "Assistência Funerária Popular",
-  "short_name": "Plano Vida Popular",
+  "name": "São Bento Assistêncial",
+  "short_name": "São Bento",
   "description": "Área do associado",
   "display": "standalone",
   "orientation": "portrait",
   "start_url": "/",
   "scope": "/",
-  "theme_color": "#1E2F6F",
+  "theme_color": "#0B82FF",
   "background_color": "#ffffff",
   "icons": [
     {
-      "src": "https://whitelabel.progem.com.br/arquivos/438/icons/icon-192.png",
+      "src": "https://whitelabel.progem.com.br/arquivos/128/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://whitelabel.progem.com.br/arquivos/438/icons/icon-512.png",
+      "src": "https://whitelabel.progem.com.br/arquivos/128/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://whitelabel.progem.com.br/arquivos/438/icons/icon-maskable-512.png",
+      "src": "https://whitelabel.progem.com.br/arquivos/128/icons/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
