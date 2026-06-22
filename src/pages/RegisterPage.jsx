@@ -28,6 +28,11 @@ import useTenant from "@/store/tenant";
 import useAuth from "@/store/auth";
 import { registerUser } from "@/lib/authApi";
 import { registrarDispositivoFcmWeb } from "@/lib/fcm";
+import {
+  parseAuthReturnUrl,
+  postAuthNavigateState,
+  POST_AUTH_DEFAULT,
+} from "@/lib/postAuthNavigation";
 import VoiceTextInput from "@/components/VoiceTextInput";
 import DateSelectBR from "@/components/DateSelectBR";
 import Button from "@/components/ui/Button.jsx";
@@ -750,12 +755,7 @@ export default function RegisterPage() {
     }
 
     const rawFrom = location.state?.from;
-    const from =
-      typeof rawFrom === "string"
-        ? rawFrom
-        : rawFrom?.pathname
-        ? `${rawFrom.pathname}${rawFrom.search || ""}${rawFrom.hash || ""}`
-        : "/area";
+    const from = parseAuthReturnUrl(rawFrom, POST_AUTH_DEFAULT);
 
     const identificador = form.email?.trim() || onlyDigits(form.cpf);
     const payload = {
@@ -775,7 +775,7 @@ export default function RegisterPage() {
         await registrarDispositivoFcmWeb();
       } catch {}
 
-      navigate(from, { replace: true });
+      navigate(from, { replace: true, state: postAuthNavigateState(from) });
     } catch (err) {
       setError(mapRegisterApiError(err));
       setTimeout(() => alertRef.current?.focus(), 0);

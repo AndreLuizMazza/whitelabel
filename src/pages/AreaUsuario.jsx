@@ -1,6 +1,6 @@
 // src/pages/AreaUsuario.jsx
 import { useMemo, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import api from '@/lib/api.js'
 import useAuth from '@/store/auth'
 import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
@@ -414,6 +414,10 @@ export default function AreaUsuario() {
     )
   }, [historico])
 
+  if (!loading && !erro && !contrato) {
+    return <Navigate to="/planos" replace />
+  }
+
   return (
     <div className="w-full max-w-6xl mx-auto md:px-4" key={cpf}>
       {!loading && !erro && contrato ? (
@@ -598,22 +602,6 @@ export default function AreaUsuario() {
               <p className="text-[13px] mt-1" style={{ color: 'var(--text-muted)' }}>
                 {erro}
               </p>
-            </div>
-          </MemberGroupedList>
-        </MemberContentSheet>
-      ) : null}
-
-      {!loading && !erro && !contrato ? (
-        <MemberContentSheet overlap={false} className="md:mt-4">
-          <MemberGroupedList>
-            <div className="px-4 py-5 text-center">
-              <p className="text-[17px] font-semibold">Nenhum plano encontrado</p>
-              <p className="text-[15px] mt-2" style={{ color: 'var(--text-muted)' }}>
-                Conheça nossas opções e garanta proteção para você e sua família.
-              </p>
-              <Link to="/planos" className="btn-primary inline-flex mt-4 text-[15px]">
-                Ver planos disponíveis
-              </Link>
             </div>
           </MemberGroupedList>
         </MemberContentSheet>
