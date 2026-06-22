@@ -7,7 +7,7 @@ import useNotificationsStore from '@/store/notifications'
 import notificationSound from '@/assets/sounds/notifications.wav'
 
 
-export default function HeaderNotificationsBell({ className = '' }) {
+export default function HeaderNotificationsBell({ className = '', tone = 'default' }) {
   const [open, setOpen] = useState(false)
   const { items, unread, markAllRead, markAsRead } = useNotificationsStore()
   const navigate = useNavigate()
@@ -88,13 +88,27 @@ export default function HeaderNotificationsBell({ className = '' }) {
     }
   }
 
+  const isOnDark = tone === 'onDark'
+
   return (
     <div className={'relative ' + className} ref={wrapperRef}>
       <button
         type="button"
         onClick={handleBellClick}
-        className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border bg-[var(--surface)]"
-        style={{ borderColor: 'var(--c-border)' }}
+        className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border transition active:scale-95"
+        style={
+          isOnDark
+            ? {
+                borderColor: 'rgba(255,255,255,0.22)',
+                background: 'rgba(255,255,255,0.14)',
+                color: '#fff',
+              }
+            : {
+                borderColor: 'var(--c-border)',
+                background: 'var(--surface)',
+                color: 'var(--text)',
+              }
+        }
         aria-label={
           showBadge
             ? `Ver alertas automáticos do sistema. Você tem ${badgeText} novos.`
@@ -102,7 +116,7 @@ export default function HeaderNotificationsBell({ className = '' }) {
         }
         title="Alertas automáticos"
       >
-        <Bell size={16} aria-hidden="true" />
+        <Bell size={18} strokeWidth={1.85} aria-hidden="true" />
         {showBadge && (
           <span
             className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-semibold"

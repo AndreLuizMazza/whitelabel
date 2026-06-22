@@ -1,5 +1,6 @@
 // src/components/PagamentoFacil.jsx
 import { useEffect, useMemo, useState, useRef } from 'react'
+import { ChevronDown } from 'lucide-react'
 import useAuth from '@/store/auth'
 import QRCode from 'qrcode'
 import { track } from '@/lib/analytics'
@@ -133,7 +134,8 @@ export default function PagamentoFacil({
   proximas = [],
   historico = [],
   isAtraso = () => false,
-  contrato
+  contrato,
+  variant = 'full',
 }) {
   const [copiedFoco, setCopiedFoco] = useState(false)
   const [copiedId, setCopiedId] = useState(null)
@@ -306,7 +308,242 @@ export default function PagamentoFacil({
     else showToast('Canal de WhatsApp indisponível.')
   }
 
-  /* ========================= UI ========================= */
+  const cardShadow =
+    '0 1px 3px color-mix(in srgb, var(--text) 4%, transparent), 0 0 0 0.5px color-mix(in srgb, var(--text) 6%, transparent)'
+
+  const isHome = variant === 'home'
+
+  if (isHome) {
+    const hasContent =
+      temFoco ||
+      proximasOrdenadas.length > 0 ||
+      historicoAno.length > 0 ||
+      totalEmAtraso > 0
+
+    if (!hasContent) return null
+
+    return (
+      <div className="space-y-4" aria-live="polite">
+        {temFoco && acoesFoco.length > 0 ? (
+          <div
+            className="rounded-[20px] overflow-hidden p-4"
+            style={{ background: 'var(--surface)', boxShadow: cardShadow }}
+          >
+            <p
+              className="text-[13px] font-normal uppercase tracking-[0.02em] mb-3 px-0.5"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Formas de pagamento
+            </p>
+            <div className="flex flex-col gap-2" role="group" aria-label="Ações de pagamento">
+              {acoesFoco.map((a, idx) =>
+                a.href ? (
+                  <a
+                    key={idx}
+                    href={a.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center min-h-[48px] rounded-[14px] text-[15px] font-semibold border transition active:opacity-90"
+                    style={{
+                      borderColor: 'var(--separator, var(--c-border))',
+                      color: 'var(--primary)',
+                      background: 'var(--surface)',
+                    }}
+                  >
+                    {a.label}
+                  </a>
+                ) : (
+                  <button
+                    key={idx}
+                    type="button"
+                    className="inline-flex items-center justify-center min-h-[48px] rounded-[14px] text-[15px] font-semibold transition active:opacity-90"
+                    style={{
+                      background: 'var(--primary)',
+                      color: 'var(--on-primary, #fff)',
+                    }}
+                    onClick={() => copy(a.copy, 'pix_copied', null)}
+                    aria-live="polite"
+                    aria-label="Copiar código PIX para pagamento"
+                  >
+                    {copiedFoco ? 'PIX copiado' : a.label}
+                  </button>
+                )
+              )}
+            </div>
+            {focoAtraso ? (
+              <p className="text-[13px] mt-3 leading-snug" style={{ color: 'var(--text-muted)' }}>
+                Multa e juros podem ser aplicados.{' '}
+                <button type="button" className="font-medium" style={{ color: 'var(--primary)' }} onClick={abrirRenegociacaoWhats}>
+                  Renegociar pelo WhatsApp
+                </button>
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {temFoco && foco?.pixQrcode ? (
+          <figure
+            ref={qrHostRef}
+            className="rounded-[20px] px-4 py-4 flex flex-col items-center"
+            style={{ background: 'var(--surface)', boxShadow: cardShadow }}
+          >
+            {qrSrc ? (
+              <img
+                src={qrSrc}
+                alt="QR Code PIX"
+                className="rounded-xl"
+                style={{
+                  width: 'min(200px, 52vw)',
+                  height: 'auto',
+                  border: '0.5px solid var(--separator, var(--c-border))',
+                }}
+              />
+            ) : (
+              <div
+                className="flex items-center justify-center rounded-xl text-[13px] text-center px-4"
+                style={{
+                  width: 'min(200px, 52vw)',
+                  height: 'min(200px, 52vw)',
+                  color: 'var(--text-muted)',
+                  background: 'color-mix(in srgb, var(--text) 4%, var(--surface))',
+                }}
+              >
+                Carregando QR Code…
+              </div>
+            )}
+            <figcaption className="text-[12px] mt-3 text-center max-w-[260px] leading-snug" style={{ color: 'var(--text-muted)' }}>
+              Escaneie com o app do seu banco para pagar via PIX.
+            </figcaption>
+          </figure>
+        ) : null}
+
+        {proximasOrdenadas.length > 0 ? (
+          <div>
+            <h4 className="text-[13px] font-normal uppercase tracking-[0.02em] mb-2 px-0.5" style={{ color: 'var(--text-muted)' }}>
+              Próximas parcelas
+            </h4>
+            <ul
+              className="rounded-[20px] overflow-hidden divide-y"
+              style={{
+                background: 'var(--surface)',
+                boxShadow: cardShadow,
+                border: '0.5px solid var(--separator, var(--c-border))',
+              }}
+            >
+              {proximasVisiveis.map((dup, idx) => {
+                const atrasada = isAtraso(dup) && isAtrasoPorData(dup)
+                const dupKey =
+                  dup?.id ?? dup?.numero ?? dup?.numeroDuplicata ?? `${idx}-${dup?.dataVencimento}`
+
+                return (
+                  <li
+                    key={dupKey}
+                    className="flex items-center justify-between gap-3 px-4 py-3.5"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[15px] tabular-nums" style={{ color: 'var(--text)' }}>
+                        #{dup?.numeroDuplicata || dup?.numero} · {fmtBRL(dup?.valorParcela)}
+                      </p>
+                      <p className="text-[13px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        {venceEmLabel(dup)} {fmtData(dup?.dataVencimento)}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      {dup?.urlBoleto ? (
+                        <a
+                          className="text-[13px] font-semibold min-h-[36px] px-3 inline-flex items-center rounded-full border"
+                          style={{ borderColor: 'var(--separator, var(--c-border))', color: 'var(--primary)' }}
+                          target="_blank"
+                          rel="noreferrer"
+                          href={dup.urlBoleto}
+                          onClick={() => track('boleto_opened', { duplicataId: dupKey })}
+                        >
+                          Boleto
+                        </a>
+                      ) : null}
+                      {dup?.pixQrcode ? (
+                        <button
+                          type="button"
+                          className="text-[13px] font-semibold min-h-[36px] px-3 rounded-full"
+                          style={{ background: 'color-mix(in srgb, var(--primary) 12%, var(--surface))', color: 'var(--primary)' }}
+                          onClick={() => copy(dup.pixQrcode, 'pix_copied_list', dupKey)}
+                        >
+                          {copiedId === dupKey ? 'Copiado' : 'PIX'}
+                        </button>
+                      ) : null}
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+            {proximasOrdenadas.length > 3 ? (
+              <button
+                type="button"
+                className="mt-2 text-[13px] font-medium min-h-[44px] px-1"
+                style={{ color: 'var(--primary)' }}
+                onClick={() => setShowAllNext((v) => !v)}
+              >
+                {showAllNext ? 'Ver menos' : `Ver todas (${proximasOrdenadas.length})`}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {historicoAno.length > 0 ? (
+          <details className="group">
+            <summary
+              className="cursor-pointer text-[15px] font-semibold select-none flex items-center justify-between min-h-[44px] px-0.5"
+              style={{ color: 'var(--text)' }}
+            >
+              <span>Histórico ({historicoAno.length})</span>
+              <ChevronDown size={16} className="opacity-40 group-open:rotate-180 transition-transform" />
+            </summary>
+            <ul
+              className="mt-2 rounded-[20px] overflow-hidden divide-y"
+              style={{
+                background: 'var(--surface)',
+                boxShadow: cardShadow,
+                border: '0.5px solid var(--separator, var(--c-border))',
+              }}
+            >
+              {historicoAno.map((dup, i) => {
+                const dupKey = dup?.id ?? dup?.numero ?? dup?.numeroDuplicata ?? `hist-${i}`
+                const status = String(dup?.status || '').toUpperCase()
+                const pago = status === 'PAGA' || status === 'PAID'
+                return (
+                  <li key={dupKey} className="flex items-center justify-between gap-3 px-4 py-3.5">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[15px]" style={{ color: 'var(--text)' }}>
+                        #{dup?.numeroDuplicata || dup?.numero} · {fmtBRL(dup?.valorParcela)}
+                      </p>
+                      <p className="text-[13px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                        {pago && dup?.dataRecebimento
+                          ? `Pago em ${fmtData(dup.dataRecebimento)}`
+                          : `Venc. ${fmtData(dup?.dataVencimento)}`}
+                      </p>
+                    </div>
+                    <span
+                      className="text-[11px] font-semibold rounded-full px-2.5 py-1 shrink-0"
+                      style={{
+                        background: pago
+                          ? 'color-mix(in srgb, #30d158 14%, var(--surface))'
+                          : 'color-mix(in srgb, var(--text) 6%, var(--surface))',
+                        color: pago ? '#248a3d' : 'var(--text-muted)',
+                      }}
+                    >
+                      {pago ? 'Paga' : status || '—'}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          </details>
+        ) : null}
+      </div>
+    )
+  }
+
+  /* ========================= UI (full) ========================= */
   return (
     <section
       className="card relative overflow-hidden rounded-2xl border p-5 sm:p-6"

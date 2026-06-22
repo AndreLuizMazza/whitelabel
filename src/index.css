@@ -103,6 +103,30 @@ a.btn-light:hover {
   transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+/* ---------------- Member zone (iOS native feel) ---------------- */
+.member-ios {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
+    system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.member-ios .member-large-title {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+}
+
+.member-ios .member-section-title {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
+  padding-left: 1rem;
+  padding-right: 1rem;
+  margin-bottom: 0.375rem;
+}
+
 /* ---------------- Inputs ---------------- */
 .input {
   @apply w-full rounded-full border px-4 py-2 text-sm focus:outline-none focus:ring-0;

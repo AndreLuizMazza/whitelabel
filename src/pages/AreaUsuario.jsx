@@ -9,15 +9,24 @@ import NotificationsCenter from '@/components/NotificationsCenter'
 import useNotificationsStore from '@/store/notifications'
 import { showToast } from '@/lib/toast'
 import {
-  FileText,
+  MemberGroupedList,
+  MemberSection,
+} from '@/components/member/MemberGroupedList'
+import {
+  MemberHero,
+  MemberContentSheet,
+  MemberSectionHeading,
+  MemberNextPaymentCard,
+  MemberPaymentStatusCard,
+  MemberQuickList,
+  MemberQuickListRow,
+} from '@/components/member/MemberDashboardUI'
+import {
   IdCard,
   MessageCircle,
   Clock3,
   User,
-  Eye,
-  EyeOff,
-  CreditCard,
-  Smartphone, // serviços digitais
+  Smartphone,
 } from 'lucide-react'
 
 /* ===== analytics opcional (no-op) ===== */
@@ -133,313 +142,12 @@ function isSameDay(a, b) {
 }
 
 /* ============================================================
-   CARD DE RESUMO DO PLANO – estilo “home de banco premium”
-   ============================================================ */
-function PlanoHighlightCard({
-  contrato,
-  proximaParcela,
-  totalPago, // mantido na assinatura, não exibido
-  totalEmAtraso,
-  hasAtraso,
-  nomeExibicao,
-  contratoAtivo,
-  vencendoHoje,
-}) {
-  // valores visíveis por padrão
-  const [mostrarValores, setMostrarValores] = useState(true)
-
-  if (!contrato) return null
-
-  const ativo =
-    contrato.contratoAtivo ??
-    String(contrato.status || '').toUpperCase() === 'ATIVO'
-
-  const nomePlano =
-    contrato.nomePlano ?? contrato.plano?.nome ?? 'Plano de assinatura'
-
-  const numeroContrato =
-    contrato.numeroContrato ?? contrato.id ?? contrato.contratoId
-
-  const dataProx = proximaParcela?.dataVencimento ?? null
-  const valorProx = proximaParcela?.valorParcela ?? null
-
-  // ✅ Prioridade de mensagem: atraso > vence hoje > próxima
-  const tituloMensalidade = hasAtraso
-    ? 'Mensalidade em atraso'
-    : vencendoHoje
-      ? 'Mensalidade vencendo hoje'
-      : 'Próxima mensalidade'
-
-  // ✅ “Plano em dia” só se contrato estiver ativo
-  const situacaoLabel = hasAtraso
-    ? 'Em atraso'
-    : contratoAtivo
-      ? (vencendoHoje ? 'Vence hoje' : 'Em dia')
-      : 'Aguardando ativação'
-
-  const situacaoCor = hasAtraso
-    ? '#fb7185'
-    : vencendoHoje
-      ? '#fbbf24'
-      : '#4ade80'
-
-  const diaD = extractDiaFromDateString(dataProx)
-
-  return (
-    <section
-      className="relative w-full rounded-[24px] p-6 sm:p-7 shadow-xl overflow-hidden"
-      style={{
-        background:
-          'linear-gradient(135deg, var(--primary) 0%, color-mix(in srgb, var(--primary) 40%, white) 55%, color-mix(in srgb, var(--primary) 20%, white) 100%)',
-        color: 'var(--on-primary, #ffffff)',
-        boxShadow:
-          '0 18px 50px rgba(15, 23, 42, 0.35), inset 0 0 0 1px rgba(255,255,255,0.18)',
-      }}
-    >
-      {/* halo interno para dar profundidade */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(circle at top left, rgba(255,255,255,0.16) 0, transparent 55%)',
-          mixBlendMode: 'screen',
-        }}
-      />
-
-      {/* brilho extra (leve) quando vence hoje */}
-      {vencendoHoje && !hasAtraso && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full"
-          style={{
-            background:
-              'radial-gradient(circle at center, rgba(251,191,36,0.55) 0, rgba(251,191,36,0.0) 65%)',
-            filter: 'blur(8px)',
-            opacity: 0.9,
-          }}
-        />
-      )}
-
-      {/* conteúdo principal */}
-      <div className="relative z-[1] flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        {/* lado esquerdo – título, status e usuário */}
-        <div className="min-w-0">
-          {nomeExibicao && (
-            <p className="text-[11px] sm:text-xs opacity-90 mb-1">
-              Olá, <span className="font-medium">{nomeExibicao}</span>
-            </p>
-          )}
-          <p className="text-[11px] uppercase tracking-[0.16em] opacity-80">
-            Resumo do seu plano
-          </p>
-          <h3 className="mt-1 text-lg sm:text-2xl font-semibold leading-snug">
-            {nomePlano}
-          </h3>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-            <span
-              className="inline-flex items-center rounded-full px-2 py-0.5 font-medium"
-              style={{
-                background: 'rgba(255,255,255,0.18)',
-                border: '1px solid rgba(255,255,255,0.45)',
-              }}
-            >
-              <span
-                className="mr-1 inline-block h-1.5 w-1.5 rounded-full"
-                style={{ background: ativo ? '#4ade80' : '#facc15' }}
-              />
-              {ativo ? 'Plano ativo' : 'Aguardando ativação'}
-            </span>
-
-            {numeroContrato && (
-              <span className="opacity-90">Contrato #{numeroContrato}</span>
-            )}
-
-            {vencendoHoje && !hasAtraso && (
-              <span
-                className="inline-flex items-center rounded-full px-2 py-0.5 font-semibold"
-                style={{
-                  background: 'rgba(251,191,36,0.26)',
-                  border: '1px solid rgba(251,191,36,0.62)',
-                  color: 'var(--on-primary, #ffffff)',
-                }}
-              >
-                Vence hoje
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* lado direito – mensalidade */}
-        <div className="text-right flex flex-col items-end gap-2 sm:gap-3">
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.18em] opacity-80">
-              {tituloMensalidade}
-            </p>
-
-            {dataProx && valorProx ? (
-              <>
-                <p className="mt-1 text-2xl sm:text-3xl font-semibold leading-tight">
-                  {mostrarValores ? fmtBRL(valorProx) : '••••••'}
-                </p>
-
-                <p className="text-xs sm:text-sm opacity-90">
-                  {hasAtraso ? (
-                    <>Venceu em {fmtDate(dataProx)}</>
-                  ) : vencendoHoje ? (
-                    <>Vence hoje • {fmtDate(dataProx)}</>
-                  ) : (
-                    <>Vence em {fmtDate(dataProx)}</>
-                  )}
-                </p>
-              </>
-            ) : (
-              <p className="text-sm opacity-85 mt-1">Nenhuma parcela em aberto</p>
-            )}
-          </div>
-
-          {dataProx && valorProx && (
-            <button
-              type="button"
-              className="mt-1 inline-flex items-center justify-center rounded-full px-4 py-2 text-xs sm:text-sm font-semibold shadow-sm transition-transform hover:scale-[1.02]"
-              onClick={() => {
-                const el = document.getElementById('pagamento')
-                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-              }}
-              style={{
-                background: vencendoHoje && !hasAtraso ? 'rgba(251,191,36,0.22)' : 'rgba(255,255,255,0.16)',
-                border: vencendoHoje && !hasAtraso ? '1px solid rgba(251,191,36,0.62)' : '1px solid rgba(255,255,255,0.45)',
-                color: 'var(--on-primary, #ffffff)',
-              }}
-            >
-              <CreditCard size={16} className="mr-2" />
-              {hasAtraso ? 'Regularizar agora' : vencendoHoje ? 'Pagar hoje' : 'Pagar agora'}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* métricas inferiores */}
-      <div className="relative z-[1] mt-6 pt-4 border-t border-white/25 flex flex-wrap items-center justify-between gap-4 text-xs sm:text-sm">
-        <div className="flex flex-wrap gap-4 sm:gap-8">
-          {diaD && (
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] opacity-80">
-                Dia do pagamento
-              </p>
-              <p className="mt-1 text-sm sm:text-base font-semibold">
-                Dia {diaD}
-              </p>
-            </div>
-          )}
-
-          {hasAtraso && totalEmAtraso > 0 && (
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.16em] opacity-80">
-                Valor em atraso
-              </p>
-              <p className="mt-1 text-sm sm:text-base font-semibold">
-                {mostrarValores ? fmtBRL(totalEmAtraso) : '••••••'}
-              </p>
-            </div>
-          )}
-
-          <div>
-            <p className="text-[11px] uppercase tracking-[0.16em] opacity-80">
-              Situação
-            </p>
-            <p className="mt-1 inline-flex items-center gap-1 text-sm sm:text-base font-semibold">
-              <span
-                className="inline-block h-1.5 w-1.5 rounded-full"
-                style={{ background: situacaoCor }}
-              />
-              {situacaoLabel}
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setMostrarValores((v) => !v)}
-          className="inline-flex items-center gap-1 text-[11px] sm:text-xs font-medium underline underline-offset-2 opacity-95 hover:opacity-100"
-        >
-          {mostrarValores ? <EyeOff size={14} /> : <Eye size={14} />}
-          {mostrarValores ? 'Ocultar valores' : 'Mostrar valores'}
-        </button>
-      </div>
-    </section>
-  )
-}
-
-/* ============================================================
-   AÇÕES RÁPIDAS
-   ============================================================ */
-
-function QuickAction({ icon: Icon, label, helper, to, onClick, state }) {
-  const content = (
-    <div className="flex items-center gap-3">
-      <span
-        className="inline-flex h-10 w-10 items-center justify-center rounded-full shrink-0"
-        style={{
-          background:
-            'color-mix(in srgb, var(--primary) 12%, var(--surface) 88%)',
-          color: 'var(--primary)',
-          border:
-            '1px solid color-mix(in srgb, var(--primary) 28%, var(--c-border))',
-        }}
-      >
-        <Icon size={18} aria-hidden="true" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-sm font-medium leading-tight">{label}</p>
-        {helper && (
-          <p
-            className="mt-0.5 text-[11px] leading-snug"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            {helper}
-          </p>
-        )}
-      </div>
-    </div>
-  )
-
-  const baseProps = {
-    className:
-      'card h-full px-4 py-4 sm:px-5 sm:py-5 rounded-2xl border text-left hover:shadow-md transition-shadow',
-    style: {
-      borderColor: 'var(--c-border)',
-      background: 'var(--surface)',
-    },
-  }
-
-  if (to) {
-    return (
-      <Link to={to} state={state} {...baseProps} aria-label={label}>
-        {content}
-      </Link>
-    )
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      {...baseProps}
-      aria-label={label}
-    >
-      {content}
-    </button>
-  )
-}
-
-/* ============================================================
    PÁGINA
    ============================================================ */
 
 export default function AreaUsuario() {
   const user = useAuth((s) => s.user)
+  const [mostrarValores, setMostrarValores] = useState(true)
   usePrefersDark()
 
   const {
@@ -667,276 +375,192 @@ export default function AreaUsuario() {
     scrollToPagamento()
   }
 
+  const valorProx = proximaParcela?.valorParcela ?? null
+  const dataProx = proximaParcela?.dataVencimento ?? null
+  const hasPaymentAmount = valorProx != null && Number(valorProx) > 0
+
+  const paymentStatusTone = hasAtraso
+    ? 'danger'
+    : vencendoHoje
+      ? 'warn'
+      : contratoAtivo
+        ? 'ok'
+        : 'muted'
+  const paymentStatusLabel = hasAtraso
+    ? 'Em atraso'
+    : vencendoHoje
+      ? 'Vence hoje'
+      : contratoAtivo
+        ? 'Em dia'
+        : 'Aguardando'
+  const paymentTitle = hasAtraso ? 'Mensalidade em atraso' : 'Próximo pagamento'
+  const paymentEmptyPrimary = !hasPaymentAmount
+    ? !contratoAtivo
+      ? 'Aguardando ativação'
+      : 'Sem cobranças no momento'
+    : undefined
+  const paymentDataLabel = hasPaymentAmount
+    ? hasAtraso
+      ? `Venceu em ${fmtDate(dataProx)}`
+      : `Vencimento: ${fmtDate(dataProx)}`
+    : !contratoAtivo
+      ? 'Suas cobranças aparecerão aqui após a ativação.'
+      : 'Nenhuma parcela em aberto no momento.'
+
+  const ultimaParcelaPaga = useMemo(() => {
+    if (!Array.isArray(historico)) return null
+    return historico.find((p) =>
+      ['PAGA', 'PAID'].includes(String(p?.status || '').toUpperCase())
+    )
+  }, [historico])
+
   return (
-    <div className="relative w-full max-w-6xl mx-auto" key={cpf}>
-      {/* halo de fundo geral da página */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-52"
-        style={{
-          background:
-            'radial-gradient(circle at 0 0, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 60%)',
-          opacity: 0.9,
-        }}
-      />
-
-      <div className="container-max relative">
-        {/* HEADER + HERO WRAPPER (capa da área do associado) */}
-        <div className="relative mb-6">
-          {/* halo extra atrás do card */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 -top-10 h-52 sm:h-56"
-            style={{
-              background:
-                'radial-gradient(circle at top right, color-mix(in srgb, var(--primary) 30%, transparent) 0, transparent 70%)',
-              filter: 'blur(18px)',
-            }}
-          />
-
-          {/* barra superior da capa – faixa mais "bancária" */}
-          <div className="relative z-[5] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 mt-1">
-            <div>
-              <p
-                className="text-[11px] uppercase tracking-[0.2em]"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                Área do associado
-              </p>
-              {unidadeNome && (
-                <h2 className="text-xl font-semibold tracking-tight mt-1">
-                  {unidadeNome}
-                </h2>
-              )}
-            </div>
-
-            {contrato && (
-              <div
-                className="inline-flex items-center gap-3 rounded-2xl px-3.5 py-2.5 border text-xs sm:text-sm shadow-sm"
-                style={{
-                  borderColor: 'var(--c-border)',
-                  background:
-                    'color-mix(in srgb, var(--surface-elevated, var(--surface)) 85%, var(--primary) 15%)',
-                }}
-              >
-                <span
-                  className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium"
-                  style={{
-                    background:
-                      'color-mix(in srgb, var(--primary) 18%, var(--surface) 82%)',
-                    color: 'var(--primary)',
-                  }}
-                >
-                  <span
-                    className="inline-block h-1.5 w-1.5 rounded-full"
-                    style={{
-                      background: hasAtraso ? '#fb7185' : (vencendoHoje ? '#fbbf24' : '#4ade80'),
-                    }}
-                  />
-                  {hasAtraso
-                    ? 'Plano com parcelas em atraso'
-                    : contratoAtivo
-                      ? (vencendoHoje ? 'Vence hoje' : 'Plano em dia')
-                      : 'Aguardando ativação'}
-                </span>
-
-                {proximaParcela?.dataVencimento && (
-                  <span
-                    className="hidden sm:inline text-[11px] sm:text-xs"
-                    style={{ color: 'var(--text-muted)' }}
-                  >
-                    Próximo vencimento:{' '}
-                    <strong>
-                      {fmtDate(proximaParcela.dataVencimento)}
-                    </strong>
-                  </span>
-                )}
-              </div>
-            )}
+    <div className="w-full max-w-6xl mx-auto md:px-4" key={cpf}>
+      {!loading && !erro && contrato ? (
+        <>
+          <div className="md:hidden">
+            <MemberHero
+              nomeExibicao={nomeExibicao}
+              nomePlano={nomePlano}
+              numeroContrato={numeroContrato}
+              contratoAtivo={contratoAtivo}
+              unidadeNome={unidadeNome}
+            />
           </div>
 
-          {/* Loading apenas no topo */}
-          {loading && (
-            <div className="relative z-[4]">
-              <Skeleton className="h-40" />
-            </div>
-          )}
-
-          {/* Card principal – colado na capa */}
-          {!loading && !erro && contrato && (
-            <div className="relative z-[4]">
-              <PlanoHighlightCard
-                contrato={contrato}
-                proximaParcela={proximaParcela}
-                totalPago={totalPago}
-                totalEmAtraso={totalEmAtraso}
-                hasAtraso={hasAtraso}
-                nomeExibicao={nomeExibicao}
-                contratoAtivo={contratoAtivo}
-                vencendoHoje={vencendoHoje}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Erro geral */}
-        {!loading && erro && (
-          <div
-            className="mt-2 card p-6"
-            style={{
-              border: '1px solid var(--primary)',
-              background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
-            }}
-          >
-            <p className="font-medium" style={{ color: 'var(--primary)' }}>
-              Não foi possível carregar os contratos
-            </p>
-            <p className="text-sm mt-1" style={{ color: 'var(--primary)' }}>
-              {erro}
-            </p>
-          </div>
-        )}
-
-        {/* Conteúdo principal */}
-        {!loading && !erro && (
-          contrato ? (
-            <>
-              {/* Seletor de contrato (após o card) */}
-              {Array.isArray(contratos) && contratos.length > 1 && (
-                <div className="mt-2 card p-4">
-                  <label
-                    className="block text-sm mb-2"
-                    style={{ color: 'var(--text)' }}
-                  >
-                    Selecione o contrato para visualizar
-                  </label>
-                  <select
-                    className="w-full rounded px-3 py-2 text-sm"
-                    style={{
-                      background: 'var(--surface)',
-                      color: 'var(--text)',
-                      border: '1px solid var(--c-border)',
-                    }}
-                    value={selectedId ?? ''}
-                    onChange={(e) => chooseContrato(e.target.value)}
-                  >
-                    {contratos.map((c) => {
-                      const id = getId(c)
-                      const labelPlano =
-                        c?.nomePlano ?? c?.plano?.nome ?? 'Plano'
-                      const ativoTag = isAtivo(c) ? ' (ATIVO)' : ''
-                      const label = `#${c?.numeroContrato ?? id} — ${labelPlano} — efetivado em ${
-                        c?.dataEfetivacao ?? '—'
-                      }${ativoTag}`
-                      return (
-                        <option key={String(id)} value={String(id)}>
-                          {label}
-                        </option>
-                      )
-                    })}
-                  </select>
-                </div>
-              )}
-
-              {/* Grid principal – conteúdo + notificações */}
-              <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* COLUNA PRINCIPAL */}
-                <div className="lg:col-span-2 space-y-6">
-                  {/* ===== BLOCO 1 – RESUMO / ATALHOS ===== */}
+          <MemberContentSheet overlap className="md:mt-4">
+            {loading ? (
+              <Skeleton className="h-44 rounded-[22px]" />
+            ) : (
+              <>
+                <div className="hidden md:flex items-end justify-between gap-4 mb-5 px-1">
                   <div>
-                    {/* Ações rápidas */}
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <h3
-                          className="text-sm font-semibold"
-                          style={{ color: 'var(--text)' }}
-                        >
-                          Atalhos do seu plano
-                        </h3>
-                        <p
-                          className="text-[11px] sm:text-xs"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          Acesse as funções mais usadas em poucos toques.
-                        </p>
-                      </div>
+                    <p className="text-[15px]" style={{ color: 'var(--text-muted)' }}>
+                      Olá, {nomeExibicao?.split(' ')?.[0] || 'Associado'}
+                    </p>
+                    <h1 className="member-large-title mt-1">{unidadeNome || 'Início'}</h1>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMostrarValores((v) => !v)}
+                    className="text-[13px] font-medium min-h-[44px] px-2"
+                    style={{ color: 'var(--primary)' }}
+                  >
+                    {mostrarValores ? 'Ocultar valores' : 'Mostrar valores'}
+                  </button>
+                </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4">
-                        <QuickAction
-                          icon={FileText}
-                          label="2ª via"
-                          helper="Emitir boleto ou código de pagamento"
-                          onClick={handleAtalhoPagamento}
-                        />
-                        <QuickAction
-                          icon={Clock3}
-                          label="Histórico"
-                          helper="Pagamentos já realizados"
-                          to="/area/pagamentos"
+                {Array.isArray(contratos) && contratos.length > 1 ? (
+                  <MemberSection title="Contrato" className="mb-5">
+                    <MemberGroupedList>
+                      <div className="px-4 py-2">
+                        <label htmlFor="contrato-select" className="sr-only">
+                          Selecione o contrato
+                        </label>
+                        <select
+                          id="contrato-select"
+                          className="w-full border-0 bg-transparent text-[17px] py-2 outline-none"
+                          style={{ color: 'var(--text)' }}
+                          value={selectedId ?? ''}
+                          onChange={(e) => chooseContrato(e.target.value)}
+                        >
+                          {contratos.map((c) => {
+                            const id = getId(c)
+                            const labelPlano = c?.nomePlano ?? c?.plano?.nome ?? 'Plano'
+                            const ativoTag = isAtivo(c) ? ' · Ativo' : ''
+                            return (
+                              <option key={String(id)} value={String(id)}>
+                                #{c?.numeroContrato ?? id} — {labelPlano}
+                                {ativoTag}
+                              </option>
+                            )
+                          })}
+                        </select>
+                      </div>
+                    </MemberGroupedList>
+                  </MemberSection>
+                ) : null}
+
+                <div className="space-y-5">
+                  <MemberNextPaymentCard
+                    titulo={paymentTitle}
+                    valor={hasPaymentAmount ? fmtBRL(valorProx) : null}
+                    emptyPrimary={paymentEmptyPrimary}
+                    dataLabel={paymentDataLabel}
+                    statusLabel={paymentStatusLabel}
+                    statusTone={paymentStatusTone}
+                    onClick={hasPaymentAmount ? handleAtalhoPagamento : undefined}
+                    onToggleValues={
+                      hasPaymentAmount
+                        ? () => setMostrarValores((v) => !v)
+                        : undefined
+                    }
+                    mostrarValores={mostrarValores}
+                  />
+
+                  {!hasPaymentAmount && ultimaParcelaPaga ? (
+                    <MemberPaymentStatusCard
+                      titulo="Situação do pagamento"
+                      status="Paga"
+                      detail={`Última parcela · ${fmtDate(ultimaParcelaPaga.dataVencimento)}`}
+                      statusTone="ok"
+                    />
+                  ) : null}
+
+                  <div>
+                    <MemberSectionHeading grouped>Acesso rápido</MemberSectionHeading>
+                    <MemberQuickList>
+                      <MemberQuickListRow
+                        icon={IdCard}
+                        label="Carteirinha digital"
+                        detail="Documento do associado"
+                        to="/carteirinha"
+                      />
+                      <MemberQuickListRow
+                        icon={User}
+                        label="Dependentes"
+                        detail="Beneficiários do plano"
+                        to="/area/dependentes"
+                        state={{
+                          dependentes,
+                          contrato,
+                          numeroContrato,
+                          nomePlano,
+                          unidadeNome,
+                        }}
+                      />
+                      <MemberQuickListRow
+                        icon={Clock3}
+                        label="Histórico"
+                        detail="Pagamentos realizados"
+                        to="/area/pagamentos"
+                        state={{ historico, numeroContrato, nomePlano, unidadeNome }}
+                      />
+                      {planoLinks.length > 0 && planoIdForRoute ? (
+                        <MemberQuickListRow
+                          icon={Smartphone}
+                          label="Benefícios digitais"
+                          detail="Serviços incluídos no plano"
+                          to="/servicos-digitais"
                           state={{
-                            historico,
+                            planoId: planoIdForRoute,
                             numeroContrato,
                             nomePlano,
-                            unidadeNome,
                           }}
                         />
-                        <QuickAction
-                          icon={IdCard}
-                          label="Carteirinha"
-                          helper="Veja sua Carteirinha digital"
-                          to="/carteirinha"
-                        />
-                        <QuickAction
-                          icon={User}
-                          label="Dependentes"
-                          helper="Ver e gerenciar beneficiários"
-                          to="/area/dependentes"
-                          state={{
-                              dependentes,
-                              contrato,         
-                              numeroContrato,    
-                              nomePlano,
-                              unidadeNome,
-                          }}
-                        />
-                        {planoLinks.length > 0 && planoIdForRoute && (
-                          <QuickAction
-                            icon={Smartphone}
-                            label="Serviços digitais"
-                            helper="Acessar benefícios online do seu plano"
-                            to="/servicos-digitais"
-                            state={{
-                              planoId: planoIdForRoute,
-                              numeroContrato,
-                              nomePlano,
-                            }}
-                          />
-                        )}
-                        <QuickAction
-                          icon={MessageCircle}
-                          label="Atendimento"
-                          helper="Fale com a unidade pelo WhatsApp"
-                          onClick={abrirAtendimento}
-                        />
-                      </div>
-                    </div>
-
-                    {/* serviços digitais / benefícios (teaser no resumo) */}
-                    {loadingPlano && !plano && (
-                      <div className="card p-4 mt-5">
-                        <p
-                          className="text-sm"
-                          style={{ color: 'var(--text)' }}
-                        >
-                          Carregando serviços digitais do seu plano...
-                        </p>
-                      </div>
-                    )}
+                      ) : null}
+                      <MemberQuickListRow
+                        icon={MessageCircle}
+                        label="Atendimento"
+                        detail="WhatsApp da unidade"
+                        onClick={abrirAtendimento}
+                      />
+                    </MemberQuickList>
                   </div>
 
-                  {/* ===== BLOCO 2 – PAGAMENTOS ===== */}
                   <div id="pagamento">
                     <PagamentoFacil
+                      variant="home"
                       contrato={contrato}
                       parcelaFoco={proximaParcela}
                       proximas={proximas}
@@ -945,110 +569,55 @@ export default function AreaUsuario() {
                     />
                   </div>
 
-                  {/* ===== BLOCO 3 – BENEFÍCIOS / SERVIÇOS DIGITAIS ===== */}
                   <div>
-                    {loadingPlano && !plano && (
-                      <div className="card p-4">
-                        <p
-                          className="text-sm"
-                          style={{ color: 'var(--text)' }}
-                        >
-                          Carregando benefícios e serviços digitais...
-                        </p>
-                      </div>
-                    )}
-
-                    {!loadingPlano && planoLinks.length === 0 && (
-                      <div className="card p-4">
-                        <p
-                          className="text-sm font-medium"
-                          style={{ color: 'var(--text)' }}
-                        >
-                          Seu plano ainda não possui serviços digitais
-                          cadastrados.
-                        </p>
-                        <p
-                          className="text-xs mt-1"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          Em caso de dúvidas, fale com a unidade pelo
-                          atendimento.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* COLUNA LATERAL: últimas notificações */}
-                <div className="lg:col-span-1">
-                  {/* ✅ Removido sticky: não flutua mais ao rolar */}
-                  <div className="space-y-6">
+                    <MemberSectionHeading grouped>Notificações</MemberSectionHeading>
                     <NotificationsCenter
+                      variant="inset"
                       items={notifications}
                       loading={loadingNotifications}
                       contextKey={cpf || 'default'}
                       onUnreadChange={setUnread}
                     />
                   </div>
-
-                  {planoLinks.length > 0 && planoIdForRoute && (
-                    <div className="card p-4 mt-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div>
-                        <h4 className="text-sm font-semibold">
-                          Serviços digitais incluídos no seu plano
-                        </h4>
-                        <p
-                          className="text-xs mt-1"
-                          style={{ color: 'var(--text)' }}
-                        >
-                          Acesse plataformas e benefícios online vinculados ao
-                          seu plano, como clubes de descontos, aplicativos e
-                          outros serviços digitais.
-                        </p>
-                      </div>
-                      <Link
-                        to="/servicos-digitais"
-                        state={{
-                          planoId: planoIdForRoute,
-                          numeroContrato,
-                          nomePlano,
-                        }}
-                        className="btn-primary text-sm whitespace-nowrap"
-                        onClick={() =>
-                          track('servicos_digitais_open', {
-                            planoId: planoIdForRoute,
-                            numeroContrato,
-                          })
-                        }
-                      >
-                        Ver serviços digitais
-                      </Link>
-                    </div>
-                  )}
                 </div>
-              </div>
-            </>
-          ) : (
-            <div className="mt-8 card p-6 text-center">
-              <h3 className="text-lg font-semibold">
-                Nenhum Plano encontrado
-              </h3>
+              </>
+            )}
+          </MemberContentSheet>
+        </>
+      ) : null}
 
-              <p className="mt-2" style={{ color: 'var(--text)' }}>
-                Parece que você ainda não possui um plano ativo conosco.
-                Conheça nossas opções e garanta proteção completa para você e
-                sua família.
+      {loading && !contrato ? <Skeleton className="h-52 rounded-[22px] mx-4 md:mx-0 mt-4" /> : null}
+
+      {!loading && erro ? (
+        <MemberContentSheet overlap={false} className="mx-0 md:mx-0">
+          <MemberGroupedList>
+            <div className="px-4 py-4">
+              <p className="text-[17px] font-medium" style={{ color: 'var(--danger, #dc2626)' }}>
+                Não foi possível carregar os contratos
               </p>
-
-              <div className="mt-5">
-                <Link to="/planos" className="btn-primary">
-                  Ver planos disponíveis
-                </Link>
-              </div>
+              <p className="text-[13px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                {erro}
+              </p>
             </div>
-          )
-        )}
-      </div>
+          </MemberGroupedList>
+        </MemberContentSheet>
+      ) : null}
+
+      {!loading && !erro && !contrato ? (
+        <MemberContentSheet overlap={false} className="md:mt-4">
+          <MemberGroupedList>
+            <div className="px-4 py-5 text-center">
+              <p className="text-[17px] font-semibold">Nenhum plano encontrado</p>
+              <p className="text-[15px] mt-2" style={{ color: 'var(--text-muted)' }}>
+                Conheça nossas opções e garanta proteção para você e sua família.
+              </p>
+              <Link to="/planos" className="btn-primary inline-flex mt-4 text-[15px]">
+                Ver planos disponíveis
+              </Link>
+            </div>
+          </MemberGroupedList>
+        </MemberContentSheet>
+      ) : null}
     </div>
   )
 }

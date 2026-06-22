@@ -269,6 +269,7 @@ export default function NotificationsCenter({
   loading = false,
   contextKey = "default",
   onUnreadChange,
+  variant = "default",
 }) {
   const [open, setOpen] = useState(false)
 
@@ -340,6 +341,99 @@ export default function NotificationsCenter({
     : Bell
 
   const headerTone = latest?.tone || "neutral"
+
+  if (variant === "inset") {
+    return (
+      <div
+        id="alertas-automaticos"
+        role="region"
+        aria-label="Alertas do plano"
+        className="rounded-[20px] overflow-hidden"
+        style={{
+          background: "var(--surface)",
+          boxShadow:
+            "0 1px 3px color-mix(in srgb, var(--text) 4%, transparent), 0 0 0 0.5px color-mix(in srgb, var(--text) 6%, transparent)",
+          border: "0.5px solid var(--separator, var(--c-border))",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="w-full flex items-center gap-3 px-4 py-3.5 text-left min-h-[68px] transition active:opacity-80"
+          aria-expanded={open}
+          aria-controls={panelId}
+        >
+          <span
+            className="relative inline-flex h-10 w-10 items-center justify-center rounded-[12px] shrink-0"
+            style={{
+              background: "color-mix(in srgb, var(--primary) 10%, var(--surface))",
+              color: "var(--primary)",
+            }}
+          >
+            <HeaderIcon size={18} strokeWidth={1.85} />
+            {showBadge ? (
+              <span
+                className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center text-[10px] font-semibold"
+                style={{ background: "var(--c-badge, #ff453a)", color: "#fff" }}
+              >
+                {badgeText}
+              </span>
+            ) : null}
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-[16px] font-semibold leading-snug">
+              Alertas do plano
+              {unreadCount > 0 ? (
+                <span className="text-[13px] font-normal ml-1" style={{ color: "var(--text-muted)" }}>
+                  · {unreadCount} novo{unreadCount > 1 ? "s" : ""}
+                </span>
+              ) : null}
+            </span>
+            <span className="block text-[13px] mt-0.5 leading-snug" style={{ color: "var(--text-muted)" }}>
+              {hasAlerts && latest
+                ? latest.title
+                : loading
+                  ? "Atualizando…"
+                  : "Nenhum alerta no momento"}
+            </span>
+          </span>
+          {open ? (
+            <ChevronUp size={17} className="opacity-30 shrink-0" />
+          ) : (
+            <ChevronDown size={17} className="opacity-30 shrink-0" />
+          )}
+        </button>
+
+        {hasAlerts && open ? (
+          <div
+            id={panelId}
+            className="border-t divide-y max-h-64 overflow-y-auto"
+            style={{ borderColor: "var(--separator, var(--c-border))" }}
+            role="list"
+            aria-label="Histórico de alertas"
+          >
+            {normalized.map((item) => {
+              const isNew =
+                item.raw && typeof item.raw._read === "boolean"
+                  ? !item.raw._read
+                  : false
+              return (
+                <div key={item.id} role="listitem" className="px-4 py-3">
+                  {renderNotificationRow(item, { isNew, compact: false })}
+                </div>
+              )
+            })}
+          </div>
+        ) : null}
+
+        {!hasAlerts && !loading && open ? (
+          <p className="px-4 pb-4 text-[13px] border-t" style={{ color: "var(--text-muted)", borderColor: "var(--separator, var(--c-border))" }}>
+            Você será avisado sobre pagamentos e atualizações do contrato.
+          </p>
+        ) : null}
+      </div>
+    )
+  }
 
   return (
     <div
