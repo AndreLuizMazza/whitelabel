@@ -5,11 +5,10 @@ import api from '@/lib/api.js'
 import { applyEmDashDocumentTitle } from '@/lib/shellBranding'
 import { pick, money, getMensal } from '@/lib/planUtils.js'
 import useTenant from '@/store/tenant'
-import { Sparkles, CheckCircle2, Clock3, ShieldCheck, BadgeCheck } from 'lucide-react'
+import { ChevronLeft, ShieldCheck } from 'lucide-react'
 import CTAButton from '@/components/ui/CTAButton'
 import useAuth from '@/store/auth'
 
-/* =========== util/infra =========== */
 const track = (..._args) => {}
 
 const toNum = (v) => {
@@ -18,54 +17,29 @@ const toNum = (v) => {
 }
 const isNum = (v) => Number.isFinite(toNum(v))
 
-/* ---------- Alert inline ---------- */
-function InlineNote({ icon, children }) {
+function SummaryRow({ label, value, hint, emphasize = false, divider = true }) {
   return (
     <div
-      className="mt-4 rounded-2xl p-4 border"
-      style={{
-        background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
-        borderColor: 'color-mix(in srgb, var(--primary) 35%, transparent)',
-      }}
+      className="flex items-baseline justify-between gap-4 px-4 py-3.5"
+      style={
+        divider
+          ? { borderBottom: '1px solid var(--separator, var(--c-border))' }
+          : undefined
+      }
     >
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-start gap-3">
-          <div
-            className="rounded-full p-2 text-white"
-            style={{ background: 'color-mix(in srgb, var(--primary) 90%, black)' }}
-            aria-hidden
-          >
-            {icon || <Sparkles size={16} />}
-          </div>
-          <div className="text-sm leading-relaxed">{children}</div>
-        </div>
-        <div className="flex gap-3 text-xs">
-          <span className="inline-flex items-center gap-1">
-            <Clock3 size={14} /> Rápido
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <CheckCircle2 size={14} /> Seguro
-          </span>
-        </div>
+      <div className="min-w-0">
+        <p className="text-[15px] text-[var(--text)]">{label}</p>
+        {hint ? (
+          <p className="mt-0.5 text-xs text-[var(--c-muted)]">{hint}</p>
+        ) : null}
       </div>
-    </div>
-  )
-}
-
-/* ---------- Bullets de valor ---------- */
-function Perks({ className = '' }) {
-  return (
-    <div
-      className={`rounded-2xl border bg-[var(--c-surface)] p-6 ${className}`}
-      style={{ borderColor: 'var(--c-border)' }}
-    >
-      <h3 className="text-lg font-semibold">O que você recebe</h3>
-      <ul className="mt-3 space-y-2 text-sm">
-        <li>• Assistência completa com suporte humanizado.</li>
-        <li>• Inclusão de dependentes conforme regras do plano.</li>
-        <li>• Gestão online do contrato e 2ª via com facilidade.</li>
-        <li>• Comunicação ágil com a equipe da unidade.</li>
-      </ul>
+      <p
+        className={`shrink-0 tabular-nums ${
+          emphasize ? 'text-[22px] font-bold tracking-tight' : 'text-[15px] font-semibold'
+        }`}
+      >
+        {value}
+      </p>
     </div>
   )
 }
@@ -148,6 +122,12 @@ export default function PlanoDetalhe() {
   const idadeMinDepN = toNum(idadeMinDep)
   const idadeMaxDepN = toNum(idadeMaxDep)
 
+  const hasAgeDetails =
+    isNum(idadeMinTitN) ||
+    isNum(idadeMaxTitN) ||
+    isNum(idadeMinDepN) ||
+    isNum(idadeMaxDepN)
+
   const handleContinuar = () => {
     const planSnapshot = {
       id: String(id),
@@ -185,16 +165,15 @@ export default function PlanoDetalhe() {
     }
   }
 
+  const ctaLabel = isAuthenticated ? 'Continuar cadastro' : 'Criar conta e continuar'
+
   if (loading) {
     return (
-      <section className="section">
-        <div className="container-max space-y-4">
-          <div className="h-6 w-48 animate-pulse rounded bg-[var(--c-surface)]" />
-          <div className="h-24 rounded-2xl animate-pulse bg-[var(--c-surface)]" />
-          <div className="grid gap-6 md:grid-cols-[1.2fr,1fr]">
-            <div className="h-72 rounded-2xl animate-pulse bg-[var(--c-surface)]" />
-            <div className="h-72 rounded-2xl animate-pulse bg-[var(--c-surface)]" />
-          </div>
+      <section className="section bg-[var(--grouped-bg,var(--surface-alt))] md:bg-transparent">
+        <div className="container-max max-w-lg space-y-4">
+          <div className="h-5 w-24 animate-pulse rounded bg-[var(--c-surface)]" />
+          <div className="h-8 w-3/4 animate-pulse rounded bg-[var(--c-surface)]" />
+          <div className="h-40 animate-pulse rounded-2xl bg-[var(--c-surface)]" />
         </div>
       </section>
     )
@@ -203,7 +182,7 @@ export default function PlanoDetalhe() {
   if (error) {
     return (
       <section className="section">
-        <div className="container-max">
+        <div className="container-max max-w-lg">
           <p className="mb-3 font-medium" style={{ color: 'var(--primary)' }}>
             {error}
           </p>
@@ -216,153 +195,130 @@ export default function PlanoDetalhe() {
   if (!plano) return null
 
   return (
-    <section className="section">
-      <div className="container-max">
-        {/* Voltar */}
-        <div className="mb-4">
-          <button
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold hover:bg-[var(--c-surface)] focus:outline-none"
-            style={{ borderColor: 'var(--c-border)' }}
-            aria-label="Voltar"
-          >
-            ← Voltar
-          </button>
-        </div>
-
-        {/* Header do plano */}
-        <div
-          className="rounded-2xl border bg-[var(--c-surface)] p-6"
-          style={{ borderColor: 'var(--c-border)' }}
+    <section className="section bg-[var(--grouped-bg,var(--surface-alt))] md:bg-transparent pb-[calc(108px+env(safe-area-inset-bottom))] md:pb-8">
+      <div className="container-max max-w-lg">
+        <button
+          type="button"
+          onClick={() => navigate('/planos')}
+          className="mb-5 inline-flex items-center gap-0.5 text-[15px] font-medium text-[var(--primary)] hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] rounded-lg -ml-1 px-1 py-0.5"
+          aria-label="Voltar para planos"
         >
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h1 className="text-3xl font-extrabold tracking-tight">{plano.nome}</h1>
-              <p className="mt-1 text-sm text-[var(--c-muted)]">
-                Contrate em poucos minutos.
-              </p>
-            </div>
+          <ChevronLeft size={20} aria-hidden />
+          Planos
+        </button>
 
-            <div
-              className="inline-flex h-12 items-center gap-3 rounded-full border px-5 self-start md:self-auto"
-              style={{
-                borderColor: 'var(--c-border)',
-                background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
-              }}
-              aria-label="Mensalidade base"
-            >
-              <span className="text-sm">Mensalidade base</span>
-              <span className="text-2xl font-extrabold leading-none">
-                {money(baseMensal)}
-              </span>
-            </div>
+        <header className="mb-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--c-muted)]">
+            Confirmar plano
+          </p>
+          <h1 className="mt-1 text-[28px] font-bold leading-tight tracking-tight text-[var(--text)]">
+            {plano.nome}
+          </h1>
+          <p className="mt-1.5 text-[15px] text-[var(--c-muted)]">
+            Revise os valores e avance para o cadastro.
+          </p>
+        </header>
+
+        <div
+          className="overflow-hidden rounded-2xl bg-[var(--surface,var(--c-surface))]"
+          style={{ boxShadow: '0 1px 0 var(--separator, var(--c-border))' }}
+        >
+          <SummaryRow
+            label="Mensalidade"
+            value={`${money(baseMensal)}/mês`}
+            emphasize
+          />
+          {isNum(valorAdesao) && valorAdesao > 0 ? (
+            <SummaryRow
+              label="Adesão"
+              value={money(valorAdesao)}
+              hint="Cobrança única na contratação"
+            />
+          ) : null}
+          {isNum(numDepsIncl) ? (
+            <SummaryRow
+              label="Dependentes incluídos"
+              value={String(numDepsIncl)}
+              hint={
+                isNum(valorIncrementalMensal) && valorIncrementalMensal > 0
+                  ? `Extras: ${money(valorIncrementalMensal)}/mês cada`
+                  : undefined
+              }
+            />
+          ) : null}
+          <div className="px-4 py-3">
+            <p className="text-xs leading-relaxed text-[var(--c-muted)]">
+              Dependentes adicionais e cupom são definidos nas próximas etapas.
+            </p>
           </div>
-
-          {/* Chips essenciais do plano */}
-          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <div
-              className="inline-flex h-11 items-center justify-between rounded-full border px-4"
-              style={{ borderColor: 'var(--c-border)' }}
-            >
-              <span className="text-sm">Dependentes incluídos</span>
-              <strong>{isNum(numDepsIncl) ? numDepsIncl : '—'}</strong>
-            </div>
-            <div
-              className="inline-flex h-11 items-center justify-between rounded-full border px-4"
-              style={{ borderColor: 'var(--c-border)' }}
-            >
-              <span className="text-sm">+ por dependente</span>
-              <strong>{money(valorIncrementalMensal)}</strong>
-            </div>
-            {(isNum(idadeMinTitN) || isNum(idadeMaxTitN)) && (
-              <div
-                className="inline-flex h-11 items-center justify-between rounded-full border px-4"
-                style={{ borderColor: 'var(--c-border)' }}
-              >
-                <span className="text-sm">Idade titular</span>
-                <strong>
-                  {isNum(idadeMinTitN) ? `${idadeMinTitN}` : '—'}
-                  {isNum(idadeMaxTitN) ? `–${idadeMaxTitN}` : '+'} anos
-                </strong>
-              </div>
-            )}
-            {(isNum(idadeMinDepN) || isNum(idadeMaxDepN)) && (
-              <div
-                className="inline-flex h-11 items-center justify-between rounded-full border px-4"
-                style={{ borderColor: 'var(--c-border)' }}
-              >
-                <span className="text-sm">Idade dependentes</span>
-                <strong>
-                  {isNum(idadeMinDepN) ? `${idadeMinDepN}` : '—'}
-                  {isNum(idadeMaxDepN) ? `–${idadeMaxDepN}` : '+'} anos
-                </strong>
-              </div>
-            )}
-          </div>
-
-          <InlineNote icon={<ShieldCheck size={16} />}>
-            Informe seus dados, adicione dependentes e finalize a contratação com segurança.
-          </InlineNote>
         </div>
 
-        {/* Conteúdo principal: Associe-se + benefícios */}
-        <div className="mt-8 grid gap-6 items-start md:grid-cols-[minmax(0,1.3fr),minmax(0,1fr)]">
-          {/* Associe-se – vem primeiro no mobile */}
-          <aside
-            className="order-1 md:order-2 rounded-2xl border bg-[var(--c-surface)] p-6 shadow-lg md:sticky md:top-24"
-            style={{ borderColor: 'var(--c-border)' }}
-          >
-            <h3 className="mb-4 text-lg font-semibold">Associe-se</h3>
-
-            <div className="mb-3 grid grid-cols-2 gap-3">
-              <div
-                className="rounded-2xl border p-3"
-                style={{ borderColor: 'var(--c-border)' }}
-              >
-                <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--c-muted)]">
-                  Mensalidade base
-                </p>
-                <p className="mt-1 text-lg font-extrabold">{money(baseMensal)}</p>
-              </div>
-              <div
-                className="rounded-2xl border p-3"
-                style={{ borderColor: 'var(--c-border)' }}
-              >
-                <p className="text-[11px] uppercase tracking-[0.12em] text-[var(--c-muted)]">
-                  Adesão (uma vez)
-                </p>
-                <p className="mt-1 text-lg font-extrabold">{money(valorAdesao)}</p>
-              </div>
-            </div>
-
-            <p className="mb-1 text-xs text-[var(--c-muted)]">
-              Dependentes e valores adicionais são definidos no cadastro.
-            </p>
-            <p className="mb-4 text-xs text-[var(--c-muted)]">
-              Você poderá aplicar seu cupom na etapa de pagamento.
-            </p>
-
-            <CTAButton
-              className="h-11 w-full"
-              onClick={handleContinuar}
-              title="Prosseguir para cadastro"
+        {hasAgeDetails ? (
+          <details className="mt-4 group">
+            <summary className="cursor-pointer list-none rounded-xl px-1 py-2 text-[15px] font-medium text-[var(--primary)] marker:content-none [&::-webkit-details-marker]:hidden">
+              <span className="group-open:opacity-70">Detalhes do plano</span>
+            </summary>
+            <div
+              className="mt-1 overflow-hidden rounded-2xl bg-[var(--surface,var(--c-surface))]"
+              style={{ boxShadow: '0 1px 0 var(--separator, var(--c-border))' }}
             >
-              Continuar cadastro
-            </CTAButton>
-
-            <div className="mt-3 flex items-center gap-2 text-xs text-[var(--c-muted)]">
-              <BadgeCheck size={14} /> Pagamento seguro • Dados protegidos
+              {(isNum(idadeMinTitN) || isNum(idadeMaxTitN)) ? (
+                <SummaryRow
+                  label="Idade do titular"
+                  value={`${isNum(idadeMinTitN) ? idadeMinTitN : '—'}${
+                    isNum(idadeMaxTitN) ? `–${idadeMaxTitN}` : '+'
+                  } anos`}
+                  divider={!!(isNum(idadeMinDepN) || isNum(idadeMaxDepN))}
+                />
+              ) : null}
+              {(isNum(idadeMinDepN) || isNum(idadeMaxDepN)) ? (
+                <SummaryRow
+                  label="Idade dos dependentes"
+                  value={`${isNum(idadeMinDepN) ? idadeMinDepN : '—'}${
+                    isNum(idadeMaxDepN) ? `–${idadeMaxDepN}` : '+'
+                  } anos`}
+                  divider={false}
+                />
+              ) : null}
             </div>
-          </aside>
+          </details>
+        ) : null}
 
-          {/* Benefícios e detalhes – vem depois no mobile, primeiro no desktop */}
-          <div className="order-2 space-y-6 md:order-1">
-            <Perks />
-          </div>
+        <div className="mt-8 hidden md:block">
+          <CTAButton
+            className="h-12 w-full rounded-xl text-base"
+            onClick={handleContinuar}
+            title="Prosseguir para cadastro"
+          >
+            {ctaLabel}
+          </CTAButton>
+          <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-[var(--c-muted)]">
+            <ShieldCheck size={14} aria-hidden />
+            Pagamento seguro · Dados protegidos
+          </p>
         </div>
       </div>
 
-      <div className="h-16 md:hidden" aria-hidden />
+      <div
+        className="fixed inset-x-0 bottom-0 z-50 border-t bg-[var(--surface,var(--c-surface))]/92 backdrop-blur-xl backdrop-saturate-150 md:hidden"
+        style={{ borderColor: 'var(--separator, var(--c-border))' }}
+        role="region"
+        aria-label="Continuar contratação"
+      >
+        <div className="container-max max-w-lg px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
+          <CTAButton
+            className="h-12 w-full rounded-xl text-base shadow-sm"
+            onClick={handleContinuar}
+            title="Prosseguir para cadastro"
+          >
+            {ctaLabel}
+          </CTAButton>
+          <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-[var(--c-muted)]">
+            <ShieldCheck size={12} aria-hidden />
+            Pagamento seguro · Dados protegidos
+          </p>
+        </div>
+      </div>
 
       <script
         type="application/ld+json"

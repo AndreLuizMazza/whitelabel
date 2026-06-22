@@ -13,7 +13,8 @@ function useHideContactDock(pathname) {
     pathname === '/memorial' ||
     pathname.startsWith('/memorial/') ||
     pathname === '/produtos' ||
-    pathname.startsWith('/produtos/')
+    pathname.startsWith('/produtos/') ||
+    (pathname.startsWith('/planos/') && pathname !== '/planos')
   )
 }
 
