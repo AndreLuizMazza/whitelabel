@@ -96,10 +96,11 @@ export default function CarteirinhaPage() {
   )
 
   useEffect(() => {
-    if (erro) {
+    if (loading) return
+    if (erro && !contrato) {
       showToast('Não foi possível carregar os dados do contrato para a carteirinha.')
     }
-  }, [erro])
+  }, [loading, erro, contrato])
 
   const printableState =
     contrato && user ? { user, contrato, side: 'both' } : null

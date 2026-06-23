@@ -65,8 +65,8 @@ export default function useContratoDoUsuario({
   useEffect(() => {
     const cpfSan = onlyDigits(cpf)
     if (!cpfSan) {
-      setErro('CPF não informado')
-      setLoadingLista(false)
+      setErro(null)
+      setLoadingLista(true)
       return
     }
 

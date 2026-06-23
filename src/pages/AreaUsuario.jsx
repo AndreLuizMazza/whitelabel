@@ -225,11 +225,13 @@ export default function AreaUsuario() {
   )
 
   useEffect(() => {
-    if (erro)
+    if (cpfLoading || loading) return
+    if (erro && !contrato) {
       showToast(
         'Não foi possível carregar seus contratos. Tente novamente em instantes.'
       )
-  }, [erro])
+    }
+  }, [cpfLoading, loading, erro, contrato])
 
   const getId = (c) => c?.id ?? c?.contratoId ?? c?.numeroContrato
   const isAtivo = (c) =>
