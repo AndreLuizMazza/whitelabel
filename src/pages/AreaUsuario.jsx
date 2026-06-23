@@ -23,12 +23,13 @@ import {
   MemberQuickGridTile,
   MemberCareBanner,
   MemberDigitalServicesSection,
+  formatDisplayLabel,
 } from '@/components/member/MemberDashboardUI'
 import {
   IdCard,
-  MessageCircle,
   Clock3,
   User,
+  ClipboardList,
 } from 'lucide-react'
 
 /* ===== analytics opcional (no-op) ===== */
@@ -473,16 +474,9 @@ export default function AreaUsuario() {
           <div className="md:hidden">
             <MemberHero
               nomeExibicao={nomeExibicao}
-              nomePlano={nomePlano}
               numeroContrato={numeroContrato}
               contratoAtivo={contratoAtivo}
               unidadeNome={unidadeNome}
-              planoDetailTo={planoIdForRoute ? '/servicos-digitais' : null}
-              planoDetailState={
-                planoIdForRoute
-                  ? { planoId: planoIdForRoute, numeroContrato, nomePlano }
-                  : null
-              }
             />
           </div>
 
@@ -594,12 +588,19 @@ export default function AreaUsuario() {
                         to="/area/pagamentos"
                         state={{ historico, numeroContrato, nomePlano, unidadeNome }}
                       />
-                      <MemberQuickGridTile
-                        icon={MessageCircle}
-                        label="Atendimento"
-                        detail="Fale com nossa equipe"
-                        onClick={abrirAtendimento}
-                      />
+                      {planoIdForRoute && nomePlano ? (
+                        <MemberQuickGridTile
+                          icon={ClipboardList}
+                          label="Benefícios"
+                          detail={formatDisplayLabel(nomePlano)}
+                          to="/servicos-digitais"
+                          state={{
+                            planoId: planoIdForRoute,
+                            numeroContrato,
+                            nomePlano,
+                          }}
+                        />
+                      ) : null}
                     </MemberQuickGrid>
                   </div>
 
