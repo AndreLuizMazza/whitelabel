@@ -136,6 +136,7 @@ export default function PagamentoFacil({
   isAtraso = () => false,
   contrato,
   variant = 'full',
+  embedded = false,
 }) {
   const [copiedFoco, setCopiedFoco] = useState(false)
   const [copiedId, setCopiedId] = useState(null)
@@ -312,6 +313,97 @@ export default function PagamentoFacil({
     '0 1px 3px color-mix(in srgb, var(--text) 4%, transparent), 0 0 0 0.5px color-mix(in srgb, var(--text) 6%, transparent)'
 
   const isHome = variant === 'home'
+
+  if (isHome && embedded) {
+    if (!temFoco) {
+      return (
+        <p className="text-[13px] leading-snug" style={{ color: 'var(--text-muted)' }}>
+          Nenhuma forma de pagamento disponível para esta parcela no momento.
+        </p>
+      )
+    }
+
+    return (
+      <div className="space-y-3" aria-live="polite">
+        {acoesFoco.length > 0 ? (
+          <div className="flex flex-col gap-2" role="group" aria-label="Ações de pagamento">
+            {acoesFoco.map((a, idx) =>
+              a.href ? (
+                <a
+                  key={idx}
+                  href={a.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center min-h-[48px] rounded-[14px] text-[15px] font-semibold border transition active:opacity-90"
+                  style={{
+                    borderColor: 'var(--separator, var(--c-border))',
+                    color: 'var(--primary)',
+                    background: 'var(--surface)',
+                  }}
+                >
+                  {a.label}
+                </a>
+              ) : (
+                <button
+                  key={idx}
+                  type="button"
+                  className="inline-flex items-center justify-center min-h-[48px] rounded-[14px] text-[15px] font-semibold transition active:opacity-90"
+                  style={{
+                    background: 'var(--primary)',
+                    color: 'var(--on-primary, #fff)',
+                  }}
+                  onClick={() => copy(a.copy, 'pix_copied', null)}
+                  aria-live="polite"
+                  aria-label="Copiar código PIX para pagamento"
+                >
+                  {copiedFoco ? 'PIX copiado' : a.label}
+                </button>
+              )
+            )}
+          </div>
+        ) : null}
+        {focoAtraso ? (
+          <p className="text-[13px] leading-snug" style={{ color: 'var(--text-muted)' }}>
+            Multa e juros podem ser aplicados.{' '}
+            <button type="button" className="font-medium" style={{ color: 'var(--primary)' }} onClick={abrirRenegociacaoWhats}>
+              Renegociar pelo WhatsApp
+            </button>
+          </p>
+        ) : null}
+        {foco?.pixQrcode ? (
+          <figure ref={qrHostRef} className="flex flex-col items-center pt-1">
+            {qrSrc ? (
+              <img
+                src={qrSrc}
+                alt="QR Code PIX"
+                className="rounded-xl"
+                style={{
+                  width: 'min(200px, 52vw)',
+                  height: 'auto',
+                  border: '0.5px solid var(--separator, var(--c-border))',
+                }}
+              />
+            ) : (
+              <div
+                className="flex items-center justify-center rounded-xl text-[13px] text-center px-4"
+                style={{
+                  width: 'min(200px, 52vw)',
+                  height: 'min(200px, 52vw)',
+                  color: 'var(--text-muted)',
+                  background: 'color-mix(in srgb, var(--text) 4%, var(--surface))',
+                }}
+              >
+                Carregando QR Code…
+              </div>
+            )}
+            <figcaption className="text-[12px] mt-3 text-center max-w-[260px] leading-snug" style={{ color: 'var(--text-muted)' }}>
+              Escaneie com o app do seu banco para pagar via PIX.
+            </figcaption>
+          </figure>
+        ) : null}
+      </div>
+    )
+  }
 
   if (isHome) {
     const hasContent =

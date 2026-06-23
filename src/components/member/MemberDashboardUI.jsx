@@ -10,15 +10,21 @@ import {
   HeartHandshake,
   Eye,
   EyeOff,
+  Smartphone,
 } from "lucide-react";
 import HeaderNotificationsBell from "@/components/HeaderNotificationsBell.jsx";
-import ThemeToggle from "@/components/ThemeToggle.jsx";
 import useTenant from "@/store/tenant";
 import { useTenantLogoOnPrimaryUrl } from "@/lib/tenantLogoRuntime";
 import useUserAvatar from "@/hooks/useUserAvatar";
 
 const cardShadow =
-  "0 1px 3px color-mix(in srgb, var(--text) 4%, transparent), 0 0 0 0.5px color-mix(in srgb, var(--text) 6%, transparent)";
+  "0 0.5px 0 color-mix(in srgb, var(--text) 8%, transparent), 0 1px 2px color-mix(in srgb, var(--text) 4%, transparent), 0 8px 24px color-mix(in srgb, var(--text) 4%, transparent)";
+
+const cardShellStyle = {
+  background: "var(--surface)",
+  boxShadow: cardShadow,
+  border: "0.5px solid color-mix(in srgb, var(--text) 6%, transparent)",
+};
 
 const iconSquircle = {
   background: "color-mix(in srgb, var(--primary) 10%, var(--surface))",
@@ -47,34 +53,40 @@ export function formatDisplayLabel(value) {
     .join(" ");
 }
 
-function MemberHeroLogo() {
+function MemberHeroLogo({ align = "left" }) {
   const logoUrl = useTenantLogoOnPrimaryUrl();
   const tenant = useTenant((s) => s.empresa);
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const fallback = tenant?.nomeFantasia || tenant?.razaoSocial || "Logo";
+  const alignClass =
+    align === "center" ? "justify-center" : "justify-start";
 
   if (failed || !logoUrl) {
     return (
-      <span className="block max-w-[min(168px,44vw)] truncate text-center text-[15px] font-semibold tracking-tight leading-tight">
+      <span
+        className={`block max-w-[min(180px,52vw)] truncate text-[15px] font-semibold tracking-tight leading-tight ${align === "center" ? "text-center" : "text-left"}`}
+      >
         {fallback}
       </span>
     );
   }
 
   return (
-    <span className="relative inline-flex h-10 min-w-[88px] max-w-[min(168px,44vw)] items-center justify-center">
+    <span
+      className={`relative inline-flex h-10 min-w-[88px] max-w-[min(180px,52vw)] items-center ${alignClass}`}
+    >
       {!loaded ? (
         <span
           aria-hidden="true"
-          className="absolute inset-x-2 inset-y-2 rounded-lg opacity-40 animate-pulse"
+          className="absolute inset-x-0 inset-y-1 rounded-lg opacity-40 animate-pulse"
           style={{ background: "rgba(255,255,255,0.14)" }}
         />
       ) : null}
       <img
         src={logoUrl}
         alt={fallback}
-        className={`relative h-9 w-auto max-w-full object-contain object-center transition-opacity duration-300 ease-out ${
+        className={`relative h-10 w-auto max-w-full object-contain object-left transition-opacity duration-300 ease-out ${
           loaded ? "opacity-100" : "opacity-0"
         }`}
         decoding="async"
@@ -94,11 +106,11 @@ function MemberHeroAvatar({ nomeExibicao }) {
   return (
     <Link
       to="/perfil"
-      className="inline-flex h-11 w-11 items-center justify-center rounded-full shrink-0 overflow-hidden text-[13px] font-semibold transition active:scale-[0.96]"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-full shrink-0 overflow-hidden text-[12px] font-semibold transition active:scale-[0.94]"
       style={{
-        background: avatarUrl && !avatarErro ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.16)",
-        border: "0.5px solid rgba(255,255,255,0.28)",
-        boxShadow: "inset 0 0 0 0.5px rgba(255,255,255,0.08)",
+        background: avatarUrl && !avatarErro ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.18)",
+        border: "0.5px solid rgba(255,255,255,0.32)",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.12), inset 0 0 0 0.5px rgba(255,255,255,0.1)",
       }}
       aria-label="Ir para perfil"
     >
@@ -117,91 +129,132 @@ function MemberHeroAvatar({ nomeExibicao }) {
   );
 }
 
+function MemberWelcomeCard({
+  primeiroNome,
+  unidadeNome,
+  planoLabel,
+  numeroContrato,
+  contratoAtivo,
+  planoDetailTo,
+  planoDetailState,
+}) {
+  const logoUrl = useTenantLogoOnPrimaryUrl();
+  const subtitle = unidadeNome
+    ? `Área do associado · ${formatDisplayLabel(unidadeNome)}`
+    : "Que bom ter você por aqui!";
+
+  return (
+    <div
+      className="relative mt-3.5 -mb-1 overflow-hidden rounded-[22px] px-4 py-3.5 backdrop-blur-xl"
+      style={{
+        background:
+          "linear-gradient(145deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.08) 100%)",
+        border: "0.5px solid rgba(255,255,255,0.24)",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.12)",
+      }}
+    >
+      {logoUrl ? (
+        <img
+          src={logoUrl}
+          alt=""
+          aria-hidden="true"
+          className="member-welcome-watermark pointer-events-none absolute -right-4 top-1/2 h-[96px] w-auto max-w-none -translate-y-1/2 select-none opacity-[0.07]"
+          draggable={false}
+        />
+      ) : null}
+
+      <div className="relative z-[1]">
+        <h1 className="text-[22px] font-bold leading-[1.15] tracking-tight">
+          Olá,{" "}
+          <span style={{ color: "var(--secondary, var(--on-primary, #fff))" }}>
+            {primeiroNome}
+          </span>
+        </h1>
+        <p className="mt-1 text-[14px] leading-snug text-white/80">{subtitle}</p>
+
+        {numeroContrato ? (
+          <div className="mt-3">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium text-white/90"
+              style={{
+                background: "rgba(0,0,0,0.18)",
+                border: "0.5px solid rgba(255,255,255,0.12)",
+              }}
+            >
+              <ShieldCheck size={12} className="shrink-0 opacity-90" />
+              <span>{contratoAtivo ? "Contrato ativo" : "Aguardando ativação"}</span>
+              <span className="opacity-70 tabular-nums">#{numeroContrato}</span>
+            </span>
+          </div>
+        ) : null}
+
+        {planoLabel && planoDetailTo ? (
+          <Link
+            to={planoDetailTo}
+            state={planoDetailState}
+            className="mt-2.5 inline-flex min-h-[36px] items-center text-[13px] font-medium text-white/90 underline decoration-white/35 underline-offset-[3px] transition active:opacity-70"
+          >
+            Ver detalhes do plano · {planoLabel}
+          </Link>
+        ) : planoLabel ? (
+          <p className="mt-2.5 text-[13px] leading-snug text-white/75">{planoLabel}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function MemberHero({
   nomeExibicao,
   nomePlano,
   numeroContrato,
   contratoAtivo,
   unidadeNome,
+  planoDetailTo = null,
+  planoDetailState = null,
 }) {
   const primeiroNome = nomeExibicao?.split(" ")?.[0] || "Associado";
   const planoLabel = formatDisplayLabel(nomePlano);
 
   return (
     <section
-      className="relative overflow-hidden pb-12"
+      className="relative overflow-hidden pb-4"
       style={{
         background:
-          "linear-gradient(168deg, var(--primary-dark, var(--primary)) 0%, var(--primary) 48%, color-mix(in srgb, var(--primary) 72%, #000) 100%)",
+          "linear-gradient(168deg, var(--primary-dark, var(--primary)) 0%, var(--primary) 52%, color-mix(in srgb, var(--primary) 68%, #000) 100%)",
         color: "var(--on-primary, #fff)",
-        paddingTop: "max(0.5rem, env(safe-area-inset-top))",
+        paddingTop: "max(0.625rem, env(safe-area-inset-top))",
       }}
     >
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-[0.35]"
+        className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 80% 60% at 100% 0%, rgba(255,255,255,0.22) 0%, transparent 55%)",
+            "radial-gradient(ellipse 90% 70% at 85% -10%, rgba(255,255,255,0.28) 0%, transparent 52%), radial-gradient(ellipse 60% 50% at 0% 100%, rgba(0,0,0,0.12) 0%, transparent 55%)",
         }}
       />
 
-      <div className="relative z-[1] px-4 pt-1">
-        <div className="grid grid-cols-[44px_1fr_auto] items-center gap-2">
-          <MemberHeroAvatar nomeExibicao={nomeExibicao} />
-
-          <div className="flex justify-center min-w-0 px-1">
-            <MemberHeroLogo />
+      <div className="relative z-[1] px-4 pt-0.5">
+        <div className="flex min-h-[44px] items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <MemberHeroLogo align="left" />
           </div>
-
-          <div className="flex items-center justify-end gap-1.5 shrink-0">
+          <div className="flex shrink-0 items-center gap-2">
             <HeaderNotificationsBell tone="onDark" />
-            <ThemeToggle tone="onDark" />
+            <MemberHeroAvatar nomeExibicao={nomeExibicao} />
           </div>
         </div>
 
-        <div className="mt-5">
-          <p className="text-[15px] opacity-90">Olá,</p>
-          <h1 className="text-[28px] font-bold leading-[1.1] tracking-tight mt-0.5">
-            {primeiroNome}
-          </h1>
-          <p className="mt-1.5 text-[14px] leading-snug opacity-85">
-            {unidadeNome
-              ? `Área do associado · ${formatDisplayLabel(unidadeNome)}`
-              : "Que bom ter você por aqui!"}
-          </p>
-        </div>
-
-        {numeroContrato ? (
-          <div
-            className="mt-4 inline-flex items-center gap-2 rounded-full px-3 py-1.5"
-            style={{
-              background: "rgba(0,0,0,0.16)",
-              border: "0.5px solid rgba(255,255,255,0.16)",
-            }}
-          >
-            <ShieldCheck size={14} className="shrink-0 opacity-90" />
-            <span className="text-[12px] font-medium">
-              {contratoAtivo ? "Contrato ativo" : "Aguardando ativação"}
-            </span>
-            <span className="text-[12px] opacity-75 tabular-nums">#{numeroContrato}</span>
-          </div>
-        ) : null}
-
-        {planoLabel ? (
-          <div
-            className="mt-4 rounded-[20px] px-4 py-3.5 backdrop-blur-md"
-            style={{
-              background: "rgba(255,255,255,0.12)",
-              border: "0.5px solid rgba(255,255,255,0.2)",
-            }}
-          >
-            <p className="text-[12px] font-medium opacity-80">Seu plano</p>
-            <p className="mt-0.5 text-[17px] font-semibold leading-snug line-clamp-2">
-              {planoLabel}
-            </p>
-          </div>
-        ) : null}
+        <MemberWelcomeCard
+          primeiroNome={primeiroNome}
+          unidadeNome={unidadeNome}
+          planoLabel={planoLabel}
+          numeroContrato={numeroContrato}
+          contratoAtivo={contratoAtivo}
+          planoDetailTo={planoDetailTo}
+          planoDetailState={planoDetailState}
+        />
       </div>
     </section>
   );
@@ -210,16 +263,19 @@ export function MemberHero({
 export function MemberContentSheet({ children, className = "", overlap = true }) {
   return (
     <div
-      className={`relative px-4 pt-4 pb-6 ${
+      className={`relative px-4 pt-5 pb-6 ${
         overlap
-          ? "-mt-8 rounded-t-[32px] md:mt-4 md:rounded-[24px]"
+          ? "-mt-10 rounded-t-[28px] md:mt-4 md:rounded-[24px]"
           : "rounded-[24px] mt-4"
       } ${className}`}
       style={{
-        background: "var(--surface)",
+        background: "var(--grouped-bg, var(--surface-alt, var(--surface)))",
         boxShadow: overlap
-          ? "0 -4px 24px color-mix(in srgb, var(--text) 5%, transparent)"
+          ? "0 -1px 0 color-mix(in srgb, var(--text) 6%, transparent), 0 -12px 40px color-mix(in srgb, var(--text) 6%, transparent)"
           : cardShadow,
+        borderTop: overlap
+          ? "0.5px solid color-mix(in srgb, var(--text) 5%, transparent)"
+          : undefined,
       }}
     >
       {children}
@@ -237,7 +293,7 @@ export function MemberSectionHeading({ children, action, grouped = false }) {
       <h2
         className={
           grouped
-            ? "text-[13px] font-normal uppercase tracking-[0.02em]"
+            ? "member-section-label text-[12px] font-semibold uppercase tracking-[0.06em]"
             : "text-[17px] font-semibold tracking-tight"
         }
         style={{ color: grouped ? "var(--text-muted)" : "var(--text)" }}
@@ -395,11 +451,11 @@ export function MemberNextPaymentCard({
     </>
   );
 
-  const shellStyle = { background: "var(--surface)", boxShadow: cardShadow };
+  const shellStyle = { ...cardShellStyle };
 
   if (onClick && onToggleValues) {
     return (
-      <div className="rounded-[20px] overflow-hidden" style={shellStyle}>
+      <div className="member-dashboard-card rounded-[20px] overflow-hidden" style={shellStyle}>
         <button
           type="button"
           onClick={onClick}
@@ -438,7 +494,7 @@ export function MemberNextPaymentCard({
     <Comp
       type={onClick ? "button" : undefined}
       onClick={onClick}
-      className={`w-full text-left rounded-[20px] px-4 py-3.5 flex items-center gap-3 transition ${
+      className={`member-dashboard-card w-full text-left rounded-[20px] px-4 py-3.5 flex items-center gap-3 transition ${
         onClick ? "active:scale-[0.99]" : ""
       }`}
       style={shellStyle}
@@ -454,8 +510,8 @@ export function MemberPaymentStatusCard({ titulo, status, detail, statusTone = "
 
   return (
     <div
-      className="rounded-[20px] px-4 py-3.5 flex items-center gap-3"
-      style={{ background: "var(--surface)", boxShadow: cardShadow }}
+      className="member-dashboard-card rounded-[22px] px-4 py-4 flex items-center gap-3.5"
+      style={cardShellStyle}
     >
       <span
         className="inline-flex h-12 w-12 items-center justify-center rounded-full shrink-0"
@@ -537,32 +593,57 @@ export function MemberQuickTile({ icon: Icon, label, detail, to, state, onClick 
   );
 }
 
-export function MemberQuickGridTile({ icon: Icon, label, to, state, onClick, badgeIcon: BadgeIcon }) {
+export function MemberQuickGrid({ children, className = "" }) {
+  return (
+    <div className={`grid grid-cols-2 gap-3 ${className}`}>{children}</div>
+  );
+}
+
+export function MemberQuickGridTile({
+  icon: Icon,
+  label,
+  detail,
+  to,
+  state,
+  onClick,
+  badgeIcon: BadgeIcon,
+}) {
   const inner = (
     <>
       <span
-        className="inline-flex h-10 w-10 items-center justify-center rounded-[12px] mx-auto"
+        className="inline-flex h-11 w-11 items-center justify-center rounded-full shrink-0"
         style={iconSquircle}
       >
-        <Icon size={19} strokeWidth={1.85} />
+        <Icon size={20} strokeWidth={1.85} />
       </span>
       {BadgeIcon ? (
         <span
-          className="absolute top-2.5 right-2.5 inline-flex h-5 w-5 items-center justify-center rounded-full"
+          className="absolute top-3 right-3 inline-flex h-5 w-5 items-center justify-center rounded-full"
           style={{
-            background: "color-mix(in srgb, var(--secondary, var(--highlight, #c9a227)) 92%, #fff)",
+            background:
+              "color-mix(in srgb, var(--secondary, var(--highlight, #c9a227)) 92%, #fff)",
             color: "var(--primary-dark, var(--text))",
           }}
         >
           <BadgeIcon size={10} strokeWidth={2.5} />
         </span>
       ) : null}
-      <span className="block text-[13px] font-semibold mt-2.5 leading-snug px-1">{label}</span>
+      <span className="block text-[15px] font-semibold leading-snug tracking-tight">
+        {label}
+      </span>
+      {detail ? (
+        <span
+          className="block text-[12px] leading-snug line-clamp-2"
+          style={{ color: "var(--text-muted)" }}
+        >
+          {detail}
+        </span>
+      ) : null}
     </>
   );
 
   const className =
-    "relative rounded-[18px] p-3 pt-3.5 text-center min-h-[100px] transition active:scale-[0.98]";
+    "member-dashboard-card relative rounded-[20px] p-4 text-left min-h-[104px] flex flex-col items-start justify-between gap-2 transition active:scale-[0.98]";
 
   if (to) {
     return (
@@ -570,7 +651,7 @@ export function MemberQuickGridTile({ icon: Icon, label, to, state, onClick, bad
         to={to}
         state={state}
         className={className}
-        style={{ background: "var(--surface)", boxShadow: cardShadow }}
+        style={cardShellStyle}
         aria-label={label}
       >
         {inner}
@@ -583,7 +664,7 @@ export function MemberQuickGridTile({ icon: Icon, label, to, state, onClick, bad
       type="button"
       onClick={onClick}
       className={`${className} w-full`}
-      style={{ background: "var(--surface)", boxShadow: cardShadow }}
+      style={cardShellStyle}
       aria-label={label}
     >
       {inner}
@@ -634,7 +715,7 @@ export function MemberServiceRow({
   );
 
   const className =
-    "w-full rounded-[20px] px-4 py-3.5 flex items-center gap-3 transition active:scale-[0.99] text-left";
+    "member-dashboard-card w-full rounded-[22px] px-4 py-3.5 flex items-center gap-3 transition active:scale-[0.99] text-left";
 
   if (to) {
     return (
@@ -642,7 +723,7 @@ export function MemberServiceRow({
         to={to}
         state={state}
         className={className}
-        style={{ background: "var(--surface)", boxShadow: cardShadow }}
+        style={cardShellStyle}
       >
         {content}
       </Link>
@@ -654,7 +735,7 @@ export function MemberServiceRow({
       type="button"
       onClick={onClick}
       className={className}
-      style={{ background: "var(--surface)", boxShadow: cardShadow }}
+      style={cardShellStyle}
     >
       {content}
     </button>
@@ -666,48 +747,64 @@ export function MemberCareBanner({ onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="w-full rounded-[20px] overflow-hidden flex items-stretch min-h-[84px] text-left transition active:scale-[0.99]"
-      style={{ background: "var(--surface)", boxShadow: cardShadow }}
+      className="member-dashboard-card w-full rounded-[22px] overflow-hidden flex items-stretch min-h-[80px] text-left transition active:scale-[0.99]"
+      style={cardShellStyle}
     >
       <span
-        className="w-[84px] shrink-0 flex items-center justify-center"
+        className="w-[72px] shrink-0 flex items-center justify-center"
         style={{
           background:
             "linear-gradient(165deg, var(--primary-dark, var(--primary)), var(--primary))",
           color: "var(--on-primary, #fff)",
         }}
       >
-        <HeartHandshake size={26} strokeWidth={1.75} />
+        <HeartHandshake size={24} strokeWidth={1.75} />
       </span>
       <span className="flex-1 px-4 py-3.5 flex items-center justify-between gap-3 min-w-0">
         <span>
-          <span className="block text-[15px] font-semibold leading-snug">
+          <span className="block text-[15px] font-semibold leading-snug tracking-tight">
             Estamos aqui para cuidar de você
           </span>
-          <span className="block text-[13px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+          <span className="block text-[13px] mt-0.5 leading-snug" style={{ color: "var(--text-muted)" }}>
             Fale com nossa equipe quando precisar
           </span>
         </span>
         <ChevronRight
-          size={17}
+          size={16}
           strokeWidth={2.5}
-          className="shrink-0 opacity-35"
-          style={{ color: "var(--text-muted)" }}
+          className="member-grid-chevron shrink-0 opacity-80"
         />
       </span>
     </button>
   );
 }
 
+/** Benefícios digitais do plano (sem duplicar atendimento do grid/banner) */
+export function MemberDigitalServicesSection({ beneficiosTo, beneficiosState }) {
+  if (!beneficiosTo) return null;
+
+  return (
+    <div className="space-y-2">
+      <MemberSectionHeading grouped>Serviços digitais</MemberSectionHeading>
+      <MemberServiceRow
+        icon={Smartphone}
+        label="Benefícios digitais"
+        detail="Serviços incluídos no seu plano"
+        to={beneficiosTo}
+        state={beneficiosState}
+      />
+    </div>
+  );
+}
+
 /** Lista vertical de atalhos — um card contínuo estilo iOS inset group */
-export function MemberQuickList({ children }) {
+export function MemberQuickList({ children, className = "" }) {
   return (
     <div
-      className="rounded-[20px] overflow-hidden divide-y"
+      className={`member-dashboard-card rounded-[22px] overflow-hidden divide-y ${className}`}
       style={{
-        background: "var(--surface)",
-        boxShadow: cardShadow,
-        border: "0.5px solid var(--separator, var(--c-border))",
+        ...cardShellStyle,
+        borderColor: "var(--separator, var(--c-border))",
       }}
     >
       {children}
@@ -717,25 +814,29 @@ export function MemberQuickList({ children }) {
 
 export function MemberQuickListRow({ icon: Icon, label, detail, to, state, onClick }) {
   const rowClass =
-    "flex items-center gap-3 w-full min-h-[68px] px-4 py-3 text-left transition active:opacity-80";
+    "flex items-center gap-3 w-full min-h-[56px] px-4 py-3 text-left transition active:opacity-80";
 
   const content = (
     <>
       <span
-        className="inline-flex h-10 w-10 items-center justify-center rounded-[12px] shrink-0"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full shrink-0"
         style={iconSquircle}
       >
         <Icon size={19} strokeWidth={1.85} />
       </span>
       <span className="flex-1 min-w-0 text-left">
-        <span className="block text-[16px] font-semibold leading-snug">{label}</span>
+        <span className="block text-[16px] font-semibold leading-snug tracking-tight">{label}</span>
         {detail ? (
-          <span className="block text-[13px] mt-0.5" style={{ color: "var(--text-muted)" }}>
+          <span className="block text-[13px] mt-0.5 leading-snug" style={{ color: "var(--text-muted)" }}>
             {detail}
           </span>
         ) : null}
       </span>
-      <ChevronRight size={17} strokeWidth={2.5} className="opacity-30 shrink-0" style={{ color: "var(--text-muted)" }} />
+      <ChevronRight
+        size={16}
+        strokeWidth={2.5}
+        className="member-grid-chevron shrink-0 opacity-60"
+      />
     </>
   );
 
