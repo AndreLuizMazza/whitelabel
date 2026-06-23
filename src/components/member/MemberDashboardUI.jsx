@@ -132,11 +132,8 @@ function MemberHeroAvatar({ nomeExibicao }) {
 function MemberWelcomeCard({
   primeiroNome,
   unidadeNome,
-  planoLabel,
   numeroContrato,
   contratoAtivo,
-  planoDetailTo,
-  planoDetailState,
 }) {
   const logoUrl = useTenantLogoOnPrimaryUrl();
   const subtitle = unidadeNome
@@ -187,18 +184,6 @@ function MemberWelcomeCard({
             </span>
           </div>
         ) : null}
-
-        {planoLabel && planoDetailTo ? (
-          <Link
-            to={planoDetailTo}
-            state={planoDetailState}
-            className="mt-2.5 inline-flex min-h-[36px] items-center text-[13px] font-medium text-white/90 underline decoration-white/35 underline-offset-[3px] transition active:opacity-70"
-          >
-            Ver detalhes do plano · {planoLabel}
-          </Link>
-        ) : planoLabel ? (
-          <p className="mt-2.5 text-[13px] leading-snug text-white/75">{planoLabel}</p>
-        ) : null}
       </div>
     </div>
   );
@@ -206,15 +191,11 @@ function MemberWelcomeCard({
 
 export function MemberHero({
   nomeExibicao,
-  nomePlano,
   numeroContrato,
   contratoAtivo,
   unidadeNome,
-  planoDetailTo = null,
-  planoDetailState = null,
 }) {
   const primeiroNome = nomeExibicao?.split(" ")?.[0] || "Associado";
-  const planoLabel = formatDisplayLabel(nomePlano);
 
   return (
     <section
@@ -249,11 +230,8 @@ export function MemberHero({
         <MemberWelcomeCard
           primeiroNome={primeiroNome}
           unidadeNome={unidadeNome}
-          planoLabel={planoLabel}
           numeroContrato={numeroContrato}
           contratoAtivo={contratoAtivo}
-          planoDetailTo={planoDetailTo}
-          planoDetailState={planoDetailState}
         />
       </div>
     </section>
