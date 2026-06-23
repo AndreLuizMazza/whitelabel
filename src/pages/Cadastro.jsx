@@ -6,7 +6,7 @@ import CTAButton from "@/components/ui/CTAButton";
 import useTenant from "@/store/tenant";
 import { celcashCriarClienteContrato, celcashGerarCarneManual } from "@/lib/celcashApi";
 
-import { CheckCircle2, ChevronLeft, Info, Loader2, X } from "lucide-react";
+import { ChevronLeft, Info, Loader2, X } from "lucide-react";
 
 import {
   onlyDigits,
@@ -28,6 +28,7 @@ import StepTitularIntro from "./cadastro/StepTitularIntro";
 import StepEndereco from "./cadastro/StepEndereco";
 import StepDependentes from "./cadastro/StepDependentes";
 import StepCarne from "./cadastro/StepCarne";
+import CadastroStepShell, { CadastroStepper } from "./cadastro/CadastroStepShell";
 
 import { detalharValorMensalidadePlano, gerarCobrancasPlano } from "@/lib/planPricing";
 
@@ -50,20 +51,16 @@ function moneyBRL(v) {
 
 function FieldRead({ label, value, mono = false }) {
   return (
-    <div className="rounded-xl border border-[var(--c-border)] bg-[var(--c-surface)] px-3 py-1.5 shadow-sm">
-      <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--c-muted)]">{label}</p>
-      <p className={`mt-0.5 font-medium ${mono ? "tabular-nums" : ""} break-words text-[13px]`}>
+    <div
+      className="rounded-xl border px-3 py-2"
+      style={{ borderColor: "var(--c-border)", background: "var(--surface-alt, var(--surface))" }}
+    >
+      <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+        {label}
+      </p>
+      <p className={`mt-0.5 text-sm font-medium ${mono ? "tabular-nums" : ""} break-words`}>
         {value || "—"}
       </p>
-    </div>
-  );
-}
-
-function SectionTitle({ children, right = null }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <h2 className="text-sm md:text-base font-semibold tracking-tight">{children}</h2>
-      {right}
     </div>
   );
 }
@@ -104,25 +101,8 @@ function encodePayloadParam(obj) {
 }
 
 /**
- * Camada de “ambiente” premium (halo) para dar consistência visual com Login
- * sem alterar a estrutura dos Steps.
+ * Camada de “ambiente” premium (halo) — removida em favor de layout step-first.
  */
-function StepAmbient({ children }) {
-  return (
-    <div className="relative">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-[60px] mx-auto h-36 max-w-2xl rounded-[48px] opacity-70"
-        style={{
-          background:
-            "radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)",
-          zIndex: 0,
-        }}
-      />
-      <div className="relative z-[1]">{children}</div>
-    </div>
-  );
-}
 
 /* -------------------- Modal (sem dependência) -------------------- */
 function Modal({ open, title, children, onClose }) {
@@ -1110,13 +1090,6 @@ export default function Cadastro() {
 
   const bloquearCadastro = lookupState.temContratoAtivo === true;
 
-  const glassCardStyle = {
-    background: "color-mix(in srgb, var(--c-surface) 84%, transparent)",
-    borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
-    boxShadow: "0 22px 70px rgba(15,23,42,0.35)",
-    backdropFilter: "blur(18px)",
-  };
-
   const todayISO = new Date().toISOString().slice(0, 10);
 
   const cobrancasPreview = useMemo(() => {
@@ -1171,7 +1144,17 @@ export default function Cadastro() {
     return () => cancelAnimationFrame(raf1);
   }, [pendingScroll, currentStep]);
 
-  const stickyTop = "calc(var(--app-header-h, 72px) + 10px)";
+  const stepMeta = useMemo(() => {
+    const map = {
+      1: { title: "Dados do titular", subtitle: "Complete as informações que faltam." },
+      2: { title: "Endereço", subtitle: "Onde você recebe correspondências e cobranças." },
+      3: { title: "Dependentes", subtitle: "Opcional — inclua quem entra no plano." },
+      4: { title: "Pagamento", subtitle: "Escolha o vencimento e confirme os valores." },
+    };
+    return map[currentStep] || map[1];
+  }, [currentStep]);
+
+  const stickyTop = "calc(var(--app-header-h, 72px) + 8px)";
 
   const planosFiltrados = useMemo(() => {
     const term = (planSearch || "").trim().toLowerCase();
@@ -1205,13 +1188,79 @@ export default function Cadastro() {
         </div>
 
         {currentStep === 1 && (
-          <header className="mb-4">
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Cadastre-se em poucos passos</h1>
-            <p className="mt-1 text-sm md:text-base leading-relaxed text-[var(--c-muted)]">
-              Informe seus dados e escolha a forma de cobrança.
+          <header className="mb-5">
+            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Contratar plano</h1>
+            <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+              {totalSteps} etapas para concluir sua adesão.
             </p>
           </header>
         )}
+
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          {plano?.nome ? (
+            <span
+              className="inline-flex items-center rounded-full border px-3 py-1 text-xs"
+              style={{ borderColor: "var(--c-border)", color: "var(--text-muted)", background: "var(--surface)" }}
+            >
+              {plano.nome}
+              {valorMensalidadePlano > 0 ? (
+                <span className="ml-2 font-semibold" style={{ color: "var(--text)" }}>
+                  {moneyBRL(valorMensalidadePlano)}/mês
+                </span>
+              ) : null}
+            </span>
+          ) : (
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Selecione um plano para continuar
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setPlanModalOpen(true)}
+            className="text-sm font-medium hover:underline min-h-[44px] px-2"
+            style={{ color: "var(--primary)" }}
+          >
+            Trocar plano
+          </button>
+        </div>
+
+        <div className="mb-4 sticky z-[35]" style={{ top: stickyTop }}>
+          <CadastroStepper
+            steps={visibleSteps}
+            currentStep={currentStep}
+            currentIndex={currentIndex}
+            disabled={bloquearCadastro}
+            onStep={goToStep}
+          />
+        </div>
+
+        <details
+          className="mb-5 rounded-xl border overflow-hidden"
+          style={{ borderColor: "var(--c-border)", background: "var(--surface)" }}
+        >
+          <summary
+            className="cursor-pointer list-none px-4 py-3 text-sm font-medium min-h-[48px] flex items-center justify-between gap-2"
+            style={{ color: "var(--text)" }}
+          >
+            <span>Resumo da contratação</span>
+            <span className="text-xs font-normal" style={{ color: "var(--text-muted)" }}>
+              toque para ver
+            </span>
+          </summary>
+          <div className="px-4 pb-4 pt-0 space-y-3 border-t" style={{ borderColor: "var(--c-border)" }}>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <FieldRead label="Titular" value={titular.nome || "—"} />
+              <FieldRead label="CPF" value={formatCPF(titular.cpf || "") || "—"} mono />
+              <FieldRead label="Celular" value={formatPhoneBR(titular.celular) || "—"} mono />
+              <FieldRead label="E-mail" value={titular.email || "—"} />
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <FieldRead label="Mensalidade" value={moneyBRL(valorMensalidadePlano)} mono />
+              <FieldRead label="Adesão" value={moneyBRL(valorAdesaoPlano)} mono />
+              <FieldRead label="Pagamento" value={planoResumo?.formasTxt || "—"} />
+            </div>
+          </div>
+        </details>
 
         {(lookupState.running || lookupState.mensagem || lookupState.erro) && (
           <div
@@ -1267,231 +1316,19 @@ export default function Cadastro() {
           </div>
         )}
 
-        <div className="rounded-3xl p-5 md:p-6 space-y-4" style={glassCardStyle}>
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-base md:text-lg font-semibold tracking-tight">Dados para contratação</h2>
-
-              <div className="flex items-center gap-2">
-                {plano?.nome ? (
-                  <span className="inline-flex items-center rounded-full border border-[var(--c-border)] px-3 py-1 text-[11px] md:text-xs text-[var(--c-muted)] bg-[var(--c-surface)]/80">
-                    Plano&nbsp;<span className="font-semibold text-[var(--text)]">{plano.nome}</span>
-                  </span>
-                ) : null}
-
-                <button
-                  type="button"
-                  onClick={() => setPlanModalOpen(true)}
-                  className="inline-flex items-center justify-center rounded-full border border-[var(--c-border)] bg-[var(--c-surface)]/90 px-3 py-1 text-[11px] md:text-xs font-semibold hover:bg-[var(--c-surface)] transition"
-                  aria-label="Trocar plano"
-                >
-                  Trocar plano
-                </button>
-              </div>
-            </div>
-
-            <p className="text-xs md:text-sm text-[var(--c-muted)]">
-              Revise o titular e confirme as condições do plano antes de avançar.
-            </p>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-7">
-            <div className="md:col-span-2">
-              <details className="group rounded-3xl border border-[var(--c-border)] bg-[var(--c-surface)]/55 p-4 md:p-5">
-                <summary className="cursor-pointer list-none">
-                  <SectionTitle
-                    right={
-                      <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)] group-open:opacity-60">
-                        Ver detalhes
-                      </span>
-                    }
-                  >
-                    Titular
-                  </SectionTitle>
-
-                  <div className="mt-3 space-y-2">
-                    <div className="flex flex-wrap items-center gap-2 text-xs md:text-sm">
-                      <span className="inline-flex items-center rounded-full bg-[var(--c-surface)]/90 border border-[var(--c-border)] px-3 py-1 max-w-full">
-                        <span className="font-medium truncate">{titular.nome || "Nome não informado"}</span>
-                      </span>
-                      <span className="inline-flex items-center rounded-full bg-[var(--c-surface)]/90 border border-[var(--c-border)] px-3 py-1">
-                        {formatCPF(titular.cpf || "") || "CPF não informado"}
-                      </span>
-                      {titular.celular && (
-                        <span className="inline-flex items-center rounded-full bg-[var(--c-surface)]/90 border border-[var(--c-border)] px-3 py-1">
-                          {formatPhoneBR(titular.celular)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </summary>
-
-                <div className="mt-4 grid gap-2 grid-cols-2">
-                  <FieldRead label="Nascimento" value={formatDateBR(titular.data_nascimento) || "—"} mono />
-                  <div className="col-span-2">
-                    <FieldRead label="E-mail" value={titular.email || "—"} />
-                  </div>
-                </div>
-              </details>
-            </div>
-
-            <div className="md:col-span-5">
-              <details className="group rounded-3xl border border-[var(--c-border)] bg-[var(--c-surface)]/55 p-4 md:p-5">
-                <summary className="cursor-pointer list-none">
-                  <SectionTitle
-                    right={
-                      <span className="text-[11px] uppercase tracking-[0.18em] text-[var(--c-muted)] group-open:opacity-60">
-                        Ver detalhes
-                      </span>
-                    }
-                  >
-                    Plano
-                  </SectionTitle>
-
-                  <div className="mt-3 grid gap-2 grid-cols-2">
-                    <FieldRead label="Mensalidade estimada" value={moneyBRL(valorMensalidadePlano)} mono />
-                    <FieldRead label="Taxa de adesão" value={moneyBRL(valorAdesaoPlano)} mono />
-                    <div className="col-span-2">
-                      <FieldRead label="Pagamento" value={planoResumo?.formasTxt || "—"} />
-                    </div>
-                  </div>
-                </summary>
-
-                <div className="mt-4 grid gap-2 grid-cols-2">
-                  <FieldRead label="Carência" value={planoResumo?.carenciaTxt || "—"} />
-                  <FieldRead label="Dependentes" value={planoResumo?.depTxt || "—"} />
-                  <div className="col-span-2">
-                    <FieldRead label="Idade (dependentes)" value={planoResumo?.idadeTxt || "—"} />
-                  </div>
-                </div>
-
-                {cupomCodigo ? (
-                  <div className="mt-3 rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)]/70 px-3 py-2">
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-[var(--c-muted)]">Cupom</p>
-                    <p className="mt-0.5 text-sm font-semibold break-words">{cupomCodigo}</p>
-                  </div>
-                ) : null}
-              </details>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 mb-5 sticky z-[35]" style={{ top: stickyTop }}>
-          <div
-            className="rounded-3xl border px-2 py-2 shadow-[0_22px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl"
-            style={{
-              background: "color-mix(in srgb, var(--c-surface) 82%, transparent)",
-              borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
-            }}
-          >
-            <div
-              className={`grid gap-2 md:hidden ${bloquearCadastro ? "opacity-70" : ""}`}
-              style={{ gridTemplateColumns: `repeat(${visibleSteps.length}, minmax(0, 1fr))` }}
-              role="navigation"
-              aria-label="Etapas do cadastro"
-            >
-              {visibleSteps.map((step, idx) => {
-                const active = currentStep === step.id;
-                const completed = idx < currentIndex;
-                const disabled = bloquearCadastro || idx > currentIndex;
-
-                return (
-                  <button
-                    key={step.id}
-                    type="button"
-                    onClick={() => {
-                      if (disabled) return;
-                      goToStep(step.id);
-                    }}
-                    disabled={disabled}
-                    className={`flex flex-col items-center justify-center rounded-2xl px-2 py-2 transition-all ${
-                      active
-                        ? "bg-[var(--primary)] text-white shadow-md"
-                        : completed
-                        ? "bg-[var(--c-surface)]/96 text-[var(--c-muted)] border border-[var(--c-border)]"
-                        : "bg-transparent text-[var(--c-muted)]/85 border border-transparent"
-                    } ${disabled ? "cursor-not-allowed" : "hover:shadow-sm"}`}
-                    aria-current={active ? "step" : undefined}
-                  >
-                    <span
-                      className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold ${
-                        active
-                          ? "bg-white/20"
-                          : completed
-                          ? "bg-[var(--primary)]/10 text-[var(--primary)]"
-                          : "bg-[var(--c-surface)]/90 border border-[var(--c-border)] text-[var(--c-muted)]"
-                      }`}
-                    >
-                      {completed ? <CheckCircle2 size={14} /> : idx + 1}
-                    </span>
-                    <span className="mt-1 text-[11px] font-semibold leading-tight text-center">{step.label}</span>
-                    <span className="mt-0.5 text-[9px] uppercase tracking-[0.18em] opacity-70">Etapa {idx + 1}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <ul className={`hidden md:flex flex-wrap gap-2 ${bloquearCadastro ? "opacity-70" : ""}`} role="navigation" aria-label="Etapas do cadastro">
-              {visibleSteps.map((step, idx) => {
-                const active = currentStep === step.id;
-                const completed = idx < currentIndex;
-                const disabled = bloquearCadastro || idx > currentIndex;
-
-                return (
-                  <li key={step.id} className="flex-1 min-w-[150px] list-none">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (disabled) return;
-                        goToStep(step.id);
-                      }}
-                      disabled={disabled}
-                      className={`flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-xs md:text-sm transition-all ${
-                        active
-                          ? "bg-[var(--primary)] text-white shadow-md"
-                          : completed
-                          ? "bg-[var(--c-surface)]/96 text-[var(--c-muted)] border border-[var(--c-border)]"
-                          : "bg-transparent text-[var(--c-muted)]/85 border border-transparent"
-                      } ${disabled ? "cursor-not-allowed" : "hover:shadow-sm"}`}
-                      aria-current={active ? "step" : undefined}
-                    >
-                      <span
-                        className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ${
-                          active
-                            ? "bg-white/20"
-                            : completed
-                            ? "bg-[var(--primary)]/10 text-[var(--primary)]"
-                            : "bg-[var(--c-surface)]/90 border border-[var(--c-border)] text-[var(--c-muted)]"
-                        }`}
-                      >
-                        {completed ? <CheckCircle2 size={14} /> : idx + 1}
-                      </span>
-                      <span className="flex flex-col">
-                        <span className="font-medium">{step.label}</span>
-                        <span className="text-[10px] uppercase tracking-[0.16em] opacity-70">
-                          Etapa {idx + 1} de {totalSteps}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>
-
         <div
           ref={contentAnchorRef}
-          style={{
-            scrollMarginTop: "calc(var(--app-header-h, 72px) + 18px)",
-          }}
+          style={{ scrollMarginTop: "calc(var(--app-header-h, 72px) + 18px)" }}
         />
 
         {!bloquearCadastro && (
-          <StepAmbient>
+          <CadastroStepShell
+            title={stepMeta.title}
+            subtitle={stepMeta.subtitle}
+            plain={currentStep === 4}
+          >
             {currentStep === 1 && (
               <StepTitularIntro
-                glassCardStyle={glassCardStyle}
                 titular={titular}
                 updTit={updTit}
                 stepAttempted={stepAttempted}
@@ -1506,7 +1343,6 @@ export default function Cadastro() {
 
             {currentStep === 2 && (
               <StepEndereco
-                glassCardStyle={glassCardStyle}
                 titular={titular}
                 updTitEndereco={updTitEndereco}
                 addressTouched={addressTouched}
@@ -1535,7 +1371,6 @@ export default function Cadastro() {
 
             {!isPlanoIndividual && currentStep === 3 && (
               <StepDependentes
-                glassCardStyle={glassCardStyle}
                 depsExistentes={depsExistentes}
                 depsNovos={depsNovos}
                 depsIssuesNovos={depsIssuesNovos}
@@ -1556,7 +1391,6 @@ export default function Cadastro() {
 
             {currentStep === 4 && (
               <StepCarne
-                glassCardStyle={glassCardStyle}
                 diaDSelecionado={diaDSelecionado}
                 setDiaDSelecionado={setDiaDSelecionado}
                 dataEfetivacaoISO={dataEfetivacaoISO}
@@ -1578,7 +1412,7 @@ export default function Cadastro() {
                 }}
               />
             )}
-          </StepAmbient>
+          </CadastroStepShell>
         )}
 
         <Modal open={planModalOpen} title="Trocar plano" onClose={() => setPlanModalOpen(false)}>

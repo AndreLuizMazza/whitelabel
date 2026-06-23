@@ -122,6 +122,7 @@ export function resolvePageTitle(pathname = "/") {
   if (pathname === "/carteirinha") return "Carteirinha digital";
   if (pathname === "/area") return "Área do associado";
   if (pathname === "/perfil") return "Perfil";
+  if (pathname === "/perfil/senha") return "Alterar senha";
   if (pathname === "/area/dependentes") return "Dependentes";
   if (pathname === "/area/pagamentos") return "Histórico de pagamentos";
   if (pathname === "/cadastro") return "Contratação";

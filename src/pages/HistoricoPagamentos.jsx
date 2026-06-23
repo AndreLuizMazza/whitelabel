@@ -6,7 +6,14 @@ import useAuth from '@/store/auth'
 import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
 import { showToast } from '@/lib/toast'
 
-import BackButton from '@/components/BackButton'
+import {
+  MemberSubpageNav,
+  MemberSubpageHeader,
+  formatDisplayLabel,
+} from '@/components/member/MemberDashboardUI'
+import { MemberGroupedList } from '@/components/member/MemberGroupedList'
+import Skeleton from '@/components/ui/Skeleton.jsx'
+import { Receipt } from 'lucide-react'
 
 const fmtBRL = (v) =>
   new Intl.NumberFormat('pt-BR', {
@@ -22,32 +29,76 @@ const fmtDate = (s) => {
   return Y && M && D ? `${D}/${M}/${Y}` : t
 }
 
-// Extrai o ano de strings no formato ISO ou DD/MM/YYYY
-const getYear = (s) => {
+const parseDateLocal = (s) => {
   if (!s) return null
   const t = String(s)
-
-  // DD/MM/YYYY
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(t)) {
-    const [, , Y] = t.split('/')
-    return Number(Y) || null
+    const [dd, mm, yyyy] = t.split('/')
+    return new Date(+yyyy, +mm - 1, +dd)
   }
-
-  // ISO YYYY-MM-DDTHH:mm:ss
-  const [Y] = t.split('T')[0].split('-')
-  return Number(Y) || null
+  const base = t.split('T')[0]
+  const [Y, M, D] = base.split('-')
+  if (Y && M && D) return new Date(+Y, +M - 1, +D)
+  const d = new Date(t)
+  return Number.isNaN(d.getTime()) ? null : d
 }
 
-function Skeleton({ className = '' }) {
+const getYear = (s) => {
+  const d = parseDateLocal(s)
+  return d ? d.getFullYear() : null
+}
+
+function buildMeta({ nomePlano, numeroContrato, unidadeNome }) {
+  const parts = []
+  if (nomePlano) parts.push(formatDisplayLabel(nomePlano))
+  if (numeroContrato) parts.push(`Contrato #${numeroContrato}`)
+  if (unidadeNome) parts.push(formatDisplayLabel(unidadeNome))
+  return parts.length ? parts.join(' · ') : null
+}
+
+function PagamentoHistoricoRow({ parcela }) {
+  const numero = parcela?.numeroDuplicata || parcela?.numero || '—'
+  const valor = fmtBRL(parcela?.valorParcelaRecebida ?? parcela?.valorParcela ?? 0)
+  const vencimento = fmtDate(parcela?.dataVencimento)
+  const pagoEm = fmtDate(parcela?.dataRecebimento)
+
   return (
-    <div
-      className={`animate-pulse rounded-xl ${className}`}
-      style={{
-        background:
-          'linear-gradient(90deg, rgba(0,0,0,0.06), rgba(0,0,0,0.10), rgba(0,0,0,0.06))',
-        backgroundSize: '200% 100%',
-      }}
-    />
+    <div className="flex items-center gap-3 px-4 py-3.5 min-h-[76px]">
+      <span
+        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px]"
+        style={{
+          background: 'color-mix(in srgb, var(--primary) 10%, var(--surface))',
+          color: 'var(--primary)',
+        }}
+      >
+        <Receipt size={20} strokeWidth={1.85} aria-hidden="true" />
+      </span>
+
+      <span className="flex-1 min-w-0">
+        <span className="flex items-baseline justify-between gap-3">
+          <span className="text-[17px] font-semibold tabular-nums leading-snug" style={{ color: 'var(--text)' }}>
+            {valor}
+          </span>
+          <span
+            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold shrink-0"
+            style={{
+              background: 'color-mix(in srgb, #30d158 14%, var(--surface))',
+              color: '#248a3d',
+              border: '0.5px solid color-mix(in srgb, #30d158 28%, transparent)',
+            }}
+          >
+            Paga
+          </span>
+        </span>
+        <span className="block text-[15px] font-medium mt-0.5 leading-snug" style={{ color: 'var(--text)' }}>
+          Parcela #{numero}
+        </span>
+        <span className="block text-[13px] mt-1 leading-snug" style={{ color: 'var(--text-muted)' }}>
+          Venc. {vencimento}
+          {pagoEm !== '—' ? ` · Pago em ${pagoEm}` : ''}
+        </span>
+      </span>
+    </div>
   )
 }
 
@@ -101,19 +152,37 @@ export default function HistoricoPagamentos() {
 
   const currentYear = new Date().getFullYear()
 
-  const pagos = Array.isArray(historico)
-    ? historico.filter((p) => {
-        const st = String(p.status || '').toUpperCase()
-        return st === 'PAGA' || st === 'PAID'
-      })
-    : []
+  const pagosAno = useMemo(() => {
+    const pagos = Array.isArray(historico)
+      ? historico.filter((p) => {
+          const st = String(p.status || '').toUpperCase()
+          return st === 'PAGA' || st === 'PAID'
+        })
+      : []
 
-  const pagosAno = pagos.filter((p) => {
-    const yReceb = getYear(p?.dataRecebimento)
-    const yVenc = getYear(p?.dataVencimento)
-    const y = yReceb || yVenc
-    return y === currentYear
-  })
+    return pagos
+      .filter((p) => {
+        const y = getYear(p?.dataRecebimento) || getYear(p?.dataVencimento)
+        return y === currentYear
+      })
+      .sort((a, b) => {
+        const da = parseDateLocal(a?.dataRecebimento || a?.dataVencimento)
+        const db = parseDateLocal(b?.dataRecebimento || b?.dataVencimento)
+        if (!da && !db) return 0
+        if (!da) return 1
+        if (!db) return -1
+        return db - da
+      })
+  }, [historico, currentYear])
+
+  const totalAno = useMemo(
+    () =>
+      pagosAno.reduce(
+        (sum, p) => sum + Number(p?.valorParcelaRecebida ?? p?.valorParcela ?? 0),
+        0
+      ),
+    [pagosAno]
+  )
 
   const numeroContrato =
     stateNumeroContrato ||
@@ -133,111 +202,81 @@ export default function HistoricoPagamentos() {
     contrato?.empresa?.razaoSocial ||
     null
 
+  const meta = buildMeta({ nomePlano, numeroContrato, unidadeNome })
   const isLoading = loading && historico.length === 0
 
   return (
-    <section className="section">
-      <div className="container-max">
-        {/* Barra superior com Voltar */}
-        <div className="mb-4 flex items-center justify-between">
-          <BackButton to="/area" className="mb-4" />
+    <div className="w-full max-w-6xl mx-auto">
+      <MemberSubpageNav to="/area" label="Início" />
+
+      <MemberSubpageHeader
+        title="Histórico"
+        meta={meta || `Pagamentos confirmados em ${currentYear}`}
+      />
+
+      {isLoading ? (
+        <div className="space-y-3">
+          <Skeleton className="h-16 rounded-[10px]" />
+          <MemberGroupedList>
+            <div className="px-4 py-4 space-y-3">
+              <Skeleton className="h-[76px] rounded-lg" />
+              <Skeleton className="h-[76px] rounded-lg" />
+              <Skeleton className="h-[76px] rounded-lg" />
+            </div>
+          </MemberGroupedList>
         </div>
+      ) : null}
 
-        <header className="mb-6">
-          <p
-            className="text-[11px] uppercase tracking-[0.2em]"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Área do associado
-          </p>
-          <h1 className="text-2xl font-semibold mt-1">
-            Histórico de Pagamentos
-          </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-            {nomePlano && (
-              <>
-                Plano <strong>{nomePlano}</strong>
-                {' • '}
-              </>
-            )}
-            {numeroContrato && <>Contrato #{numeroContrato} • </>}
-            {unidadeNome && <>Administrado por {unidadeNome}</>}
-          </p>
-          <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-            Exibindo pagamentos confirmados de {currentYear}.
-          </p>
-        </header>
-
-        {isLoading && (
-          <div className="card p-5">
-            <Skeleton className="h-5 w-48 mb-3" />
-            <Skeleton className="h-8 mb-2" />
-            <Skeleton className="h-8 mb-2" />
-            <Skeleton className="h-8 mb-2" />
-          </div>
-        )}
-
-        {!isLoading && pagosAno.length === 0 && (
-          <div className="card p-6">
-            <p className="text-sm" style={{ color: 'var(--text)' }}>
-              Ainda não encontramos pagamentos confirmados para este contrato em{' '}
-              {currentYear}.
+      {!isLoading && pagosAno.length === 0 ? (
+        <MemberGroupedList>
+          <div className="px-4 py-8 text-center">
+            <p className="text-[17px] font-medium leading-snug">Nenhum pagamento em {currentYear}</p>
+            <p
+              className="text-[15px] mt-2 leading-relaxed max-w-sm mx-auto"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Assim que uma parcela for confirmada, ela aparecerá nesta lista.
             </p>
           </div>
-        )}
+        </MemberGroupedList>
+      ) : null}
 
-        {!isLoading && pagosAno.length > 0 && (
-          <div className="card p-0 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr
-                  style={{
-                    background:
-                      'color-mix(in srgb, var(--primary) 10%, var(--surface) 90%)',
-                  }}
-                >
-                  <th className="text-left px-4 py-2">Parcela</th>
-                  <th className="text-left px-4 py-2">Vencimento</th>
-                  <th className="text-left px-4 py-2">Pago em</th>
-                  <th className="text-right px-4 py-2">Valor pago</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagosAno.map((p, i) => {
-                  const key =
-                    p?.id ||
-                    p?.numeroDuplicata ||
-                    p?.numero ||
-                    `hist-${i}`
-
-                  return (
-                    <tr
-                      key={key}
-                      className="border-t"
-                      style={{ borderColor: 'var(--c-border)' }}
-                    >
-                      <td className="px-4 py-2">
-                        #{p?.numeroDuplicata || p?.numero || '—'}
-                      </td>
-                      <td className="px-4 py-2">
-                        {fmtDate(p?.dataVencimento)}
-                      </td>
-                      <td className="px-4 py-2">
-                        {fmtDate(p?.dataRecebimento)}
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        {fmtBRL(
-                          p?.valorParcelaRecebida ?? p?.valorParcela ?? 0
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+      {!isLoading && pagosAno.length > 0 ? (
+        <section aria-label={`Pagamentos de ${currentYear}`}>
+          <div
+            className="rounded-[10px] px-4 py-3.5 mb-3 flex items-center justify-between gap-3"
+            style={{
+              background: 'var(--surface)',
+              border: '0.5px solid var(--separator, var(--c-border))',
+            }}
+          >
+            <span className="text-[13px] font-medium" style={{ color: 'var(--text-muted)' }}>
+              Total pago em {currentYear}
+            </span>
+            <span className="text-[20px] font-bold tabular-nums tracking-tight" style={{ color: 'var(--text)' }}>
+              {fmtBRL(totalAno)}
+            </span>
           </div>
-        )}
-      </div>
-    </section>
+
+          <p
+            className="px-1 mb-2 text-[13px] font-normal uppercase tracking-[0.02em]"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            {pagosAno.length} pagamento{pagosAno.length === 1 ? '' : 's'}
+          </p>
+
+          <MemberGroupedList>
+            {pagosAno.map((p, i) => {
+              const key = p?.id || p?.numeroDuplicata || p?.numero || `hist-${i}`
+              return <PagamentoHistoricoRow key={key} parcela={p} />
+            })}
+          </MemberGroupedList>
+
+          <p className="px-1 mt-2 text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+            Exibindo apenas parcelas com pagamento confirmado em {currentYear}.
+          </p>
+        </section>
+      ) : null}
+    </div>
   )
 }

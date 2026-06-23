@@ -109,6 +109,7 @@ export default function CarteirinhaAssociado({
   fotoUrl = null,
   tenantLogoUrl = null,
   printMode = 'classic',
+  showSideTabs = true,
 }) {
   const prefersDark = usePrefersDark()
   const reducedMotion = usePrefersReducedMotion()
@@ -857,19 +858,19 @@ export default function CarteirinhaAssociado({
           {iosLike ? (
             <>
               <div style={flatFrontStyle} aria-hidden={uiSide === 'back'}>
-                <Front />
+                <Front hideTabs={!showSideTabs} />
               </div>
               <div style={flatBackStyle} aria-hidden={uiSide === 'front'}>
-                <Back />
+                <Back hideTabs={!showSideTabs} />
               </div>
             </>
           ) : (
             <div style={innerStyle}>
               <div style={frontStyle} aria-hidden={uiSide === 'back'}>
-                <Front />
+                <Front hideTabs={!showSideTabs} />
               </div>
               <div style={backStyle} aria-hidden={uiSide === 'front'}>
-                <Back />
+                <Back hideTabs={!showSideTabs} />
               </div>
             </div>
           )}
@@ -877,10 +878,10 @@ export default function CarteirinhaAssociado({
       </section>
       <p
         id="carteirinha-flip-hint"
-        className="mt-2.5 text-center text-[12px] font-medium leading-snug px-1"
-        style={{ color: 'var(--c-muted, #64748b)' }}
+        className="mt-3 text-center text-[13px] leading-snug px-2"
+        style={{ color: 'var(--text-muted)' }}
       >
-        Toque na carteirinha para alternar frente e verso.
+        Toque na carteirinha para ver o verso.
       </p>
     </div>
   )

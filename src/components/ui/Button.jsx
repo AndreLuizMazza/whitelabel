@@ -24,7 +24,7 @@ function clsx(...args) {
  * Variants:
  * - primary  (fundo --primary, texto --on-primary)
  * - outline  (borda --c-border, texto --text; hover com leve mix)
- * - ghost    (sem borda, fundo transparente; hover usa --button-hover)
+ * - ghost    (sem borda, fundo transparente; hover usa --nav-hover-bg)
  * - subtle   (fundo var(--surface), borda leve; útil para chips/menus)
  *
  * Size:
@@ -67,7 +67,7 @@ const sizes = {
 };
 
 const base =
-  "inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
+  "inline-flex items-center justify-center font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2";
 
 const variants = {
   primary: "text-[length:inherit] border border-transparent",
@@ -108,14 +108,19 @@ function styleFor(variant) {
 function hoverStyle(variant) {
   switch (variant) {
     case "primary":
-      return { background: "var(--button-hover)" };
+      // Mesmo contrato de .btn-primary:hover (index.css + tenant --primary-dark)
+      return {
+        background:
+          "color-mix(in srgb, var(--primary) 85%, var(--primary-dark, var(--primary)))",
+      };
     case "outline":
-      return { background: "var(--button-hover)" };
     case "ghost":
-      return { background: "var(--button-hover)" };
     case "subtle":
     default:
-      return { background: "var(--button-hover)" };
+      return {
+        background:
+          "var(--nav-hover-bg, color-mix(in srgb, var(--primary) 8%, var(--surface)))",
+      };
   }
 }
 

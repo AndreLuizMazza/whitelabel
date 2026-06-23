@@ -234,7 +234,10 @@ export default function StepDependentes({
     <>
       {/* Dependentes existentes (somente leitura) — sem titular */}
       {depsExistentesSemTitular.length > 0 && (
-        <div className="mt-6 rounded-3xl border p-5 md:p-6" style={panelStyle()}>
+        <div
+          className="mb-4 rounded-xl border p-4"
+          style={{ borderColor: "var(--c-border)", background: "var(--surface-alt, var(--surface))" }}
+        >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm md:text-base font-semibold tracking-tight flex items-center gap-2">
@@ -299,49 +302,12 @@ export default function StepDependentes({
         </div>
       )}
 
-      {/* Card principal */}
-      <div className="mt-6 rounded-3xl border shadow-xl p-6 md:p-8" style={cardStyle()}>
-        {/* Cabeçalho */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs md:text-sm font-semibold tracking-wide uppercase">
-              Etapa 3 de 4 · Dependentes
-            </p>
+      <div className="space-y-4">
+        <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          Opcional — adicione dependentes agora ou continue sem incluir ninguém.
+        </p>
 
-            <span
-              className="inline-flex items-center gap-2 rounded-full px-2 py-0.5 text-[11px] md:text-xs"
-              style={{
-                background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
-                color: "var(--text-muted)",
-              }}
-            >
-              <span
-                className="inline-block h-1.5 w-1.5 rounded-full"
-                style={{ background: "var(--primary)" }}
-              />
-              {dependentesCount} novo{dependentesCount === 1 ? "" : "s"}
-            </span>
-          </div>
-
-          <div
-            className="h-1.5 rounded-full overflow-hidden"
-            style={{
-              background: "color-mix(in srgb, var(--surface-elevated) 80%, var(--text) 6%)",
-            }}
-          >
-            <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{ width: "75%", background: "var(--primary)" }}
-            />
-          </div>
-
-          <p className="text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
-            Este passo é opcional. Você pode adicionar dependentes agora ou seguir sem incluir ninguém.
-          </p>
-        </div>
-
-        {/* Painel interno */}
-        <div className="mt-5 rounded-2xl border p-4 md:p-5" style={panelStyle()}>
+        <div className="rounded-xl border p-4 md:p-5" style={{ borderColor: "var(--c-border)", background: "var(--surface)" }}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm md:text-base font-semibold tracking-tight">

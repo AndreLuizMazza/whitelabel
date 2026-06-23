@@ -1,7 +1,7 @@
 // src/pages/cadastro/StepCarne.jsx
 import { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import CTAButton from "@/components/ui/CTAButton";
+import Button from "@/components/ui/Button.jsx";
 import { DIA_D_OPTIONS, PARENTESCO_LABELS } from "@/lib/constants";
 import { money } from "@/lib/planUtils";
 import { formatDateBR } from "@/lib/br";
@@ -48,8 +48,52 @@ function normalizeKeyFromDep(dep) {
   const nome = String(dep?.nome || "").trim().toUpperCase();
   const dn = String(dep?.data_nascimento || dep?.dataNascimento || "").trim();
   const isTit = dep?.isTitular ? "T" : "D";
-  return `nd:${isTit}:${nome}:${dn}`;
+  return `${isTit}:${nome}:${dn}`;
 }
+
+const carnePanelStyle = {
+  background: "var(--surface-alt, var(--surface))",
+  borderColor: "var(--c-border)",
+};
+
+const carneInputStyle = {
+  background: "var(--surface)",
+  borderColor: "var(--c-border)",
+};
+
+function CarneFieldGroup({ children }) {
+  return (
+    <div
+      className="rounded-xl border overflow-hidden divide-y"
+      style={{ background: "var(--surface)", borderColor: "var(--c-border)" }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function CarneFieldRow({ label, hint, htmlFor, children }) {
+  return (
+    <div className="px-4 py-3">
+      {label && (
+        <label
+          htmlFor={htmlFor}
+          className="block text-xs font-medium mb-1.5"
+          style={{ color: "var(--text-muted)" }}
+        >
+          {label}
+        </label>
+      )}
+      {children}
+      {hint && (
+        <p className="text-xs mt-1.5 leading-relaxed" style={{ color: "var(--text-muted)" }}>
+          {hint}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function isTitularLike(dep) {
   if (dep?.isTitular) return true;
   const p = String(dep?.parentesco || "").trim().toUpperCase();
@@ -625,22 +669,25 @@ export default function StepCarne({
                   }}
                 >
                   <div className="flex flex-col md:flex-row md:justify-between gap-3">
-                    <CTAButton
+                    <Button
                       type="button"
                       variant="outline"
-                      className="h-11 px-5 rounded-2xl order-2 md:order-1"
+                      size="lg"
+                      className="min-h-[48px] rounded-xl md:rounded-full order-2 md:order-1"
                       onClick={() => setConfirmOpen(false)}
                     >
                       Revisar
-                    </CTAButton>
+                    </Button>
 
-                    <CTAButton
+                    <Button
                       type="button"
-                      className="h-11 px-6 rounded-2xl order-1 md:order-2"
+                      variant="primary"
+                      size="lg"
+                      className="min-h-[48px] px-8 rounded-xl md:rounded-full order-1 md:order-2"
                       onClick={handleConfirmarEnvio}
                     >
                       Confirmar e gerar carnê
-                    </CTAButton>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -694,465 +741,374 @@ export default function StepCarne({
   /* ---------------- UI ---------------- */
   return (
     <>
-      <div className="mt-6">
-        <div
-          className="relative overflow-hidden rounded-3xl border shadow-xl p-6 md:p-8"
-          style={{
-            background: "color-mix(in srgb, var(--surface) 88%, var(--text) 6%)",
-            borderColor: "color-mix(in srgb, var(--text) 18%, transparent)",
-          }}
-        >
-          {/* gradiente inferior suave */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-24"
-            style={{
-              background:
-                "radial-gradient(120% 140% at 50% 120%, color-mix(in srgb, var(--primary) 18%, transparent) 0, transparent 70%)",
-              opacity: 0.65,
-            }}
-          />
+      <fieldset className="space-y-5" disabled={saving}>
+        <div className="rounded-xl border px-4 py-4" style={carnePanelStyle}>
+          <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+            Primeiro pagamento
+          </p>
+          <p className="text-2xl font-semibold tabular-nums mt-1">{money(primeiraCobrancaReal?.valor || 0)}</p>
+          <p className="text-sm mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            Vencimento{" "}
+            <span className="tabular-nums">
+              {primeiraCobrancaReal
+                ? formatDateBR(primeiraCobrancaReal.dataVencimentoISO)
+                : formatDateBR(dataEfetivacaoISO)}
+            </span>
+            {" · "}
+            Mensalidade {money(valorMensalidadePlano)}
+          </p>
+          {temDesconto ? (
+            <p className="text-xs mt-2 tabular-nums" style={{ color: "var(--primary)" }}>
+              Economia de {money(totalDesconto)}
+              {cupomDetalhes?.codigo ? ` com cupom ${cupomDetalhes.codigo}` : ""}
+            </p>
+          ) : null}
+        </div>
 
-          <fieldset className="relative z-[1] space-y-5" disabled={saving}>
-            {/* Cabeçalho interno */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs md:text-sm font-semibold tracking-wide uppercase">Etapa 4 de 4 · Cobranças</p>
-
-                <span
-                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] md:text-xs"
-                  style={{
-                    background: "color-mix(in srgb, var(--surface-elevated) 90%, transparent)",
-                    color: "var(--text-muted)",
-                  }}
-                >
-                  <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: "var(--primary)" }} />
-                  Revisão
-                </span>
-              </div>
-
-              <div
-                className="h-1.5 rounded-full overflow-hidden"
-                style={{
-                  background: "color-mix(in srgb, var(--surface-elevated) 80%, var(--text) 6%)",
-                }}
-              >
-                <div className="h-full rounded-full transition-all duration-300" style={{ width: "100%", background: "var(--primary)" }} />
-              </div>
-
-              <p className="text-xs md:text-sm" style={{ color: "var(--text-muted)" }}>
-                Escolha o dia do vencimento, aplique cupom (se tiver) e gere o carnê.
-              </p>
-            </div>
-
-            {/* CUPOM */}
-            <div
-              className="rounded-2xl border px-4 py-4 md:px-5 md:py-5 space-y-3"
-              style={{
-                background: "color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)",
-                borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-              }}
+        <CarneFieldGroup>
+          <CarneFieldRow
+            label="Dia do vencimento"
+            htmlFor="diaD"
+            hint={`As parcelas seguintes vencem sempre no dia ${diaDSelecionado}.`}
+          >
+            <select
+              id="diaD"
+              className="w-full h-11 border-0 bg-transparent text-base outline-none"
+              style={{ color: "var(--text)" }}
+              value={diaDSelecionado}
+              onChange={(e) => setDiaDSelecionado(Number(e.target.value))}
+              disabled={saving}
             >
+              {DIA_D_OPTIONS.map((d) => (
+                <option key={d} value={d}>
+                  Dia {d}
+                </option>
+              ))}
+            </select>
+          </CarneFieldRow>
+
+          <CarneFieldRow
+            label="Cupom (opcional)"
+            hint={!cupomInfo ? "Recalculamos as parcelas ao aplicar um cupom válido." : undefined}
+          >
+            {!cupomInfo ? (
+              <div className="flex items-center gap-3">
+                <input
+                  className="flex-1 min-w-0 h-11 border-0 bg-transparent text-base outline-none placeholder:opacity-60"
+                  style={{ color: "var(--text)" }}
+                  placeholder="Código do cupom"
+                  value={cupomInput}
+                  onChange={(e) => setCupomInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") aplicarCupom();
+                  }}
+                  disabled={saving || cupomLoading}
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  className="shrink-0 text-sm font-medium min-h-[44px] px-1 disabled:opacity-40"
+                  style={{ color: "var(--primary)" }}
+                  onClick={aplicarCupom}
+                  disabled={saving || cupomLoading || !String(cupomInput || "").trim()}
+                >
+                  {cupomLoading ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Loader2 className="animate-spin" size={14} />
+                      Validando…
+                    </span>
+                  ) : (
+                    "Aplicar"
+                  )}
+                </button>
+              </div>
+            ) : (
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-1 uppercase tracking-[0.16em]">
-                    Cupom de desconto
-                  </p>
-                  <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                    Se tiver um cupom, aplicamos e recalculamos as parcelas desta etapa.
+                  <p className="text-sm font-medium truncate">{cupomDetalhes?.codigo}</p>
+                  <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                    {cupomDetalhes?.descricao || cupomDetalhes?.tipo}
+                    {temDesconto ? ` · Economia ${money(totalDesconto)}` : ""}
                   </p>
                 </div>
-
-                {cupomInfo ? (
-                  <button
-                    type="button"
-                    onClick={removerCupom}
-                    disabled={saving || cupomLoading}
-                    className="text-xs font-medium underline underline-offset-4 text-[var(--text-muted)] hover:text-[var(--text)] disabled:opacity-40"
-                    title="Remover cupom"
-                  >
-                    Remover
-                  </button>
-                ) : null}
-              </div>
-
-              {!cupomInfo ? (
-                <div className="flex flex-col md:flex-row md:items-center gap-2">
-                  <input
-                    className="input h-12 text-base bg-white"
-                    placeholder="Digite o código do cupom"
-                    value={cupomInput}
-                    onChange={(e) => setCupomInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") aplicarCupom();
-                    }}
-                    disabled={saving || cupomLoading}
-                    autoComplete="off"
-                  />
-
-                  <CTAButton
-                    type="button"
-                    className="h-12 px-6 rounded-2xl"
-                    onClick={aplicarCupom}
-                    disabled={saving || cupomLoading}
-                  >
-                    {cupomLoading ? (
-                      <span className="inline-flex items-center gap-2">
-                        <Loader2 className="animate-spin" size={16} />
-                        Validando…
-                      </span>
-                    ) : (
-                      "Aplicar cupom"
-                    )}
-                  </CTAButton>
-                </div>
-              ) : (
-                <div
-                  className="rounded-2xl border px-4 py-3"
-                  style={{
-                    background: "color-mix(in srgb, var(--surface) 92%, var(--text) 4%)",
-                    borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-                  }}
+                <button
+                  type="button"
+                  onClick={removerCupom}
+                  disabled={saving || cupomLoading}
+                  className="shrink-0 text-sm font-medium min-h-[44px] px-1 disabled:opacity-40"
+                  style={{ color: "var(--primary)" }}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold truncate text-[var(--text)]">{cupomDetalhes?.codigo}</p>
-                      <p className="text-[11px] mt-0.5 text-[var(--text-muted)] leading-relaxed">{cupomDetalhes?.descricao}</p>
+                  Remover
+                </button>
+              </div>
+            )}
 
-                      <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
-                        {[
-                          { k: "Tipo", v: cupomDetalhes?.tipo },
-                          { k: "Valor", v: cupomDetalhes?.valor },
-                          { k: "Aplicação", v: cupomDetalhes?.alvoLabel },
-                        ].map((it) => (
-                          <div
-                            key={it.k}
-                            className="rounded-xl border px-3 py-2"
-                            style={{
-                              background: "color-mix(in srgb, var(--surface) 94%, var(--text) 3%)",
-                              borderColor: "color-mix(in srgb, var(--text) 14%, transparent)",
-                            }}
-                          >
-                            <p className="text-[11px] text-[var(--text-muted)]">{it.k}</p>
-                            <p className="text-xs font-semibold text-[var(--text)]">{it.v || "—"}</p>
-                          </div>
-                        ))}
-                      </div>
-
-                      {cupomDetalhes?.validadeLabel ? (
-                        <p className="mt-2 text-[11px] text-[var(--text-muted)]">
-                          Validade: <span className="font-semibold">{cupomDetalhes.validadeLabel}</span>
-                        </p>
-                      ) : null}
-
-                      <p className="mt-2 text-[11px] text-[var(--text-muted)]">O desconto não altera as parcelas não contempladas.</p>
-                    </div>
-
-                    <div className="text-right">
-                      <p className="text-[11px] text-[var(--text-muted)]">Economia total</p>
-                      <p className="text-sm font-semibold tabular-nums text-[var(--text)]">{temDesconto ? money(totalDesconto) : "—"}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {cupomError ? (
-                <p className="text-xs text-red-600" role="alert" aria-live="polite">
-                  {cupomError}
-                </p>
-              ) : null}
-            </div>
-
-            {/* DIA DO VENCIMENTO */}
-            <div
-              className="rounded-2xl border px-4 py-4 md:px-5 md:py-5 space-y-2"
-              style={{
-                background: "color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)",
-                borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-              }}
-            >
-              <label className="label font-medium text-sm md:text-base" htmlFor="diaD">
-                Dia do vencimento
-              </label>
-
-              <select
-                id="diaD"
-                className="input h-12 text-base bg-white"
-                value={diaDSelecionado}
-                onChange={(e) => setDiaDSelecionado(Number(e.target.value))}
-                disabled={saving}
-              >
-                {DIA_D_OPTIONS.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
-              </select>
-
-              <p className="text-xs md:text-sm text-[var(--text-muted)] leading-relaxed">
-                As parcelas seguintes vencem sempre no <b>dia {diaDSelecionado}</b>.
+            {cupomError ? (
+              <p className="text-xs text-red-600 mt-2" role="alert" aria-live="polite">
+                {cupomError}
               </p>
-            </div>
-
-            {/* TRANSPARÊNCIA DO VALOR (compacto) */}
-            {composicaoMensalidade ? (
-              <details
-                className="group rounded-2xl border border-dashed px-4 py-4 md:px-5 md:py-5"
-                style={{
-                  background: "color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)",
-                  borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-                }}
-              >
-                <summary className="flex items-center justify-between gap-2 cursor-pointer list-none">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)] mb-0.5">
-                      Transparência do valor
-                    </p>
-                    <p className="text-xs text-[var(--text-muted)]">Ver composição do valor por pessoa.</p>
-                  </div>
-                  <span className="text-[11px] text-[var(--text-muted)] group-open:opacity-60">{`${""}`}Expandir</span>
-                </summary>
-
-                <div className="mt-4 space-y-2">
-                  {basePlano > 0 ? (
-                    <div className="flex items-center justify-between gap-3 text-xs">
-                      <span className="text-[var(--text-muted)]">Base do plano</span>
-                      <span className="font-semibold tabular-nums">{money(basePlano)}</span>
-                    </div>
-                  ) : null}
-
-                  {mostrar.length > 0 ? (
-                    <div className="mt-1 space-y-1.5">
-                      {mostrar.map((dep, idx) => {
-                        const parentescoLabel = dep.isTitular
-                          ? "Titular"
-                          : PARENTESCO_LABELS[dep.parentesco] || dep.parentesco || "Dependente";
-
-                        const idadeTxt =
-                          dep.idade != null ? `${dep.idade} ano${dep.idade === 1 ? "" : "s"}` : "idade não informada";
-
-                        const nome = dep.nome || (dep.isTitular ? "Titular" : "Dependente");
-                        const isIsento = dep.isento && (dep.valorTotalPessoa || 0) === 0;
-
-                        return (
-                          <div key={`${normalizeKeyFromDep(dep)}:${idx}`} className="flex items-center justify-between gap-3 text-[11px]">
-                            <div className="min-w-0">
-                              <p className="font-medium truncate">{nome}</p>
-                              <p className="text-[var(--text-muted)] truncate">
-                                {parentescoLabel} • {idadeTxt}
-                              </p>
-                            </div>
-                            <div className="text-right whitespace-nowrap">
-                              {isIsento ? (
-                                <span className="text-[var(--text-muted)]">Isento</span>
-                              ) : (
-                                <span className="font-semibold tabular-nums">{money(dep.valorTotalPessoa || 0)}</span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {restantes > 0 ? (
-                        <p className="text-[11px] text-[var(--text-muted)]">
-                          + {restantes} {restantes === 1 ? "pessoa" : "pessoas"} seguindo a mesma regra.
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              </details>
             ) : null}
+          </CarneFieldRow>
+        </CarneFieldGroup>
 
-            {/* COBRANÇAS PREVISTAS (colapsado por padrão) */}
-            <div
-              className="rounded-2xl border px-4 py-4 md:px-5 md:py-5"
-              style={{
-                background: "color-mix(in srgb, var(--surface-elevated) 88%, var(--text) 6%)",
-                borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-              }}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-1 uppercase tracking-[0.16em]">
-                    Cobranças previstas
-                  </p>
-                  {totalParcelas > 0 ? (
-                    <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                      Confira valores e datas. Você confirma tudo ao finalizar.
+        {composicaoMensalidade ? (
+          <details className="group rounded-xl border px-4 py-3" style={carnePanelStyle}>
+            <summary className="flex items-center justify-between gap-2 cursor-pointer list-none">
+              <div>
+                <p className="text-sm font-medium">Composição do valor</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                  Ver valor por pessoa
+                </p>
+              </div>
+              <span className="text-xs group-open:hidden" style={{ color: "var(--primary)" }}>
+                Ver
+              </span>
+              <span className="text-xs hidden group-open:inline" style={{ color: "var(--text-muted)" }}>
+                Ocultar
+              </span>
+            </summary>
+
+            <div className="mt-4 space-y-2 pt-3 border-t" style={{ borderColor: "var(--c-border)" }}>
+              {basePlano > 0 ? (
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  <span style={{ color: "var(--text-muted)" }}>Base do plano</span>
+                  <span className="font-semibold tabular-nums">{money(basePlano)}</span>
+                </div>
+              ) : null}
+
+              {mostrar.length > 0 ? (
+                <div className="mt-1 space-y-2">
+                  {mostrar.map((dep, idx) => {
+                    const parentescoLabel = dep.isTitular
+                      ? "Titular"
+                      : PARENTESCO_LABELS[dep.parentesco] || dep.parentesco || "Dependente";
+
+                    const idadeTxt =
+                      dep.idade != null ? `${dep.idade} ano${dep.idade === 1 ? "" : "s"}` : "idade não informada";
+
+                    const nome = dep.nome || (dep.isTitular ? "Titular" : "Dependente");
+                    const isIsento = dep.isento && (dep.valorTotalPessoa || 0) === 0;
+
+                    return (
+                      <div
+                        key={`${normalizeKeyFromDep(dep)}:${idx}`}
+                        className="flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{nome}</p>
+                          <p className="truncate" style={{ color: "var(--text-muted)" }}>
+                            {parentescoLabel} · {idadeTxt}
+                          </p>
+                        </div>
+                        <div className="text-right whitespace-nowrap">
+                          {isIsento ? (
+                            <span style={{ color: "var(--text-muted)" }}>Isento</span>
+                          ) : (
+                            <span className="font-semibold tabular-nums">{money(dep.valorTotalPessoa || 0)}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {restantes > 0 ? (
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                      + {restantes} {restantes === 1 ? "pessoa" : "pessoas"} seguindo a mesma regra.
                     </p>
                   ) : null}
                 </div>
+              ) : null}
+            </div>
+          </details>
+        ) : null}
 
-                <div className="text-right">
-                  <p className="text-[11px] text-[var(--text-muted)]">Parcelas</p>
-                  <p className="text-sm font-semibold tabular-nums">{totalParcelas}x</p>
-                </div>
-              </div>
-
-              {!cobrancasPreview || cobrancasPreview.length === 0 ? (
-                <p className="mt-3 text-sm text-[var(--text-muted)]">
-                  As cobranças serão calculadas automaticamente conforme o plano.
+        <div className="rounded-xl border px-4 py-4 space-y-3" style={carnePanelStyle}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">Cobranças previstas</p>
+              {totalParcelas > 0 ? (
+                <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--text-muted)" }}>
+                  Confira valores e datas antes de finalizar.
                 </p>
               ) : null}
-
-              {cobrancasComDesconto && cobrancasComDesconto.length > 0 ? (
-                <>
-                  {/* Lista inteligente */}
-                  <div className="mt-4 space-y-2">
-                    {!mostrarTodasCobrancas ? (
-                      <>
-                        {cobrancasResumo.map((cob, idx) => (
-                          <CobrancaRow key={cob.id} cob={cob} index={idx} isCompact />
-                        ))}
-
-                        <div className="pt-1">
-                          <button
-                            type="button"
-                            className="w-full rounded-2xl border px-3.5 py-3 text-left hover:opacity-90 transition"
-                            style={{
-                              background: "color-mix(in srgb, var(--surface) 92%, var(--text) 4%)",
-                              borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-                              color: "var(--text)",
-                            }}
-                            onClick={() => setMostrarTodasCobrancas(true)}
-                          >
-                            <p className="text-xs font-semibold">Ver todas as cobranças</p>
-                            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                              Adesão{cobrancasAgrupadas.adesao ? "" : " (sem)"} • Mensalidades {totalMensalidades}x
-                            </p>
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        {/* Adesão */}
-                        {cobrancasAgrupadas.adesao ? (
-                          <div className="space-y-2">
-                            <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)] px-1">
-                              Adesão
-                            </p>
-                            <CobrancaRow cob={cobrancasAgrupadas.adesao} index={0} />
-                          </div>
-                        ) : null}
-
-                        {/* Mensalidades */}
-                        {cobrancasAgrupadas.mensalidades?.length ? (
-                          <div className="space-y-2 mt-3">
-                            <div className="flex items-center justify-between px-1">
-                              <p className="text-[11px] uppercase tracking-[0.16em] text-[var(--text-muted)]">
-                                Mensalidades
-                              </p>
-                              <p className="text-[11px] text-[var(--text-muted)] tabular-nums">{totalMensalidades}x</p>
-                            </div>
-
-                            {cobrancasAgrupadas.mensalidades.map((cob, idx) => (
-                              <CobrancaRow key={cob.id} cob={cob} index={(cobrancasAgrupadas.adesao ? 1 : 0) + idx} />
-                            ))}
-                          </div>
-                        ) : null}
-
-                        <div className="pt-1 flex justify-between gap-2">
-                          <button
-                            type="button"
-                            className="flex-1 rounded-2xl border px-3.5 py-3 text-sm font-semibold hover:opacity-90 transition"
-                            style={{
-                              background: "color-mix(in srgb, var(--surface) 92%, var(--text) 4%)",
-                              borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-                              color: "var(--text)",
-                            }}
-                            onClick={() => setMostrarTodasCobrancas(false)}
-                          >
-                            Ocultar detalhes
-                          </button>
-
-                          <button
-                            type="button"
-                            className="flex-1 rounded-2xl border px-3.5 py-3 text-sm font-semibold hover:opacity-90 transition"
-                            style={{
-                              background: "color-mix(in srgb, var(--primary) 10%, var(--surface) 90%)",
-                              borderColor: "color-mix(in srgb, var(--primary) 28%, transparent)",
-                              color: "var(--text)",
-                            }}
-                            onClick={() => setConfirmOpen(true)}
-                          >
-                            Revisar agora
-                          </button>
-                        </div>
-                      </>
-                    )}
-
-                    <div
-                      className="mt-2 rounded-2xl border px-3.5 py-3"
-                      style={{
-                        background: "color-mix(in srgb, var(--surface) 92%, var(--text) 4%)",
-                        borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
-                      }}
-                    >
-                      <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">Plano ativo após o primeiro pagamento.</p>
-                    </div>
-                  </div>
-                </>
-              ) : null}
             </div>
-
-            {/* Espaço para barra fixa não cobrir conteúdo */}
-            <div className="h-20 md:h-0" aria-hidden="true" />
-
-            {/* Navegação tradicional (desktop / fallback) */}
-            <div className="hidden md:flex justify-between gap-3 pt-1">
-              <CTAButton type="button" variant="outline" className="h-12 px-5 rounded-2xl" onClick={onBack} disabled={saving}>
-                Voltar
-              </CTAButton>
-
-              <CTAButton type="button" className="h-12 px-6 rounded-2xl" onClick={() => setConfirmOpen(true)} disabled={saving}>
-                Revisar e finalizar
-              </CTAButton>
-            </div>
-          </fieldset>
-
-          {/* Barra fixa (mobile e também útil em telas longas) */}
-          <div className="md:hidden">
-            <div className="fixed inset-x-0 bottom-0 z-[60] px-4 pb-4" style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}>
-              <div
-                className="rounded-3xl border shadow-[0_22px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl px-4 py-3"
-                style={{
-                  background: "color-mix(in srgb, var(--c-surface) 82%, transparent)",
-                  borderColor: "color-mix(in srgb, var(--c-border) 70%, transparent)",
-                }}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--c-muted)]">Primeiro pagamento</p>
-                    <p className="text-base font-semibold tabular-nums truncate">
-                      {money(primeiraCobrancaReal?.valor || 0)}
-                      <span className="ml-2 text-[11px] font-normal text-[var(--c-muted)] tabular-nums">
-                        {primeiraCobrancaReal ? formatDateBR(primeiraCobrancaReal.dataVencimentoISO) : formatDateBR(dataEfetivacaoISO)}
-                      </span>
-                    </p>
-                    {temDesconto ? (
-                      <p className="text-[11px] text-[var(--c-muted)]">
-                        Economia: <span className="font-semibold tabular-nums">{money(totalDesconto)}</span>
-                      </p>
-                    ) : (
-                      <p className="text-[11px] text-[var(--c-muted)]">Mensalidade: {money(valorMensalidadePlano)}</p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <CTAButton type="button" variant="outline" className="h-11 px-4 rounded-2xl" onClick={onBack} disabled={saving}>
-                      Voltar
-                    </CTAButton>
-
-                    <CTAButton type="button" className="h-11 px-5 rounded-2xl" onClick={() => setConfirmOpen(true)} disabled={saving}>
-                      Revisar
-                    </CTAButton>
-                  </div>
-                </div>
-              </div>
+            <div className="text-right shrink-0">
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                Parcelas
+              </p>
+              <p className="text-sm font-semibold tabular-nums">{totalParcelas}x</p>
             </div>
           </div>
+
+          {!cobrancasPreview || cobrancasPreview.length === 0 ? (
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+              As cobranças serão calculadas automaticamente conforme o plano.
+            </p>
+          ) : null}
+
+          {cobrancasComDesconto && cobrancasComDesconto.length > 0 ? (
+            <div className="space-y-2">
+              {!mostrarTodasCobrancas ? (
+                <>
+                  {cobrancasResumo.map((cob, idx) => (
+                    <CobrancaRow key={cob.id} cob={cob} index={idx} isCompact />
+                  ))}
+
+                  <button
+                    type="button"
+                    className="w-full rounded-xl border px-3 py-3 text-left transition hover:opacity-90"
+                    style={carneInputStyle}
+                    onClick={() => setMostrarTodasCobrancas(true)}
+                  >
+                    <p className="text-sm font-medium">Ver todas as cobranças</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                      Adesão{cobrancasAgrupadas.adesao ? "" : " (sem)"} · Mensalidades {totalMensalidades}x
+                    </p>
+                  </button>
+                </>
+              ) : (
+                <>
+                  {cobrancasAgrupadas.adesao ? (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium px-0.5" style={{ color: "var(--text-muted)" }}>
+                        Adesão
+                      </p>
+                      <CobrancaRow cob={cobrancasAgrupadas.adesao} index={0} />
+                    </div>
+                  ) : null}
+
+                  {cobrancasAgrupadas.mensalidades?.length ? (
+                    <div className="space-y-2 mt-3">
+                      <div className="flex items-center justify-between px-0.5">
+                        <p className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                          Mensalidades
+                        </p>
+                        <p className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+                          {totalMensalidades}x
+                        </p>
+                      </div>
+
+                      {cobrancasAgrupadas.mensalidades.map((cob, idx) => (
+                        <CobrancaRow
+                          key={cob.id}
+                          cob={cob}
+                          index={(cobrancasAgrupadas.adesao ? 1 : 0) + idx}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className="pt-1 flex flex-col sm:flex-row gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="lg"
+                      full
+                      className="min-h-[44px] rounded-xl"
+                      onClick={() => setMostrarTodasCobrancas(false)}
+                    >
+                      Ocultar detalhes
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="lg"
+                      full
+                      className="min-h-[44px] rounded-xl sm:hidden"
+                      onClick={() => setConfirmOpen(true)}
+                      disabled={saving}
+                    >
+                      Revisar e finalizar
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              <p className="text-xs leading-relaxed pt-1" style={{ color: "var(--text-muted)" }}>
+                Plano ativo após o primeiro pagamento.
+              </p>
+            </div>
+          ) : null}
         </div>
+
+        <div className="h-28 md:h-0" aria-hidden="true" />
+
+        <div className="hidden md:flex justify-between gap-3 pt-1 border-t" style={{ borderColor: "var(--c-border)" }}>
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="min-h-[48px] rounded-xl md:rounded-full"
+            onClick={onBack}
+            disabled={saving}
+          >
+            Voltar
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            size="lg"
+            className="min-h-[48px] px-8 rounded-xl md:rounded-full"
+            onClick={() => setConfirmOpen(true)}
+            disabled={saving}
+          >
+            Revisar e finalizar
+          </Button>
+        </div>
+      </fieldset>
+
+      <div
+        className="md:hidden fixed inset-x-0 bottom-0 z-[60] border-t px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))]"
+        style={{
+          background: "var(--surface)",
+          borderColor: "var(--c-border)",
+          boxShadow: "0 -4px 24px color-mix(in srgb, var(--text) 6%, transparent)",
+        }}
+      >
+        <div className="flex items-end justify-between gap-3 mb-3">
+          <div className="min-w-0">
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Primeiro pagamento
+            </p>
+            <p className="text-lg font-semibold tabular-nums">{money(primeiraCobrancaReal?.valor || 0)}</p>
+            {temDesconto ? (
+              <p className="text-xs mt-0.5 tabular-nums" style={{ color: "var(--text-muted)" }}>
+                Economia {money(totalDesconto)}
+              </p>
+            ) : (
+              <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                Mensalidade {money(valorMensalidadePlano)}
+              </p>
+            )}
+          </div>
+          <p className="text-xs tabular-nums shrink-0 text-right" style={{ color: "var(--text-muted)" }}>
+            {primeiraCobrancaReal
+              ? formatDateBR(primeiraCobrancaReal.dataVencimentoISO)
+              : formatDateBR(dataEfetivacaoISO)}
+          </p>
+        </div>
+
+        <Button
+          type="button"
+          variant="primary"
+          size="lg"
+          full
+          className="min-h-[48px] rounded-xl"
+          onClick={() => setConfirmOpen(true)}
+          disabled={saving}
+        >
+          Revisar e finalizar
+        </Button>
+
+        <button
+          type="button"
+          className="w-full mt-2 text-sm font-medium min-h-[44px] disabled:opacity-40"
+          style={{ color: "var(--primary)" }}
+          onClick={onBack}
+          disabled={saving}
+        >
+          Voltar
+        </button>
       </div>
 
       {confirmModal}
@@ -1168,50 +1124,51 @@ function CobrancaRow({ cob, index, isCompact = false }) {
 
   return (
     <div
-      className="flex items-center justify-between gap-3 rounded-2xl border px-3.5 py-3"
+      className="flex items-center justify-between gap-3 rounded-xl border px-3.5 py-3"
       style={{
-        background: "color-mix(in srgb, var(--surface) 92%, var(--text) 4%)",
-        borderColor: "color-mix(in srgb, var(--text) 16%, transparent)",
+        background: "var(--surface)",
+        borderColor: "var(--c-border)",
       }}
     >
       <div className="flex items-center gap-3 min-w-0">
         <span
-          className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums"
+          className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums border"
           style={{
             background: isAdesao
-              ? "color-mix(in srgb, var(--primary) 14%, white)"
-              : "color-mix(in srgb, var(--surface) 94%, var(--text) 2%)",
+              ? "color-mix(in srgb, var(--primary) 12%, var(--surface))"
+              : "var(--surface-alt, var(--surface))",
             color: isAdesao ? "var(--primary)" : "var(--text-muted)",
-            border: isAdesao ? "1px solid transparent" : "1px solid color-mix(in srgb, var(--text) 14%, transparent)",
+            borderColor: "var(--c-border)",
           }}
         >
           {index + 1}
         </span>
 
         <div className="min-w-0">
-          <p className="text-xs font-medium truncate text-[var(--text)]">{cob?.tipo || (isAdesao ? "Taxa de adesão" : "Mensalidade")}</p>
-          <p className="text-[11px] text-[var(--text-muted)]">
+          <p className="text-xs font-medium truncate">{cob?.tipo || (isAdesao ? "Taxa de adesão" : "Mensalidade")}</p>
+          <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
             Vencimento <span className="tabular-nums">{formatDateBR(cob?.dataVencimentoISO)}</span>
           </p>
 
           {!isCompact && teveDesconto ? (
-            <p className="text-[11px] text-[var(--text-muted)]">
-              Desconto{" "}
-              <span className="font-semibold tabular-nums text-[var(--text)]">{money(cob?._desconto)}</span>
+            <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+              Desconto <span className="font-semibold tabular-nums">{money(cob?._desconto)}</span>
             </p>
           ) : null}
         </div>
       </div>
 
-      <div className="flex flex-col items-end text-right">
-        <p className="text-sm font-semibold tabular-nums text-[var(--text)]">{money(cob?.valor || 0)}</p>
+      <div className="flex flex-col items-end text-right shrink-0">
+        <p className="text-sm font-semibold tabular-nums">{money(cob?.valor || 0)}</p>
 
         {teveDesconto ? (
-          <p className="text-[11px] text-[var(--text-muted)] tabular-nums line-through">{money(cob?._valorOriginal || 0)}</p>
+          <p className="text-[11px] tabular-nums line-through" style={{ color: "var(--text-muted)" }}>
+            {money(cob?._valorOriginal || 0)}
+          </p>
         ) : (
-          <p className="text-[11px] text-[var(--text-muted)]">
+          <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
             Parcela {index + 1}
-            {isAdesao ? " • Adesão" : ""}
+            {isAdesao ? " · Adesão" : ""}
           </p>
         )}
       </div>

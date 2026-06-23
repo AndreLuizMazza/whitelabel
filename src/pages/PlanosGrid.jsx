@@ -1,6 +1,6 @@
 // src/pages/PlanosGrid.jsx
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import api from "@/lib/api.js";
 import PlanoCardVenda from "@/components/PlanoCardVenda.jsx";
 import { getMensal } from "@/lib/planUtils.js";
@@ -22,6 +22,16 @@ const LS_KEY = "planos_tab";
 /* ---------------- Página Planos ---------------- */
 export default function PlanosGrid() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [showOnboardingBanner, setShowOnboardingBanner] = useState(
+    () => Boolean(location.state?.onboarding)
+  );
+
+  useEffect(() => {
+    if (!location.state?.onboarding) return;
+    setShowOnboardingBanner(true);
+    navigate(location.pathname + location.search, { replace: true, state: {} });
+  }, [location.pathname, location.search, location.state?.onboarding, navigate]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -165,6 +175,19 @@ export default function PlanosGrid() {
   return (
     <section className="section">
       <div className="container-max">
+        {showOnboardingBanner ? (
+          <div
+            className="mb-5 rounded-2xl px-4 py-3 text-[15px] leading-snug"
+            style={{
+              background: 'color-mix(in srgb, var(--primary) 10%, var(--grouped-bg, var(--surface-alt)))',
+              color: 'var(--text)',
+            }}
+            role="status"
+          >
+            Conta criada. Escolha seu plano para continuar.
+          </div>
+        ) : null}
+
         <div className="mb-6">
           <h2 className="text-3xl font-black tracking-tight">Planos</h2>
           <p className="mt-1 text-[var(--c-muted)]">

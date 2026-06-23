@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { showToast } from '@/lib/toast'
 import CarteirinhaAssociado from '@/components/CarteirinhaAssociado'
-import { X, Printer } from 'lucide-react'
+import { MemberGroupedList } from '@/components/member/MemberGroupedList'
+import { ChevronRight, X, Printer } from 'lucide-react'
 
 /* ===================== utils ===================== */
 const fmtDataNasc = (s) => {
@@ -41,6 +42,7 @@ const PAR = {
   COMPANHEIRO: 'Companheiro(a)',
   OUTRO: 'Outro',
 }
+
 const parentescoLabel = (v) =>
   PAR[String(v || '').trim().toUpperCase()] || 'Dependente'
 
@@ -54,16 +56,14 @@ const initials = (name = '') =>
 
 const onlyDigits = (v = '') => String(v).replace(/\D+/g, '')
 
-const pick = (...vals) => vals.find((v) => v !== null && v !== undefined && String(v).trim() !== '')
+const pick = (...vals) =>
+  vals.find((v) => v !== null && v !== undefined && String(v).trim() !== '')
 
-/**
- * Normaliza o "contrato" para garantir que a CarteirinhaAssociado consiga preencher:
- * - nomePlano
- * - numeroContrato
- * - dataEfetivacao
- *
- * (em alguns pontos do app, o contrato vem com chaves diferentes)
- */
+function isTitularEntry(d) {
+  const p = String(d?.parentesco || '').trim().toUpperCase()
+  return p === 'TITULAR' || d?.titular === true || d?.isTitular === true
+}
+
 function normalizeContratoForCarteirinha(base = {}) {
   const planoNome = pick(
     base?.nomePlano,
@@ -96,7 +96,6 @@ function normalizeContratoForCarteirinha(base = {}) {
     base?.dataCadastro
   )
 
-  // devolve o base + “aliases” para as chaves que a carteirinha já lê
   return {
     ...base,
     ...(planoNome ? { nomePlano: planoNome } : {}),
@@ -105,11 +104,85 @@ function normalizeContratoForCarteirinha(base = {}) {
   }
 }
 
+function ParentescoBadge({ label, titular = false }) {
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold leading-none shrink-0"
+      style={{
+        background: titular
+          ? 'color-mix(in srgb, var(--primary) 14%, var(--surface))'
+          : 'color-mix(in srgb, var(--text) 7%, var(--surface))',
+        color: titular ? 'var(--primary)' : 'var(--text-muted)',
+        border: `0.5px solid ${
+          titular
+            ? 'color-mix(in srgb, var(--primary) 22%, transparent)'
+            : 'color-mix(in srgb, var(--text) 10%, transparent)'
+        }`,
+      }}
+    >
+      {label}
+    </span>
+  )
+}
+
+function DependenteRow({ dependente, onOpen }) {
+  const nome = dependente.nome || '—'
+  const nasc = fmtDataNasc(dependente.dataNascimento)
+  const idade = calcIdade(dependente.dataNascimento)
+  const titular = isTitularEntry(dependente)
+  const parentesco = parentescoLabel(dependente.parentesco)
+
+  const detailParts = [`Nasc. ${nasc}`]
+  if (idade != null) detailParts.push(`${idade} anos`)
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(dependente)}
+      className="flex items-center gap-3 w-full min-h-[72px] px-4 py-3 text-left transition active:opacity-80"
+      aria-label={`Ver carteirinha de ${nome}`}
+    >
+      <span
+        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[14px] font-semibold"
+        style={{
+          background: 'color-mix(in srgb, var(--primary) 12%, var(--surface))',
+          color: 'var(--primary)',
+        }}
+      >
+        {initials(nome)}
+      </span>
+
+      <span className="flex-1 min-w-0">
+        <span className="block text-[17px] leading-snug line-clamp-2" style={{ color: 'var(--text)' }}>
+          {nome}
+        </span>
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
+          <ParentescoBadge label={parentesco} titular={titular} />
+          <span className="text-[13px] leading-snug" style={{ color: 'var(--text-muted)' }}>
+            {detailParts.join(' · ')}
+          </span>
+        </span>
+      </span>
+
+      <span className="shrink-0 flex flex-col items-end gap-0.5 pl-1">
+        <span className="text-[13px] font-medium whitespace-nowrap" style={{ color: 'var(--primary)' }}>
+          Carteirinha
+        </span>
+        <ChevronRight
+          size={16}
+          strokeWidth={2.5}
+          className="opacity-35"
+          style={{ color: 'var(--text-muted)' }}
+          aria-hidden="true"
+        />
+      </span>
+    </button>
+  )
+}
+
 /* ===================== componente ===================== */
 export default function DependentesList({ dependentes = [], contrato }) {
   const warned = useRef(false)
-
-  // modal state
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState(null)
 
@@ -123,8 +196,20 @@ export default function DependentesList({ dependentes = [], contrato }) {
     warned.current = true
   }, [contrato, dependentes.length])
 
-  // ✅ contrato base normalizado (resolve plano/número/efetivação vazios na carteirinha do dependente)
-  const contratoBase = useMemo(() => normalizeContratoForCarteirinha(contrato || {}), [contrato])
+  const contratoBase = useMemo(
+    () => normalizeContratoForCarteirinha(contrato || {}),
+    [contrato]
+  )
+
+  const sortedDependentes = useMemo(() => {
+    return [...dependentes].sort((a, b) => {
+      const aTit = isTitularEntry(a)
+      const bTit = isTitularEntry(b)
+      if (aTit && !bTit) return -1
+      if (!aTit && bTit) return 1
+      return String(a?.nome || '').localeCompare(String(b?.nome || ''), 'pt-BR')
+    })
+  }, [dependentes])
 
   const selectedUser = useMemo(() => {
     if (!selected) return null
@@ -156,25 +241,28 @@ export default function DependentesList({ dependentes = [], contrato }) {
       ''
     )
 
-    // 🔒 garante as 3 infos essenciais mesmo quando contratoBase vem “curto”
     const nomePlano = pick(contratoBase?.nomePlano, contratoBase?.plano?.nome, 'Plano')
-    const numeroContrato = pick(contratoBase?.numeroContrato, contratoBase?.id, contratoBase?.contratoId, '—')
-    const dataEfetivacao = pick(contratoBase?.dataEfetivacao, contratoBase?.dataContrato, contratoBase?.criadoEm, '')
+    const numeroContrato = pick(
+      contratoBase?.numeroContrato,
+      contratoBase?.id,
+      contratoBase?.contratoId,
+      '—'
+    )
+    const dataEfetivacao = pick(
+      contratoBase?.dataEfetivacao,
+      contratoBase?.dataContrato,
+      contratoBase?.criadoEm,
+      ''
+    )
 
     return {
       ...contratoBase,
-
-      // garante preenchimento da carteirinha
       nomePlano,
       numeroContrato,
       dataEfetivacao,
-
-      // dados do dependente
       nomeTitular: nomeTitular || '',
       nome: selectedUser.nome,
       cpfPessoa: selectedUser.cpf || selectedUser.documento || '',
-
-      // sinalização interna (mesmo que você tenha removido o badge na UI)
       titular: false,
       isTitular: false,
     }
@@ -186,8 +274,11 @@ export default function DependentesList({ dependentes = [], contrato }) {
   }
 
   function openCarteirinha(d) {
-    // contratoBase é sempre objeto; valida se tem minimamente algum identificador
-    const hasContrato = !!pick(contratoBase?.numeroContrato, contratoBase?.id, contratoBase?.contratoId)
+    const hasContrato = !!pick(
+      contratoBase?.numeroContrato,
+      contratoBase?.id,
+      contratoBase?.contratoId
+    )
     if (!hasContrato) {
       showToast('Contrato não encontrado para gerar carteirinha.')
       return
@@ -225,14 +316,14 @@ export default function DependentesList({ dependentes = [], contrato }) {
     open && selectedUser && contratoMerged
       ? createPortal(
           <div
-            className="fixed inset-0 z-[120] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center sm:p-4"
             role="dialog"
             aria-modal="true"
-            aria-label="Carteirinha do dependente"
+            aria-label={`Carteirinha de ${selectedUser.nome}`}
             style={{
-              background: 'rgba(0,0,0,0.62)',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
+              background: 'rgba(0,0,0,0.45)',
+              backdropFilter: 'blur(6px)',
+              WebkitBackdropFilter: 'blur(6px)',
             }}
             onMouseDown={(e) => {
               if (e.target === e.currentTarget) closeModal()
@@ -243,162 +334,119 @@ export default function DependentesList({ dependentes = [], contrato }) {
             tabIndex={-1}
           >
             <div
-              className="w-full max-w-3xl rounded-2xl border"
+              className="w-full sm:max-w-3xl rounded-t-[20px] sm:rounded-[20px] overflow-hidden"
               style={{
-                borderColor: 'rgba(255,255,255,0.10)',
-                background: 'color-mix(in srgb, var(--surface) 92%, #000000)',
-                boxShadow: '0 30px 90px rgba(0,0,0,0.45)',
-                overflow: 'hidden',
+                background: 'var(--surface)',
+                boxShadow:
+                  '0 -8px 40px color-mix(in srgb, var(--text) 18%, transparent), 0 0 0 0.5px color-mix(in srgb, var(--text) 8%, transparent)',
+                maxHeight: 'min(92vh, 900px)',
               }}
             >
-              {/* top bar */}
+              <div
+                className="sm:hidden flex justify-center pt-2 pb-1"
+                aria-hidden="true"
+              >
+                <span
+                  className="h-1 w-9 rounded-full"
+                  style={{ background: 'color-mix(in srgb, var(--text) 18%, transparent)' }}
+                />
+              </div>
+
               <div
                 className="flex items-center justify-between gap-3 px-4 py-3 border-b"
-                style={{
-                  borderColor: 'color-mix(in srgb, var(--c-border) 70%, transparent)',
-                }}
+                style={{ borderColor: 'var(--separator, var(--c-border))' }}
               >
-                <div className="min-w-0">
-                  <div className="text-[11px] uppercase tracking-[0.12em] opacity-70">
-                    Carteirinha
-                  </div>
-                  <div className="font-semibold truncate" title={selectedUser.nome}>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                    Carteirinha digital
+                  </p>
+                  <p className="text-[17px] font-semibold leading-snug line-clamp-2 mt-0.5">
                     {selectedUser.nome}
-                  </div>
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-2">
-
-
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     type="button"
-                    className="btn-ghost"
-                    onClick={closeModal}
-                    aria-label="Fechar"
-                    title="Fechar"
-                    style={{ width: 40, height: 40, borderRadius: 999 }}
+                    onClick={openPrint}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full transition active:opacity-60"
+                    aria-label="Imprimir carteirinha"
+                    title="Imprimir"
+                    style={{ color: 'var(--primary)' }}
                   >
-                    <X size={18} />
+                    <Printer size={20} strokeWidth={1.85} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full transition active:opacity-60"
+                    aria-label="Fechar"
+                    style={{
+                      background: 'color-mix(in srgb, var(--text) 6%, var(--surface))',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    <X size={20} strokeWidth={2} />
                   </button>
                 </div>
               </div>
 
-              {/* body */}
-              <div className="p-4 sm:p-6 flex items-center justify-center">
+              <div
+                className="p-4 sm:p-6 flex items-center justify-center overflow-y-auto"
+                style={{
+                  paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+                }}
+              >
                 <CarteirinhaAssociado
                   user={selectedUser}
                   contrato={contratoMerged}
                   printable={false}
                   matchContratoHeight={false}
-                  loadAvatar={false} // dependente: não puxar avatar do logado
+                  loadAvatar={false}
                 />
               </div>
 
-              <div className="px-4 pb-4 text-xs opacity-70" style={{ color: 'var(--text)' }}>
-                Dica: clique na carteirinha para virar (frente/verso) antes de imprimir.
-              </div>
+              <p
+                className="px-4 pb-4 text-[13px] text-center leading-snug"
+                style={{
+                  color: 'var(--text-muted)',
+                  paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
+                }}
+              >
+                Toque na carteirinha para ver o verso.
+              </p>
             </div>
           </div>,
           document.body
         )
       : null
 
+  if (!dependentes.length) return null
+
   return (
-    <section className="card rounded-2xl p-5 sm:p-6 border" style={{ borderColor: 'var(--c-border)' }}>
+    <section aria-label="Beneficiários do plano">
       {modal}
 
-      <header className="mb-4">
-        <p className="text-[11px] uppercase tracking-[0.12em] opacity-70">
-          Beneficiários do plano
-        </p>
-        <h2 className="text-lg font-semibold mt-1">Dependentes</h2>
-      </header>
+      <p
+        className="px-1 mb-2 text-[13px] font-normal uppercase tracking-[0.02em]"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        Beneficiários do plano
+      </p>
 
-      {dependentes.length === 0 && (
-        <div
-          className="rounded-xl border p-5 text-sm"
-          style={{
-            borderColor: 'color-mix(in srgb, var(--primary) 25%, var(--c-border))',
-            background: 'color-mix(in srgb, var(--primary) 6%, transparent)',
-          }}
-        >
-          Nenhum dependente cadastrado para este contrato.
-        </div>
-      )}
+      <MemberGroupedList>
+        {sortedDependentes.map((d) => (
+          <DependenteRow
+            key={d.id || d.dependenteId || d.cpf || d.nome}
+            dependente={d}
+            onOpen={openCarteirinha}
+          />
+        ))}
+      </MemberGroupedList>
 
-      {dependentes.length > 0 && (
-        <ul className="mt-4 grid gap-3">
-          {dependentes.map((d) => {
-            const nome = d.nome || '—'
-            const nasc = fmtDataNasc(d.dataNascimento)
-            const idade = calcIdade(d.dataNascimento)
-
-            return (
-              <li key={d.id || d.dependenteId}>
-                <article
-                  className="rounded-2xl border p-4 sm:p-5"
-                  style={{
-                    borderColor: 'var(--c-border)',
-                    background: 'var(--surface)',
-                  }}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className="rounded-full grid place-items-center text-sm font-bold shrink-0"
-                      style={{
-                        width: 44,
-                        height: 44,
-                        background: 'color-mix(in srgb, var(--primary) 14%, transparent)',
-                        color: 'var(--primary)',
-                        border: '1px solid color-mix(in srgb, var(--primary) 25%, transparent)',
-                      }}
-                    >
-                      {initials(nome)}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h4 className="font-semibold text-sm truncate">{nome}</h4>
-
-                          <div className="flex flex-wrap items-center gap-3 mt-1 text-xs opacity-90">
-                            <span
-                              className="px-2 py-0.5 rounded-full"
-                              style={{
-                                background: 'color-mix(in srgb, var(--primary) 10%, transparent)',
-                                color: 'var(--primary)',
-                                border: '1px solid color-mix(in srgb, var(--primary) 20%, transparent)',
-                              }}
-                            >
-                              {parentescoLabel(d.parentesco)}
-                            </span>
-
-                            <span>
-                              Nasc.: <strong>{nasc}</strong>
-                              {idade != null && ` (${idade} anos)`}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="shrink-0">
-                          <button
-                            type="button"
-                            className="btn-outline text-xs"
-                            onClick={() => openCarteirinha(d)}
-                            title="Gerar carteirinha do dependente"
-                          >
-                            Gerar carteirinha
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              </li>
-            )
-          })}
-        </ul>
-      )}
+      <p className="px-1 mt-2 text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+        Toque em um beneficiário para abrir a carteirinha digital.
+      </p>
     </section>
   )
 }
