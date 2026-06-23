@@ -19,15 +19,16 @@ import {
   MemberSectionHeading,
   MemberNextPaymentCard,
   MemberPaymentStatusCard,
-  MemberQuickList,
-  MemberQuickListRow,
+  MemberQuickGrid,
+  MemberQuickGridTile,
+  MemberCareBanner,
+  MemberDigitalServicesSection,
 } from '@/components/member/MemberDashboardUI'
 import {
   IdCard,
   MessageCircle,
   Clock3,
   User,
-  Smartphone,
 } from 'lucide-react'
 
 /* ===== analytics opcional (no-op) ===== */
@@ -476,6 +477,12 @@ export default function AreaUsuario() {
               numeroContrato={numeroContrato}
               contratoAtivo={contratoAtivo}
               unidadeNome={unidadeNome}
+              planoDetailTo={planoIdForRoute ? '/servicos-digitais' : null}
+              planoDetailState={
+                planoIdForRoute
+                  ? { planoId: planoIdForRoute, numeroContrato, nomePlano }
+                  : null
+              }
             />
           </div>
 
@@ -532,7 +539,7 @@ export default function AreaUsuario() {
                   </MemberSection>
                 ) : null}
 
-                <div className="space-y-5">
+                <div className="space-y-6">
                   <MemberNextPaymentCard
                     titulo={paymentTitle}
                     valor={hasPaymentAmount ? fmtBRL(valorProx) : null}
@@ -560,17 +567,17 @@ export default function AreaUsuario() {
 
                   <div>
                     <MemberSectionHeading grouped>Acesso rápido</MemberSectionHeading>
-                    <MemberQuickList>
-                      <MemberQuickListRow
+                    <MemberQuickGrid>
+                      <MemberQuickGridTile
                         icon={IdCard}
-                        label="Carteirinha digital"
-                        detail="Documento do associado"
+                        label="Carteirinha"
+                        detail="Sua carteirinha digital"
                         to="/carteirinha"
                       />
-                      <MemberQuickListRow
+                      <MemberQuickGridTile
                         icon={User}
                         label="Dependentes"
-                        detail="Beneficiários do plano"
+                        detail="Gerencie seus dependentes"
                         to="/area/dependentes"
                         state={{
                           dependentes,
@@ -580,34 +587,34 @@ export default function AreaUsuario() {
                           unidadeNome,
                         }}
                       />
-                      <MemberQuickListRow
+                      <MemberQuickGridTile
                         icon={Clock3}
-                        label="Histórico"
-                        detail="Pagamentos realizados"
+                        label="Pagamentos"
+                        detail="Boletos e histórico"
                         to="/area/pagamentos"
                         state={{ historico, numeroContrato, nomePlano, unidadeNome }}
                       />
-                      {planoLinks.length > 0 && planoIdForRoute ? (
-                        <MemberQuickListRow
-                          icon={Smartphone}
-                          label="Benefícios digitais"
-                          detail="Serviços incluídos no plano"
-                          to="/servicos-digitais"
-                          state={{
-                            planoId: planoIdForRoute,
-                            numeroContrato,
-                            nomePlano,
-                          }}
-                        />
-                      ) : null}
-                      <MemberQuickListRow
+                      <MemberQuickGridTile
                         icon={MessageCircle}
                         label="Atendimento"
-                        detail="WhatsApp da unidade"
+                        detail="Fale com nossa equipe"
                         onClick={abrirAtendimento}
                       />
-                    </MemberQuickList>
+                    </MemberQuickGrid>
                   </div>
+
+                  <MemberCareBanner onClick={abrirAtendimento} />
+
+                  {planoLinks.length > 0 && planoIdForRoute ? (
+                    <MemberDigitalServicesSection
+                      beneficiosTo="/servicos-digitais"
+                      beneficiosState={{
+                        planoId: planoIdForRoute,
+                        numeroContrato,
+                        nomePlano,
+                      }}
+                    />
+                  ) : null}
 
                   <div id="pagamento">
                     <PagamentoFacil
@@ -620,16 +627,18 @@ export default function AreaUsuario() {
                     />
                   </div>
 
-                  <div>
-                    <MemberSectionHeading grouped>Notificações</MemberSectionHeading>
-                    <NotificationsCenter
-                      variant="inset"
-                      items={notifications}
-                      loading={loadingNotifications}
-                      contextKey={cpf || 'default'}
-                      onUnreadChange={setUnread}
-                    />
-                  </div>
+                  {(loadingNotifications || (notifications && notifications.length > 0)) ? (
+                    <div>
+                      <MemberSectionHeading grouped>Notificações</MemberSectionHeading>
+                      <NotificationsCenter
+                        variant="inset"
+                        items={notifications}
+                        loading={loadingNotifications}
+                        contextKey={cpf || 'default'}
+                        onUnreadChange={setUnread}
+                      />
+                    </div>
+                  ) : null}
                 </div>
               </>
             )}
