@@ -1,8 +1,9 @@
 // src/pages/AreaUsuario.jsx
 import { useMemo, useEffect, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import api from '@/lib/api.js'
 import useAuth from '@/store/auth'
+import { fetchAuthenticatedCpf } from '@/lib/postAuthNavigation'
 import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
 import PagamentoFacil from '@/components/PagamentoFacil'
 import NotificationsCenter from '@/components/NotificationsCenter'
@@ -147,8 +148,14 @@ function isSameDay(a, b) {
 
 export default function AreaUsuario() {
   const user = useAuth((s) => s.user)
+  const location = useLocation()
   const [mostrarValores, setMostrarValores] = useState(true)
+  const [cpfLookup, setCpfLookup] = useState('')
+  const [cpfLoading, setCpfLoading] = useState(true)
   usePrefersDark()
+
+  const adhesionContratoId = location.state?.contratoId || null
+  const fromAdhesion = Boolean(location.state?.fromAdhesion)
 
   const {
     items: notifications,
@@ -156,8 +163,7 @@ export default function AreaUsuario() {
     setUnread,
   } = useNotificationsStore()
 
-  /* ===== CPF bruto (apenas para carregar contratos) ===== */
-  const cpf =
+  const cpfFromAuth =
     user?.cpf ||
     user?.documento ||
     (() => {
@@ -168,6 +174,31 @@ export default function AreaUsuario() {
       }
     })() ||
     ''
+
+  useEffect(() => {
+    let alive = true
+    const digits = String(cpfFromAuth || '').replace(/\D/g, '')
+    if (digits.length >= 11) {
+      setCpfLookup(digits)
+      setCpfLoading(false)
+      return
+    }
+
+    setCpfLoading(true)
+    fetchAuthenticatedCpf()
+      .then((resolved) => {
+        if (alive) setCpfLookup(resolved)
+      })
+      .finally(() => {
+        if (alive) setCpfLoading(false)
+      })
+
+    return () => {
+      alive = false
+    }
+  }, [cpfFromAuth])
+
+  const cpf = cpfLookup || cpfFromAuth
 
   /* ===== dados do contrato/área ===== */
   const {
@@ -182,7 +213,11 @@ export default function AreaUsuario() {
     chooseContrato,
     loading,
     erro,
-  } = useContratoDoUsuario({ cpf })
+  } = useContratoDoUsuario({
+    cpf: cpfLoading ? '' : cpf,
+    initialContratoId: adhesionContratoId,
+    retryOnEmpty: fromAdhesion ? 2 : 0,
+  })
 
   const nomeExibicao = useMemo(
     () => user?.nome ?? user?.email ?? 'Usuário',
@@ -414,8 +449,18 @@ export default function AreaUsuario() {
     )
   }, [historico])
 
-  if (!loading && !erro && !contrato) {
-    return <Navigate to="/planos" replace />
+  const cpfDigits = String(cpf || '').replace(/\D/g, '')
+  const contractLoading = cpfLoading || loading
+  const shouldRedirectToPlanos =
+    !contractLoading &&
+    !erro &&
+    cpfDigits.length >= 11 &&
+    Array.isArray(contratos) &&
+    contratos.length === 0 &&
+    !contrato
+
+  if (shouldRedirectToPlanos) {
+    return <Navigate to="/planos" replace state={{ onboarding: true }} />
   }
 
   return (
@@ -590,7 +635,9 @@ export default function AreaUsuario() {
         </>
       ) : null}
 
-      {loading && !contrato ? <Skeleton className="h-52 rounded-[22px] mx-4 md:mx-0 mt-4" /> : null}
+      {(cpfLoading || (loading && !contrato)) ? (
+        <Skeleton className="h-52 rounded-[22px] mx-4 md:mx-0 mt-4" />
+      ) : null}
 
       {!loading && erro ? (
         <MemberContentSheet overlap={false} className="mx-0 md:mx-0">

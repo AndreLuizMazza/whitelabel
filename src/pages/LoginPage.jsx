@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import useAuth from '@/store/auth'
 import { registrarDispositivoFcmWeb } from '@/lib/fcm'
-import { parseAuthReturnUrl, MEMBER_HOME } from '@/lib/postAuthNavigation'
+import { resolvePostAuthDestination } from '@/lib/postAuthNavigation'
 import { CheckCircle2 } from 'lucide-react'
 import Button from '@/components/ui/Button.jsx'
 
@@ -97,8 +97,11 @@ export default function LoginPage() {
         console.error('[Login] FCM registration failed:', err)
       }
 
-      const from = parseAuthReturnUrl(location.state?.from, MEMBER_HOME)
-      navigate(from, { replace: true })
+      const { path, state } = await resolvePostAuthDestination({
+        rawFrom: location.state?.from,
+        intent: location.state?.intent,
+      })
+      navigate(path, { replace: true, state })
     } catch (err) {
       console.error(err)
       setErro('Falha no login. Verifique suas credenciais e tente novamente.')
@@ -268,8 +271,8 @@ export default function LoginPage() {
           to="/criar-conta"
           state={
             location.state?.from
-              ? { from: location.state.from }
-              : { from: '/planos' }
+              ? { from: location.state.from, intent: location.state?.intent }
+              : { intent: 'onboarding' }
           }
           className="font-semibold hover:underline"
           style={{ color: 'var(--primary)' }}
