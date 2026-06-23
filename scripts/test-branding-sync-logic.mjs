@@ -62,4 +62,30 @@ const bumped = resolveManifestRevisionForApply({
 })
 assert(bumped.assetsRevision === 8, 'bump local quando API desalinhada')
 
+function mergeAboutSection(about0, about1) {
+  if (!about1 || typeof about1 !== 'object') {
+    return about0 && typeof about0 === 'object' ? about0 : {}
+  }
+  const base0 = about0 && typeof about0 === 'object' ? about0 : {}
+  const merged = { ...base0, ...about1 }
+  const g0 = Array.isArray(base0.gallery) ? base0.gallery : []
+  const g1 = Array.isArray(about1.gallery) ? about1.gallery : []
+  if (g1.length === 0 && g0.length > 0) merged.gallery = g0
+  else if (g1.length > 0) merged.gallery = g1
+  const seo0 = base0.seo && typeof base0.seo === 'object' ? base0.seo : {}
+  const seo1 = about1.seo && typeof about1.seo === 'object' ? about1.seo : {}
+  if (Object.keys(seo0).length || Object.keys(seo1).length) merged.seo = { ...seo0, ...seo1 }
+  return merged
+}
+
+const mergedAbout = mergeAboutSection(
+  {
+    photo: 'sobre/sobre-nos.jpg',
+    gallery: [{ image: 'sobre/sobre-nos2.jpg', caption: 'A' }],
+  },
+  { photo: 'sobre/sobre-nos.jpg', gallery: [] }
+)
+assert(mergedAbout.gallery.length === 1, 'gallery vazia da API não apaga galeria do build')
+assert(mergedAbout.gallery[0].image === 'sobre/sobre-nos2.jpg', 'preserva paths da galeria local')
+
 console.log('[ok] branding sync logic tests passed')
