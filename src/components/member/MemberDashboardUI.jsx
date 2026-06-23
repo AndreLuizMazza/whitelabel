@@ -14,7 +14,8 @@ import {
 import HeaderNotificationsBell from "@/components/HeaderNotificationsBell.jsx";
 import ThemeToggle from "@/components/ThemeToggle.jsx";
 import useTenant from "@/store/tenant";
-import { useTenantLogoUrl } from "@/lib/tenantLogoRuntime";
+import { useTenantLogoOnPrimaryUrl } from "@/lib/tenantLogoRuntime";
+import useUserAvatar from "@/hooks/useUserAvatar";
 
 const cardShadow =
   "0 1px 3px color-mix(in srgb, var(--text) 4%, transparent), 0 0 0 0.5px color-mix(in srgb, var(--text) 6%, transparent)";
@@ -47,28 +48,72 @@ export function formatDisplayLabel(value) {
 }
 
 function MemberHeroLogo() {
-  const logoUrl = useTenantLogoUrl();
+  const logoUrl = useTenantLogoOnPrimaryUrl();
   const tenant = useTenant((s) => s.empresa);
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const fallback = tenant?.nomeFantasia || tenant?.razaoSocial || "Logo";
 
   if (failed || !logoUrl) {
     return (
-      <span className="inline-flex h-9 max-w-[140px] items-center justify-center rounded-xl bg-white/95 px-3 text-[11px] font-semibold leading-tight text-center truncate">
+      <span className="block max-w-[min(168px,44vw)] truncate text-center text-[15px] font-semibold tracking-tight leading-tight">
         {fallback}
       </span>
     );
   }
 
   return (
-    <span className="inline-flex h-9 min-w-[96px] max-w-[140px] items-center justify-center rounded-xl bg-white/95 px-2.5 shadow-sm">
+    <span className="relative inline-flex h-10 min-w-[88px] max-w-[min(168px,44vw)] items-center justify-center">
+      {!loaded ? (
+        <span
+          aria-hidden="true"
+          className="absolute inset-x-2 inset-y-2 rounded-lg opacity-40 animate-pulse"
+          style={{ background: "rgba(255,255,255,0.14)" }}
+        />
+      ) : null}
       <img
         src={logoUrl}
         alt={fallback}
-        className="h-6 w-auto max-w-full object-contain"
+        className={`relative h-9 w-auto max-w-full object-contain object-center transition-opacity duration-300 ease-out ${
+          loaded ? "opacity-100" : "opacity-0"
+        }`}
+        decoding="async"
+        fetchPriority="high"
+        draggable={false}
+        onLoad={() => setLoaded(true)}
         onError={() => setFailed(true)}
       />
     </span>
+  );
+}
+
+function MemberHeroAvatar({ nomeExibicao }) {
+  const { avatarUrl, avatarErro, setAvatarErro, initials } = useUserAvatar();
+  const label = initials || initialsFromName(nomeExibicao);
+
+  return (
+    <Link
+      to="/perfil"
+      className="inline-flex h-11 w-11 items-center justify-center rounded-full shrink-0 overflow-hidden text-[13px] font-semibold transition active:scale-[0.96]"
+      style={{
+        background: avatarUrl && !avatarErro ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.16)",
+        border: "0.5px solid rgba(255,255,255,0.28)",
+        boxShadow: "inset 0 0 0 0.5px rgba(255,255,255,0.08)",
+      }}
+      aria-label="Ir para perfil"
+    >
+      {avatarUrl && !avatarErro ? (
+        <img
+          src={avatarUrl}
+          alt={nomeExibicao || "Perfil"}
+          className="h-full w-full object-cover"
+          decoding="async"
+          onError={() => setAvatarErro(true)}
+        />
+      ) : (
+        label
+      )}
+    </Link>
   );
 }
 
@@ -103,19 +148,9 @@ export function MemberHero({
 
       <div className="relative z-[1] px-4 pt-1">
         <div className="grid grid-cols-[44px_1fr_auto] items-center gap-2">
-          <Link
-            to="/perfil"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full shrink-0 text-[13px] font-semibold"
-            style={{
-              background: "rgba(255,255,255,0.16)",
-              border: "0.5px solid rgba(255,255,255,0.24)",
-            }}
-            aria-label="Ir para perfil"
-          >
-            {initialsFromName(nomeExibicao)}
-          </Link>
+          <MemberHeroAvatar nomeExibicao={nomeExibicao} />
 
-          <div className="flex justify-center min-w-0">
+          <div className="flex justify-center min-w-0 px-1">
             <MemberHeroLogo />
           </div>
 

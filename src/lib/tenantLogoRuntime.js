@@ -52,3 +52,20 @@ export function useTenantLogoUrl() {
     [mode, empresa, brandingRevision]
   )
 }
+
+/**
+ * Logo para superfícies coloridas (hero da área privada, fundos primary).
+ * Usa sempre a variante "dark" do contrato — legível sobre gradiente primary.
+ */
+export function useTenantLogoOnPrimaryUrl() {
+  const empresa = useTenant((s) => s.empresa)
+  const brandingRevision = useSyncExternalStore(
+    subscribeBrandingRevision,
+    getBrandingRevisionSnapshot,
+    () => 0
+  )
+  return useMemo(
+    () => resolveTenantLogoUrl('dark'),
+    [empresa, brandingRevision]
+  )
+}
