@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo, useSyncExternalStore } from "react";
 import {
   Award,
   Building2,
@@ -19,6 +19,10 @@ import {
   getTenantContract,
   normalizeAboutPage,
 } from "@/lib/tenantContent";
+import {
+  subscribeBrandingRevision,
+  getBrandingRevisionSnapshot,
+} from "@/boot/brandingSync";
 
 const ABOUT_VALUE_ICONS = [Heart, Shield, Users, Scale, Sparkles, Star];
 const ABOUT_DIFF_ICONS = [
@@ -193,6 +197,7 @@ function GallerySection({ items, pageTitle, sectionTitle }) {
           >
             <div className="overflow-hidden rounded-xl border border-[var(--c-border)] bg-[var(--surface)] shadow-[0_1px_2px_-1px_color-mix(in_srgb,var(--text)_5%,transparent)] lg:rounded-2xl">
               <img
+                key={item.src}
                 src={item.src}
                 alt={item.caption || `${pageTitle} — imagem ${i + 1}`}
                 className="aspect-[4/3] w-full object-cover"
@@ -215,8 +220,16 @@ function GallerySection({ items, pageTitle, sectionTitle }) {
 }
 
 export default function SobreNos() {
+  const brandingRevision = useSyncExternalStore(
+    subscribeBrandingRevision,
+    getBrandingRevisionSnapshot,
+    () => 0,
+  );
   const contract = getTenantContract();
-  const page = normalizeAboutPage(contract);
+  const page = useMemo(
+    () => normalizeAboutPage(contract),
+    [contract, brandingRevision],
+  );
   const brandName =
     contract?.brand?.shortName || contract?.shell?.title || "";
 
@@ -264,6 +277,7 @@ export default function SobreNos() {
               <div className="order-1 lg:order-2 lg:col-span-7">
                 <div className="overflow-hidden rounded-xl lg:rounded-2xl">
                   <img
+                    key={page.photoUrl}
                     src={page.photoUrl}
                     alt={page.title}
                     className="aspect-[3/2] w-full object-cover lg:min-h-[min(420px,52vh)]"

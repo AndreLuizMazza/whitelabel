@@ -103,7 +103,11 @@ Esperado: ${TENANT}.json`);
       throw new Error(`Arquivo "${usedPath}" inválido: campo "vars" ausente ou não-objeto.`);
     }
 
-    const tenantPayload = normalizeTenantLogoFields({ ...cfg, slug: cfg.slug || TENANT });
+    const tenantPayload = normalizeTenantLogoFields({
+      ...cfg,
+      slug: cfg.slug || TENANT,
+      assetsRevision: cfg.assetsRevision ?? cfg.v ?? 0,
+    });
 
     const shellOnlyTitle = resolveShellTitle(tenantPayload, null);
     const preFav = resolveShellFaviconHref(tenantPayload);

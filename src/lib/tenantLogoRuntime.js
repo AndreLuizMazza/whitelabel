@@ -6,6 +6,7 @@
 import { useMemo, useSyncExternalStore } from 'react'
 import useTenant from '@/store/tenant'
 import { resolveTenantLogoUrl } from '@/lib/tenantBranding'
+import { subscribeBrandingRevision, getBrandingRevisionSnapshot } from '@/boot/brandingSync'
 
 let effectiveMode = 'light'
 const listeners = new Set()
@@ -36,10 +37,18 @@ export function setEffectiveThemeMode(mode) {
  */
 export function useTenantLogoUrl() {
   const empresa = useTenant((s) => s.empresa)
+  const brandingRevision = useSyncExternalStore(
+    subscribeBrandingRevision,
+    getBrandingRevisionSnapshot,
+    () => 0
+  )
   const mode = useSyncExternalStore(
     subscribeEffectiveThemeMode,
     getEffectiveThemeMode,
     () => 'light'
   )
-  return useMemo(() => resolveTenantLogoUrl(mode), [mode, empresa])
+  return useMemo(
+    () => resolveTenantLogoUrl(mode),
+    [mode, empresa, brandingRevision]
+  )
 }

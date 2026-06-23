@@ -1,5 +1,5 @@
 // src/pages/Home.jsx
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback, useSyncExternalStore } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import useTenant from '@/store/tenant'
@@ -49,6 +49,12 @@ import {
   BookHeart,
   Globe,
 } from 'lucide-react'
+import { resolveContractAssetUrl } from '@/lib/branding/tenantContract'
+import { getTenantContract } from '@/lib/tenantContent'
+import {
+  subscribeBrandingRevision,
+  getBrandingRevisionSnapshot,
+} from '@/boot/brandingSync'
 
 /* ===================== constantes de imagem ===================== */
 
@@ -116,6 +122,18 @@ function safeUrl(u) {
   const s0 = cleanUrlInput(u)
   if (!s0) return ''
   return s0.replace(/ /g, '%20')
+}
+
+/** CDN tenant: path relativo + ?v={assetsRevision}; absoluto/local inalterado. */
+function resolveTenantHeroUrl(raw, contract, assetsBaseFallback) {
+  const r = cleanUrlInput(raw)
+  if (!r) return ''
+  if (/^(https?:)?\/\//i.test(r) || /^(data|blob):/i.test(r)) return safeUrl(r)
+  if (r.startsWith('/')) return safeUrl(r)
+
+  const t = contract || getTenantContract()
+  if (t) return safeUrl(resolveContractAssetUrl(t, r))
+  return safeUrl(resolveAssetUrl(r, assetsBaseFallback))
 }
 
 function isExternalHref(href) {
@@ -480,6 +498,7 @@ function HomeHeroSlideLayer({ slide, isActive, prefersReduced }) {
             }}
           />
           <img
+            key={finalImg}
             src={finalImg}
             alt={slide?.title || ''}
             className="absolute inset-0 h-full w-full"
@@ -821,6 +840,12 @@ function HeroSlider({ slides, mounted, onActiveSlideChange }) {
 
 export default function Home() {
   const empresa = useTenant((s) => s.empresa)
+  const brandingRevision = useSyncExternalStore(
+    subscribeBrandingRevision,
+    getBrandingRevisionSnapshot,
+    () => 0
+  )
+  const tenantContract = getTenantContract()
   const { isAuthenticated, token, user } = useAuth((s) => ({
     isAuthenticated: s.isAuthenticated,
     token: s.token,
@@ -879,9 +904,12 @@ export default function Home() {
   // ✅ heroImageDefault agora resolve relativo via assetsBaseUrl e sanitiza URL
   const heroImageDefault = useMemo(() => {
     const raw =
-      empresa?.heroImage || empresa?.tema?.heroImage || HERO_FALLBACKS[0]
-    return safeUrl(resolveAssetUrl(raw, assetsBase))
-  }, [empresa, assetsBase])
+      tenantContract?.heroImage ||
+      empresa?.heroImage ||
+      empresa?.tema?.heroImage ||
+      HERO_FALLBACKS[0]
+    return resolveTenantHeroUrl(raw, tenantContract, assetsBase) || HERO_FALLBACKS[0]
+  }, [empresa, assetsBase, tenantContract, brandingRevision])
 
   const telefoneDigits = useMemo(() => {
     let t = empresa?.contato?.telefone || ''
@@ -952,7 +980,11 @@ export default function Home() {
   }, [heroTitleDefault, heroSubtitleDefault, heroImageDefault, empresa])
 
   const slides = useMemo(() => {
-    const tenantSlides = empresa?.heroSlides || empresa?.tema?.heroSlides || null
+    const tenantSlides =
+      tenantContract?.heroSlides ||
+      empresa?.heroSlides ||
+      empresa?.tema?.heroSlides ||
+      null
 
     if (Array.isArray(tenantSlides) && tenantSlides.length > 0) {
       const mapped = tenantSlides
@@ -961,7 +993,8 @@ export default function Home() {
           const rawImg =
             s.image || s.heroImage || (i === 0 ? heroImageDefault : fb)
 
-          const resolved = safeUrl(resolveAssetUrl(rawImg, assetsBase))
+          const resolved =
+            resolveTenantHeroUrl(rawImg, tenantContract, assetsBase) || fb
 
           return {
             id: s.id || i,
@@ -992,6 +1025,8 @@ export default function Home() {
     defaultSlides,
     assetsBase,
     heroImageDefault,
+    tenantContract,
+    brandingRevision,
   ])
 
   // ✅ ValuePills por slide (showValuePills)
