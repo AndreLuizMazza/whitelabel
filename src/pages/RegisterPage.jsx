@@ -29,9 +29,7 @@ import useAuth from "@/store/auth";
 import { registerUser } from "@/lib/authApi";
 import { registrarDispositivoFcmWeb } from "@/lib/fcm";
 import {
-  parseAuthReturnUrl,
-  postAuthNavigateState,
-  POST_AUTH_DEFAULT,
+  resolvePostAuthDestination,
 } from "@/lib/postAuthNavigation";
 import VoiceTextInput from "@/components/VoiceTextInput";
 import DateSelectBR from "@/components/DateSelectBR";
@@ -755,7 +753,6 @@ export default function RegisterPage() {
     }
 
     const rawFrom = location.state?.from;
-    const from = parseAuthReturnUrl(rawFrom, POST_AUTH_DEFAULT);
 
     const identificador = form.email?.trim() || onlyDigits(form.cpf);
     const payload = {
@@ -775,7 +772,12 @@ export default function RegisterPage() {
         await registrarDispositivoFcmWeb();
       } catch {}
 
-      navigate(from, { replace: true, state: postAuthNavigateState(from) });
+      const { path, state } = await resolvePostAuthDestination({
+        rawFrom,
+        intent: location.state?.intent ?? "onboarding",
+      });
+
+      navigate(path, { replace: true, state });
     } catch (err) {
       setError(mapRegisterApiError(err));
       setTimeout(() => alertRef.current?.focus(), 0);
@@ -788,10 +790,12 @@ export default function RegisterPage() {
 
   const sendLabel = step === 3 ? "Criar conta" : "Continuar";
 
-  const loginNavigationState = useMemo(
-    () => (location.state?.from ? { from: location.state.from } : undefined),
-    [location.state]
-  );
+  const loginNavigationState = useMemo(() => {
+    const from = location.state?.from;
+    const intent = location.state?.intent;
+    if (!from && !intent) return undefined;
+    return { ...(from ? { from } : {}), ...(intent ? { intent } : {}) };
+  }, [location.state]);
 
   const inputBg = "var(--surface)";
   const inputBorder = "var(--c-border)";

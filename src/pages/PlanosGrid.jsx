@@ -4,6 +4,12 @@ import { useNavigate, useLocation } from "react-router-dom";
 import api from "@/lib/api.js";
 import PlanoCardVenda from "@/components/PlanoCardVenda.jsx";
 import { getMensal } from "@/lib/planUtils.js";
+import useAuth from "@/store/auth";
+import {
+  fetchAuthenticatedCpf,
+  fetchContratosForCpf,
+  MEMBER_HOME,
+} from "@/lib/postAuthNavigation";
 
 /* ---------------- Utils ---------------- */
 function normalize(str = "") {
@@ -23,9 +29,31 @@ const LS_KEY = "planos_tab";
 export default function PlanosGrid() {
   const navigate = useNavigate();
   const location = useLocation();
+  const isAuthenticated = useAuth((s) =>
+    typeof s.isAuthenticated === "function" ? s.isAuthenticated() : !!s.token
+  );
   const [showOnboardingBanner, setShowOnboardingBanner] = useState(
     () => Boolean(location.state?.onboarding)
   );
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+
+    (async () => {
+      const cpf = await fetchAuthenticatedCpf();
+      if (!cpf || cancelled) return;
+      const contratos = await fetchContratosForCpf(cpf);
+      if (cancelled || contratos === null) return;
+      if (contratos.length > 0) {
+        navigate(MEMBER_HOME, { replace: true });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, navigate]);
 
   useEffect(() => {
     if (!location.state?.onboarding) return;

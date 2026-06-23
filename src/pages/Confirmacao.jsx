@@ -41,14 +41,27 @@ export default function Confirmacao() {
     ? `/contratos/${encodeURIComponent(contratoId)}/pagamentos`
     : null;
 
+  const areaNavigation = useMemo(
+    () => ({
+      pathname: "/area",
+      state: {
+        contratoId: contratoId || undefined,
+        fromAdhesion: true,
+      },
+    }),
+    [contratoId]
+  );
+
+  const goToArea = () => navigate(areaNavigation, { replace: true });
+
   // Redireciona suave para /area se já estiver autenticado
   useEffect(() => {
     if (!isAuth) return;
     const t = setTimeout(() => {
-      navigate("/area", { replace: true });
-    }, 2500);
+      navigate(areaNavigation, { replace: true });
+    }, 800);
     return () => clearTimeout(t);
-  }, [isAuth, navigate]);
+  }, [isAuth, navigate, areaNavigation]);
 
   async function copyContrato() {
     if (!contratoId) return;
@@ -108,7 +121,7 @@ export default function Confirmacao() {
                   Seus dados foram recebidos. Você poderá acompanhar os detalhes
                   na{" "}
                   <Link
-                    to="/area"
+                    to={areaNavigation}
                     className="underline"
                     style={{ color: "var(--primary)" }}
                   >
@@ -122,7 +135,7 @@ export default function Confirmacao() {
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <CTAButton
                 className="h-11 w-full"
-                onClick={() => navigate("/area")}
+                onClick={goToArea}
               >
                 Ir para área do associado{" "}
                 <ChevronRight size={16} className="ml-2" />
@@ -238,7 +251,7 @@ export default function Confirmacao() {
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <CTAButton
               className="h-11 w-full"
-              onClick={() => navigate("/area")}
+              onClick={goToArea}
             >
               Acessar área do associado{" "}
               <ChevronRight size={16} className="ml-2" />

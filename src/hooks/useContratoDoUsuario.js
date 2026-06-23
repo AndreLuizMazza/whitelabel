@@ -1,8 +1,13 @@
 // src/hooks/useContratoDoUsuario.js
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import api from '@/lib/api'
+import { normalizeContratosResponse } from '@/lib/postAuthNavigation'
 
-export default function useContratoDoUsuario({ cpf }) {
+export default function useContratoDoUsuario({
+  cpf,
+  initialContratoId = null,
+  retryOnEmpty = 0,
+}) {
   const [erro, setErro] = useState(null)
 
   const [contratos, setContratos] = useState([])
@@ -22,7 +27,8 @@ export default function useContratoDoUsuario({ cpf }) {
   const onlyDigits = (s) => (s || '').toString().replace(/\D/g, '')
   const getId = (c) => c?.id ?? c?.contratoId ?? c?.numeroContrato
   const toKey = (v) => (v == null ? null : String(v))
-  const isAtivo = (c) => c?.contratoAtivo === true || String(c?.status || '').toUpperCase() === 'ATIVO'
+  const isAtivo = (c) =>
+    c?.contratoAtivo === true || String(c?.status || '').toUpperCase() === 'ATIVO'
   const isAberta = (x) => String(x?.status || '').toUpperCase() === 'ABERTA'
 
   const asDate = (s) => {
@@ -32,84 +38,109 @@ export default function useContratoDoUsuario({ cpf }) {
     return isNaN(+d) ? 0 : d.getTime()
   }
 
-  const hoje = (() => { const d = new Date(); d.setHours(0,0,0,0); return d.getTime() })()
-
-  const pickAxiosData = (resp) => resp?.data ?? resp
-
-  function normalizeToArray(input) {
-    let v = pickAxiosData(input)
-    if (typeof v === 'string') {
-      const t = v.trim()
-      if ((t.startsWith('[') && t.endsWith(']')) || (t.startsWith('{') && t.endsWith('}'))) {
-        try { v = JSON.parse(t) } catch {}
-      }
-    }
-    if (Array.isArray(v)) return v
-    if (Array.isArray(v?.content)) return v.content
-    if (Array.isArray(v?.data)) return v.data
-    if (Array.isArray(v?.rows)) return v.rows
-    if (Array.isArray(v?.items)) return v.items
-    return []
-  }
+  const hoje = (() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d.getTime()
+  })()
 
   const niceError = (e, fallback = 'Erro desconhecido') =>
     e?.response?.data?.error || e?.response?.statusText || e?.message || fallback
 
-  // 1) Lista por CPF
+  const pickPreferredId = useCallback(
+    (arr) => {
+      if (!arr?.length) return null
+      const initialKey = initialContratoId ? toKey(initialContratoId) : null
+      if (initialKey) {
+        const match = arr.find((c) => toKey(getId(c)) === initialKey)
+        if (match) return toKey(getId(match))
+      }
+      const preferred = arr.find(isAtivo) || arr[0]
+      return toKey(getId(preferred))
+    },
+    [initialContratoId]
+  )
+
+  // 1) Lista por CPF (com retry opcional pós-adesão)
   useEffect(() => {
     const cpfSan = onlyDigits(cpf)
-    if (!cpfSan) { setErro('CPF não informado'); setLoadingLista(false); return }
+    if (!cpfSan) {
+      setErro('CPF não informado')
+      setLoadingLista(false)
+      return
+    }
 
+    let cancelled = false
     const myId = ++listReqId.current
+
     setLoadingLista(true)
     setErro(null)
-    setContratos([]); setContrato(null); setSelectedId(null)
-    setDependentes([]); setPagamentos([])
+    setContratos([])
+    setContrato(null)
+    setSelectedId(null)
+    setDependentes([])
+    setPagamentos([])
 
-    async function run() {
+    async function fetchList(attempt = 0) {
       try {
         const resp = await api.get(`/api/v1/contratos/cpf/${encodeURIComponent(cpfSan)}`)
-        if (listReqId.current !== myId) return
+        if (cancelled || listReqId.current !== myId) return
 
-        const arr = normalizeToArray(resp)
+        const arr = normalizeContratosResponse(resp)
         setContratos(arr)
 
         if (arr.length > 0) {
-          const preferred = arr.find(isAtivo) || arr[0]
-          setSelectedId(toKey(getId(preferred)))
+          setSelectedId(pickPreferredId(arr))
+          return
+        }
+
+        if (attempt < retryOnEmpty) {
+          await new Promise((r) => setTimeout(r, 600))
+          if (!cancelled && listReqId.current === myId) {
+            return fetchList(attempt + 1)
+          }
         }
       } catch (e) {
-        if (listReqId.current === myId) setErro(niceError(e))
+        if (!cancelled && listReqId.current === myId) setErro(niceError(e))
       } finally {
-        if (listReqId.current === myId) setLoadingLista(false)
+        if (!cancelled && listReqId.current === myId) setLoadingLista(false)
       }
     }
-    run()
-  }, [cpf])
+
+    fetchList()
+
+    return () => {
+      cancelled = true
+    }
+  }, [cpf, retryOnEmpty, pickPreferredId])
 
   // 2) Detalhes (dependentes + pagamentos)
   useEffect(() => {
-    const sel = contratos.find(c => toKey(getId(c)) === toKey(selectedId)) || null
+    const sel = contratos.find((c) => toKey(getId(c)) === toKey(selectedId)) || null
     setContrato(sel)
-    setDependentes([]); setPagamentos([])
-    setErro(null)
+    setDependentes([])
+    setPagamentos([])
 
-    if (!sel) { setLoadingDetalhes(false); return }
+    if (!sel) {
+      setLoadingDetalhes(false)
+      return
+    }
 
     const myId = ++detailReqId.current
     setLoadingDetalhes(true)
 
     async function loadDetails() {
       try {
-        const cid = getId(sel); if (!cid) return
+        const cid = getId(sel)
+        if (!cid) return
         const [dep, pags] = await Promise.allSettled([
           api.get(`/api/v1/contratos/${cid}/dependentes`),
           api.get(`/api/v1/contratos/${cid}/pagamentos`),
         ])
         if (detailReqId.current !== myId) return
 
-        const arrDep = dep.status === 'fulfilled' ? normalizeToArray(dep.value) : []
-        const arrPag = pags.status === 'fulfilled' ? normalizeToArray(pags.value) : []
+        const arrDep = dep.status === 'fulfilled' ? normalizeContratosResponse(dep.value) : []
+        const arrPag = pags.status === 'fulfilled' ? normalizeContratosResponse(pags.value) : []
 
         setDependentes(arrDep)
         setPagamentos(arrPag)
@@ -124,31 +155,32 @@ export default function useContratoDoUsuario({ cpf }) {
   }, [selectedId, contratos])
 
   // 3) Derivados para a UI
-  const abertasOrdenadas = useMemo(() =>
-    [...(pagamentos || [])]
-      .filter(p => isAberta(p))
-      .sort((a, b) => asDate(a.dataVencimento) - asDate(b.dataVencimento))
-  , [pagamentos])
-
-  const proximaParcela = useMemo(
-    () => abertasOrdenadas[0] || null,
-    [abertasOrdenadas]
+  const abertasOrdenadas = useMemo(
+    () =>
+      [...(pagamentos || [])]
+        .filter((p) => isAberta(p))
+        .sort((a, b) => asDate(a.dataVencimento) - asDate(b.dataVencimento)),
+    [pagamentos]
   )
+
+  const proximaParcela = useMemo(() => abertasOrdenadas[0] || null, [abertasOrdenadas])
 
   const proximas = useMemo(
     () => (abertasOrdenadas.length > 1 ? abertasOrdenadas.slice(1) : []),
     [abertasOrdenadas]
   )
 
-  const historico = useMemo(() =>
-    (pagamentos || [])
-      .filter(p => !isAberta(p))
-      .sort((a, b) => {
-        const da = asDate(a.dataRecebimento || a.dataVencimento) // <-- corrigido
-        const db = asDate(b.dataRecebimento || b.dataVencimento)
-        return db - da
-      })
-  , [pagamentos])
+  const historico = useMemo(
+    () =>
+      (pagamentos || [])
+        .filter((p) => !isAberta(p))
+        .sort((a, b) => {
+          const da = asDate(a.dataRecebimento || a.dataVencimento)
+          const db = asDate(b.dataRecebimento || b.dataVencimento)
+          return db - da
+        }),
+    [pagamentos]
+  )
 
   const isAtraso = (p) => isAberta(p) && asDate(p?.dataVencimento) < hoje
 
@@ -157,9 +189,17 @@ export default function useContratoDoUsuario({ cpf }) {
   }, [])
 
   return {
-    contratos, contrato, selectedId, chooseContrato,
-    dependentes, pagamentos,
-    proximaParcela, proximas, historico, isAtraso,
-    loading, erro
+    contratos,
+    contrato,
+    selectedId,
+    chooseContrato,
+    dependentes,
+    pagamentos,
+    proximaParcela,
+    proximas,
+    historico,
+    isAtraso,
+    loading,
+    erro,
   }
 }
