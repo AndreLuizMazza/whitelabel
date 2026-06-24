@@ -1,21 +1,18 @@
 // src/pages/CarteirinhaPage.jsx
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import useAuth from '@/store/auth'
 import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
 import CarteirinhaAssociado from '@/components/CarteirinhaAssociado'
-import { displayCPF, formatCPF } from '@/lib/cpf'
-import { Eye, EyeOff, X, Maximize2, RotateCw, Printer } from 'lucide-react'
+import { X, Maximize2, RotateCw, Printer } from 'lucide-react'
 import { showToast } from '@/lib/toast'
 import {
   MemberSubpageNav,
   MemberSubpageHeader,
+  formatDisplayLabel,
 } from '@/components/member/MemberDashboardUI'
-import {
-  MemberGroupedList,
-  MemberListRow,
-} from '@/components/member/MemberGroupedList'
+import { MemberGroupedList, MemberListRow } from '@/components/member/MemberGroupedList'
 import Skeleton from '@/components/ui/Skeleton.jsx'
 
 function useMediaQuery(query) {
@@ -62,39 +59,6 @@ export default function CarteirinhaPage() {
     [user]
   )
 
-  const [cpfReveal, setCpfReveal] = useState(false)
-  const [cpfSeconds, setCpfSeconds] = useState(0)
-  const timerRef = useRef(null)
-  const tickRef = useRef(null)
-
-  function startReveal10s() {
-    if (!cpf || cpfReveal) return
-    setCpfReveal(true)
-    setCpfSeconds(10)
-
-    tickRef.current && clearInterval(tickRef.current)
-    tickRef.current = setInterval(
-      () => setCpfSeconds((s) => (s > 0 ? s - 1 : 0)),
-      1000
-    )
-
-    timerRef.current && clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
-      setCpfReveal(false)
-      setCpfSeconds(0)
-      clearInterval(tickRef.current)
-      tickRef.current = null
-    }, 10000)
-  }
-
-  useEffect(
-    () => () => {
-      timerRef.current && clearTimeout(timerRef.current)
-      tickRef.current && clearInterval(tickRef.current)
-    },
-    []
-  )
-
   useEffect(() => {
     if (loading) return
     if (erro && !contrato) {
@@ -128,27 +92,13 @@ export default function CarteirinhaPage() {
     setFsOpen(false)
   }
 
-  const cpfDisplay = cpf
-    ? cpfReveal
-      ? formatCPF(cpf)
-      : displayCPF(cpf, 'last2')
-    : null
-
-  const headerMeta = useMemo(() => {
-    const parts = [nomeExibicao]
-    if (cpfDisplay) parts.push(`CPF ${cpfDisplay}`)
-    return parts.join(' · ')
-  }, [nomeExibicao, cpfDisplay])
-
   const numeroContrato = contrato?.numeroContrato ?? contrato?.id ?? null
   const nomePlano = contrato?.nomePlano ?? contrato?.plano?.nome ?? null
 
-  const planMeta = useMemo(() => {
-    const parts = []
-    if (nomePlano) parts.push(nomePlano)
-    if (numeroContrato) parts.push(`Contrato #${numeroContrato}`)
-    return parts.length ? parts.join(' · ') : null
-  }, [nomePlano, numeroContrato])
+  const headerMeta = useMemo(() => {
+    if (nomePlano) return formatDisplayLabel(nomePlano)
+    return null
+  }, [nomePlano])
 
   const toolbarPx = 88
   const safePad = 16
@@ -171,7 +121,7 @@ export default function CarteirinhaPage() {
             aria-modal="true"
             aria-label="Carteirinha em tela cheia"
             style={{
-              background: 'rgba(0,0,0,0.88)',
+              background: 'rgba(0,0,0,0.92)',
               paddingTop: 'env(safe-area-inset-top)',
               paddingBottom: 'env(safe-area-inset-bottom)',
             }}
@@ -181,26 +131,34 @@ export default function CarteirinhaPage() {
           >
             <div className="flex items-center justify-between gap-3 px-4 py-3 shrink-0">
               <div className="min-w-0">
-                <p className="text-[13px] font-medium text-white/70">Carteirinha</p>
-                <p className="text-[15px] font-semibold text-white truncate">{nomeExibicao}</p>
+                <p className="text-[13px] font-medium text-white/65">Apresentação</p>
+                <p className="text-[17px] font-semibold text-white truncate tracking-tight">
+                  {nomeExibicao}
+                </p>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0">
                 <button
                   type="button"
                   onClick={toggleOrientation}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/90 active:opacity-60"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white/90 active:scale-95 transition-transform"
                   aria-label={`Girar: ${rotationLabel}`}
                   title={rotationLabel}
-                  style={{ background: 'rgba(255,255,255,0.12)' }}
+                  style={{
+                    background: 'rgba(255,255,255,0.14)',
+                    backdropFilter: 'blur(12px)',
+                  }}
                 >
-                  <RotateCw size={20} strokeWidth={1.85} />
+                  <RotateCw size={19} strokeWidth={1.85} />
                 </button>
                 <button
                   type="button"
                   onClick={closeFullscreen}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white active:opacity-60"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full text-white active:scale-95 transition-transform"
                   aria-label="Fechar"
-                  style={{ background: 'rgba(255,255,255,0.12)' }}
+                  style={{
+                    background: 'rgba(255,255,255,0.14)',
+                    backdropFilter: 'blur(12px)',
+                  }}
                 >
                   <X size={20} strokeWidth={2} />
                 </button>
@@ -231,7 +189,7 @@ export default function CarteirinhaPage() {
       : null
 
   return (
-    <div className="w-full max-w-6xl mx-auto">
+    <div className="w-full max-w-6xl mx-auto pb-4">
       {fullscreenOverlay}
 
       <MemberSubpageNav to="/area" label="Início" />
@@ -240,7 +198,7 @@ export default function CarteirinhaPage() {
 
       {loading ? (
         <div className="space-y-5">
-          <Skeleton className="h-[220px] rounded-[20px] max-w-[480px] mx-auto" />
+          <Skeleton className="h-[220px] rounded-[22px] max-w-[480px] mx-auto" />
           <MemberGroupedList>
             <div className="px-4 py-4 space-y-3">
               <Skeleton className="h-11 rounded-lg" />
@@ -252,12 +210,17 @@ export default function CarteirinhaPage() {
 
       {!loading && !contrato && !erro ? (
         <MemberGroupedList>
-          <div className="px-4 py-8 text-center">
-            <p className="text-[17px] font-medium leading-snug">Carteirinha indisponível</p>
-            <p className="text-[15px] mt-2 leading-relaxed max-w-sm mx-auto" style={{ color: 'var(--text-muted)' }}>
+          <div className="px-4 py-10 text-center">
+            <p className="text-[17px] font-semibold leading-snug tracking-tight">
+              Carteirinha indisponível
+            </p>
+            <p
+              className="text-[15px] mt-2 leading-relaxed max-w-sm mx-auto"
+              style={{ color: 'var(--text-muted)' }}
+            >
               Assim que seu contrato for efetivado, sua carteirinha digital aparecerá aqui.
             </p>
-            <Link to="/planos" className="btn-primary inline-flex mt-5 text-[15px]">
+            <Link to="/planos" className="btn-primary inline-flex mt-6 text-[15px]">
               Ver planos
             </Link>
           </div>
@@ -265,18 +228,9 @@ export default function CarteirinhaPage() {
       ) : null}
 
       {!loading && contrato ? (
-        <div className="space-y-5">
-          <section aria-label="Documento digital">
-            {planMeta ? (
-              <p
-                className="text-[13px] text-center mb-3 px-2 leading-snug"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                {planMeta}
-              </p>
-            ) : null}
-
-            <div className="flex justify-center px-1">
+        <div className="space-y-6">
+          <section aria-label="Documento digital" className="flex justify-center px-1">
+            <div className="w-full max-w-[min(480px,92vw)]">
               <CarteirinhaAssociado
                 user={user}
                 contrato={contrato}
@@ -288,33 +242,18 @@ export default function CarteirinhaPage() {
             </div>
           </section>
 
-          <section aria-label="Ações">
+          <section aria-label="Opções">
             <p
-              className="px-1 mb-2 text-[13px] font-normal uppercase tracking-[0.02em]"
+              className="px-1 mb-2 text-[11px] font-semibold uppercase tracking-[0.14em]"
               style={{ color: 'var(--text-muted)' }}
             >
-              Ações
+              Opções
             </p>
-
-            <MemberGroupedList>
-              {cpf ? (
-                <MemberListRow
-                  icon={cpfReveal ? EyeOff : Eye}
-                  label={cpfReveal ? `CPF visível · ${cpfSeconds}s` : 'Mostrar CPF'}
-                  detail={
-                    cpfReveal
-                      ? 'Ocultando automaticamente'
-                      : 'Exibe o número completo por 10 segundos'
-                  }
-                  onClick={startReveal10s}
-                  showChevron={false}
-                />
-              ) : null}
-
+            <MemberGroupedList className="rounded-[20px]">
               <MemberListRow
                 icon={Maximize2}
                 label="Tela cheia"
-                detail={isMobile ? 'Ideal para apresentar na unidade' : 'Modo apresentação ampliado'}
+                detail={isMobile ? 'Apresentar na unidade' : 'Modo apresentação'}
                 onClick={openFullscreen}
               />
 
@@ -322,17 +261,12 @@ export default function CarteirinhaPage() {
                 <MemberListRow
                   icon={Printer}
                   label="Imprimir"
-                  detail="Frente e verso em PDF"
+                  detail="Frente e verso"
                   to="/carteirinha/print"
                   state={printableState}
                 />
               ) : null}
             </MemberGroupedList>
-
-            <p className="px-1 mt-2 text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-              Documento digital válido enquanto exibido pelo associado. Em caso de dúvida, contate
-              a unidade responsável.
-            </p>
           </section>
         </div>
       ) : null}
