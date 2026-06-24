@@ -4,6 +4,7 @@ import { showToast } from '@/lib/toast'
 import useTenant from '@/store/tenant'
 import { displayCPF, formatCPF } from '@/lib/cpf'
 import { getAvatarBlobUrl } from '@/lib/profile'
+import { formatDisplayLabel } from '@/components/member/MemberDashboardUI'
 import QRCode from 'qrcode'
 
 /* =============== utils =============== */
@@ -138,7 +139,6 @@ export default function CarteirinhaAssociado({
     (typeof window !== 'undefined' && window.__TENANT__?.logo) ||
     '/img/logo.png'
   const tenantLogo = tenantLogoUrl || tenantLogoFromStore
-  const tenantPhone = empresa?.telefone || empresa?.whatsapp || ''
   const verifyBase =
     empresa?.siteOficial ||
     empresa?.dominio ||
@@ -160,6 +160,7 @@ export default function CarteirinhaAssociado({
     contrato?.nomeTitular || contrato?.titularNome || ''
 
   const plano = contrato.nomePlano ?? contrato.plano?.nome ?? 'Plano'
+  const planoExibicao = formatDisplayLabel(plano)
   const numero =
     contrato.numeroContrato ?? contrato.id ?? contrato.contratoId ?? '—'
   const efetivacao =
@@ -167,6 +168,7 @@ export default function CarteirinhaAssociado({
   const ativo =
     contrato.contratoAtivo ??
     String(contrato.status || '').toUpperCase() === 'ATIVO'
+  const inactiveMuted = !ativo && !printable
 
   // foto: se existirem chaves específicas de dependente no futuro, elas entram aqui
   const fotoDeclarada =
@@ -308,13 +310,18 @@ export default function CarteirinhaAssociado({
   const cardShadow = printable
     ? 'none'
     : prefersDark
-    ? '0 18px 46px rgba(0,0,0,0.55)'
-    : '0 18px 46px rgba(15,23,42,0.30)'
+      ? '0 18px 46px rgba(0, 0, 0, 0.55)'
+      : '0 18px 46px rgba(15, 23, 42, 0.28)'
 
   const cardWidth = printable ? '100%' : 'min(480px, 92vw)'
 
   const radius = printable ? (screenLikePrint ? '22px' : '14px') : '22px'
   const paddingValue = printable ? '18px' : 'clamp(16px, 2.4vh, 20px)'
+
+  const cardShadowFinal =
+    inactiveMuted && !printable
+      ? `${cardShadow}, inset 0 0 0 1px rgba(255, 149, 0, 0.22)`
+      : cardShadow
 
   const cardStyle = {
     width: cardWidth,
@@ -326,7 +333,7 @@ export default function CarteirinhaAssociado({
       : { aspectRatio: '85.6 / 54' }),
     marginTop: printable ? 0 : 'clamp(-4px, -0.4vw, -8px)',
     borderRadius: radius,
-    boxShadow: cardShadow,
+    boxShadow: cardShadowFinal,
     overflow: 'hidden',
     color: 'var(--on-primary, #ffffff)',
     background:
@@ -376,7 +383,7 @@ export default function CarteirinhaAssociado({
   })()
 
   const planoClampStyle = (() => {
-    const fs = fontForPlano(plano)
+    const fs = fontForPlano(planoExibicao)
     const lineHeight = 1.15
     return {
       fontSize: `${fs}px`,
@@ -440,17 +447,14 @@ export default function CarteirinhaAssociado({
               {pessoaNome}
             </div>
 
-            <div
-              className="mt-0.5 font-semibold uppercase tracking-[0.08em]"
-              style={planoClampStyle}
-            >
-              {plano}
+            <div className="mt-0.5 font-semibold leading-snug tracking-tight" style={planoClampStyle}>
+              {planoExibicao}
             </div>
 
-            <div className="mt-1 flex items-center flex-wrap gap-2">
+            <div className="mt-1.5 flex items-center flex-wrap gap-2">
               <span
-                className="text-[11px] opacity-90"
-                style={{ color: 'var(--on-primary, #ffffff)' }}
+                className="text-[11px] font-medium tabular-nums"
+                style={{ color: 'var(--on-primary, #ffffff)', opacity: 0.92 }}
               >
                 Contrato #{numero}
               </span>
@@ -459,7 +463,7 @@ export default function CarteirinhaAssociado({
                 <span
                   className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-semibold shadow-sm"
                   style={{
-                    background: 'rgba(255,255,255,0.22)',
+                    background: 'rgba(255,255,255,0.24)',
                     color: '#0f172a',
                     border: '1px solid rgba(255,255,255,0.55)',
                     backdropFilter: 'blur(6px)',
@@ -467,9 +471,9 @@ export default function CarteirinhaAssociado({
                 >
                   <span
                     className="inline-block w-2 h-2 rounded-full"
-                    style={{ backgroundColor: ativo ? '#4ade80' : '#facc15' }}
+                    style={{ backgroundColor: ativo ? '#30d158' : '#ff9500' }}
                   />
-                  {ativo ? 'ATIVO' : 'INATIVO'}
+                  {ativo ? 'Ativo' : 'Inativo'}
                 </span>
               )}
             </div>
@@ -478,15 +482,15 @@ export default function CarteirinhaAssociado({
           </div>
         </div>
 
-        <div className="shrink-0 text-right max-w-[42%]">
+        <div className="shrink-0 text-right max-w-[38%]">
           <div
-            className="text-[10px] uppercase tracking-[0.12em]"
+            className="text-[10px] uppercase tracking-[0.12em] font-medium"
             style={{ color: 'var(--on-primary, #ffffff)', opacity: 0.85 }}
           >
             Efetivação
           </div>
           <div
-            className="text-[13px] font-semibold"
+            className="text-[13px] font-semibold tabular-nums tracking-tight"
             style={{ color: 'var(--on-primary, #ffffff)' }}
           >
             {fmtDateBR(efetivacao)}
@@ -495,15 +499,16 @@ export default function CarteirinhaAssociado({
           {tenantLogo && (
             <img
               src={tenantLogo}
-              alt={tenantName}
+              alt=""
+              aria-hidden="true"
               className="mt-3 object-contain ml-auto"
               style={{
-                maxWidth: 100,
-                maxHeight: 46,
+                maxWidth: 96,
+                maxHeight: 44,
                 width: '100%',
                 height: 'auto',
                 opacity: 0.5,
-                filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.32))',
+                filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.28))',
               }}
               referrerPolicy="no-referrer"
             />
@@ -516,10 +521,9 @@ export default function CarteirinhaAssociado({
       <footer className="relative z-[1] shrink-0 pt-1 pb-0.5">
         <p
           className="text-[10px] leading-snug max-w-md"
-          style={{ color: 'var(--on-primary, #ffffff)', opacity: 0.88 }}
+          style={{ color: 'var(--on-primary, #ffffff)', opacity: 0.82 }}
         >
-          Documento digital válido enquanto exibido pelo Associado. Em caso de
-          dúvida, contate a unidade responsável.
+          Válido enquanto exibido pelo associado.
         </p>
 
         {!printable && !hideTabs && (
@@ -570,106 +574,69 @@ export default function CarteirinhaAssociado({
 
   const Back = ({ hideTabs = false }) => (
     <>
-      <header className="relative shrink-0 flex items-start justify-between gap-4 z-[1]">
-        <div className="min-w-0 pr-2">
-          <div
-            className="text-[10px] uppercase tracking-[0.14em] font-medium opacity-90"
-            style={{ color: 'var(--on-primary, #ffffff)' }}
+      <div className="relative shrink-0 flex items-start justify-between gap-4 z-[1]">
+        <div className="min-w-0 flex-1 pr-2">
+          <p
+            className="text-[10px] uppercase tracking-[0.12em] font-medium"
+            style={{ color: 'var(--on-primary, #ffffff)', opacity: 0.72 }}
           >
-            {tenantName}
-          </div>
-
-          <div
-            className="text-[14px] font-semibold mt-1"
-            style={{ color: 'var(--on-primary, #ffffff)' }}
-          >
-            Carteirinha do Associado
-          </div>
-
-          <div
-            className="text-[12px] mt-2 leading-snug"
+            {formatDisplayLabel(tenantName)}
+          </p>
+          <p
+            className="text-[13px] mt-2.5 leading-snug"
             style={{ color: 'var(--on-primary, #ffffff)', opacity: 0.92 }}
           >
-            CPF: <strong>{cpfShown || '—'}</strong>
-            <br />
-            Gerada em: <strong>{validade}</strong>
-          </div>
+            CPF <span className="font-semibold tabular-nums">{cpfShown || '—'}</span>
+          </p>
+          <p
+            className="text-[12px] mt-1 tabular-nums"
+            style={{ color: 'var(--on-primary, #ffffff)', opacity: 0.75 }}
+          >
+            Emitida em {validade}
+          </p>
         </div>
 
-        {tenantLogo && (
-          <div className="shrink-0 max-w-[40%]">
+        <div
+          className="shrink-0 rounded-[14px] p-2"
+          style={{
+            background: 'rgba(255,255,255,0.16)',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          {qrDataUrl ? (
             <img
-              src={tenantLogo}
-              alt={tenantName}
-              className="object-contain ml-auto"
-              style={{
-                maxWidth: 90,
-                maxHeight: 44,
-                width: '100%',
-                height: 'auto',
-                opacity: 0.45,
-                filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.3))',
-              }}
+              src={qrDataUrl}
+              alt="QR code de verificação"
+              style={{ width: 76, height: 76, display: 'block', borderRadius: 8 }}
               referrerPolicy="no-referrer"
             />
-          </div>
-        )}
-      </header>
+          ) : (
+            <div
+              style={{
+                width: 76,
+                height: 76,
+                borderRadius: 8,
+                border: '1px solid rgba(255,255,255,0.25)',
+                background: 'rgba(255,255,255,0.08)',
+              }}
+              aria-label="QR code indisponível"
+            />
+          )}
+        </div>
+      </div>
 
       <div className="flex-1 min-h-0 min-w-0" aria-hidden="true" />
 
-      <footer className="relative z-[1] shrink-0 flex flex-col gap-2 pb-0.5">
-        <div className="flex items-end justify-between gap-3">
-          <div className="min-w-0 max-w-[58%]">
-            <p
-              className="text-[10px] leading-snug"
-              style={{ color: 'var(--on-primary, #ffffff)', opacity: 0.9 }}
-            >
-              Verifique escaneando o QR Code.
-            </p>
-
-            {tenantPhone && (
-              <p
-                className="text-[10px] mt-1.5 leading-snug"
-                style={{ color: 'var(--on-primary, #ffffff)', opacity: 0.9 }}
-              >
-                Contato da unidade: {tenantPhone}
-              </p>
-            )}
-          </div>
-
-          <div
-            className="shrink-0 rounded-2xl p-2 shadow-lg"
-            style={{
-              background: 'rgba(255,255,255,0.20)',
-              backdropFilter: 'blur(8px)',
-            }}
-          >
-            {qrDataUrl ? (
-              <img
-                src={qrDataUrl}
-                alt="QR code de verificação"
-                style={{ width: 74, height: 74, display: 'block' }}
-                referrerPolicy="no-referrer"
-              />
-            ) : (
-              <div
-                style={{
-                  width: 74,
-                  height: 74,
-                  borderRadius: 14,
-                  border: '1px solid rgba(255,255,255,0.35)',
-                  background: 'rgba(255,255,255,0.10)',
-                }}
-                aria-label="QR code indisponível"
-                title="QR code indisponível"
-              />
-            )}
-          </div>
-        </div>
+      <footer className="relative z-[1] shrink-0 pb-0.5">
+        <p
+          className="text-[10px] leading-snug"
+          style={{ color: 'var(--on-primary, #ffffff)', opacity: 0.78 }}
+        >
+          Escaneie para verificar autenticidade.
+        </p>
 
         {!printable && !hideTabs && (
-          <div className="flex flex-wrap gap-2 pt-0.5">
+          <div className="flex flex-wrap gap-2 pt-2">
             <button
               type="button"
               onClick={(e) => {
@@ -878,10 +845,10 @@ export default function CarteirinhaAssociado({
       </section>
       <p
         id="carteirinha-flip-hint"
-        className="mt-3 text-center text-[13px] leading-snug px-2"
+        className="mt-3.5 text-center text-[12px] leading-snug px-3"
         style={{ color: 'var(--text-muted)' }}
       >
-        Toque na carteirinha para ver o verso.
+        Toque para ver o verso
       </p>
     </div>
   )
