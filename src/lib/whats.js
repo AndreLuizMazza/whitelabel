@@ -40,7 +40,7 @@ export function openWhatsAppUrl(url) {
 
 /** Lê telefone do tenant (empresa?.contato?.telefone) */
 export function resolveTenantPhone(empresa) {
-  return empresa?.contato?.telefone || "";
+  return empresa?.contato?.telefone || empresa?.telefone || empresa?.whatsapp || ""
 }
 
 /** Fallback global via env/variável global */
@@ -48,4 +48,18 @@ export function resolveGlobalFallback() {
   const env = (typeof import.meta !== "undefined" && import.meta.env?.VITE_WHATSAPP) || "";
   const g = (typeof window !== "undefined" && window.__WHATSAPP__) || "";
   return env || g || "";
+}
+
+/**
+ * Telefone de atendimento da unidade/tenant — nunca contato do titular do contrato.
+ */
+export function resolveSupportWhatsApp({ unidade, empresa } = {}) {
+  return (
+    unidade?.whatsapp ||
+    unidade?.whatsappBusiness ||
+    unidade?.telefone ||
+    resolveTenantPhone(empresa) ||
+    resolveGlobalFallback() ||
+    ""
+  )
 }
