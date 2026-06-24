@@ -591,8 +591,8 @@ export default function AreaUsuario() {
                       {planoIdForRoute && nomePlano ? (
                         <MemberQuickGridTile
                           icon={ClipboardList}
-                          label="Benefícios"
-                          detail={formatDisplayLabel(nomePlano)}
+                          label="Parceiros"
+                          detail="Clube de descontos"
                           to="/area/beneficios"
                           state={{
                             planoId: planoIdForRoute,
@@ -608,7 +608,7 @@ export default function AreaUsuario() {
 
                   {planoLinks.length > 0 && planoIdForRoute ? (
                     <MemberDigitalServicesSection
-                      beneficiosTo="/area/beneficios"
+                      beneficiosTo="/area/servicos-digitais"
                       beneficiosState={{
                         planoId: planoIdForRoute,
                         numeroContrato,

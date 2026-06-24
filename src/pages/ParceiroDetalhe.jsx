@@ -160,7 +160,7 @@ export default function ParceiroDetalhe() {
 
   return (
     <div className="w-full max-w-6xl mx-auto pb-2">
-      <MemberSubpageNav to="/area/beneficios" label="Benefícios" />
+      <MemberSubpageNav to="/area/beneficios" label="Parceiros" />
 
       {loading ? (
         <>

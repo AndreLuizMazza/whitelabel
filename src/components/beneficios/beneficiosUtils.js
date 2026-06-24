@@ -123,6 +123,69 @@ export function mergePartnerOffersInterleaved(partners = []) {
   return merged
 }
 
+function buildOfferHeadline(desc, valorFmt) {
+  if (desc && valorFmt !== '—') return `${valorFmt} em ${desc.toLowerCase()}`
+  return desc || valorFmt
+}
+
+/** Ofertas completas de um parceiro (área privada — todos os benefícios cadastrados). */
+export function extractMemberOffers(beneficios) {
+  const list = Array.isArray(beneficios) ? beneficios : []
+  const offers = []
+
+  for (const b of list) {
+    const valorFmt = fmtBeneficio(b)
+    const desc = String(b.descricao || '').trim()
+    const headline = buildOfferHeadline(desc, valorFmt)
+    if (!headline || headline === '—') continue
+
+    offers.push({
+      id: b.id ?? `${desc}-${valorFmt}`,
+      descricao: desc,
+      valorFmt,
+      headline,
+    })
+  }
+
+  return offers
+}
+
+/** Mescla ofertas de parceiros API (raw) para feed da área privada. */
+export function mergeMemberOffersFromParceiros(parceiros = []) {
+  const queues = parceiros
+    .map((p) => {
+      const logoUrl = safeImageUrl(p?.imagem)
+      const capaUrl = safeImageUrl(p?.capa) || logoUrl
+      const cidadeUF = formatPartnerCity(p?.endereco)
+      return extractMemberOffers(p?.beneficios).map((o) => ({
+        ...o,
+        partnerId: p.id,
+        partnerNome: p.nome,
+        logoUrl,
+        capaUrl,
+        cidadeUF,
+        offerKey: `${p.id}-${o.id}`,
+      }))
+    })
+    .filter((q) => q.length > 0)
+
+  if (!queues.length) return []
+
+  const merged = []
+  let hasMore = true
+  while (hasMore) {
+    hasMore = false
+    for (const q of queues) {
+      if (q.length > 0) {
+        merged.push(q.shift())
+        hasMore = true
+      }
+    }
+  }
+
+  return merged
+}
+
 function safeImageUrl(url) {
   const s = String(url || '').trim()
   return s || null

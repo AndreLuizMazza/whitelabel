@@ -40,6 +40,8 @@ export function isSlideHiddenByModuleFlags(slide, empresa) {
   if (typeof to !== 'string') return false
   if (to === '/memorial' || to.startsWith('/memorial/')) return !isMemorialEnabled(empresa)
   if (to === '/beneficios' || to.startsWith('/beneficios/')) return !isBeneficiosEnabled(empresa)
+  if (to === '/servicos-digitais' || to.startsWith('/servicos-digitais')) return !isBeneficiosEnabled(empresa)
   if (to === '/area/beneficios' || to.startsWith('/area/beneficios/')) return !isBeneficiosEnabled(empresa)
+  if (to === '/area/servicos-digitais') return !isBeneficiosEnabled(empresa)
   return false
 }

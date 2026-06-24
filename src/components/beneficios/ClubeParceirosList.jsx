@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, RotateCcw, Search } from 'lucide-react'
 import api from '@/lib/api.js'
-import { MemberGroupedList } from '@/components/member/MemberGroupedList'
+import { mergeMemberOffersFromParceiros } from '@/components/beneficios/beneficiosUtils'
+import MemberParceirosStoryStrip from '@/components/beneficios/member/MemberParceirosStoryStrip'
+import MemberParceiroOffersFeed from '@/components/beneficios/member/MemberParceiroOffersFeed'
+import ParceiroMemberFeedCard from '@/components/beneficios/member/ParceiroMemberFeedCard'
 import ParceiroCard from './ParceiroCard'
 
 function MemberSearchBar({ queryRaw, cityRaw, onQueryChange, onCityChange, onClear, count }) {
@@ -67,7 +70,7 @@ export default function ClubeParceirosList({
   const [items, setItems] = useState([])
 
   const [page, setPage] = useState(0)
-  const [size] = useState(9)
+  const [size] = useState(variant === 'member' ? 24 : 9)
   const [totalPages, setTotalPages] = useState(1)
 
   const [queryRaw, setQueryRaw] = useState('')
@@ -142,6 +145,11 @@ export default function ClubeParceirosList({
     })
   }, [items, query, cidade])
 
+  const memberOffers = useMemo(
+    () => (isMember ? mergeMemberOffersFromParceiros(parceirosFiltrados) : []),
+    [isMember, parceirosFiltrados]
+  )
+
   function limparFiltros() {
     setQueryRaw('')
     setCityRaw('')
@@ -190,10 +198,34 @@ export default function ClubeParceirosList({
   if (isMember) {
     return (
       <div className={className}>
-        {showIntro ? (
-          <p className="px-1 mb-3 text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-            Parceiros com condições especiais para associados.
+        <div className="mb-5">
+          <p
+            className="px-1 mb-2 text-[11px] font-semibold uppercase tracking-[0.14em]"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Marcas
           </p>
+          <MemberParceirosStoryStrip
+            parceiros={parceirosFiltrados}
+            loading={loading}
+            detailBase={detailBase}
+          />
+        </div>
+
+        {!loading && memberOffers.length > 0 ? (
+          <div className="mb-6">
+            <p
+              className="px-1 mb-2 text-[11px] font-semibold uppercase tracking-[0.14em]"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Ofertas
+            </p>
+            <MemberParceiroOffersFeed
+              offers={memberOffers}
+              loading={loading}
+              detailBase={detailBase}
+            />
+          </div>
         ) : null}
 
         <MemberSearchBar
@@ -206,63 +238,75 @@ export default function ClubeParceirosList({
         />
 
         {loading ? (
-          <MemberGroupedList>
-            <div className="px-4 py-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-[64px] animate-pulse rounded-lg my-2"
-                  style={{ background: 'color-mix(in srgb, var(--text) 6%, var(--surface))' }}
-                />
-              ))}
-            </div>
-          </MemberGroupedList>
+          <div className="space-y-3 mt-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-[160px] animate-pulse rounded-[16px]"
+                style={{ background: 'color-mix(in srgb, var(--text) 6%, var(--surface))' }}
+              />
+            ))}
+          </div>
         ) : null}
 
         {!loading && error ? (
-          <MemberGroupedList>
-            <div className="px-4 py-7 text-center">
-              <p className="text-[15px] leading-snug" style={{ color: 'var(--danger, #dc2626)' }}>
-                {error}
-              </p>
-              <button
-                type="button"
-                onClick={() => fetchData()}
-                className="mt-4 text-[15px] font-semibold min-h-[44px] px-4 active:opacity-70"
-                style={{ color: 'var(--primary)' }}
-              >
-                Tentar de novo
-              </button>
-            </div>
-          </MemberGroupedList>
+          <div
+            className="mt-3 rounded-[16px] px-4 py-8 text-center"
+            style={{
+              background: 'var(--surface)',
+              border: '0.5px solid var(--separator, var(--c-border))',
+            }}
+          >
+            <p className="text-[15px] leading-snug" style={{ color: 'var(--danger, #dc2626)' }}>
+              {error}
+            </p>
+            <button
+              type="button"
+              onClick={() => fetchData()}
+              className="mt-4 text-[15px] font-semibold min-h-[44px] px-4 active:opacity-70"
+              style={{ color: 'var(--primary)' }}
+            >
+              Tentar de novo
+            </button>
+          </div>
         ) : null}
 
         {!loading && !error && parceirosFiltrados.length === 0 ? (
-          <MemberGroupedList>
-            <div className="px-4 py-8 text-center">
-              <p className="text-[17px] font-medium leading-snug">Nenhum parceiro encontrado</p>
-              <p className="text-[15px] mt-2 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                Ajuste a busca ou limpe os filtros para ver mais resultados.
-              </p>
-              <button
-                type="button"
-                onClick={limparFiltros}
-                className="mt-4 text-[15px] font-semibold min-h-[44px] px-4 active:opacity-70"
-                style={{ color: 'var(--primary)' }}
-              >
-                Limpar filtros
-              </button>
-            </div>
-          </MemberGroupedList>
+          <div
+            className="mt-3 rounded-[16px] px-4 py-8 text-center"
+            style={{
+              background: 'var(--surface)',
+              border: '0.5px solid var(--separator, var(--c-border))',
+            }}
+          >
+            <p className="text-[17px] font-medium leading-snug">Nenhum parceiro encontrado</p>
+            <p className="text-[15px] mt-2 leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              Ajuste a busca ou limpe os filtros.
+            </p>
+            <button
+              type="button"
+              onClick={limparFiltros}
+              className="mt-4 text-[15px] font-semibold min-h-[44px] px-4 active:opacity-70"
+              style={{ color: 'var(--primary)' }}
+            >
+              Limpar filtros
+            </button>
+          </div>
         ) : null}
 
         {!loading && !error && parceirosFiltrados.length > 0 ? (
           <>
-            <MemberGroupedList>
+            <p
+              className="mt-5 mb-3 px-1 text-[11px] font-semibold uppercase tracking-[0.14em]"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Todos os parceiros
+            </p>
+            <div className="space-y-3">
               {parceirosFiltrados.map((p) => (
-                <ParceiroCard key={p.id} p={p} detailBase={detailBase} variant="member" />
+                <ParceiroMemberFeedCard key={p.id} p={p} detailBase={detailBase} />
               ))}
-            </MemberGroupedList>
+            </div>
             {pagination}
           </>
         ) : null}

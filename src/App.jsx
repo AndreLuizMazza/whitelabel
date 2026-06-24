@@ -20,6 +20,8 @@ import Pagamentos from './pages/Pagamentos.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import BeneficiosPublico from './pages/BeneficiosPublico.jsx'
 import BeneficiosAssociado from './pages/BeneficiosAssociado.jsx'
+import ServicosDigitaisPublico from './pages/ServicosDigitaisPublico.jsx'
+import ServicosDigitaisAssociado from './pages/ServicosDigitaisAssociado.jsx'
 import RedirectServicosDigitais from './pages/RedirectServicosDigitais.jsx'
 import RedirectBeneficioParceiroPublico from './pages/RedirectBeneficioParceiroPublico.jsx'
 import PoliticaCookies from '@/pages/PoliticaCookies'
@@ -124,6 +126,14 @@ export default function App() {
               }
             />
             <Route
+              path="/area/servicos-digitais"
+              element={
+                <TenantModuleGateInline module="beneficios">
+                  <ServicosDigitaisAssociado />
+                </TenantModuleGateInline>
+              }
+            />
+            <Route
               path="/area/beneficios/:id"
               element={
                 <TenantModuleGateInline module="beneficios">
@@ -146,6 +156,14 @@ export default function App() {
               element={
                 <TenantModuleGateInline module="beneficios">
                   <BeneficiosPublico />
+                </TenantModuleGateInline>
+              }
+            />
+            <Route
+              path="/servicos-digitais"
+              element={
+                <TenantModuleGateInline module="beneficios">
+                  <ServicosDigitaisPublico />
                 </TenantModuleGateInline>
               }
             />

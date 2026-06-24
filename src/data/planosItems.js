@@ -26,7 +26,7 @@ export const planosItems = [
   },
   {
     id: 'telemedicina',
-    to: '/beneficios#telemedicina',
+    to: '/servicos-digitais#telemedicina',
     icon: 'Sparkles',
     title: 'Telemedicina',
     desc: 'Incluso para titular e opcional aos dependentes.',
