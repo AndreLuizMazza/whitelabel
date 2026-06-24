@@ -3,42 +3,17 @@ import { Link, useParams, useLocation } from 'react-router-dom'
 import api from '@/lib/api'
 import { applyEmDashDocumentTitle, applyRouteDocumentTitle } from '@/lib/shellBranding'
 import useTenant from '@/store/tenant'
-import {
-  MapPin,
-  Phone,
-  Mail,
-  Percent,
-  Share2,
-} from 'lucide-react'
-import {
-  MemberSubpageNav,
-  MemberSubpageHeader,
-} from '@/components/member/MemberDashboardUI'
+import { MapPin, Phone, Mail, MessageCircle } from 'lucide-react'
+import { MemberSubpageNav, formatDisplayLabel } from '@/components/member/MemberDashboardUI'
 import { MemberSection, MemberGroupedList, MemberListRow } from '@/components/member/MemberGroupedList'
 import Skeleton from '@/components/ui/Skeleton.jsx'
-import { fmtBeneficio } from '@/components/beneficios/beneficiosUtils'
-
-const CLUB_PLACEHOLDER =
-  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iMTYwIiB2aWV3Qm94PSIwIDAgNDAwIDE2MCI+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIxNjAiIGZpbGw9IiNmMWY1ZjkiLz48Y2lyY2xlIGN4PSIyMDAiIGN5PSI4MCIgcj0iNDYiIGZpbGw9IiNlMmU4ZjAiLz48dGV4dCB4PSIyMDAiIHk9Ijg4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iSW50ZXIsU2Vnb2UgVUksQXJpYWwsIHNhbnMtc2VyaWZiIiBmb250LXNpemU9IjI4IiBmaWxsPSIjNDc1NTY5Ij4lPC90ZXh0Pjwvc3ZnPg=='
-
-function getEnderecoLinha(e = {}) {
-  const partes = [
-    e.logradouro,
-    e.numero,
-    e.bairro,
-    e.cidade && e.uf ? `${e.cidade} - ${e.uf}` : e.cidade || e.uf,
-    e.cep ? `CEP ${e.cep}` : '',
-  ].filter(Boolean)
-  return partes.join(', ')
-}
-
-function mapsLink(endereco = {}) {
-  if (endereco.latitude && endereco.longitude) {
-    return `https://www.google.com/maps?q=${endereco.latitude},${endereco.longitude}`
-  }
-  const q = encodeURIComponent(getEnderecoLinha(endereco))
-  return `https://www.google.com/maps/search/?api=1&query=${q}`
-}
+import ParceiroDetailHero from '@/components/beneficios/member/ParceiroDetailHero'
+import {
+  fmtBeneficio,
+  getEnderecoLinha,
+  mapsLink,
+  safeImageUrl,
+} from '@/components/beneficios/beneficiosUtils'
 
 function wppLink(fone) {
   if (!fone) return null
@@ -51,31 +26,79 @@ function domainUrl() {
   return `${window.location.origin}`
 }
 
+function DetailSkeleton() {
+  return (
+    <>
+      <Skeleton className="h-[200px] w-full rounded-[22px] mb-5" />
+      <Skeleton className="h-[120px] w-full rounded-[16px] mb-5" />
+      <Skeleton className="h-[180px] w-full rounded-[16px]" />
+    </>
+  )
+}
+
 function BeneficioRow({ beneficio }) {
-  const detail = beneficio.observacao
-    ? `${fmtBeneficio(beneficio)} · ${beneficio.observacao}`
-    : fmtBeneficio(beneficio)
+  const titulo = formatDisplayLabel(beneficio.descricao || 'Benefício')
+  const valor = fmtBeneficio(beneficio)
+  const observacao = beneficio.observacao
+    ? formatDisplayLabel(beneficio.observacao)
+    : null
 
   return (
-    <div className="flex items-start gap-3 px-4 py-3.5 min-h-[56px]">
+    <div className="flex items-center gap-3 px-4 py-3.5 min-h-[60px]">
+      <span className="flex-1 min-w-0">
+        <span className="block text-[17px] font-medium leading-snug" style={{ color: 'var(--text)' }}>
+          {titulo}
+        </span>
+        {observacao ? (
+          <span className="block text-[13px] mt-0.5 leading-snug line-clamp-2" style={{ color: 'var(--text-muted)' }}>
+            {observacao}
+          </span>
+        ) : null}
+      </span>
       <span
-        className="inline-flex h-[29px] w-[29px] shrink-0 items-center justify-center rounded-[7px] mt-0.5"
+        className="shrink-0 rounded-full px-3 py-1.5 text-[14px] font-bold tabular-nums tracking-tight"
         style={{
-          background: 'color-mix(in srgb, var(--primary) 14%, var(--surface))',
+          background: 'color-mix(in srgb, var(--primary) 12%, var(--surface))',
           color: 'var(--primary)',
+          border: '0.5px solid color-mix(in srgb, var(--primary) 22%, transparent)',
         }}
       >
-        <Percent size={15} strokeWidth={2} />
-      </span>
-      <span className="flex-1 min-w-0">
-        <span className="block text-[17px] leading-snug" style={{ color: 'var(--text)' }}>
-          {beneficio.descricao || 'Benefício'}
-        </span>
-        <span className="block text-[13px] mt-0.5 leading-snug" style={{ color: 'var(--text-muted)' }}>
-          {detail}
-        </span>
+        {valor}
       </span>
     </div>
+  )
+}
+
+function GalleryStrip({ imagens, nome }) {
+  if (imagens.length <= 1) return null
+
+  return (
+    <MemberSection title="Galeria">
+      <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-1 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {imagens.slice(1).map((src, i) => (
+          <div
+            key={src}
+            className="relative shrink-0 w-32 h-28 rounded-[14px] overflow-hidden snap-start"
+            style={{
+              border: '0.5px solid var(--separator, var(--c-border))',
+              boxShadow: '0 1px 4px color-mix(in srgb, var(--text) 5%, transparent)',
+            }}
+          >
+            <img
+              src={src}
+              alt={`${nome} — foto ${i + 2}`}
+              className="h-full w-full object-cover object-center"
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    </MemberSection>
   )
 }
 
@@ -126,11 +149,17 @@ export default function ParceiroDetalhe() {
     }
   }, [parceiro?.nome, empresa])
 
+  const logoUrl = safeImageUrl(parceiro?.imagem)
+  const capaUrl = safeImageUrl(parceiro?.capa) || logoUrl
+
   const imagens = useMemo(() => {
-    const unica = parceiro?.imagem && String(parceiro.imagem).trim() ? [parceiro.imagem] : []
-    const galeria = Array.isArray(parceiro?.imagens) ? parceiro.imagens.filter(Boolean) : []
-    return Array.from(new Set([...unica, ...galeria]))
-  }, [parceiro])
+    const unica = logoUrl ? [logoUrl] : []
+    const capa = capaUrl && capaUrl !== logoUrl ? [capaUrl] : []
+    const galeria = Array.isArray(parceiro?.imagens)
+      ? parceiro.imagens.map(safeImageUrl).filter(Boolean)
+      : []
+    return Array.from(new Set([...capa, ...unica, ...galeria]))
+  }, [parceiro, logoUrl, capaUrl])
 
   const beneficios = Array.isArray(parceiro?.beneficios) ? parceiro.beneficios : []
   const contato = parceiro?.contatos || {}
@@ -140,10 +169,13 @@ export default function ParceiroDetalhe() {
 
   const headerMeta = useMemo(() => {
     const parts = []
-    if (cidadeUF) parts.push(cidadeUF)
-    if (parceiro?.categoria) parts.push(parceiro.categoria)
+    if (cidadeUF) parts.push(formatDisplayLabel(cidadeUF))
+    if (parceiro?.categoria) parts.push(formatDisplayLabel(parceiro.categoria))
     return parts.length ? parts.join(' · ') : null
   }, [cidadeUF, parceiro?.categoria])
+
+  const whatsappUrl = wppLink(contato.celular || contato.telefone)
+  const nomeExibicao = formatDisplayLabel(parceiro?.nome || '')
 
   async function handleShare() {
     const url = `${domainUrl()}${location.pathname}`
@@ -159,111 +191,86 @@ export default function ParceiroDetalhe() {
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto pb-2">
+    <div className="w-full max-w-6xl mx-auto pb-4">
       <MemberSubpageNav to="/area/beneficios" label="Parceiros" />
 
-      {loading ? (
-        <>
-          <Skeleton className="h-10 w-56 rounded-md mb-5" />
-          <Skeleton className="h-44 rounded-[10px] mb-5" />
-          <Skeleton className="h-[200px] rounded-[10px]" />
-        </>
-      ) : null}
+      {loading ? <DetailSkeleton /> : null}
 
       {!loading && error ? (
-        <>
-          <MemberSubpageHeader title="Parceiro" />
-          <MemberGroupedList>
-            <div className="px-4 py-8 text-center">
-              <p className="text-[15px] leading-snug" style={{ color: 'var(--danger, #dc2626)' }}>
-                {error}
-              </p>
-              <Link
-                to="/area/beneficios"
-                className="inline-flex mt-4 text-[15px] font-semibold min-h-[44px] items-center active:opacity-70"
-                style={{ color: 'var(--primary)' }}
-              >
-                Voltar para benefícios
-              </Link>
-            </div>
-          </MemberGroupedList>
-        </>
+        <MemberGroupedList>
+          <div className="px-4 py-10 text-center">
+            <p className="text-[15px] leading-snug" style={{ color: 'var(--danger, #dc2626)' }}>
+              {error}
+            </p>
+            <Link
+              to="/area/beneficios"
+              className="inline-flex mt-5 text-[15px] font-semibold min-h-[44px] items-center active:opacity-70"
+              style={{ color: 'var(--primary)' }}
+            >
+              Voltar para benefícios
+            </Link>
+          </div>
+        </MemberGroupedList>
       ) : null}
 
       {!loading && !error && parceiro ? (
         <>
-          <MemberSubpageHeader title={parceiro.nome} meta={headerMeta}>
-            <button
-              type="button"
-              onClick={handleShare}
-              className="mt-3 inline-flex items-center gap-2 min-h-[44px] px-1 text-[15px] font-medium active:opacity-70"
-              style={{ color: 'var(--primary)' }}
-            >
-              <Share2 size={17} />
-              Compartilhar
-            </button>
-          </MemberSubpageHeader>
+          <ParceiroDetailHero
+            nome={nomeExibicao}
+            meta={headerMeta}
+            logoUrl={logoUrl}
+            capaUrl={capaUrl}
+            onShare={handleShare}
+          />
 
           {parceiro.descricao ? (
-            <p className="px-1 mb-5 text-[15px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+            <p
+              className="px-1 mb-5 text-[15px] leading-relaxed"
+              style={{ color: 'var(--text-muted)' }}
+            >
               {parceiro.descricao}
             </p>
           ) : null}
 
-          {imagens.length > 0 ? (
-            <div
-              className="mb-5 rounded-[10px] overflow-hidden flex items-center justify-center min-h-[140px] max-h-[220px]"
-              style={{
-                background: 'var(--surface)',
-                border: '0.5px solid var(--separator, var(--c-border))',
-                backgroundImage: `url(${CLUB_PLACEHOLDER})`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'center',
-                backgroundSize: 'contain',
-              }}
-            >
-              <img
-                src={imagens[0]}
-                alt={parceiro.nome}
-                className="max-h-[200px] w-full object-contain p-4"
-                loading="lazy"
-              />
-            </div>
-          ) : null}
-
-          {beneficios.length > 0 ? (
-            <MemberSection title="Vantagens para associados">
-              <MemberGroupedList>
-                {beneficios.map((b, idx) => (
+          <MemberSection title="Vantagens para associados">
+            <MemberGroupedList>
+              {beneficios.length > 0 ? (
+                beneficios.map((b, idx) => (
                   <BeneficioRow key={b.id || `${b.descricao}-${idx}`} beneficio={b} />
-                ))}
-              </MemberGroupedList>
-            </MemberSection>
-          ) : (
-            <MemberSection title="Vantagens para associados">
-              <MemberGroupedList>
-                <div className="px-4 py-6 text-center text-[15px]" style={{ color: 'var(--text-muted)' }}>
+                ))
+              ) : (
+                <div className="px-4 py-7 text-center text-[15px]" style={{ color: 'var(--text-muted)' }}>
                   Este parceiro ainda não cadastrou benefícios detalhados.
                 </div>
-              </MemberGroupedList>
-            </MemberSection>
-          )}
+              )}
+            </MemberGroupedList>
+          </MemberSection>
 
-          {(contato.telefone || contato.celular || contato.email || wppLink(contato.celular || contato.telefone)) ? (
+          {contato.telefone || contato.celular || contato.email || whatsappUrl ? (
             <MemberSection title="Contato">
               <MemberGroupedList>
                 {contato.telefone ? (
-                  <MemberListRow icon={Phone} label="Telefone" detail={contato.telefone} external={`tel:${contato.telefone}`} />
-                ) : null}
-                {contato.celular ? (
-                  <MemberListRow icon={Phone} label="Celular" detail={contato.celular} external={`tel:${contato.celular}`} />
-                ) : null}
-                {wppLink(contato.celular || contato.telefone) ? (
                   <MemberListRow
                     icon={Phone}
+                    label="Telefone"
+                    detail={contato.telefone}
+                    external={`tel:${contato.telefone}`}
+                  />
+                ) : null}
+                {contato.celular ? (
+                  <MemberListRow
+                    icon={Phone}
+                    label="Celular"
+                    detail={contato.celular}
+                    external={`tel:${contato.celular}`}
+                  />
+                ) : null}
+                {whatsappUrl ? (
+                  <MemberListRow
+                    icon={MessageCircle}
                     label="WhatsApp"
                     detail="Enviar mensagem"
-                    external={wppLink(contato.celular || contato.telefone)}
+                    external={whatsappUrl}
                   />
                 ) : null}
                 {contato.email ? (
@@ -271,7 +278,9 @@ export default function ParceiroDetalhe() {
                     icon={Mail}
                     label="E-mail"
                     detail={contato.email}
-                    external={contato.email.startsWith('http') ? contato.email : `mailto:${contato.email}`}
+                    external={
+                      contato.email.startsWith('http') ? contato.email : `mailto:${contato.email}`
+                    }
                   />
                 ) : null}
               </MemberGroupedList>
@@ -284,32 +293,14 @@ export default function ParceiroDetalhe() {
                 <MemberListRow
                   icon={MapPin}
                   label="Abrir no mapa"
-                  detail={cidadeUF || 'Ver rota'}
+                  detail={cidadeUF ? formatDisplayLabel(cidadeUF) : 'Ver rota'}
                   external={mapsLink(endereco)}
                 />
               </MemberGroupedList>
             </MemberSection>
           ) : null}
 
-          {imagens.length > 1 ? (
-            <MemberSection title="Galeria">
-              <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 snap-x snap-mandatory">
-                {imagens.slice(1).map((src, i) => (
-                  <div
-                    key={i}
-                    className="shrink-0 w-28 h-24 rounded-[10px] overflow-hidden snap-start"
-                    style={{
-                      border: '0.5px solid var(--separator, var(--c-border))',
-                      background: 'var(--surface)',
-                    }}
-                  >
-                    <img src={src} alt={`Foto ${i + 2}`} className="w-full h-full object-cover" loading="lazy" />
-                  </div>
-                ))}
-              </div>
-            </MemberSection>
-          ) : null}
-
+          <GalleryStrip imagens={imagens} nome={nomeExibicao} />
         </>
       ) : null}
     </div>
