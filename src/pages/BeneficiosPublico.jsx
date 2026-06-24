@@ -79,7 +79,15 @@ export default function BeneficiosPublico() {
 
           {showPartnerContent ? (
             <div className="flex-1 flex flex-col rounded-[22px] border p-4 md:p-5" style={{ borderColor: 'var(--c-border)', background: 'linear-gradient(160deg, color-mix(in srgb, var(--primary) 4%, var(--surface)), var(--surface))' }}>
-              <BeneficiosPartnerLogoStrip partners={partners} loading={loading} />
+              <div>
+                <p
+                  className="px-1 mb-2 text-[11px] font-semibold uppercase tracking-[0.14em]"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Marcas
+                </p>
+                <BeneficiosPartnerLogoStrip partners={partners} loading={loading} />
+              </div>
 
               {!loading && hasPreview ? (
                 <p className="mt-4 text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
@@ -88,6 +96,14 @@ export default function BeneficiosPublico() {
               ) : null}
 
               <div className="flex-1 mt-2">
+                {(loading || hasOffers) ? (
+                  <p
+                    className="px-1 mb-2 text-[11px] font-semibold uppercase tracking-[0.14em]"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    Ofertas
+                  </p>
+                ) : null}
                 <BeneficiosPartnerOffersList offers={offers} loading={loading} isLogged={isLogged} />
               </div>
 

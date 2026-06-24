@@ -1,54 +1,48 @@
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import StoryRingLogo from '@/components/beneficios/StoryRingLogo'
-import { CLUB_PLACEHOLDER } from '@/components/beneficios/beneficiosUtils'
+import OfferMediaSurface from '@/components/beneficios/OfferMediaSurface'
 
 function OfferCard({ offer, detailBase }) {
-  const thumb = offer.capaUrl || offer.logoUrl
-
   return (
     <Link
       to={`${detailBase}/${offer.partnerId}`}
-      className="flex shrink-0 snap-start flex-col w-[min(200px,68vw)] overflow-hidden rounded-[16px] active:opacity-90 transition-opacity"
+      className="flex shrink-0 snap-start flex-col w-[min(200px,68vw)] overflow-hidden rounded-[16px] active:scale-[0.98] transition-transform duration-150"
       style={{
         border: '0.5px solid var(--separator, var(--c-border))',
         background: 'var(--surface)',
-        boxShadow: '0 1px 4px color-mix(in srgb, var(--text) 6%, transparent)',
+        boxShadow: '0 2px 10px color-mix(in srgb, var(--text) 7%, transparent)',
       }}
       aria-label={`${offer.partnerNome}: ${offer.headline}`}
     >
-      <div className="relative h-[88px] overflow-hidden">
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `url(${CLUB_PLACEHOLDER}) center/contain no-repeat, color-mix(in srgb, var(--primary) 6%, var(--surface))`,
-          }}
+      <div className="relative h-[92px]">
+        <OfferMediaSurface
+          capaUrl={offer.capaUrl}
+          logoUrl={offer.logoUrl}
+          nome={offer.partnerNome}
+          variant="hero"
+          className="h-full w-full"
         />
-        {thumb ? (
-          <img
-            src={thumb}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover"
-            loading="lazy"
-            decoding="async"
-            referrerPolicy="no-referrer"
+        <div className="absolute bottom-2.5 left-2.5 right-2.5 z-10 flex items-center gap-2">
+          <StoryRingLogo
+            logoUrl={offer.logoUrl}
+            nome={offer.partnerNome}
+            size="sm"
+            variant="chip"
           />
-        ) : null}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(180deg, transparent 20%, rgba(0,0,0,0.55) 100%)',
-          }}
-        />
-        <div className="absolute bottom-2 left-2 right-2 flex items-end gap-2">
-          <StoryRingLogo logoUrl={offer.logoUrl} nome={offer.partnerNome} size="sm" />
-          <span className="text-[11px] font-semibold text-white line-clamp-2 leading-snug flex-1">
+          <span
+            className="text-[11px] font-semibold text-white line-clamp-2 leading-snug flex-1 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]"
+          >
             {offer.partnerNome}
           </span>
         </div>
       </div>
-      <div className="px-3 py-2.5 flex items-center justify-between gap-2 min-h-[52px]">
+      <div
+        className="px-3 py-2.5 flex items-center justify-between gap-2 min-h-[52px]"
+        style={{
+          borderTop: '0.5px solid color-mix(in srgb, var(--text) 6%, transparent)',
+        }}
+      >
         <p className="text-[14px] font-bold leading-snug line-clamp-2 tracking-tight flex-1">
           {offer.headline}
         </p>
@@ -64,7 +58,7 @@ function FeedSkeleton() {
       {[1, 2, 3].map((i) => (
         <div
           key={i}
-          className="shrink-0 w-[min(200px,68vw)] h-[140px] rounded-[16px] animate-pulse"
+          className="shrink-0 w-[min(200px,68vw)] h-[144px] rounded-[16px] animate-pulse"
           style={{ background: 'color-mix(in srgb, var(--text) 7%, var(--surface))' }}
         />
       ))}

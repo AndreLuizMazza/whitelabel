@@ -251,3 +251,20 @@ export function partnerInitials(nome) {
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
 }
+
+/** Hash determinístico → paleta de fallback elegante por parceiro. */
+export function partnerAccentFromName(nome) {
+  const key = String(nome || '?').trim().toLowerCase()
+  let hash = 0
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0
+  }
+  const hue = hash % 360
+  const hue2 = (hue + 28 + (hash % 40)) % 360
+  return {
+    hue,
+    gradient: `linear-gradient(135deg, hsl(${hue} 62% 52%) 0%, hsl(${hue2} 58% 42%) 100%)`,
+    softBg: `linear-gradient(160deg, hsl(${hue} 45% 94%) 0%, hsl(${hue2} 40% 88%) 100%)`,
+    initialsColor: `hsl(${hue} 55% 32%)`,
+  }
+}
