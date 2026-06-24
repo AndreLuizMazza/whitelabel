@@ -1,39 +1,6 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, BadgePercent } from 'lucide-react'
-import { partnerInitials } from '@/components/beneficios/beneficiosUtils'
-
-function OfferThumb({ offer }) {
-  const [failed, setFailed] = useState(false)
-  const thumb = offer.capaUrl || offer.logoUrl
-  const initials = partnerInitials(offer.partnerNome)
-
-  if (thumb && !failed) {
-    return (
-      <img
-        src={thumb}
-        alt=""
-        className="h-full w-full object-cover"
-        loading="lazy"
-        decoding="async"
-        referrerPolicy="no-referrer"
-        onError={() => setFailed(true)}
-      />
-    )
-  }
-
-  return (
-    <span
-      className="flex h-full w-full items-center justify-center text-[11px] font-bold"
-      style={{
-        background: 'color-mix(in srgb, var(--primary) 12%, var(--surface))',
-        color: 'var(--primary)',
-      }}
-    >
-      {initials}
-    </span>
-  )
-}
+import OfferMediaSurface from '@/components/beneficios/OfferMediaSurface'
 
 function CompactOfferCard({ offer, ctaTo, ctaState }) {
   return (
@@ -42,15 +9,22 @@ function CompactOfferCard({ offer, ctaTo, ctaState }) {
       style={{
         border: '0.5px solid var(--separator, var(--c-border))',
         background: 'var(--surface)',
-        boxShadow: '0 1px 3px color-mix(in srgb, var(--text) 6%, transparent)',
+        boxShadow: '0 2px 8px color-mix(in srgb, var(--text) 6%, transparent)',
       }}
     >
       <div className="flex items-stretch min-h-[88px]">
         <div
-          className="w-[72px] shrink-0 overflow-hidden"
+          className="relative w-[72px] shrink-0 overflow-hidden self-stretch min-h-[88px]"
           style={{ borderRight: '0.5px solid var(--separator, var(--c-border))' }}
         >
-          <OfferThumb offer={offer} />
+          <OfferMediaSurface
+            capaUrl={offer.capaUrl}
+            logoUrl={offer.logoUrl}
+            nome={offer.partnerNome}
+            variant="thumb"
+            showHeroOverlay={false}
+            className="h-full w-full"
+          />
         </div>
         <div className="flex flex-1 flex-col justify-center px-3 py-2.5 min-w-0">
           <p

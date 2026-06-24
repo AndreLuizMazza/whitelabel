@@ -1,14 +1,18 @@
 import { Link } from 'react-router-dom'
-import StoryRingLogo from '@/components/beneficios/StoryRingLogo'
+import StoryRingLogo, { STORY_RING_OUTER } from '@/components/beneficios/StoryRingLogo'
 
 function StripSkeleton() {
   return (
     <div className="flex gap-3 overflow-hidden py-1" aria-hidden="true">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="flex shrink-0 flex-col items-center gap-2 w-[76px]">
+        <div key={i} className="flex shrink-0 flex-col items-center gap-1.5 w-[76px]">
           <div
-            className="h-[67px] w-[67px] rounded-full animate-pulse"
-            style={{ background: 'color-mix(in srgb, var(--text) 8%, var(--surface))' }}
+            className="rounded-full animate-pulse"
+            style={{
+              width: STORY_RING_OUTER.md,
+              height: STORY_RING_OUTER.md,
+              background: 'color-mix(in srgb, var(--text) 8%, var(--surface))',
+            }}
           />
           <div
             className="h-3 w-14 rounded animate-pulse"
@@ -39,12 +43,12 @@ export default function MemberParceirosStoryStrip({
           key={p.id}
           to={`${detailBase}/${p.id}`}
           role="listitem"
-          className="flex shrink-0 snap-start flex-col items-center gap-2 w-[76px] active:opacity-75 transition-opacity"
+          className="flex shrink-0 snap-start flex-col items-center gap-1.5 w-[76px] active:opacity-80 transition-opacity"
           aria-label={`Ver ${p.nome}`}
         >
-          <StoryRingLogo logoUrl={p.imagem} nome={p.nome} size="md" />
+          <StoryRingLogo logoUrl={p.imagem} nome={p.nome} size="md" variant="story" />
           <span
-            className="w-full text-center text-[10px] font-semibold leading-snug line-clamp-2"
+            className="w-full text-center text-[11px] font-medium leading-snug line-clamp-2 tracking-tight"
             style={{ color: 'var(--text)' }}
           >
             {p.nome}
