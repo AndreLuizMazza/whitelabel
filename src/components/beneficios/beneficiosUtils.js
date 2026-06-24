@@ -186,7 +186,7 @@ export function mergeMemberOffersFromParceiros(parceiros = []) {
   return merged
 }
 
-function safeImageUrl(url) {
+export function safeImageUrl(url) {
   const s = String(url || '').trim()
   return s || null
 }
