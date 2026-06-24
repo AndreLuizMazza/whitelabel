@@ -14,10 +14,7 @@ function initialsFromName(name) {
 
 export default function useUserAvatar() {
   const user = useAuth((s) => s.user)
-  const token = useAuth((s) => s.token)
-  const isAuthenticated = useAuth((s) => s.isAuthenticated)
-
-  const isLogged = isAuthenticated?.() || !!token || !!user
+  const isLogged = useAuth((s) => s.isLoggedIn())
 
   const [avatarBlobUrl, setAvatarBlobUrl] = useState(null)
   const [avatarErro, setAvatarErro] = useState(false)

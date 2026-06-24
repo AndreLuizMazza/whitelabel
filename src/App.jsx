@@ -6,6 +6,7 @@ import './styles/theme.css'
 import './styles/print.css'
 import ScrollToTop from '@/components/ScrollToTop'
 import TenantBootstrapper from '@/components/TenantBootstrapper'
+import AuthBootstrap from '@/components/AuthBootstrap'
 import NotificationsBootstrapper from '@/components/NotificationsBootstrapper.jsx'
 import ErrorBoundary from '@/components/ErrorBoundary.jsx'
 
@@ -95,6 +96,7 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <TenantBootstrapper />
+      <AuthBootstrap>
       <NotificationsBootstrapper />
 
       <ErrorBoundary>
@@ -231,6 +233,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ErrorBoundary>
+      </AuthBootstrap>
     </div>
   )
 }
