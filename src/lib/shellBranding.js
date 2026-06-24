@@ -101,10 +101,11 @@ export function resolvePageTitle(pathname = "/") {
   if (pathname.startsWith("/planos/")) return "Detalhes do plano";
   if (pathname === "/produtos") return "Produtos";
   if (pathname.startsWith("/produtos/")) return "Detalhe do produto";
-  if (pathname === "/beneficios") return "Benefícios";
-  if (pathname.startsWith("/beneficios/")) return "Benefício";
-  if (pathname === "/area/beneficios") return "Meus benefícios";
+  if (pathname === "/beneficios") return "Clube de parceiros";
+  if (pathname.startsWith("/beneficios/")) return "Parceiro";
+  if (pathname === "/area/beneficios") return "Clube de parceiros";
   if (pathname.startsWith("/area/beneficios/")) return "Parceiro";
+  if (pathname === "/area/servicos-digitais") return "Serviços digitais";
   if (pathname === "/contratos") return "Contratos";
   if (pathname.endsWith("/pagamentos")) return "Pagamentos do contrato";
   if (pathname === "/login") return "Entrar";

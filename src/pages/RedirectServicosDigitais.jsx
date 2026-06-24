@@ -1,11 +1,11 @@
 import { Navigate, useLocation } from 'react-router-dom'
 
-/** Retrocompat: /servicos-digitais → /area/beneficios (mesmo state/query). */
+/** Retrocompat (member zone): /servicos-digitais → /area/servicos-digitais */
 export default function RedirectServicosDigitais() {
   const location = useLocation()
   return (
     <Navigate
-      to={{ pathname: '/area/beneficios', search: location.search }}
+      to={{ pathname: '/area/servicos-digitais', search: location.search }}
       replace
       state={location.state}
     />

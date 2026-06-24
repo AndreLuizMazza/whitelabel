@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import StoryRingLogo from '@/components/beneficios/StoryRingLogo'
 
 function StripSkeleton() {
@@ -19,38 +20,36 @@ function StripSkeleton() {
   )
 }
 
-export default function BeneficiosPartnerLogoStrip({ partners = [], loading = false }) {
-  if (loading) {
-    return (
-      <div aria-label="Parceiros" aria-busy="true">
-        <StripSkeleton />
-      </div>
-    )
-  }
-
-  if (!partners.length) return null
+export default function MemberParceirosStoryStrip({
+  parceiros = [],
+  loading = false,
+  detailBase = '/area/beneficios',
+}) {
+  if (loading) return <StripSkeleton />
+  if (!parceiros.length) return null
 
   return (
     <div
       className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       role="list"
-      aria-label="Logos dos parceiros"
+      aria-label="Marcas parceiras"
     >
-      {partners.map((p) => (
-        <div
+      {parceiros.map((p) => (
+        <Link
           key={p.id}
+          to={`${detailBase}/${p.id}`}
           role="listitem"
-          className="flex shrink-0 snap-start flex-col items-center gap-2 w-[76px]"
-          aria-label={p.nome}
+          className="flex shrink-0 snap-start flex-col items-center gap-2 w-[76px] active:opacity-75 transition-opacity"
+          aria-label={`Ver ${p.nome}`}
         >
-          <StoryRingLogo logoUrl={p.logoUrl} nome={p.nome} size="md" />
+          <StoryRingLogo logoUrl={p.imagem} nome={p.nome} size="md" />
           <span
-            className="w-full text-center text-[10px] font-medium leading-snug line-clamp-2"
+            className="w-full text-center text-[10px] font-semibold leading-snug line-clamp-2"
             style={{ color: 'var(--text)' }}
           >
             {p.nome}
           </span>
-        </div>
+        </Link>
       ))}
     </div>
   )
