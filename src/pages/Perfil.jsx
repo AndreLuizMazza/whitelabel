@@ -16,9 +16,14 @@ import {
   deleteAvatar,
   getAvatarBlobUrl,
 } from "@/lib/profile";
-import { User2, IdCard, Mail, KeyRound, LogOut, Shield, FileText, Cookie } from "lucide-react";
+import { User2, IdCard, Mail, KeyRound, LogOut, Shield, FileText, Cookie, UserX } from "lucide-react";
 import AvatarUploader from "@/components/AvatarUploader";
 import MemberThemeSettings from "@/components/member/MemberThemeSettings";
+import AccountDeletionModal from "@/components/member/AccountDeletionModal";
+import {
+  openAccountDeletionRequest,
+  resolvePrivacyContactEmail,
+} from "@/lib/lgpdAccountDeletion";
 import { displayCPF } from "@/lib/cpf";
 import Skeleton from "@/components/ui/Skeleton.jsx";
 
@@ -76,6 +81,12 @@ export default function Perfil() {
   const [me, setMe] = useState({ nome: "", email: "", cpf: "" });
   const [avatarUrl, setAvatarUrl] = useState("");
   const [photoSaving, setPhotoSaving] = useState(false);
+  const [accountDeletionOpen, setAccountDeletionOpen] = useState(false);
+
+  const privacyContactEmail = useMemo(
+    () => resolvePrivacyContactEmail(empresa),
+    [empresa]
+  );
 
   const mountedRef = useRef(false);
   const lastObjectUrlRef = useRef("");
@@ -185,6 +196,42 @@ export default function Perfil() {
     }
   };
 
+  function handleAccountDeletionClick() {
+    if (!privacyContactEmail) {
+      showToast(
+        "Canal de e-mail do prestador não está disponível. Contate a unidade pelos canais oficiais."
+      );
+      return;
+    }
+    setAccountDeletionOpen(true);
+  }
+
+  function handleAccountDeletionConfirm() {
+    const result = openAccountDeletionRequest({
+      empresa,
+      user: {
+        nome: displayName,
+        email: derivedEmail,
+        cpf: me?.cpf || authUser?.cpf || "",
+      },
+    });
+
+    setAccountDeletionOpen(false);
+
+    if (!result.ok) {
+      if (result.reason === "no_email") {
+        showToast(
+          "Canal de e-mail do prestador não está disponível. Contate a unidade pelos canais oficiais."
+        );
+        return;
+      }
+      showToast("Não foi possível abrir o aplicativo de e-mail neste dispositivo.");
+      return;
+    }
+
+    showToast("Envie o e-mail pré-preenchido para concluir sua solicitação.");
+  }
+
   if (loading) {
     return (
       <div className="w-full max-w-6xl mx-auto space-y-5">
@@ -289,7 +336,18 @@ export default function Perfil() {
               }}
               showChevron={false}
             />
+            <MemberListRow
+              icon={UserX}
+              label="Encerrar conta"
+              detail="Direito do titular · art. 18 LGPD"
+              onClick={handleAccountDeletionClick}
+              destructive
+              showChevron={false}
+            />
           </MemberGroupedList>
+          <p className="px-1 mt-2 text-[13px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            A solicitação é formalizada por e-mail ao prestador. O processamento ocorre fora deste aplicativo.
+          </p>
         </section>
 
         <section aria-labelledby="sec-sessao" className="md:hidden">
@@ -306,6 +364,14 @@ export default function Perfil() {
           </MemberGroupedList>
         </section>
       </div>
+
+      <AccountDeletionModal
+        open={accountDeletionOpen}
+        onClose={() => setAccountDeletionOpen(false)}
+        onConfirm={handleAccountDeletionConfirm}
+        tenantLabel={unidadeLabel || "prestador de serviços"}
+        contactEmail={privacyContactEmail}
+      />
     </div>
   );
 }
