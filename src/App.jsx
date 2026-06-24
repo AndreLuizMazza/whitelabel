@@ -44,6 +44,11 @@ import CarteirinhaPrint from '@/pages/CarteirinhaPrint.jsx'
 import CarteirinhaPage from '@/pages/CarteirinhaPage.jsx'
 import Perfil from '@/pages/Perfil.jsx'
 import PerfilAlterarSenha from '@/pages/PerfilAlterarSenha.jsx'
+import {
+  LegalPrivacidadeMember,
+  LegalTermosMember,
+  LegalCookiesMember,
+} from '@/pages/legal/memberRoutes.jsx'
 import DependentesPage from '@/pages/DependentesPage.jsx'
 import HistoricoPagamentos from '@/pages/HistoricoPagamentos.jsx'
 import SobreNos from '@/pages/SobreNos.jsx'
@@ -120,6 +125,9 @@ export default function App() {
             <Route path="/area/pagamentos" element={<HistoricoPagamentos />} />
             <Route path="/perfil" element={<Perfil />} />
             <Route path="/perfil/senha" element={<PerfilAlterarSenha />} />
+            <Route path="/area/legal/privacidade" element={<LegalPrivacidadeMember />} />
+            <Route path="/area/legal/termos" element={<LegalTermosMember />} />
+            <Route path="/area/legal/cookies" element={<LegalCookiesMember />} />
             <Route path="/carteirinha" element={<CarteirinhaPage />} />
             <Route
               path="/area/beneficios"

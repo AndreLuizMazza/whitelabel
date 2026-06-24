@@ -8,6 +8,7 @@ Guia para agentes de IA no whitelabel PROGEM.
 |-----------|------|
 | Ecossistema | `../../awis admin/docs/ecossistema-awis-progem.md` |
 | Refresh token whitelabel | `../../awis admin/docs/TAMS-502-auth-refresh-whitelabel.md` |
+| Documentos legais / LGPD | `../../awis admin/docs/TAMS-502-legal-lgpd-whitelabel.md` |
 | TAMS-502 (member UX) | `../../awis admin/docs/TAMS-502-documentacao-implementacao.md` |
 | TAMS-187 (branding/S3) | `../../awis admin/docs/TAMS-187-whitelabel-assets.md` |
 

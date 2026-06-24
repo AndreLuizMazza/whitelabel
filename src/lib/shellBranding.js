@@ -116,6 +116,9 @@ export function resolvePageTitle(pathname = "/") {
   if (pathname === "/politica-cookies") return "Política de Cookies";
   if (pathname === "/politica-privacidade") return "Política de Privacidade";
   if (pathname === "/termos-uso") return "Termos de Uso";
+  if (pathname === "/area/legal/privacidade") return "Política de Privacidade";
+  if (pathname === "/area/legal/termos") return "Termos de Uso";
+  if (pathname === "/area/legal/cookies") return "Política de Cookies";
   if (pathname === "/filiais") return "Unidades";
   if (pathname.startsWith("/verificar/")) return "Verificar carteirinha";
   if (pathname === "/memorial") return "Memorial";

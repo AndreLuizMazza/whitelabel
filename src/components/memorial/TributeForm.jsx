@@ -375,8 +375,8 @@ export default function TributeForm({
   nomeFalecido,
   onSubmit,
   highContrast = false,
-  termosHref = "/termos-de-servico.html",
-  privacidadeHref = "/politica-de-privacidade.html",
+  termosHref = "/termos-uso",
+  privacidadeHref = "/politica-privacidade",
 }) {
   const [tipo, setTipo] = useState("MENSAGEM");
   const [nome, setNome] = useState("");

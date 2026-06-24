@@ -5,8 +5,8 @@ export default function ConfirmTermsModal({
   open,
   onClose,
   onConfirm,
-  termosHref = "/termos-de-servico.html",
-  privacidadeHref = "/politica-de-privacidade.html",
+  termosHref = "/termos-uso",
+  privacidadeHref = "/politica-privacidade",
   loading = false,
 }) {
   return (
