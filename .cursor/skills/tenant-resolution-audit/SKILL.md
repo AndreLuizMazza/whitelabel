@@ -101,7 +101,9 @@ No progem-api, `TenantBrandingService.resolvePublicBranding` resolve por:
 1. `empresaId` (header)
 2. `Host` / `X-Forwarded-Host` → `dominio` ou `dominioVercel`
 
-**Nota:** whitelabel atual **não consome** `GET /api/v1/public/branding` em runtime (sem `brandingSync.js`). Identidade visual vem do build JSON.
+**Runtime branding:** whitelabel consome `GET /api/v1/public/branding` via `src/boot/brandingSync.js` (poll 45s, `BRANDING_POLL_MS`). Iniciado em `TenantBootstrapper.jsx`. Logo hero member reage via `tenantLogoRuntime.js`.
+
+**Doc:** `awis admin/docs/ecossistema-awis-progem.md`
 
 ## Passo 5 — NaLápide (tenant separado)
 

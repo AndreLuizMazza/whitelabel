@@ -14,10 +14,10 @@ Valida coerência do contrato de branding entre JSON local, artefatos de build e
 | Contrato puro | `src/lib/branding/tenantContract.js` | Resolve URLs, ícones, SEO, manifest payload |
 | JSON tenant | `config/tenants/<slug>.json` | Input do build |
 | Build output | `public/theme-inline.js`, `public/manifest.webmanifest` | First paint + PWA |
-| Runtime apply | `src/lib/tenantBranding.js`, `TenantBootstrapper.jsx` | Favicon, logos CSS vars |
+| Runtime sync | `src/boot/brandingSync.js` → `TenantBootstrapper.jsx` | Poll 45s + visibility; `applyBrandingManifest` |
 | SEO runtime | `src/lib/seo.js`, `src/lib/shellBranding.js` | Meta tags pós-hydration |
 | API (admin) | progem-api `BrandingManifestDto`, `TenantBrandingService.BRANDING_SLOTS` | Manifest persistido + S3 |
-| API (público) | `GET /api/v1/public/branding` | Sync runtime (**não implementado** no whitelabel atual) |
+| API (público) | `GET /api/v1/public/branding` | Sync runtime com ETag/304 |
 
 ## Slots de ícone (devem bater frontend ↔ backend)
 
@@ -129,16 +129,15 @@ console.log(JSON.stringify({slug:j.slug,v:j.v,assetsBaseUrl:j.assetsBaseUrl,bran
 "
 ```
 
-**Gap arquitetural:** whitelabel não aplica manifest da API em runtime. Drift JSON ↔ API só afeta tenants onde:
-- Console fez upload pós-deploy **sem** rebuild do JSON local, ou
-- `seed-branding-manifest` / `branding/import` não foram executados
+**Gap possível:** drift JSON local ↔ API se upload no Console sem rebuild JSON. Runtime aplica manifest via `brandingSync.js` (poll 45s) — alterações S3 refletem sem hard refresh quando `assetsRevision` muda.
 
-**Ação se drift:** rebuild JSON from API import OU rodar parity e redeploy com JSON atualizado.
+**Doc:** `awis admin/docs/TAMS-187-whitelabel-assets.md`, `ecossistema-awis-progem.md`
 
 ## Passo 5 — Cache busting
 
 - Build: paths relativos resolvidos via `assetsBaseUrl` + query `?v=` quando `v`/`assetsRevision` presente (`src/lib/branding/urls.js`)
 - API: `assetsRevision` incrementa em upload S3 canônico (progem-api)
+- Runtime: `brandingSync.js` re-fetch quando ETag/`assetsRevision` muda
 - Vercel: confirmar headers de cache para `theme-inline.js` se configurados
 
 ## Saída esperada
