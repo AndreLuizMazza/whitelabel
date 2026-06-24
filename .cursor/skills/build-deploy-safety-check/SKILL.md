@@ -11,6 +11,7 @@ Auditoria obrigatória antes de deploy ou merge que afete build/deploy do `web-p
 
 - Projeto: `web-progem-white-label`
 - Dependências cruzadas: `awis-console` (`TenantTabEnv.tsx` gera `.env`) → Vercel → BFF (`server/index.js`)
+- **Doc ecossistema:** `awis admin/docs/ecossistema-awis-progem.md`
 
 ## Entradas necessárias
 

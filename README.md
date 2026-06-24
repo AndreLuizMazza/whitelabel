@@ -47,31 +47,58 @@ O BFF expõe **/api/v1/planos** e **/api/planos** (retrocompat). O frontend tent
 
 Suporte a build por tenant com `theme-inline.js` aplicado no `<head>`.
 
+**Documentação do ecossistema:** ver [`awis admin/docs/ecossistema-awis-progem.md`](../../awis%20admin/docs/ecossistema-awis-progem.md) (TAMS-502 UX + TAMS-187 branding/assets).
+
 ### Criando um tenant
-Crie `config/tenants/<slug>.json` (ex.: `patense.json`):
+
+Crie `config/tenants/<slug>.json` (ex.: `demo.json`). Estrutura mínima real (v7):
 
 ```json
 {
-  "slug": "patense",
-  "v": 1,
-  "vars": {
-    "--primary": "#1E40AF",
-    "--primary-dark": "#1E3A8A",
-    "--on-primary": "#ffffff",
-    "--surface": "#ffffff",
-    "--text": "#0b1220",
-    "--c-border": "rgba(0,0,0,0.08)"
+  "slug": "demo",
+  "v": 7,
+  "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/128/",
+  "brand": {
+    "name": "Nome Fantasia",
+    "logo": "logo.png",
+    "logoDark": "logo-dark.png",
+    "favicon": "icons/favicon.png",
+    "faviconSvg": "icons/favicon.svg",
+    "appleTouchIcon": "icons/apple-touch-icon.png",
+    "pwaIcon192": "icons/icon-192.png",
+    "pwaIcon512": "icons/icon-512.png"
   },
-  "logo": "https://cdn.exemplo.com/logo.png",
-  "domain": "cliente.com.br"
+  "shell": { "title": "...", "themeColor": "#0B82FF" },
+  "seo": { "metaTitle": "...", "metaDescription": "..." },
+  "pwa": { "name": "...", "shortName": "...", "display": "standalone" },
+  "vars": { "--primary": "#...", "--on-primary": "#fff" },
+  "varsDark": { "--primary": "#...", "--surface": "#..." }
 }
 ```
 
+**Alinhamento obrigatório:** `assetsBaseUrl` deve usar o `empresaId` do api-client (`PROGEM_TENANT_ID` no deploy). Slug JSON = `TENANT` build = OAuth `clientId`.
+
 ### Scripts
+
 ```bash
-npm run build:tenant -- --tenant=patense
+TENANT=demo node scripts/theme-build.mjs
+TENANT=demo npm run test:shell-branding
+TENANT=demo npm run test:seo-inline-parity
+npm run test:contract
+npm run build:tenant -- --tenant=demo
 npm run preview:static
 npm run dev:static
 ```
 
 - `preview:static` e `dev:static` usam `VITE_DISABLE_BOOTSTRAP=1` para não chamar o BFF.
+- **Runtime:** `brandingSync.js` poll `GET /api/v1/public/branding` a cada 45s (alterações no Console AWIS refletem sem hard refresh).
+
+### Skills Cursor (agentes IA)
+
+| Skill | Quando usar |
+|-------|-------------|
+| `.cursor/skills/whitelabel-progem` | Visão geral tenant/branding |
+| `.cursor/skills/branding-config-audit` | Mudança em JSON ou assets |
+| `.cursor/skills/tenant-resolution-audit` | Domínio, PROGEM_TENANT_ID, slug |
+| `.cursor/skills/build-deploy-safety-check` | Deploy Vercel |
+| `.cursor/skills/tams-502-member-zone` | Área do associado `/area` |
