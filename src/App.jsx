@@ -7,6 +7,7 @@ import './styles/print.css'
 import ScrollToTop from '@/components/ScrollToTop'
 import TenantBootstrapper from '@/components/TenantBootstrapper'
 import AuthBootstrap from '@/components/AuthBootstrap'
+import AuthenticatedEntryRedirect from '@/components/AuthenticatedEntryRedirect'
 import NotificationsBootstrapper from '@/components/NotificationsBootstrapper.jsx'
 import ErrorBoundary from '@/components/ErrorBoundary.jsx'
 
@@ -97,6 +98,7 @@ export default function App() {
     <div className="min-h-screen flex flex-col">
       <TenantBootstrapper />
       <AuthBootstrap>
+      <AuthenticatedEntryRedirect>
       <NotificationsBootstrapper />
 
       <ErrorBoundary>
@@ -233,6 +235,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ErrorBoundary>
+      </AuthenticatedEntryRedirect>
       </AuthBootstrap>
     </div>
   )
