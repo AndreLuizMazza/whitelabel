@@ -1,5 +1,5 @@
 // src/layouts/AppShell.jsx
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   House,
   UsersRound,
@@ -100,6 +100,7 @@ function NavItem({ item, compact = false }) {
 }
 
 export default function AppShell({ children }) {
+  const navigate = useNavigate()
   const logout = useAuth((s) => s.logout)
   const tenant = useTenant((s) => s.empresa)
   const logoUrl = useTenantLogoUrl()
@@ -148,7 +149,12 @@ export default function AppShell({ children }) {
           </div>
           <button
             type="button"
-            onClick={logout}
+            onClick={() => {
+              void (async () => {
+                await logout()
+                navigate('/login', { replace: true })
+              })()
+            }}
             className="flex items-center gap-3 px-4 py-2 w-full text-[15px] rounded-[10px] hover:bg-[var(--nav-hover-bg)] min-h-[44px]"
             style={{ color: "var(--danger, #dc2626)" }}
           >

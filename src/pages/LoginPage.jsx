@@ -1,6 +1,6 @@
 // src/pages/LoginPage.jsx
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import useAuth from '@/store/auth'
 import { registrarDispositivoFcmWeb } from '@/lib/fcm'
 import { resolvePostAuthDestination } from '@/lib/postAuthNavigation'
@@ -10,6 +10,7 @@ import Button from '@/components/ui/Button.jsx'
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const login = useAuth((s) => s.login)
 
   const [identificador, setIdent] = useState('')
@@ -111,6 +112,7 @@ export default function LoginPage() {
   }
 
   const veioDoCadastro = Boolean(location.state?.postRegister)
+  const sessaoExpirada = searchParams.get('session_expired') === '1'
 
   return (
     <div className="w-full">
@@ -122,6 +124,20 @@ export default function LoginPage() {
           Acesse planos, dependentes e pagamentos.
         </p>
       </header>
+
+      {sessaoExpirada && (
+        <div
+          className="mb-4 rounded-xl px-4 py-3 text-sm border"
+          style={{
+            borderColor: 'color-mix(in srgb, var(--danger, #b91c1c) 25%, transparent)',
+            background: 'color-mix(in srgb, var(--danger, #b91c1c) 8%, transparent)',
+            color: 'var(--text)',
+          }}
+          role="alert"
+        >
+          Sua sessão expirou. Faça login novamente para continuar.
+        </div>
+      )}
 
       {veioDoCadastro && (
         <div

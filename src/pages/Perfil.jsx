@@ -1,5 +1,6 @@
 // src/pages/Perfil.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { setPageSEO } from "@/lib/seo";
 import useTenant from "@/store/tenant";
 import useAuth from "@/store/auth";
@@ -61,9 +62,15 @@ function ReadOnlyField({ icon: Icon, label, value }) {
 }
 
 export default function Perfil() {
+  const navigate = useNavigate();
   const empresa = useTenant((s) => s.empresa);
   const authUser = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
+
+  async function handleLogout() {
+    await logout();
+    navigate("/login", { replace: true });
+  }
 
   const [loading, setLoading] = useState(true);
   const [me, setMe] = useState({ nome: "", email: "", cpf: "" });
@@ -256,7 +263,7 @@ export default function Perfil() {
               icon={LogOut}
               label="Sair do app"
               detail="Encerrar sessão neste dispositivo"
-              onClick={logout}
+              onClick={handleLogout}
               destructive
               showChevron={false}
             />

@@ -1,5 +1,5 @@
 // src/components/Navbar.jsx
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { Menu, X, UserSquare2, User, LogOut } from 'lucide-react'
 
@@ -26,17 +26,22 @@ function isCapacitorRuntime() {
 }
 
 export default function Navbar() {
-  const { isAuthenticated, token, user, logout } = useAuth((s) => ({
-    isAuthenticated: s.isAuthenticated,
-    token: s.token,
+  const navigate = useNavigate()
+  const { isLoggedIn, user, logout } = useAuth((s) => ({
+    isLoggedIn: s.isLoggedIn,
     user: s.user,
     logout: s.logout,
   }))
+  const isLogged = isLoggedIn()
   const empresa = useTenant((s) => s.empresa)
 
   const nomeEmpresa = empresa?.nomeFantasia || empresa?.nome || 'Logo'
   const logoUrl = useTenantLogoUrl()
-  const isLogged = isAuthenticated() || !!token || !!user
+
+  async function handleLogout() {
+    await logout()
+    navigate('/login', { replace: true })
+  }
 
   const [mobileOpen, setMobileOpen] = useState(false)
   const [elderMode, setElderMode] = useState(() => {
@@ -445,7 +450,7 @@ export default function Navbar() {
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5 text-[var(--danger, #b91c1c)]"
                     onClick={() => {
                       setShowProfileMenu(false)
-                      logout()
+                      void handleLogout()
                     }}
                     role="menuitem"
                   >
@@ -676,7 +681,7 @@ export default function Navbar() {
                   className="w-full flex items-center gap-3 px-4 py-3 text-sm rounded-lg font-medium hover:bg-black/5 dark:hover:bg-white/5 text-[var(--danger, #b91c1c)]"
                   onClick={() => {
                     setMobileOpen(false)
-                    logout()
+                    void handleLogout()
                   }}
                 >
                   <LogOut className="h-5 w-5" />

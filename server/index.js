@@ -447,6 +447,45 @@ app.post('/api/v1/app/auth/login', async (req, res) => {
   }
 });
 
+/* ===== Refresh de sessão app ===== */
+app.post('/api/v1/app/auth/refresh', async (req, res) => {
+  try {
+    const r = await fetch(`${BASE}/api/v1/app/auth/refresh`, {
+      method: 'POST',
+      headers: injectHeadersFromReq(req, {
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify(req.body || {}),
+    });
+    const data = await readAsJsonOrText(r);
+    if (!r.ok) return res.status(r.status).json(data);
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: 'Falha no refresh', message: String(e) });
+  }
+});
+
+/* ===== Logout de usuário app ===== */
+app.post('/api/v1/app/auth/logout', async (req, res) => {
+  try {
+    const incomingAuth = req.headers.authorization || '';
+    const r = await fetch(`${BASE}/api/v1/app/auth/logout`, {
+      method: 'POST',
+      headers: injectHeadersFromReq(req, {
+        Authorization: incomingAuth,
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify(req.body || {}),
+    });
+    if (r.status === 204) return res.status(204).end();
+    const data = await readAsJsonOrText(r);
+    if (!r.ok) return res.status(r.status).json(data);
+    res.status(r.status).json(data);
+  } catch (e) {
+    res.status(500).json({ error: 'Falha no logout', message: String(e) });
+  }
+});
+
 /* ===== Meu perfil (restrito) ===== */
 app.get('/api/v1/app/me', async (req, res) => {
   try {

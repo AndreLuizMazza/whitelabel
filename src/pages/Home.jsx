@@ -846,12 +846,7 @@ export default function Home() {
     () => 0
   )
   const tenantContract = getTenantContract()
-  const { isAuthenticated, token, user } = useAuth((s) => ({
-    isAuthenticated: s.isAuthenticated,
-    token: s.token,
-    user: s.user,
-  }))
-  const isLogged = isAuthenticated() || !!token || !!user
+  const isLogged = useAuth((s) => s.isLoggedIn())
   const location = useLocation()
 
   const ANDROID_URL = import.meta.env.VITE_ANDROID_URL || '#'
