@@ -1,11 +1,10 @@
 // src/pages/AreaUsuario.jsx
 import { useMemo, useEffect, useState } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import api from '@/lib/api.js'
 import useAuth from '@/store/auth'
 import { fetchAuthenticatedCpf } from '@/lib/postAuthNavigation'
 import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
-import PagamentoFacil from '@/components/PagamentoFacil'
 import NotificationsCenter from '@/components/NotificationsCenter'
 import useNotificationsStore from '@/store/notifications'
 import { showToast } from '@/lib/toast'
@@ -151,6 +150,7 @@ function isSameDay(a, b) {
 export default function AreaUsuario() {
   const user = useAuth((s) => s.user)
   const location = useLocation()
+  const navigate = useNavigate()
   const [mostrarValores, setMostrarValores] = useState(true)
   const [cpfLookup, setCpfLookup] = useState('')
   const [cpfLoading, setCpfLoading] = useState(true)
@@ -390,10 +390,11 @@ export default function AreaUsuario() {
       !isParcelaEmAtraso(proximaParcela)
   )
 
-  /* ===== âncoras ===== */
-  function scrollToPagamento() {
-    const el = document.getElementById('pagamento')
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  /* ===== atalho pagamentos ===== */
+  const handleAtalhoPagamento = () => {
+    navigate('/area/pagamentos', {
+      state: { historico, numeroContrato, nomePlano, unidadeNome },
+    })
   }
 
   function abrirAtendimento() {
@@ -408,10 +409,6 @@ export default function AreaUsuario() {
     } else {
       showToast('Canal de atendimento indisponível no momento.')
     }
-  }
-
-  const handleAtalhoPagamento = () => {
-    scrollToPagamento()
   }
 
   const valorProx = proximaParcela?.valorParcela ?? null
@@ -541,7 +538,7 @@ export default function AreaUsuario() {
                     dataLabel={paymentDataLabel}
                     statusLabel={paymentStatusLabel}
                     statusTone={paymentStatusTone}
-                    onClick={hasPaymentAmount ? handleAtalhoPagamento : undefined}
+                    onClick={handleAtalhoPagamento}
                     onToggleValues={
                       hasPaymentAmount
                         ? () => setMostrarValores((v) => !v)
@@ -584,7 +581,7 @@ export default function AreaUsuario() {
                       <MemberQuickGridTile
                         icon={Clock3}
                         label="Pagamentos"
-                        detail="Boletos e histórico"
+                        detail="PIX, boletos e histórico"
                         to="/area/pagamentos"
                         state={{ historico, numeroContrato, nomePlano, unidadeNome }}
                       />
@@ -616,17 +613,6 @@ export default function AreaUsuario() {
                       }}
                     />
                   ) : null}
-
-                  <div id="pagamento">
-                    <PagamentoFacil
-                      variant="home"
-                      contrato={contrato}
-                      parcelaFoco={proximaParcela}
-                      proximas={proximas}
-                      historico={historico}
-                      isAtraso={isParcelaEmAtraso}
-                    />
-                  </div>
 
                   {(loadingNotifications || (notifications && notifications.length > 0)) ? (
                     <div>

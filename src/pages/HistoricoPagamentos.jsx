@@ -1,25 +1,18 @@
-// src/pages/HistoricoPagamentos.jsx
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-
 import useAuth from '@/store/auth'
 import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
 import { showToast } from '@/lib/toast'
-
+import { fmtBRL, isAtrasoPorData } from '@/lib/paymentUtils'
 import {
   MemberSubpageNav,
-  MemberSubpageHeader,
   formatDisplayLabel,
 } from '@/components/member/MemberDashboardUI'
-import { MemberGroupedList } from '@/components/member/MemberGroupedList'
+import { MemberSection, MemberGroupedList } from '@/components/member/MemberGroupedList'
+import MemberPaymentHero from '@/components/member/MemberPaymentHero'
+import MemberPaymentsHub from '@/components/member/MemberPaymentsHub'
 import Skeleton from '@/components/ui/Skeleton.jsx'
-import { Receipt } from 'lucide-react'
-
-const fmtBRL = (v) =>
-  new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(Number(v || 0))
+import { Eye, EyeOff, Receipt } from 'lucide-react'
 
 const fmtDate = (s) => {
   if (!s) return '—'
@@ -76,7 +69,10 @@ function PagamentoHistoricoRow({ parcela }) {
 
       <span className="flex-1 min-w-0">
         <span className="flex items-baseline justify-between gap-3">
-          <span className="text-[17px] font-semibold tabular-nums leading-snug" style={{ color: 'var(--text)' }}>
+          <span
+            className="text-[17px] font-semibold tabular-nums leading-snug"
+            style={{ color: 'var(--text)' }}
+          >
             {valor}
           </span>
           <span
@@ -102,17 +98,12 @@ function PagamentoHistoricoRow({ parcela }) {
   )
 }
 
-export default function HistoricoPagamentos() {
+export default function AreaPagamentos() {
   const location = useLocation()
   const state = location.state || {}
-
-  const stateHistorico = state.historico || null
-  const stateNumeroContrato = state.numeroContrato || null
-  const stateNomePlano = state.nomePlano || null
-  const stateUnidadeNome = state.unidadeNome || null
+  const [mostrarValores, setMostrarValores] = useState(true)
 
   const user = useAuth((s) => s.user)
-
   const cpf =
     user?.cpf ||
     user?.documento ||
@@ -126,29 +117,29 @@ export default function HistoricoPagamentos() {
     ''
 
   const {
+    contratos,
     contrato,
+    selectedId,
+    chooseContrato,
+    proximaParcela,
+    proximas,
     historico: hookHistorico,
+    isAtraso,
     loading,
     erro,
   } = useContratoDoUsuario({ cpf })
 
   useEffect(() => {
     if (erro) {
-      showToast(
-        'Não foi possível carregar o histórico de pagamentos. Tente novamente em instantes.'
-      )
+      showToast('Não foi possível carregar os pagamentos. Tente novamente em instantes.')
     }
   }, [erro])
 
   const historico = useMemo(() => {
-    if (Array.isArray(stateHistorico) && stateHistorico.length > 0) {
-      return stateHistorico
-    }
-    if (Array.isArray(hookHistorico)) {
-      return hookHistorico
-    }
+    if (Array.isArray(state.historico) && state.historico.length > 0) return state.historico
+    if (Array.isArray(hookHistorico)) return hookHistorico
     return []
-  }, [stateHistorico, hookHistorico])
+  }, [state.historico, hookHistorico])
 
   const currentYear = new Date().getFullYear()
 
@@ -184,98 +175,176 @@ export default function HistoricoPagamentos() {
     [pagosAno]
   )
 
+  const totalEmAtraso = useMemo(() => {
+    const all = [proximaParcela, ...(proximas || [])].filter(Boolean).filter((p) => {
+      const status = String(p.status || '').toUpperCase()
+      return status !== 'PAGA' && isAtraso?.(p) && isAtrasoPorData(p)
+    })
+    return all.reduce((sum, it) => sum + Number(it?.valorParcela || 0), 0)
+  }, [proximaParcela, proximas, isAtraso])
+
   const numeroContrato =
-    stateNumeroContrato ||
-    contrato?.numeroContrato ||
-    contrato?.id ||
-    null
-
-  const nomePlano =
-    stateNomePlano ||
-    contrato?.nomePlano ||
-    contrato?.plano?.nome ||
-    null
-
+    state.numeroContrato || contrato?.numeroContrato || contrato?.id || null
+  const nomePlano = state.nomePlano || contrato?.nomePlano || contrato?.plano?.nome || null
   const unidadeNome =
-    stateUnidadeNome ||
+    state.unidadeNome ||
     contrato?.unidade?.nomeFantasia ||
     contrato?.empresa?.razaoSocial ||
     null
 
   const meta = buildMeta({ nomePlano, numeroContrato, unidadeNome })
-  const isLoading = loading && historico.length === 0
+  const contratoAtivo =
+    contrato?.contratoAtivo === true || String(contrato?.status || '').toUpperCase() === 'ATIVO'
+  const isLoading = loading && !contrato && historico.length === 0
+
+  const getId = (c) => c?.id ?? c?.contratoId ?? c?.numeroContrato
 
   return (
-    <div className="w-full max-w-6xl mx-auto">
+    <div className="w-full max-w-6xl mx-auto pb-4">
       <MemberSubpageNav to="/area" label="Início" />
 
-      <MemberSubpageHeader
-        title="Histórico"
-        meta={meta || `Pagamentos confirmados em ${currentYear}`}
-      />
+      <div className="flex items-center justify-end gap-2 mb-2 -mt-1">
+        <button
+          type="button"
+          onClick={() => setMostrarValores((v) => !v)}
+          className="inline-flex items-center gap-1.5 min-h-[40px] px-2 text-[13px] font-semibold active:opacity-70"
+          style={{ color: 'var(--primary)' }}
+        >
+          {mostrarValores ? <EyeOff size={15} /> : <Eye size={15} />}
+          {mostrarValores ? 'Ocultar valores' : 'Mostrar valores'}
+        </button>
+      </div>
 
       {isLoading ? (
-        <div className="space-y-3">
-          <Skeleton className="h-16 rounded-[10px]" />
-          <MemberGroupedList>
-            <div className="px-4 py-4 space-y-3">
-              <Skeleton className="h-[76px] rounded-lg" />
-              <Skeleton className="h-[76px] rounded-lg" />
-              <Skeleton className="h-[76px] rounded-lg" />
-            </div>
-          </MemberGroupedList>
+        <div className="space-y-4">
+          <Skeleton className="h-[180px] rounded-[22px]" />
+          <Skeleton className="h-[220px] rounded-[20px]" />
+          <Skeleton className="h-[160px] rounded-[20px]" />
         </div>
       ) : null}
 
-      {!isLoading && pagosAno.length === 0 ? (
+      {!isLoading && contrato ? (
+        <>
+          {Array.isArray(contratos) && contratos.length > 1 ? (
+            <MemberSection title="Contrato" className="mb-4">
+              <MemberGroupedList>
+                <div className="px-4 py-2">
+                  <label htmlFor="pagamentos-contrato-select" className="sr-only">
+                    Selecione o contrato
+                  </label>
+                  <select
+                    id="pagamentos-contrato-select"
+                    className="w-full border-0 bg-transparent text-[17px] py-2 outline-none"
+                    style={{ color: 'var(--text)' }}
+                    value={selectedId ?? ''}
+                    onChange={(e) => chooseContrato(e.target.value)}
+                  >
+                    {contratos.map((c) => {
+                      const id = getId(c)
+                      const labelPlano = c?.nomePlano ?? c?.plano?.nome ?? 'Plano'
+                      const ativoTag =
+                        c?.contratoAtivo || String(c?.status || '').toUpperCase() === 'ATIVO'
+                          ? ' · Ativo'
+                          : ''
+                      return (
+                        <option key={String(id)} value={String(id)}>
+                          #{c?.numeroContrato ?? id} — {labelPlano}
+                          {ativoTag}
+                        </option>
+                      )
+                    })}
+                  </select>
+                </div>
+              </MemberGroupedList>
+            </MemberSection>
+          ) : null}
+
+          <MemberPaymentHero
+            parcela={proximaParcela}
+            isAtraso={isAtraso}
+            contratoAtivo={contratoAtivo}
+            totalEmAtraso={totalEmAtraso}
+            mostrarValores={mostrarValores}
+            numeroContrato={numeroContrato}
+          />
+
+          {meta ? (
+            <p className="px-1 -mt-3 mb-4 text-[13px] leading-snug" style={{ color: 'var(--text-muted)' }}>
+              {meta}
+            </p>
+          ) : null}
+
+          <MemberPaymentsHub
+            contrato={contrato}
+            parcelaFoco={proximaParcela}
+            proximas={proximas}
+            isAtraso={isAtraso}
+            mostrarValores={mostrarValores}
+          />
+
+          <MemberSection title={`Histórico · ${currentYear}`} className="mt-6">
+            {pagosAno.length === 0 ? (
+              <MemberGroupedList>
+                <div className="px-4 py-8 text-center">
+                  <p className="text-[17px] font-medium leading-snug">
+                    Nenhum pagamento confirmado em {currentYear}
+                  </p>
+                  <p
+                    className="text-[14px] mt-2 leading-relaxed max-w-sm mx-auto"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    Assim que uma parcela for confirmada, ela aparecerá nesta lista.
+                  </p>
+                </div>
+              </MemberGroupedList>
+            ) : (
+              <>
+                <div
+                  className="rounded-[16px] px-4 py-3.5 mb-3 flex items-center justify-between gap-3"
+                  style={{
+                    background: 'var(--surface)',
+                    border: '0.5px solid var(--separator, var(--c-border))',
+                  }}
+                >
+                  <span className="text-[13px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                    Total pago em {currentYear}
+                  </span>
+                  <span
+                    className="text-[20px] font-bold tabular-nums tracking-tight"
+                    style={{ color: 'var(--text)' }}
+                  >
+                    {mostrarValores ? fmtBRL(totalAno) : '••••••'}
+                  </span>
+                </div>
+
+                <MemberGroupedList>
+                  {pagosAno.map((p, i) => {
+                    const key = p?.id || p?.numeroDuplicata || p?.numero || `hist-${i}`
+                    return <PagamentoHistoricoRow key={key} parcela={p} />
+                  })}
+                </MemberGroupedList>
+
+                <p
+                  className="px-1 mt-2 text-[12px] leading-relaxed"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Exibindo parcelas com pagamento confirmado em {currentYear}.
+                </p>
+              </>
+            )}
+          </MemberSection>
+        </>
+      ) : null}
+
+      {!isLoading && !contrato && !erro ? (
         <MemberGroupedList>
-          <div className="px-4 py-8 text-center">
-            <p className="text-[17px] font-medium leading-snug">Nenhum pagamento em {currentYear}</p>
-            <p
-              className="text-[15px] mt-2 leading-relaxed max-w-sm mx-auto"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              Assim que uma parcela for confirmada, ela aparecerá nesta lista.
+          <div className="px-4 py-10 text-center">
+            <p className="text-[17px] font-medium">Nenhum contrato encontrado</p>
+            <p className="text-[14px] mt-2" style={{ color: 'var(--text-muted)' }}>
+              Seus pagamentos aparecerão aqui quando o contrato estiver disponível.
             </p>
           </div>
         </MemberGroupedList>
-      ) : null}
-
-      {!isLoading && pagosAno.length > 0 ? (
-        <section aria-label={`Pagamentos de ${currentYear}`}>
-          <div
-            className="rounded-[10px] px-4 py-3.5 mb-3 flex items-center justify-between gap-3"
-            style={{
-              background: 'var(--surface)',
-              border: '0.5px solid var(--separator, var(--c-border))',
-            }}
-          >
-            <span className="text-[13px] font-medium" style={{ color: 'var(--text-muted)' }}>
-              Total pago em {currentYear}
-            </span>
-            <span className="text-[20px] font-bold tabular-nums tracking-tight" style={{ color: 'var(--text)' }}>
-              {fmtBRL(totalAno)}
-            </span>
-          </div>
-
-          <p
-            className="px-1 mb-2 text-[13px] font-normal uppercase tracking-[0.02em]"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            {pagosAno.length} pagamento{pagosAno.length === 1 ? '' : 's'}
-          </p>
-
-          <MemberGroupedList>
-            {pagosAno.map((p, i) => {
-              const key = p?.id || p?.numeroDuplicata || p?.numero || `hist-${i}`
-              return <PagamentoHistoricoRow key={key} parcela={p} />
-            })}
-          </MemberGroupedList>
-
-          <p className="px-1 mt-2 text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-            Exibindo apenas parcelas com pagamento confirmado em {currentYear}.
-          </p>
-        </section>
       ) : null}
     </div>
   )
