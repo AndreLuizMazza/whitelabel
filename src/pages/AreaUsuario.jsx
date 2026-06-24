@@ -3,6 +3,7 @@ import { useMemo, useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import api from '@/lib/api.js'
 import useAuth from '@/store/auth'
+import useTenant from '@/store/tenant'
 import { fetchAuthenticatedCpf } from '@/lib/postAuthNavigation'
 import useContratoDoUsuario from '@/hooks/useContratoDoUsuario'
 import NotificationsCenter from '@/components/NotificationsCenter'
@@ -30,6 +31,11 @@ import {
   User,
   ClipboardList,
 } from 'lucide-react'
+import {
+  buildWaHref,
+  openWhatsAppUrl,
+  resolveSupportWhatsApp,
+} from '@/lib/whats'
 
 /* ===== analytics opcional (no-op) ===== */
 const track = (..._args) => {}
@@ -94,11 +100,6 @@ function extractDiaFromDateString(s) {
   return null
 }
 
-function buildWhats(number, msg) {
-  const digits = String(number || '').replace(/\D+/g, '')
-  return digits ? `https://wa.me/${digits}?text=${encodeURIComponent(msg)}` : null
-}
-
 /**
  * ✅ Parse local robusto
  * IMPORTANTE: nunca usar new Date("YYYY-MM-DD") (vira UTC e pode “voltar um dia” no Brasil).
@@ -149,6 +150,7 @@ function isSameDay(a, b) {
 
 export default function AreaUsuario() {
   const user = useAuth((s) => s.user)
+  const empresa = useTenant((s) => s.empresa)
   const location = useLocation()
   const navigate = useNavigate()
   const [mostrarValores, setMostrarValores] = useState(true)
@@ -240,12 +242,14 @@ export default function AreaUsuario() {
     c?.contratoAtivo === true ||
     String(c?.status || '').toUpperCase() === 'ATIVO'
 
-  /* ===== unidade / contatos ===== */
+  /* ===== unidade / atendimento ===== */
   const unidade = contrato?.unidade || contrato?.empresa || {}
-  const contatos = contrato?.contatos || {}
   const unidadeNome =
     unidade?.nomeFantasia || unidade?.razaoSocial || null
-  const whatsappAtendimento = unidade.whatsapp || contatos.celular || null
+  const whatsappAtendimento = useMemo(
+    () => resolveSupportWhatsApp({ unidade, empresa }),
+    [unidade, empresa]
+  )
 
   /* ===== PLANO do contrato (para links digitais) ===== */
   const [plano, setPlano] = useState(null)
@@ -398,14 +402,14 @@ export default function AreaUsuario() {
   }
 
   function abrirAtendimento() {
-    const href = buildWhats(
-      whatsappAtendimento,
-      `Olá! Preciso de ajuda com meu contrato #${
+    const href = buildWaHref({
+      number: whatsappAtendimento,
+      message: `Olá! Preciso de ajuda com meu contrato #${
         contrato?.numeroContrato || contrato?.id || ''
-      }.`
-    )
+      }.`,
+    })
     if (href) {
-      window.open(href, '_blank', 'noopener,noreferrer')
+      openWhatsAppUrl(href)
     } else {
       showToast('Canal de atendimento indisponível no momento.')
     }
