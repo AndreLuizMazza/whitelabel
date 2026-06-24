@@ -15,7 +15,7 @@ import {
   deleteAvatar,
   getAvatarBlobUrl,
 } from "@/lib/profile";
-import { User2, IdCard, Mail, KeyRound } from "lucide-react";
+import { User2, IdCard, Mail, KeyRound, LogOut } from "lucide-react";
 import AvatarUploader from "@/components/AvatarUploader";
 import MemberThemeSettings from "@/components/member/MemberThemeSettings";
 import { displayCPF } from "@/lib/cpf";
@@ -63,6 +63,7 @@ function ReadOnlyField({ icon: Icon, label, value }) {
 export default function Perfil() {
   const empresa = useTenant((s) => s.empresa);
   const authUser = useAuth((s) => s.user);
+  const logout = useAuth((s) => s.logout);
 
   const [loading, setLoading] = useState(true);
   const [me, setMe] = useState({ nome: "", email: "", cpf: "" });
@@ -244,6 +245,20 @@ export default function Perfil() {
               label="Alterar senha"
               detail="Segurança da sua conta"
               to="/perfil/senha"
+            />
+          </MemberGroupedList>
+        </section>
+
+        <section aria-labelledby="sec-sessao" className="md:hidden">
+          <GroupLabel id="sec-sessao">Sessão</GroupLabel>
+          <MemberGroupedList>
+            <MemberListRow
+              icon={LogOut}
+              label="Sair do app"
+              detail="Encerrar sessão neste dispositivo"
+              onClick={logout}
+              destructive
+              showChevron={false}
             />
           </MemberGroupedList>
         </section>
