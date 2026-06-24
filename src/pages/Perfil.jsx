@@ -16,7 +16,7 @@ import {
   deleteAvatar,
   getAvatarBlobUrl,
 } from "@/lib/profile";
-import { User2, IdCard, Mail, KeyRound, LogOut } from "lucide-react";
+import { User2, IdCard, Mail, KeyRound, LogOut, Shield, FileText, Cookie } from "lucide-react";
 import AvatarUploader from "@/components/AvatarUploader";
 import MemberThemeSettings from "@/components/member/MemberThemeSettings";
 import { displayCPF } from "@/lib/cpf";
@@ -252,6 +252,42 @@ export default function Perfil() {
               label="Alterar senha"
               detail="Segurança da sua conta"
               to="/perfil/senha"
+            />
+          </MemberGroupedList>
+        </section>
+
+        <section aria-labelledby="sec-legal">
+          <GroupLabel id="sec-legal">Legal e privacidade</GroupLabel>
+          <MemberGroupedList>
+            <MemberListRow
+              icon={Shield}
+              label="Política de Privacidade"
+              detail="Como tratamos seus dados"
+              to="/area/legal/privacidade"
+            />
+            <MemberListRow
+              icon={FileText}
+              label="Termos de Uso"
+              detail="Regras de uso do app"
+              to="/area/legal/termos"
+            />
+            <MemberListRow
+              icon={Cookie}
+              label="Política de Cookies"
+              detail="Cookies e armazenamento local"
+              to="/area/legal/cookies"
+            />
+            <MemberListRow
+              icon={Cookie}
+              label="Preferências de cookies"
+              detail="Revisar consentimento neste dispositivo"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("open-cookie-banner"));
+                showToast(
+                  "Use o banner abaixo para aceitar ou rejeitar cookies opcionais."
+                );
+              }}
+              showChevron={false}
             />
           </MemberGroupedList>
         </section>

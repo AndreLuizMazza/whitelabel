@@ -13,6 +13,7 @@ import useTenant from '@/store/tenant'
 import { useTenantLogoUrl } from '@/lib/tenantLogoRuntime'
 import HeaderNotificationsBell from '@/components/HeaderNotificationsBell.jsx'
 import ThemeToggle from '@/components/ThemeToggle.jsx'
+import CookieBanner from '@/components/CookieBanner.jsx'
 
 const MENU = [
   { to: '/area', label: 'Início', shortLabel: 'Início', icon: House },
@@ -216,6 +217,7 @@ export default function AppShell({ children }) {
             <NavItem key={item.to} item={item} compact />
           ))}
         </nav>
+        <CookieBanner />
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 // src/components/CookieBanner.jsx
 import { useEffect, useMemo, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
 
 const STORAGE_KEY = "progem_cookie_consent"
 const WHITE_HEX = "#ffffff"
@@ -16,6 +16,10 @@ function getCssVar(name) {
 export default function CookieBanner() {
   const [visible, setVisible] = useState(false)
   const [themeReady, setThemeReady] = useState(false)
+  const location = useLocation()
+  const cookiesPolicyPath = location.pathname.startsWith("/area")
+    ? "/area/legal/cookies"
+    : "/politica-cookies"
 
   // Detecta quando o tema real estiver aplicado
   useEffect(() => {
@@ -77,7 +81,7 @@ export default function CookieBanner() {
             <p>
               Usamos cookies para melhorar sua experiência, medir o uso e personalizar conteúdo. Você pode aceitar todos,
               rejeitar os opcionais ou escolher suas preferências. Leia nossa{" "}
-              <Link to="/politica-cookies" className="underline font-medium text-[var(--text)] hover:text-[var(--text)]">
+              <Link to={cookiesPolicyPath} className="underline font-medium text-[var(--text)] hover:text-[var(--text)]">
                 Política de Cookies
               </Link>
               .
