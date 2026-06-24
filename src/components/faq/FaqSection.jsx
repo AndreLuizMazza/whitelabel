@@ -152,7 +152,7 @@ export default function FaqSection({ isLogged, areaDest }) {
       {/* CTAs de rodapé do FAQ (padronizados) */}
       <div className="mt-6 flex flex-wrap items-center gap-2">
         {showClubeLink && (
-          <CTAButton as="link" to="/beneficios" variant="outline">Ver parceiros</CTAButton>
+          <CTAButton as="link" to="/beneficios" variant="outline">Conhecer benefícios</CTAButton>
         )}
         <CTAButton as="link" to={isLogged ? "/area" : "/login"}>Abrir área</CTAButton>
       </div>

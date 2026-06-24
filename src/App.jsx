@@ -18,7 +18,10 @@ import ContratoPage from './pages/ContratoPage.jsx'
 import AreaUsuario from './pages/AreaUsuario.jsx'
 import Pagamentos from './pages/Pagamentos.jsx'
 import LoginPage from './pages/LoginPage.jsx'
-import ClubeBeneficios from './pages/ClubeBeneficios.jsx'
+import BeneficiosPublico from './pages/BeneficiosPublico.jsx'
+import BeneficiosAssociado from './pages/BeneficiosAssociado.jsx'
+import RedirectServicosDigitais from './pages/RedirectServicosDigitais.jsx'
+import RedirectBeneficioParceiroPublico from './pages/RedirectBeneficioParceiroPublico.jsx'
 import PoliticaCookies from '@/pages/PoliticaCookies'
 import PoliticaPrivacidade from '@/pages/PoliticaPrivacidade'
 import TermosUso from '@/pages/TermosUso'
@@ -34,7 +37,6 @@ import MemorialList from '@/pages/MemorialList.jsx'
 import MemorialDetail from '@/pages/MemorialDetail.jsx'
 import VerificarCarteirinha from '@/pages/VerificarCarteirinha'
 import CarteirinhaPrint from '@/pages/CarteirinhaPrint.jsx'
-import ServicosDigitais from '@/pages/ServicosDigitais.jsx'
 import CarteirinhaPage from '@/pages/CarteirinhaPage.jsx'
 import Perfil from '@/pages/Perfil.jsx'
 import PerfilAlterarSenha from '@/pages/PerfilAlterarSenha.jsx'
@@ -113,7 +115,23 @@ export default function App() {
             <Route path="/perfil" element={<Perfil />} />
             <Route path="/perfil/senha" element={<PerfilAlterarSenha />} />
             <Route path="/carteirinha" element={<CarteirinhaPage />} />
-            <Route path="/servicos-digitais" element={<ServicosDigitais />} />
+            <Route
+              path="/area/beneficios"
+              element={
+                <TenantModuleGateInline module="beneficios">
+                  <BeneficiosAssociado />
+                </TenantModuleGateInline>
+              }
+            />
+            <Route
+              path="/area/beneficios/:id"
+              element={
+                <TenantModuleGateInline module="beneficios">
+                  <ParceiroDetalhe />
+                </TenantModuleGateInline>
+              }
+            />
+            <Route path="/servicos-digitais" element={<RedirectServicosDigitais />} />
           </Route>
 
           {/* ── Public zone (marketing chrome) ── */}
@@ -127,7 +145,7 @@ export default function App() {
               path="/beneficios"
               element={
                 <TenantModuleGateInline module="beneficios">
-                  <ClubeBeneficios />
+                  <BeneficiosPublico />
                 </TenantModuleGateInline>
               }
             />
@@ -135,7 +153,7 @@ export default function App() {
               path="/beneficios/:id"
               element={
                 <TenantModuleGateInline module="beneficios">
-                  <ParceiroDetalhe />
+                  <RedirectBeneficioParceiroPublico />
                 </TenantModuleGateInline>
               }
             />

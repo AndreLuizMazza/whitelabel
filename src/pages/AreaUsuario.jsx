@@ -593,7 +593,7 @@ export default function AreaUsuario() {
                           icon={ClipboardList}
                           label="Benefícios"
                           detail={formatDisplayLabel(nomePlano)}
-                          to="/servicos-digitais"
+                          to="/area/beneficios"
                           state={{
                             planoId: planoIdForRoute,
                             numeroContrato,
@@ -608,7 +608,7 @@ export default function AreaUsuario() {
 
                   {planoLinks.length > 0 && planoIdForRoute ? (
                     <MemberDigitalServicesSection
-                      beneficiosTo="/servicos-digitais"
+                      beneficiosTo="/area/beneficios"
                       beneficiosState={{
                         planoId: planoIdForRoute,
                         numeroContrato,
