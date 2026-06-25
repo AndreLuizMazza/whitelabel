@@ -22,6 +22,7 @@ import useTenant from "@/store/tenant"
 import { filterMainMenuLinksForTenant } from "@/lib/tenantModules"
 import ThemeToggle from "@/components/ThemeToggle"
 import HeaderNotificationsBell from "@/components/HeaderNotificationsBell"
+import AppBuildInfo from "@/components/AppBuildInfo.jsx"
 import { getProdutosMenuTo } from "@/lib/produtoUtils"
 
 /**
@@ -347,6 +348,10 @@ export default function GlobalShell({ children }) {
               <ThemeToggle />
             </div>
           </div>
+          <AppBuildInfo
+            variant="compact"
+            className="mt-2 px-1 text-[10px] tabular-nums opacity-70"
+          />
         </div>
       </aside>
 

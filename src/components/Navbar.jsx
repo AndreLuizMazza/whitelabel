@@ -14,6 +14,7 @@ import { filterMainMenuLinksForTenant } from '@/lib/tenantModules'
 import { getTenantInitials } from '@/lib/tenantBranding'
 import { useTenantLogoUrl } from '@/lib/tenantLogoRuntime'
 import { getProdutosMenuTo } from '@/lib/produtoUtils'
+import AppBuildInfo from '@/components/AppBuildInfo.jsx'
 
 /* ===================== runtime (Capacitor) ===================== */
 function isCapacitorRuntime() {
@@ -652,6 +653,11 @@ export default function Navbar() {
                   </span>
                 </button>
               </div>
+
+              <AppBuildInfo
+                variant="compact"
+                className="mt-3 px-3 text-[10px] tabular-nums opacity-70"
+              />
             </div>
 
             {!isLogged && (
