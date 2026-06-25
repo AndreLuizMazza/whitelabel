@@ -14,6 +14,9 @@ function useHideContactDock(pathname) {
     pathname.startsWith('/memorial/') ||
     pathname === '/produtos' ||
     pathname.startsWith('/produtos/') ||
+    pathname === '/politica-privacidade' ||
+    pathname === '/politica-cookies' ||
+    pathname === '/termos-uso' ||
     (pathname.startsWith('/planos/') && pathname !== '/planos')
   )
 }
