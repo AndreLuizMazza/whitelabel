@@ -1154,7 +1154,37 @@ export default function Cadastro() {
     return map[currentStep] || map[1];
   }, [currentStep]);
 
-  const stickyTop = "calc(var(--app-header-h, 72px) + 8px)";
+  const stickyTop = "calc(var(--app-header-h, 72px) + 4px)";
+
+  const resumoContratacao = (
+    <details
+      className="order-3 md:order-2 mt-3 md:mt-0 mb-0 md:mb-4 rounded-xl border overflow-hidden"
+      style={{ borderColor: "var(--c-border)", background: "var(--surface)" }}
+    >
+      <summary
+        className="cursor-pointer list-none px-3 py-2.5 sm:px-4 sm:py-3 text-sm font-medium min-h-[40px] sm:min-h-[48px] flex items-center justify-between gap-2"
+        style={{ color: "var(--text)" }}
+      >
+        <span>Resumo da contratação</span>
+        <span className="text-[11px] sm:text-xs font-normal" style={{ color: "var(--text-muted)" }}>
+          toque para ver
+        </span>
+      </summary>
+      <div className="px-3 pb-3 pt-0 sm:px-4 sm:pb-4 space-y-3 border-t" style={{ borderColor: "var(--c-border)" }}>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <FieldRead label="Titular" value={titular.nome || "—"} />
+          <FieldRead label="CPF" value={formatCPF(titular.cpf || "") || "—"} mono />
+          <FieldRead label="Celular" value={formatPhoneBR(titular.celular) || "—"} mono />
+          <FieldRead label="E-mail" value={titular.email || "—"} />
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <FieldRead label="Mensalidade" value={moneyBRL(valorMensalidadePlano)} mono />
+          <FieldRead label="Adesão" value={moneyBRL(valorAdesaoPlano)} mono />
+          <FieldRead label="Pagamento" value={planoResumo?.formasTxt || "—"} />
+        </div>
+      </div>
+    </details>
+  );
 
   const planosFiltrados = useMemo(() => {
     const term = (planSearch || "").trim().toLowerCase();
@@ -1174,37 +1204,43 @@ export default function Cadastro() {
   };
 
   return (
-    <section className="section">
-      <div className="container-max max-w-4xl md:max-w-5xl">
-        <div className="mb-4 flex items-center gap-2">
+    <section className="section !py-4 md:!py-10">
+      <div className="container-max max-w-4xl md:max-w-5xl flex flex-col">
+        <div className="mb-2 md:mb-4 flex items-center gap-2">
           <button
             onClick={() => navigate(-1)}
             disabled={saving}
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--c-border)] bg-[var(--c-surface)]/90 px-4 py-2 text-sm font-semibold shadow-sm hover:shadow-md hover:bg-[var(--c-surface)] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1 rounded-lg md:rounded-full border-0 md:border border-[var(--c-border)] bg-transparent md:bg-[var(--c-surface)]/90 -ml-1 pl-1 pr-2 md:px-4 py-1.5 md:py-2 text-sm font-semibold md:shadow-sm md:hover:shadow-md md:hover:bg-[var(--c-surface)] transition-all disabled:opacity-60 disabled:cursor-not-allowed min-h-[40px] md:min-h-[44px]"
+            style={{ color: "var(--primary)" }}
             aria-label="Voltar para a página anterior"
           >
-            <ChevronLeft size={16} /> Voltar
+            <ChevronLeft size={18} /> Voltar
           </button>
         </div>
 
         {currentStep === 1 && (
-          <header className="mb-5">
-            <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Contratar plano</h1>
-            <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+          <header className="mb-2 md:mb-5">
+            <h1 className="text-xl md:text-3xl font-semibold tracking-tight leading-tight">
+              Contratar plano
+            </h1>
+            <p
+              className="mt-0.5 text-xs md:text-sm leading-snug hidden sm:block"
+              style={{ color: "var(--text-muted)" }}
+            >
               {totalSteps} etapas para concluir sua adesão.
             </p>
           </header>
         )}
 
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-2 md:mb-4 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
           {plano?.nome ? (
             <span
-              className="inline-flex items-center rounded-full border px-3 py-1 text-xs"
+              className="inline-flex max-w-[min(100%,280px)] items-center rounded-full border px-2.5 py-0.5 sm:px-3 sm:py-1 text-[11px] sm:text-xs truncate"
               style={{ borderColor: "var(--c-border)", color: "var(--text-muted)", background: "var(--surface)" }}
             >
-              {plano.nome}
+              <span className="truncate">{plano.nome}</span>
               {valorMensalidadePlano > 0 ? (
-                <span className="ml-2 font-semibold" style={{ color: "var(--text)" }}>
+                <span className="ml-1.5 sm:ml-2 font-semibold shrink-0" style={{ color: "var(--text)" }}>
                   {moneyBRL(valorMensalidadePlano)}/mês
                 </span>
               ) : null}
@@ -1217,54 +1253,29 @@ export default function Cadastro() {
           <button
             type="button"
             onClick={() => setPlanModalOpen(true)}
-            className="text-sm font-medium hover:underline min-h-[44px] px-2"
+            className="text-xs sm:text-sm font-medium hover:underline min-h-[40px] sm:min-h-[44px] px-1 sm:px-2 shrink-0"
             style={{ color: "var(--primary)" }}
           >
             Trocar plano
           </button>
         </div>
 
-        <div className="mb-4 sticky z-[35]" style={{ top: stickyTop }}>
+        <div className="mb-2 md:mb-4 sticky z-[35]" style={{ top: stickyTop }}>
           <CadastroStepper
             steps={visibleSteps}
             currentStep={currentStep}
             currentIndex={currentIndex}
             disabled={bloquearCadastro}
             onStep={goToStep}
+            compact
           />
         </div>
 
-        <details
-          className="mb-5 rounded-xl border overflow-hidden"
-          style={{ borderColor: "var(--c-border)", background: "var(--surface)" }}
-        >
-          <summary
-            className="cursor-pointer list-none px-4 py-3 text-sm font-medium min-h-[48px] flex items-center justify-between gap-2"
-            style={{ color: "var(--text)" }}
-          >
-            <span>Resumo da contratação</span>
-            <span className="text-xs font-normal" style={{ color: "var(--text-muted)" }}>
-              toque para ver
-            </span>
-          </summary>
-          <div className="px-4 pb-4 pt-0 space-y-3 border-t" style={{ borderColor: "var(--c-border)" }}>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <FieldRead label="Titular" value={titular.nome || "—"} />
-              <FieldRead label="CPF" value={formatCPF(titular.cpf || "") || "—"} mono />
-              <FieldRead label="Celular" value={formatPhoneBR(titular.celular) || "—"} mono />
-              <FieldRead label="E-mail" value={titular.email || "—"} />
-            </div>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <FieldRead label="Mensalidade" value={moneyBRL(valorMensalidadePlano)} mono />
-              <FieldRead label="Adesão" value={moneyBRL(valorAdesaoPlano)} mono />
-              <FieldRead label="Pagamento" value={planoResumo?.formasTxt || "—"} />
-            </div>
-          </div>
-        </details>
+        {resumoContratacao}
 
         {(lookupState.running || lookupState.mensagem || lookupState.erro) && (
           <div
-            className="mb-5 rounded-3xl border px-4 py-4 backdrop-blur-xl"
+            className="mb-3 md:mb-5 rounded-2xl md:rounded-3xl border px-3 py-3 sm:px-4 sm:py-4 backdrop-blur-xl"
             style={{
               background: "color-mix(in srgb, var(--c-surface) 82%, transparent)",
               borderColor: "color-mix(in srgb, var(--primary) 35%, transparent)",
@@ -1303,7 +1314,7 @@ export default function Cadastro() {
             ref={alertRef}
             role="alert"
             tabIndex={-1}
-            className="mb-4 rounded-3xl px-4 py-3 text-sm backdrop-blur-xl"
+            className="mb-3 md:mb-4 rounded-2xl md:rounded-3xl px-3 py-2.5 sm:px-4 sm:py-3 text-sm backdrop-blur-xl"
             style={{
               border: "1px solid color-mix(in srgb, var(--primary) 38%, transparent)",
               background: "color-mix(in srgb, var(--c-surface) 80%, transparent)",
@@ -1318,11 +1329,12 @@ export default function Cadastro() {
 
         <div
           ref={contentAnchorRef}
-          style={{ scrollMarginTop: "calc(var(--app-header-h, 72px) + 18px)" }}
+          style={{ scrollMarginTop: "calc(var(--app-header-h, 72px) + 72px)" }}
         />
 
         {!bloquearCadastro && (
           <CadastroStepShell
+            className="order-2 md:order-3"
             title={stepMeta.title}
             subtitle={stepMeta.subtitle}
             plain={currentStep === 4}

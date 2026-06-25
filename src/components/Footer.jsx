@@ -58,12 +58,6 @@ export default function Footer() {
               Política de Privacidade
             </Link>
             <Link
-              to="/termos-uso"
-              className="hover:text-[var(--text)] transition-colors"
-            >
-              Termos de Uso
-            </Link>
-            <Link
               to="/politica-cookies"
               className="hover:text-[var(--text)] transition-colors"
             >

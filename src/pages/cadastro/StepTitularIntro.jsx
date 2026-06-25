@@ -65,12 +65,15 @@ export default function StepTitularIntro({
         </div>
       </div>
 
-      <div className="flex justify-end pt-5 mt-5 border-t" style={{ borderColor: "var(--c-border)" }}>
+      <div
+        className="flex justify-end pt-3 mt-3 sm:pt-5 sm:mt-5 border-t"
+        style={{ borderColor: "var(--c-border)" }}
+      >
         <Button
           type="button"
           variant="primary"
           size="lg"
-          className="min-h-[48px] px-8 rounded-xl md:rounded-full"
+          className="min-h-[44px] sm:min-h-[48px] px-6 sm:px-8 rounded-xl md:rounded-full w-full sm:w-auto"
           onClick={() => {
             setStepAttempted((p) => ({ ...p, complementares: true }));
             if (validateDadosComplementares()) setCurrentStep(2);
