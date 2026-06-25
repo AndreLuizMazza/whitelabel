@@ -13,13 +13,13 @@ function SectionHeading({ level = 2, children }) {
   )
 }
 
-function Paragraphs({ paragraphs, className = '' }) {
+function Paragraphs({ paragraphs }) {
   return (
     <>
       {paragraphs.map((text, i) => (
         <p
           key={i}
-          className={`text-[15px] leading-relaxed mb-3 last:mb-0 ${className}`}
+          className="text-[15px] leading-relaxed mb-3 last:mb-0"
           style={{ color: 'var(--text)' }}
         >
           {text}
@@ -44,7 +44,7 @@ function BulletList({ items }) {
 
 function CookieTable({ headers, rows }) {
   return (
-    <div className="overflow-x-auto mb-4 -mx-1">
+    <div className="overflow-x-auto mb-4 -mx-1 md:mx-0">
       <table className="w-full min-w-[520px] text-left text-[13px] border-collapse">
         <thead>
           <tr style={{ borderBottom: '1px solid var(--c-border)' }}>
@@ -92,10 +92,7 @@ function ContactBlock({ lines }) {
   )
 }
 
-function renderSection(section, index, variant) {
-  const isPublic = variant === 'public'
-  const proseClass = isPublic ? 'prose max-w-none' : ''
-
+function renderSection(section, index) {
   switch (section.type) {
     case 'heading':
       return (
@@ -105,7 +102,7 @@ function renderSection(section, index, variant) {
       )
     case 'paragraphs':
       return (
-        <div key={index} className={proseClass}>
+        <div key={index}>
           <Paragraphs paragraphs={section.paragraphs} />
         </div>
       )
@@ -123,15 +120,12 @@ function renderSection(section, index, variant) {
 /**
  * Renderer seguro: apenas texto interpolado (sem HTML de tenant).
  */
-export default function LegalDocumentView({ sections = [], context = {}, variant = 'public' }) {
+export default function LegalDocumentView({ sections = [], context = {} }) {
   const resolved = sections.map((s) => interpolateSection(s, context))
 
   return (
-    <article
-      className={variant === 'public' ? 'container-max py-10' : 'pb-4'}
-      aria-label="Documento legal"
-    >
-      {resolved.map((section, index) => renderSection(section, index, variant))}
+    <article className="pb-1" aria-label="Documento legal">
+      {resolved.map((section, index) => renderSection(section, index))}
     </article>
   )
 }
