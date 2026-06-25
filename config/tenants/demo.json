@@ -104,7 +104,7 @@
     {
       "id": "familia",
       "tag": "Assistência familiar",
-      "title": "Proteção e tranquilidade para sua família",
+      "title": "Proteção e tranquilidade para sua família em todos os momentos",
       "subtitle": "Planos completos de assistência familiar, com benefícios exclusivos e atendimento humanizado em todos os momentos.",
       "image": "planos.png",
       "primary": { "label": "Ver planos familiares", "to": "/planos", "variant": "primary" },
