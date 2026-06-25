@@ -330,9 +330,6 @@ export default function Perfil() {
               detail="Revisar consentimento neste dispositivo"
               onClick={() => {
                 window.dispatchEvent(new CustomEvent("open-cookie-banner"));
-                showToast(
-                  "Use o banner abaixo para aceitar ou rejeitar cookies opcionais."
-                );
               }}
               showChevron={false}
             />

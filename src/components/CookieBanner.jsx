@@ -1,53 +1,27 @@
 // src/components/CookieBanner.jsx
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { Link, useLocation } from "react-router-dom"
 
 const STORAGE_KEY = "progem_cookie_consent"
-const WHITE_HEX = "#ffffff"
 
-function getCssVar(name) {
-  try {
-    return getComputedStyle(document.documentElement).getPropertyValue(name).trim().toLowerCase()
-  } catch {
-    return ""
-  }
-}
+const MEMBER_ROUTE_RE = /^\/(area|perfil|carteirinha)(\/|$)/
 
 export default function CookieBanner() {
   const [visible, setVisible] = useState(false)
-  const [themeReady, setThemeReady] = useState(false)
   const location = useLocation()
   const cookiesPolicyPath = location.pathname.startsWith("/area")
     ? "/area/legal/cookies"
     : "/politica-cookies"
+  const isMemberShell = MEMBER_ROUTE_RE.test(location.pathname)
 
-  // Detecta quando o tema real estiver aplicado
-  useEffect(() => {
-    const check = () => {
-      const v = getCssVar("--brand-primary")
-      setThemeReady(v && v !== WHITE_HEX)
-    }
-    check()
-
-    const id = setInterval(check, 300)
-    const onApplied = () => setTimeout(check, 0)
-    window.addEventListener("theme:applied", onApplied)
-    window.addEventListener("tenant:theme-applied", onApplied)
-
-    return () => {
-      clearInterval(id)
-      window.removeEventListener("theme:applied", onApplied)
-      window.removeEventListener("tenant:theme-applied", onApplied)
-    }
-  }, [])
-
-  // Exibe banner se ainda não houver consentimento salvo
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) setVisible(true)
 
     const onOpen = () => setVisible(true)
-    const onEsc = (e) => { if (e.key === "Escape") setVisible(false) }
+    const onEsc = (e) => {
+      if (e.key === "Escape") setVisible(false)
+    }
     window.addEventListener("open-cookie-banner", onOpen)
     window.addEventListener("keydown", onEsc)
     return () => {
@@ -55,8 +29,6 @@ export default function CookieBanner() {
       window.removeEventListener("keydown", onEsc)
     }
   }, [])
-
-  const isRootWhite = useMemo(() => !themeReady, [themeReady])
 
   if (!visible) return null
 
@@ -69,42 +41,47 @@ export default function CookieBanner() {
 
   return (
     <div
-      data-cookie-banner                              // ⟵ fundamental p/ o CTA medir e desviar
-      className="fixed inset-x-0 bottom-0 z-50 px-4"
+      data-cookie-banner
+      className="fixed inset-x-0 bottom-0 z-[120] px-4 pointer-events-none"
       role="region"
       aria-label="Preferências de cookies"
-      style={{ paddingBottom: "max(env(safe-area-inset-bottom), 0px)" }}
+      style={{
+        paddingBottom: isMemberShell
+          ? "max(calc(54px + env(safe-area-inset-bottom)), 12px)"
+          : "max(env(safe-area-inset-bottom), 12px)",
+      }}
     >
-      <div className="w-full max-w-4xl mx-auto bg-[var(--surface)] border border-[var(--c-border)] shadow-lg rounded-xl p-4 md:p-5 mb-4">
-        <div className="flex flex-col md:flex-row items-center gap-4">
-          <div className="flex-1 text-sm text-[var(--text)]">
+      <div className="w-full max-w-4xl mx-auto pointer-events-auto mb-3 md:mb-4 rounded-xl border border-[var(--c-border)] bg-[var(--surface)] shadow-[0_8px_32px_rgba(0,0,0,0.18)] p-4 md:p-5">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4">
+          <div className="flex-1 text-sm text-[var(--text)] leading-relaxed">
             <p>
-              Usamos cookies para melhorar sua experiência, medir o uso e personalizar conteúdo. Você pode aceitar todos,
-              rejeitar os opcionais ou escolher suas preferências. Leia nossa{" "}
-              <Link to={cookiesPolicyPath} className="underline font-medium text-[var(--text)] hover:text-[var(--text)]">
+              Usamos cookies para melhorar sua experiência, medir o uso e personalizar conteúdo.
+              Você pode aceitar todos, rejeitar os opcionais ou revisar suas preferências. Leia
+              nossa{" "}
+              <Link
+                to={cookiesPolicyPath}
+                className="underline font-medium text-[var(--primary)] hover:opacity-90"
+                onClick={() => setVisible(false)}
+              >
                 Política de Cookies
               </Link>
               .
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0">
             <button
+              type="button"
               onClick={() => saveConsent("rejected")}
-              className="px-4 py-2 rounded-lg border border-[var(--c-border)] text-[var(--text)] bg-[var(--surface)] hover:bg-[var(--surface)]"
+              className="btn-outline min-h-[44px] justify-center px-4"
             >
               Rejeitar opcionais
             </button>
 
-            {/* Botão primário com FALLBACK + skeleton enquanto o tema não carregou */}
             <button
+              type="button"
               onClick={() => saveConsent("accepted")}
-              className={`btn-primary min-w-[140px] ${isRootWhite ? "animate-pulse" : ""}`}
-              style={{
-                backgroundColor: isRootWhite ? "#2563eb" : undefined, // blue-600
-                color: isRootWhite ? "#ffffff" : undefined,
-                boxShadow: isRootWhite ? "0 1px 2px rgba(0,0,0,.08)" : undefined,
-              }}
+              className="btn-primary min-h-[44px] min-w-[140px] justify-center"
               title="Aceitar todos os cookies"
             >
               Ok, Entendi!
