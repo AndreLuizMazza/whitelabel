@@ -5,6 +5,7 @@ import useAuth from '@/store/auth'
 import useTenant from '@/store/tenant'
 import { setPageSEO } from '@/lib/seo'
 import { resolveBrandDisplayName } from '@/lib/branding/tenantContract'
+import useMemberAreaLink from '@/hooks/useMemberAreaLink'
 
 const DIGITAL_ITEMS = [
   {
@@ -45,13 +46,12 @@ export default function ServicosDigitaisPublico() {
     })
   }, [brandName])
 
-  const memberTo = isLogged ? '/area/servicos-digitais' : '/login'
-  const memberState = isLogged ? undefined : { from: { pathname: '/area/servicos-digitais' } }
+  const memberLink = useMemberAreaLink('/area/servicos-digitais')
 
   return (
     <section className="section pb-8">
       <div className="container-max max-w-5xl">
-        {isLogged ? (
+        {memberLink.isLogged && !memberLink.checking ? (
           <div
             className="mb-5 rounded-2xl border px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
             style={{
@@ -60,11 +60,23 @@ export default function ServicosDigitaisPublico() {
             }}
           >
             <p className="text-sm" style={{ color: 'var(--text)' }}>
-              Acesse telemedicina e apps do seu plano na área do associado.
+              {memberLink.hasMemberAccess
+                ? 'Acesse telemedicina e apps do seu plano na área do associado.'
+                : 'Contrate um plano para liberar telemedicina e serviços digitais.'}
             </p>
-            <Link to="/area/servicos-digitais" className="btn-primary text-sm shrink-0 justify-center">
-              Abrir meus serviços
-              <ArrowRight size={16} />
+            <Link
+              to={memberLink.to}
+              state={memberLink.state}
+              className="btn-primary text-sm shrink-0 justify-center"
+            >
+              {memberLink.hasMemberAccess ? (
+                <>
+                  Abrir meus serviços
+                  <ArrowRight size={16} />
+                </>
+              ) : (
+                'Ver planos'
+              )}
             </Link>
           </div>
         ) : null}
@@ -128,9 +140,15 @@ export default function ServicosDigitaisPublico() {
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               Já é associado? Acesse os links reais do seu plano na área logada.
             </p>
-            <Link to={memberTo} state={memberState} className="btn-outline justify-center shrink-0">
-              {isLogged ? (
+            <Link
+              to={memberLink.to}
+              state={memberLink.state}
+              className="btn-outline justify-center shrink-0"
+            >
+              {memberLink.hasMemberAccess ? (
                 <>Abrir serviços digitais</>
+              ) : memberLink.isLogged ? (
+                <>Contratar plano</>
               ) : (
                 <>
                   <LogIn size={16} />

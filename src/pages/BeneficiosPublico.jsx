@@ -6,6 +6,7 @@ import useTenant from '@/store/tenant'
 import { setPageSEO } from '@/lib/seo'
 import { resolveBrandDisplayName } from '@/lib/branding/tenantContract'
 import useParceirosPreview from '@/hooks/useParceirosPreview'
+import useMemberAreaLink from '@/hooks/useMemberAreaLink'
 import BeneficiosPartnerLogoStrip from '@/components/beneficios/public/BeneficiosPartnerLogoStrip'
 import BeneficiosPartnerOffersList from '@/components/beneficios/public/BeneficiosPartnerOffersList'
 
@@ -31,13 +32,12 @@ export default function BeneficiosPublico() {
   }, [brandName])
 
   const showPartnerContent = showPreview && !error && (loading || hasPreview)
-  const memberTo = isLogged ? '/area/beneficios' : '/login'
-  const memberState = isLogged ? undefined : { from: { pathname: '/area/beneficios' } }
+  const memberLink = useMemberAreaLink('/area/beneficios')
 
   return (
     <section className="section !py-4 md:!py-8 pb-5">
       <div className="container-max max-w-5xl">
-        {isLogged ? (
+        {memberLink.isLogged && !memberLink.checking ? (
           <div
             className="mb-3 rounded-xl border px-3 py-2 flex items-center justify-between gap-2 sm:gap-3"
             style={{
@@ -46,14 +46,23 @@ export default function BeneficiosPublico() {
             }}
           >
             <p className="text-xs sm:text-sm leading-snug min-w-0" style={{ color: 'var(--text)' }}>
-              Detalhes completos na área do associado.
+              {memberLink.hasMemberAccess
+                ? 'Detalhes completos na área do associado.'
+                : 'Contrate um plano para acessar parceiros e ofertas completas.'}
             </p>
             <Link
-              to="/area/beneficios"
+              to={memberLink.to}
+              state={memberLink.state}
               className="btn-primary text-xs sm:text-sm shrink-0 justify-center h-9 px-3"
             >
-              Meu clube
-              <ArrowRight size={14} />
+              {memberLink.hasMemberAccess ? (
+                <>
+                  Meu clube
+                  <ArrowRight size={14} />
+                </>
+              ) : (
+                'Ver planos'
+              )}
             </Link>
           </div>
         ) : null}
@@ -112,7 +121,19 @@ export default function BeneficiosPublico() {
                     Ofertas
                   </p>
                 ) : null}
-                <BeneficiosPartnerOffersList offers={offers} loading={loading} isLogged={isLogged} />
+                <BeneficiosPartnerOffersList
+                  offers={offers}
+                  loading={loading}
+                  ctaTo={memberLink.to}
+                  ctaState={memberLink.state}
+                  ctaLabel={
+                    memberLink.hasMemberAccess
+                      ? 'Ver na área do associado'
+                      : memberLink.isLogged
+                        ? 'Contratar para acessar'
+                        : 'Ver na área do associado'
+                  }
+                />
               </div>
 
               {!loading && hasPreview && !hasOffers ? (
@@ -142,13 +163,15 @@ export default function BeneficiosPublico() {
 
             <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 justify-center md:justify-start text-[13px]">
               <Link
-                to={memberTo}
-                state={memberState}
+                to={memberLink.to}
+                state={memberLink.state}
                 className="font-semibold inline-flex items-center gap-1 min-h-[40px] active:opacity-70"
                 style={{ color: 'var(--primary)' }}
               >
-                {isLogged ? (
+                {memberLink.hasMemberAccess ? (
                   'Área do associado'
+                ) : memberLink.isLogged ? (
+                  'Contratar plano'
                 ) : (
                   <>
                     <LogIn size={14} />
@@ -214,13 +237,15 @@ export default function BeneficiosPublico() {
 
             <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1 justify-center md:justify-start text-[13px]">
               <Link
-                to={memberTo}
-                state={memberState}
+                to={memberLink.to}
+                state={memberLink.state}
                 className="font-semibold inline-flex items-center gap-1 min-h-[40px] active:opacity-70"
                 style={{ color: 'var(--primary)' }}
               >
-                {isLogged ? (
+                {memberLink.hasMemberAccess ? (
                   'Área do associado'
+                ) : memberLink.isLogged ? (
+                  'Contratar plano'
                 ) : (
                   <>
                     <LogIn size={14} />

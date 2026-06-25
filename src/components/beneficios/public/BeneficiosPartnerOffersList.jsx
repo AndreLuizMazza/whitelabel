@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, BadgePercent } from 'lucide-react'
 import OfferMediaSurface from '@/components/beneficios/OfferMediaSurface'
 
-function CompactOfferCard({ offer, ctaTo, ctaState }) {
+function CompactOfferCard({ offer, ctaTo, ctaState, ctaLabel }) {
   return (
     <article
       className="flex shrink-0 snap-start flex-col w-[min(220px,72vw)] overflow-hidden rounded-[16px]"
@@ -56,7 +56,7 @@ function CompactOfferCard({ offer, ctaTo, ctaState }) {
       >
         <span className="inline-flex items-center gap-1">
           <BadgePercent size={13} strokeWidth={2.25} />
-          Ver na área do associado
+          {ctaLabel || 'Ver na área do associado'}
         </span>
         <ArrowRight size={14} strokeWidth={2.5} />
       </Link>
@@ -81,10 +81,10 @@ function OffersSkeleton() {
 export default function BeneficiosPartnerOffersList({
   offers = [],
   loading = false,
-  isLogged = false,
+  ctaTo = '/login',
+  ctaState = { from: { pathname: '/area/beneficios' } },
+  ctaLabel = 'Ver na área do associado',
 }) {
-  const ctaTo = isLogged ? '/area/beneficios' : '/login'
-  const ctaState = isLogged ? undefined : { from: { pathname: '/area/beneficios' } }
 
   if (loading) {
     return (
@@ -105,6 +105,7 @@ export default function BeneficiosPartnerOffersList({
             offer={offer}
             ctaTo={ctaTo}
             ctaState={ctaState}
+            ctaLabel={ctaLabel}
           />
         ))}
       </div>
