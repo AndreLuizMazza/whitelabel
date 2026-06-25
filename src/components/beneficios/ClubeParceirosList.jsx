@@ -214,9 +214,9 @@ export default function ClubeParceirosList({
   if (isMember) {
     return (
       <div className={className}>
-        <div className="mb-5">
+        <div className="mb-3">
           <p
-            className="px-1 mb-2 text-[11px] font-semibold uppercase tracking-[0.14em]"
+            className="px-1 mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
             style={{ color: 'var(--text-muted)' }}
           >
             Marcas
@@ -229,9 +229,9 @@ export default function ClubeParceirosList({
         </div>
 
         {!loading && memberOffers.length > 0 ? (
-          <div className="mb-6">
+          <div className="mb-4">
             <p
-              className="px-1 mb-2 text-[11px] font-semibold uppercase tracking-[0.14em]"
+              className="px-1 mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
               style={{ color: 'var(--text-muted)' }}
             >
               Ofertas
@@ -313,7 +313,7 @@ export default function ClubeParceirosList({
         {!loading && !error && parceirosFiltrados.length > 0 ? (
           <>
             <p
-              className="mt-5 mb-3 px-1 text-[11px] font-semibold uppercase tracking-[0.14em]"
+              className="mt-4 mb-3 px-1 text-[11px] font-semibold uppercase tracking-[0.14em]"
               style={{ color: 'var(--text-muted)' }}
             >
               Todos os parceiros
