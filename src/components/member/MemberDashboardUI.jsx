@@ -288,15 +288,18 @@ export function MemberSubpageNav({
   to = "/area",
   label = "Início",
   className = "",
+  compact = false,
 }) {
   return (
-    <div className={`mb-1 ${className}`}>
+    <div className={`${compact ? "mb-0" : "mb-1"} ${className}`}>
       <Link
         to={to}
-        className="inline-flex items-center gap-0.5 min-h-[44px] -ml-1 pl-1 pr-2 text-[17px] transition active:opacity-60"
+        className={`inline-flex items-center gap-0.5 -ml-1 pl-1 pr-2 transition active:opacity-60 ${
+          compact ? "min-h-[36px] text-[15px]" : "min-h-[44px] text-[17px]"
+        }`}
         style={{ color: "var(--primary)" }}
       >
-        <ChevronLeft size={22} strokeWidth={2.25} aria-hidden="true" />
+        <ChevronLeft size={compact ? 20 : 22} strokeWidth={2.25} aria-hidden="true" />
         {label}
       </Link>
     </div>
@@ -304,17 +307,28 @@ export function MemberSubpageNav({
 }
 
 /** Cabeçalho de subpágina da área privada */
-export function MemberSubpageHeader({ title, meta, children }) {
+export function MemberSubpageHeader({ title, meta, children, compact = false }) {
   return (
-    <header className="mb-5">
+    <header className={compact ? "mb-2 md:mb-3" : "mb-5"}>
       <h1
-        className="text-[34px] font-bold leading-[1.08] tracking-tight md:text-[28px]"
+        className={
+          compact
+            ? "text-[22px] font-bold leading-[1.12] tracking-tight md:text-[26px]"
+            : "text-[34px] font-bold leading-[1.08] tracking-tight md:text-[28px]"
+        }
         style={{ color: "var(--text)" }}
       >
         {title}
       </h1>
       {meta ? (
-        <p className="mt-2 text-[15px] leading-snug" style={{ color: "var(--text-muted)" }}>
+        <p
+          className={
+            compact
+              ? "mt-0.5 text-[13px] leading-snug line-clamp-2"
+              : "mt-2 text-[15px] leading-snug"
+          }
+          style={{ color: "var(--text-muted)" }}
+        >
           {meta}
         </p>
       ) : null}
