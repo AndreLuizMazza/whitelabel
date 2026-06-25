@@ -58,6 +58,56 @@ const initial = {
   aceitePrivacidade: false,
 };
 
+function resolveRegisterIntent(location) {
+  const raw = location?.state?.intent;
+  if (raw === "cliente") return "cliente";
+  if (raw === "lead") return "lead";
+  const from = location?.state?.from;
+  if (typeof from === "string" && from.startsWith("/cadastro")) return "lead";
+  if (from?.pathname?.startsWith?.("/cadastro")) return "lead";
+  return raw === "onboarding" ? "onboarding" : "onboarding";
+}
+
+function registerCopy(intent) {
+  if (intent === "cliente") {
+    return {
+      banner:
+        "Você já é cliente. Este cadastro cria seu acesso digital — não contrata um novo plano.",
+      panelTitle: "Crie seu acesso digital",
+      panelSubtitle: "Use o mesmo CPF do titular do contrato.",
+      step3Title: "Proteja sua conta",
+      step3Subtitle: "Crie uma senha difícil de adivinhar.",
+      crossLink: { to: "/planos", label: "Quer contratar um plano? Ver planos" },
+    };
+  }
+  if (intent === "lead") {
+    return {
+      banner: "Depois de criar sua conta, você escolhe o plano e conclui a adesão.",
+      panelTitle: "Crie sua conta",
+      panelSubtitle: "Em seguida, continue a contratação do plano escolhido.",
+      step3Title: "Proteja sua conta",
+      step3Subtitle: "Crie uma senha difícil de adivinhar.",
+      crossLink: {
+        to: "/criar-conta",
+        state: { intent: "cliente" },
+        label: "Já é cliente? Crie seu acesso digital",
+      },
+    };
+  }
+  return {
+    banner: "Depois você escolhe o plano e conclui a adesão online.",
+    panelTitle: "Crie sua conta",
+    panelSubtitle: "Use o microfone nos campos disponíveis, se preferir.",
+    step3Title: "Proteja sua conta",
+    step3Subtitle: "Crie uma senha difícil de adivinhar.",
+    crossLink: {
+      to: "/criar-conta",
+      state: { intent: "cliente" },
+      label: "Já é cliente? Crie seu acesso digital",
+    },
+  };
+}
+
 function mapRegisterApiError(err) {
   const raw =
     err?.response?.data?.message ||
@@ -542,6 +592,9 @@ export default function RegisterPage() {
   const location = useLocation();
   const { login } = useAuth((s) => ({ login: s.login }));
 
+  const registerIntent = useMemo(() => resolveRegisterIntent(location), [location]);
+  const copy = useMemo(() => registerCopy(registerIntent), [registerIntent]);
+
   const [form, setForm] = useState(initial);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -774,7 +827,7 @@ export default function RegisterPage() {
 
       const { path, state } = await resolvePostAuthDestination({
         rawFrom,
-        intent: location.state?.intent ?? "onboarding",
+        intent: registerIntent,
       });
 
       navigate(path, { replace: true, state });
@@ -856,6 +909,18 @@ export default function RegisterPage() {
   return (
     <div className="w-full relative">
         <div className="flex flex-col gap-3 md:gap-5">
+          <div
+            className="rounded-xl px-4 py-3 text-sm leading-relaxed border"
+            style={{
+              borderColor: "color-mix(in srgb, var(--primary) 20%, transparent)",
+              background: "color-mix(in srgb, var(--primary) 6%, transparent)",
+              color: "var(--text)",
+            }}
+            role="status"
+          >
+            {copy.banner}
+          </div>
+
           <StepperDock
             step={step}
             drawerOpen={drawerOpen}
@@ -899,12 +964,8 @@ export default function RegisterPage() {
               >
                 <FormPanel
                   plain={step === 3}
-                  title={step === 3 ? "Proteja sua conta" : "Crie sua conta"}
-                  subtitle={
-                    step === 3
-                      ? "Crie uma senha difícil de adivinhar."
-                      : "Use o microfone nos campos disponíveis, se preferir."
-                  }
+                  title={step === 3 ? copy.step3Title : copy.panelTitle}
+                  subtitle={step === 3 ? copy.step3Subtitle : copy.panelSubtitle}
                 >
                   <div className="grid gap-4" style={stepTransitionStyle} key={step}>
                     {step === 1 && (
@@ -1333,6 +1394,19 @@ export default function RegisterPage() {
                       >
                         Seus dados são tratados conforme a LGPD.
                       </p>
+
+                      {copy.crossLink && (
+                        <p className="mt-3 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+                          <Link
+                            to={copy.crossLink.to}
+                            state={copy.crossLink.state}
+                            className="font-semibold hover:underline"
+                            style={{ color: "var(--primary)" }}
+                          >
+                            {copy.crossLink.label}
+                          </Link>
+                        </p>
+                      )}
 
                       {canGoBack && (
                         <p className="mt-3 text-center text-sm md:hidden" style={{ color: "var(--text-muted)" }}>

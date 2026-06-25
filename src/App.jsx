@@ -32,7 +32,9 @@ import TermosUso from '@/pages/TermosUso'
 import Filiais from '@/pages/Filiais.jsx'
 import ParceiroDetalhe from '@/pages/ParceiroDetalhe'
 import RegisterPage from '@/pages/RegisterPage.jsx'
+import RegisterContratoNaoEncontrado from '@/pages/RegisterContratoNaoEncontrado.jsx'
 import RecuperarSenha from '@/pages/RecuperarSenha.jsx'
+import AjudaAcessoPage from '@/pages/AjudaAcessoPage.jsx'
 import Cadastro from '@/pages/Cadastro.jsx'
 import Confirmacao from '@/pages/Confirmacao.jsx'
 import VerificarCodigo from '@/pages/VerificarCodigo.jsx'
@@ -112,7 +114,9 @@ export default function App() {
           {/* ── Auth zone (sem marketing chrome) ── */}
           <Route element={<AuthLayout />}>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/ajuda-acesso" element={<AjudaAcessoPage />} />
             <Route path="/criar-conta" element={<RegisterPage />} />
+            <Route path="/criar-conta/sem-contrato" element={<RegisterContratoNaoEncontrado />} />
             <Route path="/recuperar-senha" element={<RecuperarSenha />} />
             <Route path="/redefinir-senha" element={<VerificarCodigo />} />
             <Route path="/trocar-senha" element={<TrocarSenha />} />

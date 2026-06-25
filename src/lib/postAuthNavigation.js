@@ -3,6 +3,7 @@ import useAuth from '@/store/auth'
 
 export const POST_AUTH_DEFAULT = '/planos'
 export const MEMBER_HOME = '/area'
+export const REGISTER_NO_CONTRACT = '/criar-conta/sem-contrato'
 
 const onlyDigits = (s) => (s || '').toString().replace(/\D/g, '')
 
@@ -106,8 +107,14 @@ export async function resolvePostAuthDestination({ rawFrom, intent } = {}) {
     return { path: MEMBER_HOME, state: undefined }
   }
 
+  if (intent === 'cliente') {
+    return { path: REGISTER_NO_CONTRACT, state: undefined }
+  }
+
   const state =
-    intent === 'onboarding' || !explicitPath ? { onboarding: true } : undefined
+    intent === 'onboarding' || intent === 'lead' || !explicitPath
+      ? { onboarding: true }
+      : undefined
 
   return { path: POST_AUTH_DEFAULT, state }
 }
