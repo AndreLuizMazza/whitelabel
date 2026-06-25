@@ -162,9 +162,9 @@ export default function DateSelectBR({
   const idAno = `${idPrefix || "date"}-ano`;
 
   return (
-    <div>
+    <div className="min-w-0">
       <div
-        className={`grid grid-cols-3 gap-2 ${
+        className={`grid grid-cols-3 gap-1.5 sm:gap-2 min-w-0 ${
           invalid ? "ring-1 ring-red-500 rounded-md p-1" : ""
         } ${className}`}
       >
@@ -173,7 +173,7 @@ export default function DateSelectBR({
         </label>
         <select
           id={idDia}
-          className="input h-11"
+          className="input h-11 min-w-0 w-full text-sm sm:text-base px-2 sm:px-3"
           value={dia}
           onChange={(e) => setDia(e.target.value)}
         >
@@ -192,14 +192,14 @@ export default function DateSelectBR({
         </label>
         <select
           id={idMes}
-          className="input h-11"
+          className="input h-11 min-w-0 w-full text-sm sm:text-base px-2 sm:px-3"
           value={mes}
           onChange={(e) => handleChangeMes(e.target.value)}
         >
           <option value="">Mês</option>
           {mesesAll.map(([v, l]) => (
             <option key={v} value={v}>
-              {l}
+              {v} · {l.slice(0, 3)}
             </option>
           ))}
         </select>
@@ -209,7 +209,7 @@ export default function DateSelectBR({
         </label>
         <select
           id={idAno}
-          className="input h-11"
+          className="input h-11 min-w-0 w-full text-sm sm:text-base px-2 sm:px-3"
           value={ano}
           onChange={(e) => handleChangeAno(e.target.value)}
         >
