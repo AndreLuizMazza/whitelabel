@@ -3,6 +3,7 @@ import api from '@/lib/api.js'
 import {
   buildPublicParceirosPreview,
   mergePartnerOffersInterleaved,
+  shuffleArray,
 } from '@/components/beneficios/beneficiosUtils'
 
 const PREVIEW_SIZE = 24
@@ -35,7 +36,7 @@ export default function useParceirosPreview() {
           __skipAuthRedirect: true,
         })
         if (!alive) return
-        setPartners(buildPublicParceirosPreview(data))
+        setPartners(shuffleArray(buildPublicParceirosPreview(data)))
       } catch (e) {
         console.error('useParceirosPreview', e)
         if (alive) {
@@ -53,7 +54,10 @@ export default function useParceirosPreview() {
     }
   }, [])
 
-  const offers = useMemo(() => mergePartnerOffersInterleaved(partners), [partners])
+  const offers = useMemo(
+    () => shuffleArray(mergePartnerOffersInterleaved(partners)),
+    [partners]
+  )
   const hasPreview = partners.length > 0
   const hasOffers = offers.length > 0
   const showPreview = loading || hasPreview
