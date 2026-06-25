@@ -1,0 +1,205 @@
+{
+  "slug": "monteprev",
+  "v": 1,
+
+  "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/435/",
+
+  "brand": {
+    "name": "Sistema Monte Prev",
+    "legalName": "Sistema Monte Prev",
+    "shortName": "Monte Prev",
+
+    "logo": "logo.png",
+    "logoDark": "logo-dark.png",
+
+    "favicon": "icons/favicon.png",
+    "faviconSvg": "icons/favicon.svg",
+
+    "appleTouchIcon": "icons/apple-touch-icon.png",
+
+    "pwaIcon192": "icons/icon-192.png",
+    "pwaIcon512": "icons/icon-512.png",
+    "maskableIcon512": "icons/icon-maskable-512.png",
+
+    "ogImage": "icons/og-image.png",
+
+    "pushIcon": "icons/push-icon.png",
+    "pushBadge": "icons/push-badge.png"
+  },
+
+  "shell": {
+    "title": "Monte Prev",
+    "titleTemplate": "%s • Monte Prev",
+    "themeColor": "#005CA8",
+    "backgroundColor": "#ffffff"
+  },
+
+  "seo": {
+    "metaTitle": "Sistema Monte Prev",
+    "metaDescription": "Área do associado com acesso aos planos, benefícios e serviços do Sistema Monte Prev."
+  },
+
+  "pwa": {
+    "name": "Sistema Monte Prev",
+    "shortName": "Monte Prev",
+    "description": "Área do associado",
+    "display": "standalone",
+    "orientation": "portrait",
+    "startUrl": "/",
+    "scope": "/"
+  },
+
+  "routing": {
+    "primaryDomain": "monteprev.com"
+  },
+
+  "vars": {
+    "--primary": "#005CA8",
+    "--primary-dark": "#00427A",
+    "--primary-light": "#1F7FD0",
+    "--secondary": "#8A8F97",
+    "--on-primary": "#ffffff",
+    "--surface": "#ffffff",
+    "--surface-alt": "#F4F7FA",
+    "--text": "#111827",
+    "--text-muted": "#667085",
+    "--c-border": "rgba(0,0,0,0.08)",
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 8%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 16%, transparent)",
+    "--nav-active-color": "#005CA8",
+    "--highlight": "#0A6EC2",
+    "--button-hover": "color-mix(in srgb, var(--primary) 12%, var(--secondary))"
+  },
+
+  "varsDark": {
+    "--surface": "#090C12",
+    "--surface-alt": "#121722",
+    "--text": "#F3F5F7",
+    "--text-muted": "#A1A8B3",
+    "--c-border": "rgba(255,255,255,0.12)",
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 18%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 28%, transparent)",
+    "--nav-active-color": "#ffffff",
+    "--highlight": "#8A8F97",
+    "--button-hover": "color-mix(in srgb, var(--primary) 20%, var(--secondary))"
+  },
+
+  "logo": "logo.png",
+
+  "heroTitle": "Proteção e tranquilidade para quem faz parte da sua história",
+  "heroSubtitle": "Tenha acesso aos serviços, benefícios e suporte do Sistema Monte Prev em um só lugar.",
+  "heroImage": "planos.jpg",
+
+  "heroSlides": [
+    {
+      "id": "assistencia",
+      "tag": "Assistência familiar",
+      "title": "Mais segurança para você e sua família",
+      "subtitle": "Conte com planos e atendimento preparados para oferecer tranquilidade nos momentos que realmente importam.",
+      "image": "planos.jpg",
+      "primary": {
+        "label": "Conhecer planos",
+        "to": "/planos",
+        "variant": "primary"
+      },
+      "secondary": {
+        "label": "Como funciona",
+        "to": "/planos",
+        "variant": "outline"
+      },
+      "showValuePills": true
+    }, 
+    {
+      "id": "memorial",
+      "tag": "Memorial online",
+      "title": "Um espaço para recordar e homenagear",
+      "subtitle": "Acesse informações de cerimônias, a biografia, publique mensagens e preserve memórias.",
+      "image": "familia.jpg",
+      "primary": {
+        "label": "Acessar Memorial",
+        "to": "/memorial",
+        "variant": "primary"
+      },
+      "secondary": null,
+      "showValuePills": false
+    },
+    {
+      "id": "beneficios",
+      "tag": "Benefícios",
+      "title": "Serviços que acompanham sua família",
+      "subtitle": "Acesse vantagens, informações e acompanhe tudo diretamente pela área do associado.",
+      "image": "descontos.jpg",
+      "primary": {
+        "label": "Ver benefícios",
+        "to": "/beneficios",
+        "variant": "primary"
+      },
+      "secondary": null,
+      "showValuePills": false
+    }
+  ],
+
+  "content": {
+    "about": {
+      "enabled": true,
+      "photo": "sobre/sobre-nos.jpg",
+      "title": "Quem somos",
+      "description": "O Sistema Monte Prev atua oferecendo soluções voltadas ao cuidado, proteção e relacionamento próximo com seus associados. Nosso compromisso é proporcionar uma experiência simples, segura e acolhedora para cada família atendida.",
+      "mission": "Oferecer proteção, cuidado e atendimento de excelência aos nossos associados.",
+      "vision": "Ser referência em confiança, relacionamento e qualidade nos serviços prestados.",
+      "values": [
+        {
+          "title": "Compromisso",
+          "text": "Atuamos com responsabilidade em cada atendimento."
+        },
+        {
+          "title": "Respeito",
+          "text": "Valorizamos cada associado e sua história."
+        },
+        {
+          "title": "Excelência",
+          "text": "Buscamos melhoria contínua em nossos serviços."
+        },
+        {
+          "title": "Transparência",
+          "text": "Relacionamentos construídos com clareza e confiança."
+        },
+        {
+          "title": "Inovação",
+          "text": "Tecnologia aplicada para facilitar a experiência."
+        },
+        {
+          "title": "Humanização",
+          "text": "Atendimento próximo e acolhedor."
+        }
+      ],
+      "differentials": [
+        {
+          "title": "Atendimento especializado",
+          "text": "Equipe preparada para acompanhar cada necessidade."
+        },
+        {
+          "title": "Área digital completa",
+          "text": "Praticidade para acessar informações e serviços."
+        },
+        {
+          "title": "Benefícios exclusivos",
+          "text": "Soluções pensadas para oferecer mais tranquilidade."
+        },
+        {
+          "title": "Relacionamento próximo",
+          "text": "Cuidado contínuo com cada associado."
+        }
+      ],
+      "closing": "Na Monte Prev, acreditamos que confiança e cuidado constroem relacionamentos duradouros e fazem diferença em cada momento.",
+           
+      "seo": {
+        "metaTitle": "Sobre nós — Monte Prev",
+        "metaDescription": "Conheça a Monte Prev e nosso compromisso com proteção, atendimento e relacionamento com associados.",
+        "ogImage": "sobre/og-image.png"
+      }
+    }
+  },
+
+  "domain": "monteprev.com"
+}
