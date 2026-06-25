@@ -40,6 +40,29 @@ export function getHostFromLink(link) {
   }
 }
 
+/** Fisher-Yates — nova cópia em ordem aleatória (não muta o original). */
+export function shuffleArray(list = []) {
+  const arr = [...list]
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  return arr
+}
+
+/** Reordena `list` pela ordem de `rankKeys` (itens ausentes vão ao final). */
+export function orderByRankKeys(list, rankKeys, getKey) {
+  const rank = new Map(rankKeys.map((k, i) => [k, i]))
+  return [...list].sort((a, b) => {
+    const ra = rank.get(getKey(a))
+    const rb = rank.get(getKey(b))
+    if (ra == null && rb == null) return 0
+    if (ra == null) return 1
+    if (rb == null) return -1
+    return ra - rb
+  })
+}
+
 /** Resposta paginada ou array bruto de parceiros. */
 export function normalizeParceirosResponse(data) {
   if (Array.isArray(data)) return data

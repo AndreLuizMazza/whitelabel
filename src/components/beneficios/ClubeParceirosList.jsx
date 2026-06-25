@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, RotateCcw, Search } from 'lucide-react'
 import api from '@/lib/api.js'
-import { mergeMemberOffersFromParceiros } from '@/components/beneficios/beneficiosUtils'
+import { mergeMemberOffersFromParceiros, orderByRankKeys, shuffleArray } from '@/components/beneficios/beneficiosUtils'
 import MemberParceirosStoryStrip from '@/components/beneficios/member/MemberParceirosStoryStrip'
 import MemberParceiroOffersFeed from '@/components/beneficios/member/MemberParceiroOffersFeed'
 import ParceiroMemberFeedCard from '@/components/beneficios/member/ParceiroMemberFeedCard'
@@ -145,10 +145,26 @@ export default function ClubeParceirosList({
     })
   }, [items, query, cidade])
 
-  const memberOffers = useMemo(
-    () => (isMember ? mergeMemberOffersFromParceiros(parceirosFiltrados) : []),
-    [isMember, parceirosFiltrados]
+  const shuffleRanks = useMemo(
+    () => ({
+      partnerIds: shuffleArray(items.map((p) => p.id)),
+      offerKeys: shuffleArray(
+        mergeMemberOffersFromParceiros(items).map((o) => o.offerKey)
+      ),
+    }),
+    [items]
   )
+
+  const parceirosMarcas = useMemo(
+    () => orderByRankKeys(parceirosFiltrados, shuffleRanks.partnerIds, (p) => p.id),
+    [parceirosFiltrados, shuffleRanks]
+  )
+
+  const memberOffers = useMemo(() => {
+    if (!isMember) return []
+    const merged = mergeMemberOffersFromParceiros(parceirosFiltrados)
+    return orderByRankKeys(merged, shuffleRanks.offerKeys, (o) => o.offerKey)
+  }, [isMember, parceirosFiltrados, shuffleRanks])
 
   function limparFiltros() {
     setQueryRaw('')
@@ -206,7 +222,7 @@ export default function ClubeParceirosList({
             Marcas
           </p>
           <MemberParceirosStoryStrip
-            parceiros={parceirosFiltrados}
+            parceiros={parceirosMarcas}
             loading={loading}
             detailBase={detailBase}
           />
