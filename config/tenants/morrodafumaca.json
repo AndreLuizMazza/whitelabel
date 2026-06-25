@@ -1,0 +1,205 @@
+{
+  "slug": "morrodafumaca",
+  "v": 1,
+
+  "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/439/",
+
+  "brand": {
+    "name": "São José Assistência Familiar",
+    "legalName": "São José Assistência Familiar",
+    "shortName": "São José",
+
+    "logo": "logo.png",
+    "logoDark": "logo.png",
+
+    "favicon": "icons/favicon.png",
+    "faviconSvg": "icons/favicon.svg",
+
+    "appleTouchIcon": "icons/apple-touch-icon.png",
+
+    "pwaIcon192": "icons/icon-192.png",
+    "pwaIcon512": "icons/icon-512.png",
+    "maskableIcon512": "icons/icon-maskable-512.png",
+
+    "ogImage": "icons/og-image.png",
+
+    "pushIcon": "icons/push-icon.png",
+    "pushBadge": "icons/push-badge.png"
+  },
+
+  "shell": {
+    "title": "São José",
+    "titleTemplate": "%s • São José",
+    "themeColor": "#1178B3",
+    "backgroundColor": "#ffffff"
+  },
+
+  "seo": {
+    "metaTitle": "São José Assistência Familiar",
+    "metaDescription": "Planos de assistência familiar com acolhimento, proteção e benefícios para toda a família."
+  },
+
+  "pwa": {
+    "name": "São José Assistência Familiar",
+    "shortName": "São José",
+    "description": "Área do associado",
+    "display": "standalone",
+    "orientation": "portrait",
+    "startUrl": "/",
+    "scope": "/"
+  },
+
+  "routing": {
+    "primaryDomain": "planosaojose.com.br"
+  },
+
+  "vars": {
+    "--primary": "#1178B3",
+    "--primary-dark": "#0C5F8E",
+    "--primary-light": "#1DA6DF",
+    "--secondary": "#57B5DE",
+    "--on-primary": "#ffffff",
+    "--surface": "#ffffff",
+    "--surface-alt": "#F3F9FC",
+    "--text": "#0F172A",
+    "--text-muted": "#64748B",
+    "--c-border": "rgba(0,0,0,0.08)",
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 8%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 16%, transparent)",
+    "--nav-active-color": "#1178B3",
+    "--highlight": "#1DA6DF",
+    "--button-hover": "color-mix(in srgb, var(--primary) 12%, var(--secondary))"
+  },
+
+  "varsDark": {
+    "--surface": "#09131A",
+    "--surface-alt": "#10202B",
+    "--text": "#E5EEF5",
+    "--text-muted": "#9FB2C2",
+    "--c-border": "rgba(255,255,255,0.12)",
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 18%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 28%, transparent)",
+    "--nav-active-color": "#ffffff",
+    "--highlight": "#57B5DE",
+    "--button-hover": "color-mix(in srgb, var(--primary) 20%, var(--secondary))"
+  },
+
+  "logo": "logo.png",
+
+  "heroTitle": "Proteção, cuidado e tranquilidade para sua família",
+  "heroSubtitle": "A São José oferece assistência familiar com acolhimento humano, benefícios e segurança para os momentos mais importantes.",
+  "heroImage": "planos.jpg",
+
+  "heroSlides": [
+    {
+      "id": "assistencia",
+      "tag": "Assistência familiar",
+      "title": "Cuidado completo para quem você ama",
+      "subtitle": "Planos desenvolvidos para oferecer segurança, acolhimento e apoio à sua família.",
+      "image": "planos.jpg",
+      "primary": {
+        "label": "Conhecer planos",
+        "to": "/planos",
+        "variant": "primary"
+      },
+      "secondary": {
+        "label": "Saiba mais",
+        "to": "/planos",
+        "variant": "outline"
+      },
+      "showValuePills": true
+    },
+    {
+      "id": "beneficios",
+      "tag": "Benefícios",
+      "title": "Mais tranquilidade no dia a dia",
+      "subtitle": "Acesso a benefícios e vantagens pensadas para oferecer apoio e qualidade de vida.",
+      "image": "descontos.jpg",
+      "primary": {
+        "label": "Ver benefícios",
+        "to": "/beneficios",
+        "variant": "primary"
+      },
+      "secondary": null,
+      "showValuePills": false
+    },
+    {
+      "id": "acolhimento",
+      "tag": "Atendimento humanizado",
+      "title": "Presença e respeito em todos os momentos",
+      "subtitle": "Atendimento próximo e humanizado para acolher sua família quando mais precisar.",
+      "image": "familia.jpg",
+      "primary": {
+        "label": "Falar conosco",
+        "to": "/contato",
+        "variant": "primary"
+      },
+      "secondary": null,
+      "showValuePills": false
+    }
+  ],
+
+  "content": {
+    "about": {
+      "enabled": true,
+      "photo": "sobre/sobre-nos.jpg",
+      "title": "Quem somos",
+      "description": "A São José Assistência Familiar atua oferecendo proteção, acolhimento e suporte às famílias com compromisso, respeito e responsabilidade.\n\nNossa missão é proporcionar tranquilidade e segurança por meio de um atendimento próximo e humanizado.",
+      "mission": "Oferecer assistência familiar com respeito, acolhimento e compromisso com cada família.",
+      "vision": "Ser referência em assistência familiar pela qualidade dos serviços e confiança construída com nossos associados.",
+      "values": [
+        {
+          "title": "Respeito",
+          "text": "Tratamos cada família com atenção e dignidade."
+        },
+        {
+          "title": "Compromisso",
+          "text": "Atuamos com responsabilidade em todos os atendimentos."
+        },
+        {
+          "title": "Humanização",
+          "text": "Atendimento acolhedor e próximo das pessoas."
+        },
+        {
+          "title": "Ética",
+          "text": "Conduta transparente e profissional."
+        },
+        {
+          "title": "Confiança",
+          "text": "Relacionamentos construídos com seriedade e credibilidade."
+        },
+        {
+          "title": "Excelência",
+          "text": "Busca contínua pela qualidade nos serviços prestados."
+        }
+      ],
+      "differentials": [
+        {
+          "title": "Atendimento próximo",
+          "text": "Equipe preparada para acolher e orientar as famílias."
+        },
+        {
+          "title": "Planos acessíveis",
+          "text": "Soluções pensadas para diferentes necessidades familiares."
+        },
+        {
+          "title": "Benefícios exclusivos",
+          "text": "Vantagens que proporcionam mais tranquilidade no dia a dia."
+        },
+        {
+          "title": "Confiança e cuidado",
+          "text": "Compromisso genuíno com cada associado."
+        }
+      ],
+      "closing": "Na São José, acreditamos que cuidar das famílias é um compromisso construído com respeito, presença e dedicação em todos os momentos.",
+
+      "seo": {
+        "metaTitle": "Sobre nós — São José Assistência Familiar",
+        "metaDescription": "Conheça a São José Assistência Familiar e nosso compromisso com acolhimento, proteção e cuidado com as famílias.",
+        "ogImage": "sobre/og-image.png"
+      }
+    }
+  },
+
+  "domain": "planosaojose.com.br"
+}
