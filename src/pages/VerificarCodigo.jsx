@@ -1,19 +1,17 @@
-// src/pages/VerificarCodigo.jsx
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import api from '@/lib/api'
+import Button from '@/components/ui/Button.jsx'
+import TenantSupportPanel from '@/components/auth/TenantSupportPanel.jsx'
 
 export default function VerificarCodigo() {
   const [search] = useSearchParams()
   const navigate = useNavigate()
 
-  // token do link (?token=)
   const [token, setToken] = useState(search.get('token') || '')
-  // identifier da URL (?i=) ou do localStorage
   const [ident, setIdent] = useState(
     search.get('i') || localStorage.getItem('recuperacao.identifier') || ''
   )
-  // usuário pode digitar o código caso não venha por URL
   const [codigo, setCodigo] = useState('')
   const [novaSenha, setNovaSenha] = useState('')
   const [confirmar, setConfirmar] = useState('')
@@ -23,9 +21,10 @@ export default function VerificarCodigo() {
 
   const codigoInputRef = useRef(null)
 
-  useEffect(() => { setErro('') }, [token, novaSenha, confirmar, ident])
   useEffect(() => {
-    // foco direto no campo de código
+    setErro('')
+  }, [token, novaSenha, confirmar, ident])
+  useEffect(() => {
     setTimeout(() => codigoInputRef.current?.focus(), 0)
   }, [])
 
@@ -35,7 +34,6 @@ export default function VerificarCodigo() {
   const senhaValida = useMemo(() => novaSenha.length >= 8, [novaSenha])
   const confere = useMemo(() => novaSenha && novaSenha === confirmar, [novaSenha, confirmar])
 
-  // manter consistência do identifier entre telas
   useEffect(() => {
     if (ident) localStorage.setItem('recuperacao.identifier', ident)
   }, [ident])
@@ -54,7 +52,7 @@ export default function VerificarCodigo() {
       await api.post('/api/v1/app/password/reset', {
         identifier: ident.trim(),
         codigo: codigoFinal,
-        novaSenha
+        novaSenha,
       })
 
       setSucesso(true)
@@ -62,11 +60,7 @@ export default function VerificarCodigo() {
       setTimeout(() => navigate('/login'), 2000)
     } catch (e) {
       console.error(e)
-      const msg =
-        e?.response?.data?.message ||
-        e?.response?.data?.error ||
-        'Código inválido ou expirado.'
-      setErro(msg)
+      setErro('Código inválido ou expirado. Tente novamente ou solicite um novo código.')
     } finally {
       setLoading(false)
     }
@@ -79,93 +73,147 @@ export default function VerificarCodigo() {
   }
 
   return (
-    <section className="section">
-      <div className="container-max max-w-lg">
-        <h1 className="text-3xl font-bold mb-6">Redefinir senha</h1>
+    <div className="w-full">
+      <header className="mb-6 md:mb-8 text-center md:text-left">
+        <h1 className="text-2xl md:text-xl font-semibold tracking-tight text-[var(--text)]">
+          Redefinir senha
+        </h1>
+        <p className="mt-1.5 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+          Informe o código recebido por e-mail e escolha uma nova senha.
+        </p>
+      </header>
 
-        {sucesso ? (
-          <div className="card p-6 shadow-lg text-center">
-            <p className="text-[var(--text)] mb-3">
-              Senha alterada com sucesso! Você será redirecionado ao login.
-            </p>
-            <Link to="/login" className="btn-primary">Ir para o login</Link>
-          </div>
-        ) : (
-          <form onSubmit={onSubmit} className="card p-6 space-y-5 shadow-lg">
-            {erro && (
-              <div className="rounded-md border border-red-300 bg-red-50 p-2 text-sm text-red-700">
-                {erro}
-              </div>
-            )}
-
-            {/* (2) Identificador apenas exibido como label */}
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs text-[var(--text-muted)]">Recuperando a senha de</p>
-                <p className="font-medium text-[var(--text)] break-all">{ident || '—'}</p>
-              </div>
-              <button type="button" onClick={trocarIdent} className="btn-ghost text-sm">
-                Trocar
-              </button>
-            </div>
-
-            {/* Código de verificação */}
-            <div>
-              <label className="label font-medium">Código recebido</label>
-              <input
-                ref={codigoInputRef}
-                className="input"
-                value={token || codigo}
-                onChange={e => { setToken(''); setCodigo(e.target.value) }}
-                placeholder="Cole aqui o código"
-                inputMode="text"
-                autoComplete="one-time-code"
-                required
-              />
-            </div>
-
-            {/* Nova senha */}
-            <div>
-              <label className="label font-medium">Nova senha</label>
-              <input
-                type="password"
-                className="input"
-                value={novaSenha}
-                onChange={e => setNovaSenha(e.target.value)}
-                required
-              />
-              <p className="text-xs text-[var(--text-muted)] mt-1">Mínimo de 8 caracteres.</p>
-            </div>
-
-            {/* Confirmar nova senha */}
-            <div>
-              <label className="label font-medium">Confirmar nova senha</label>
-              <input
-                type="password"
-                className="input"
-                value={confirmar}
-                onChange={e => setConfirmar(e.target.value)}
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="btn-primary w-full h-11 mt-2"
-              disabled={loading}
+      {sucesso ? (
+        <div
+          className="rounded-2xl border p-5 md:p-6 text-center shadow-sm"
+          style={{
+            background: 'var(--surface)',
+            borderColor: 'var(--c-border)',
+          }}
+        >
+          <p className="text-sm text-[var(--text)] mb-4">
+            Senha alterada com sucesso! Você será redirecionado ao login.
+          </p>
+          <Button as={Link} to="/login" variant="primary" size="lg" className="min-h-[48px] rounded-xl">
+            Ir para o login
+          </Button>
+        </div>
+      ) : (
+        <form
+          onSubmit={onSubmit}
+          noValidate
+          className="rounded-2xl border p-5 md:p-6 space-y-4 shadow-sm"
+          style={{
+            background: 'var(--surface)',
+            borderColor: 'var(--c-border)',
+          }}
+        >
+          {erro && (
+            <div
+              role="alert"
+              className="rounded-xl px-4 py-3 text-sm border"
+              style={{
+                borderColor: 'color-mix(in srgb, var(--danger, #b91c1c) 25%, transparent)',
+                background: 'color-mix(in srgb, var(--danger, #b91c1c) 8%, transparent)',
+                color: 'var(--text)',
+              }}
             >
-              {loading ? 'Alterando…' : 'Alterar senha'}
-            </button>
-
-            <div className="text-center text-sm">
-              Não recebeu o e-mail?{' '}
-              <Link to="/recuperar-senha" className="text-[var(--primary)] hover:underline">
-                Enviar novamente
-              </Link>
+              {erro}
             </div>
-          </form>
-        )}
+          )}
+
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                Recuperando a senha de
+              </p>
+              <p className="font-medium text-sm text-[var(--text)] break-all">{ident || '—'}</p>
+            </div>
+            <button
+              type="button"
+              onClick={trocarIdent}
+              className="text-sm font-medium shrink-0 min-h-[44px] px-2"
+              style={{ color: 'var(--primary)' }}
+            >
+              Trocar
+            </button>
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="codigo" className="label font-medium text-sm">
+              Código recebido
+            </label>
+            <input
+              id="codigo"
+              ref={codigoInputRef}
+              className="input h-12 md:h-11 w-full text-base md:text-sm rounded-xl"
+              value={token || codigo}
+              onChange={(e) => {
+                setToken('')
+                setCodigo(e.target.value)
+              }}
+              placeholder="Cole aqui o código"
+              inputMode="text"
+              autoComplete="one-time-code"
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="novaSenha" className="label font-medium text-sm">
+              Nova senha
+            </label>
+            <input
+              id="novaSenha"
+              type="password"
+              className="input h-12 md:h-11 w-full text-base md:text-sm rounded-xl"
+              value={novaSenha}
+              onChange={(e) => setNovaSenha(e.target.value)}
+              required
+            />
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              Mínimo de 8 caracteres, com maiúscula, minúscula e número.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="confirmarSenha" className="label font-medium text-sm">
+              Confirmar nova senha
+            </label>
+            <input
+              id="confirmarSenha"
+              type="password"
+              className="input h-12 md:h-11 w-full text-base md:text-sm rounded-xl"
+              value={confirmar}
+              onChange={(e) => setConfirmar(e.target.value)}
+              required
+            />
+          </div>
+
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+            full
+            loading={loading}
+            disabled={loading}
+            className="min-h-[48px] font-semibold rounded-xl"
+          >
+            {loading ? 'Alterando…' : 'Alterar senha'}
+          </Button>
+
+          <p className="text-center text-sm" style={{ color: 'var(--text-muted)' }}>
+            Não recebeu o e-mail?{' '}
+            <Link to="/recuperar-senha" className="font-semibold hover:underline" style={{ color: 'var(--primary)' }}>
+              Enviar novamente
+            </Link>
+          </p>
+        </form>
+      )}
+
+      <div className="mt-6">
+        <TenantSupportPanel compact />
       </div>
-    </section>
+    </div>
   )
 }

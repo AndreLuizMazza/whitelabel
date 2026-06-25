@@ -109,6 +109,8 @@ export function resolvePageTitle(pathname = "/") {
   if (pathname === "/contratos") return "Contratos";
   if (pathname.endsWith("/pagamentos")) return "Pagamentos do contrato";
   if (pathname === "/login") return "Entrar";
+  if (pathname === "/ajuda-acesso") return "Ajuda para acessar";
+  if (pathname === "/criar-conta/sem-contrato") return "Contrato não encontrado";
   if (pathname === "/criar-conta") return "Criar conta";
   if (pathname === "/recuperar-senha") return "Recuperar senha";
   if (pathname === "/redefinir-senha") return "Verificar código";

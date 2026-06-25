@@ -6,6 +6,7 @@ import { registrarDispositivoFcmWeb } from '@/lib/fcm'
 import { resolvePostAuthDestination } from '@/lib/postAuthNavigation'
 import { CheckCircle2 } from 'lucide-react'
 import Button from '@/components/ui/Button.jsx'
+import LoginIntentSection from '@/components/auth/LoginIntentSection.jsx'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -281,24 +282,13 @@ export default function LoginPage() {
         </fieldset>
       </form>
 
-      <p className="mt-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-        Não tem conta?{' '}
-        <Link
-          to="/criar-conta"
-          state={
-            location.state?.from
-              ? { from: location.state.from, intent: location.state?.intent }
-              : { intent: 'onboarding' }
-          }
-          className="font-semibold hover:underline"
-          style={{ color: 'var(--primary)' }}
-        >
-          Criar conta
-        </Link>
-      </p>
+      <LoginIntentSection
+        from={location.state?.from}
+        intent={location.state?.intent}
+      />
 
       <p
-        className="mt-4 text-xs text-center leading-relaxed"
+        className="mt-6 text-xs text-center leading-relaxed"
         style={{ color: 'var(--text-muted)' }}
       >
         Seus dados são protegidos em conformidade com a LGPD.

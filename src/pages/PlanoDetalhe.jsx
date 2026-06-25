@@ -159,7 +159,7 @@ export default function PlanoDetalhe() {
     track('plano.continuar', { id, nome: planSnapshot.nome })
 
     if (!isAuthenticated) {
-      navigate('/criar-conta', { state: { from: target } })
+      navigate('/criar-conta', { state: { from: target, intent: 'lead' } })
     } else {
       navigate(target)
     }
