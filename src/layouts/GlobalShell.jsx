@@ -159,9 +159,7 @@ export default function GlobalShell({ children }) {
     ...pickGroup(MENU_SUPORTE_KEYS),
   ]
 
-  const fullMenu = isAuthenticated()
-    ? [...menuPublicGrouped, { divider: true }, ...PRIVATE_MENU_LINKS]
-    : menuPublicGrouped
+  const fullMenu = menuPublicGrouped
 
   const baseItemClass =
     "group flex items-center gap-3 px-4 py-2.5 mx-3 rounded-2xl text-sm font-medium transition-colors"
@@ -255,7 +253,7 @@ export default function GlobalShell({ children }) {
           </div>
         )}
 
-        {/* Menu principal + privado */}
+        {/* Menu principal (somente navegação pública) */}
         <nav className="flex-1 overflow-y-auto py-4 space-y-1">
           {fullMenu.map((item, i) =>
             item.divider ? (

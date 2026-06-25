@@ -9,7 +9,7 @@ import ThemeToggle from './ThemeToggle.jsx'
 import HeaderNotificationsBell from '@/components/HeaderNotificationsBell.jsx'
 import { getAvatarBlobUrl } from '@/lib/profile'
 
-import { MAIN_MENU_LINKS, PRIVATE_MENU_LINKS } from '@/layouts/GlobalShell.jsx'
+import { MAIN_MENU_LINKS } from '@/layouts/GlobalShell.jsx'
 import { filterMainMenuLinksForTenant } from '@/lib/tenantModules'
 import { getTenantInitials } from '@/lib/tenantBranding'
 import { useTenantLogoUrl } from '@/lib/tenantLogoRuntime'
@@ -229,10 +229,8 @@ export default function Navbar() {
     .filter((item) => ['planos', 'produtos', 'beneficios', 'memorial', 'sobre-nos'].includes(item.key))
     .filter((item) => !(inCapacitorApp && item.key === 'beneficios'))
 
-  // Menu completo usado no MOBILE (global)
-  const fullMobileMenuBase = isLogged
-    ? [...mainMenuForTenant, { divider: true }, ...PRIVATE_MENU_LINKS]
-    : mainMenuForTenant
+  // Menu mobile — somente navegação pública (área privada fica no AppShell)
+  const fullMobileMenuBase = mainMenuForTenant
 
   // ✅ no Capacitor: remove 2ª via + benefícios (mantém divider)
   const fullMobileMenu = useMemo(() => {
@@ -564,7 +562,7 @@ export default function Navbar() {
               </div>
             )}
 
-            {/* MENU GLOBAL (público + privado) */}
+            {/* Menu público */}
             <nav className="flex-1 overflow-y-auto text-sm py-2">
               {fullMobileMenu.map((item, i) =>
                 item.divider ? (
