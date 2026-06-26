@@ -73,7 +73,7 @@ export default function PlanoCardVenda({
   return (
     <article
       className={[
-        'relative flex flex-col rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6 shadow-md transition-all hover:-translate-y-1 hover:shadow-xl',
+        'relative flex flex-col rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6 shadow-md public-hover-lift hover:shadow-xl',
         uniformHeight ? 'h-full w-full' : '',
       ].join(' ')}
     >

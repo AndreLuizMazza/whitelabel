@@ -9,7 +9,7 @@ export default function PublicPageHeader({
   align = 'left',
   size = 'default',
   actions = null,
-  className = 'mb-6 md:mb-8',
+  className = 'mb-4 md:mb-5',
   id,
   titleAs: TitleTag = 'h1',
 }) {
@@ -28,12 +28,7 @@ export default function PublicPageHeader({
     >
       <div className={isCenter ? 'max-w-2xl mx-auto' : 'max-w-3xl'}>
         {kicker ? (
-          <p
-            className="text-[11px] uppercase tracking-[0.2em] font-semibold"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            {kicker}
-          </p>
+          <p className="public-kicker">{kicker}</p>
         ) : null}
 
         <TitleTag
@@ -42,7 +37,7 @@ export default function PublicPageHeader({
             kicker ? 'mt-1' : '',
             isCompact
               ? 'text-xl md:text-2xl font-black tracking-tight'
-              : 'text-2xl md:text-3xl font-black tracking-tight',
+              : 'public-heading mt-1',
           ].join(' ')}
         >
           {title}
@@ -51,9 +46,9 @@ export default function PublicPageHeader({
         {description ? (
           <p
             className={[
-              'mt-2 leading-relaxed text-[var(--text-muted)]',
-              isCompact ? 'text-sm' : 'text-sm md:text-base',
-              isCenter ? 'mx-auto' : 'max-w-2xl',
+              'public-lead',
+              isCompact ? 'text-sm' : '',
+              isCenter ? 'mx-auto' : '',
             ].join(' ')}
           >
             {description}

@@ -1,20 +1,32 @@
-import { useRef, useCallback } from 'react'
+import { forwardRef, useRef, useCallback } from 'react'
 
 /**
  * Faixa horizontal com rolagem funcional no desktop (wheel + arrastar) e mobile (touch).
  */
-export default function HorizontalScrollRow({
-  className = '',
-  children,
-  'aria-label': ariaLabel,
-  role,
-  ...props
-}) {
-  const ref = useRef(null)
+const HorizontalScrollRow = forwardRef(function HorizontalScrollRow(
+  {
+    className = '',
+    children,
+    'aria-label': ariaLabel,
+    role,
+    ...props
+  },
+  ref
+) {
+  const innerRef = useRef(null)
   const dragRef = useRef({ active: false, startX: 0, scrollLeft: 0, moved: false })
 
+  const setRef = useCallback(
+    (node) => {
+      innerRef.current = node
+      if (typeof ref === 'function') ref(node)
+      else if (ref) ref.current = node
+    },
+    [ref]
+  )
+
   const onWheel = useCallback((e) => {
-    const el = ref.current
+    const el = innerRef.current
     if (!el || el.scrollWidth <= el.clientWidth + 1) return
     if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return
     e.preventDefault()
@@ -22,7 +34,7 @@ export default function HorizontalScrollRow({
   }, [])
 
   const onPointerDown = useCallback((e) => {
-    const el = ref.current
+    const el = innerRef.current
     if (!el || e.button !== 0) return
     const target = e.target
     if (target instanceof Element && target.closest('a, button, input, textarea, select, label')) return
@@ -37,7 +49,7 @@ export default function HorizontalScrollRow({
   }, [])
 
   const onPointerMove = useCallback((e) => {
-    const el = ref.current
+    const el = innerRef.current
     const drag = dragRef.current
     if (!el || !drag.active) return
     const dx = e.clientX - drag.startX
@@ -46,7 +58,7 @@ export default function HorizontalScrollRow({
   }, [])
 
   const endDrag = useCallback((e) => {
-    const el = ref.current
+    const el = innerRef.current
     const drag = dragRef.current
     if (!el || !drag.active) return
     drag.active = false
@@ -65,7 +77,7 @@ export default function HorizontalScrollRow({
 
   return (
     <div
-      ref={ref}
+      ref={setRef}
       className={`horizontal-scroll-row ${className}`.trim()}
       aria-label={ariaLabel}
       role={role}
@@ -80,4 +92,6 @@ export default function HorizontalScrollRow({
       {children}
     </div>
   )
-}
+})
+
+export default HorizontalScrollRow

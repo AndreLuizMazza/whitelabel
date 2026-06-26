@@ -6,6 +6,11 @@ import { BadgePercent, Search, RotateCcw, ChevronLeft, ChevronRight } from 'luci
 
 import useTenant from '@/store/tenant'
 import { isMemorialEnabled } from '@/lib/tenantModules'
+import {
+  openPartnerWhatsApp,
+  PARTNER_HOME_ANCHOR,
+  resolvePartnerWhatsAppHref,
+} from '@/lib/partnerFunnel'
 import PlanosCompactCTA from '@/components/ctas/PlanosCompactCTA'
 import MemorialCompactCTA from '@/components/ctas/MemorialCompactCTA'
 import ParceirosCompactCTA from '@/components/ctas/ParceirosCompactCTA'
@@ -372,8 +377,19 @@ export default function ClubeBeneficios() {
               />
             )}
             <ParceirosCompactCTA
-              onPrimary={() => navigate('/parceiros/inscrever')}
-              onSecondary={() => window.open('https://wa.me/55SEUNUMERO?text=Quero%20ser%20parceiro', '_blank')}
+              onPrimary={() => {
+                if (!openPartnerWhatsApp(empresa)) {
+                  navigate(PARTNER_HOME_ANCHOR)
+                }
+              }}
+              onSecondary={() => {
+                const wa = resolvePartnerWhatsAppHref(empresa)
+                if (wa) {
+                  window.open(wa, '_blank', 'noopener')
+                  return
+                }
+                navigate(PARTNER_HOME_ANCHOR)
+              }}
             />
           </div>
         </div>

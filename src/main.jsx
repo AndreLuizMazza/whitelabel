@@ -11,6 +11,9 @@ import './theme/initTheme'
 
 /* 3) Demais estilos globais (tailwind etc.) */
 import './index.css'
+import registerAppShellSw from './boot/registerAppShellSw'
+
+registerAppShellSw()
 
 const Root = (
   <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>

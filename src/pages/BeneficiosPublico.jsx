@@ -28,15 +28,16 @@ export default function BeneficiosPublico() {
 
   useEffect(() => {
     setPageSEO({
-      title: 'Clube de parceiros',
-      description: `Descontos e vantagens com parceiros ${brandName}. Prévia da rede na vitrine comercial.`,
+      title: 'Clube de benefícios',
+      description: `Catálogo completo do clube ${brandName} — parceiros, ofertas e vantagens para associados.`,
     })
   }, [brandName])
 
   const showPartnerContent = showPreview && !error && (loading || hasPreview)
   const memberLink = useMemberAreaLink('/area/beneficios')
 
-  const pageDescription = `Prévia da rede ${brandName} — estabelecimentos locais com condições exclusivas para associados.`
+  const pageDescription =
+    'Explore a rede completa de parceiros e ofertas. Na home você vê uma prévia — aqui está o catálogo ampliado.'
 
   return (
     <PublicPageShell maxWidth="narrow">
@@ -71,20 +72,18 @@ export default function BeneficiosPublico() {
         ) : null}
 
       <PublicPageHeader
-        kicker="Clube de parceiros"
-        title="Descontos perto de você"
+        kicker="Clube de benefícios"
+        title="Catálogo completo de parceiros"
         description={pageDescription}
         id="beneficios-page-heading"
         actions={
-          !isLogged && showPartnerContent ? (
-            <Link
-              to="/planos"
-              className="text-sm font-semibold inline-flex items-center min-h-[36px] hover:underline"
-              style={{ color: 'var(--primary)' }}
-            >
-              Associar-se
-            </Link>
-          ) : null
+          <Link
+            to="/"
+            className="text-sm font-semibold inline-flex items-center min-h-[36px] hover:underline"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Voltar à home
+          </Link>
         }
       />
 
@@ -153,15 +152,15 @@ export default function BeneficiosPublico() {
               ) : null}
             </div>
 
-            <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row gap-2">
+            <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row gap-2 sm:items-center">
               {!isLogged ? (
-                <Link to="/planos" className="btn-primary justify-center h-11 text-sm flex-1">
+                <Link to="/planos" className="btn-primary justify-center h-11 text-sm sm:w-auto w-full">
                   Quero me associar
                 </Link>
               ) : null}
               <Link
                 to="/servicos-digitais"
-                className="btn-outline justify-center gap-2 h-11 text-sm flex-1 sm:flex-none sm:min-w-[180px]"
+                className="btn-outline justify-center gap-2 h-11 text-sm sm:flex-none sm:min-w-[180px]"
               >
                 <Smartphone size={15} />
                 Serviços digitais

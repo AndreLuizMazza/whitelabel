@@ -7,6 +7,10 @@ import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react'
 function isExternalHref(href) {
   return /^https?:\/\//i.test(href || '')
 }
+
+function isHomeHashHref(href) {
+  return /^\/#\w/.test(String(href || '').trim())
+}
 /* =================== HERO SLIDER =================== */
 
 function usePrefersReducedMotion() {
@@ -36,37 +40,20 @@ function useIsTouchDevice() {
 function HeroCtaButton({ cta }) {
   if (!cta?.to || !cta?.label) return null
   const external = isExternalHref(cta.to)
+  const hashHome = isHomeHashHref(cta.to)
+  const variant = cta.variant === 'outline' || cta.variant === 'ghost' ? cta.variant : 'primary'
 
-  const buttonInner = (
+  const button = (
     <CTAButton
       as="span"
       size="lg"
-      className="
-        min-w-[190px] justify-center rounded-full px-7
-        text-sm font-semibold tracking-[0.06em] uppercase
-        shadow-[0_18px_45px_rgba(15,23,42,0.55)]
-      "
-      variant={cta.variant || 'primary'}
+      tone="onDark"
+      variant={variant}
+      className="min-w-[190px] justify-center px-7 text-sm font-bold tracking-[0.05em] uppercase"
     >
       {cta.label}
     </CTAButton>
   )
-
-  const frameStyle = {
-    borderRadius: 999,
-    padding: '2px',
-    background:
-      'radial-gradient(circle at 0% 0%, rgba(255,255,255,0.6), transparent 55%), ' +
-      'linear-gradient(135deg, color-mix(in srgb,var(--primary) 78%,#ffffff), #020617)',
-    display: 'inline-block',
-  }
-
-  const innerStyle = {
-    borderRadius: 999,
-    background:
-      'radial-gradient(circle at 0% 0%, rgba(255,255,255,0.16), transparent 60%), ' +
-      'color-mix(in srgb, #020617 80%, black)',
-  }
 
   if (external) {
     return (
@@ -74,15 +61,32 @@ function HeroCtaButton({ cta }) {
         href={cta.to}
         target="_blank"
         rel="noopener noreferrer"
-        whileHover={{ scale: 1.04, y: -1 }}
+        whileHover={{ scale: 1.03, y: -1 }}
         whileTap={{ scale: 0.98, y: 0 }}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: 'easeOut' }}
-        style={frameStyle}
+        className="inline-block"
         aria-label={`${cta.label} (abre em nova aba)`}
       >
-        <div style={innerStyle}>{buttonInner}</div>
+        {button}
+      </motion.a>
+    )
+  }
+
+  if (hashHome) {
+    return (
+      <motion.a
+        href={cta.to}
+        whileHover={{ scale: 1.03, y: -1 }}
+        whileTap={{ scale: 0.98, y: 0 }}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: 'easeOut' }}
+        className="inline-block"
+        aria-label={cta.label}
+      >
+        {button}
       </motion.a>
     )
   }
@@ -90,14 +94,14 @@ function HeroCtaButton({ cta }) {
   return (
     <Link to={cta.to} className="inline-block" aria-label={cta.label}>
       <motion.span
-        whileHover={{ scale: 1.04, y: -1 }}
+        whileHover={{ scale: 1.03, y: -1 }}
         whileTap={{ scale: 0.98, y: 0 }}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: 'easeOut' }}
-        style={frameStyle}
+        className="inline-block"
       >
-        <div style={innerStyle}>{buttonInner}</div>
+        {button}
       </motion.span>
     </Link>
   )
@@ -106,13 +110,15 @@ function HeroCtaButton({ cta }) {
 function HeroSecondaryButton({ cta }) {
   if (!cta?.to || !cta?.label) return null
   const external = isExternalHref(cta.to)
+  const variant = cta.variant === 'primary' ? 'primary' : 'outline'
 
-  const inner = (
+  const button = (
     <CTAButton
       as="span"
       size="lg"
-      variant={cta.variant || 'outline'}
-      className="min-w-[190px] justify-center rounded-full px-7 text-sm font-semibold"
+      tone="onDark"
+      variant={variant}
+      className="min-w-[190px] justify-center px-7 text-sm font-semibold"
     >
       {cta.label}
     </CTAButton>
@@ -132,7 +138,7 @@ function HeroSecondaryButton({ cta }) {
         aria-label={`${cta.label} (abre em nova aba)`}
         className="inline-block"
       >
-        {inner}
+        {button}
       </motion.a>
     )
   }
@@ -145,8 +151,9 @@ function HeroSecondaryButton({ cta }) {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: 'easeOut' }}
+        className="inline-block"
       >
-        {inner}
+        {button}
       </motion.span>
     </Link>
   )
@@ -255,7 +262,7 @@ function HomeHeroSlideLayer({ slide, isActive, prefersReduced }) {
   )
 }
 
-function HeroSlider({ slides, mounted, onActiveSlideChange, fullBleed = false }) {
+function HeroSlider({ slides, mounted, onActiveSlideChange, fullBleed = false, valuePills = null }) {
   const prefersReduced = usePrefersReducedMotion()
   const isTouch = useIsTouchDevice()
 
@@ -366,6 +373,7 @@ function HeroSlider({ slides, mounted, onActiveSlideChange, fullBleed = false })
   if (!hasSlides) return null
   const slide = safeSlides[index] || safeSlides[0]
   const { tag, title, subtitle, primary, secondary } = slide
+  const slideAnnouncement = [tag, title].filter(Boolean).join(' — ')
 
   const goTo = (i) => {
     const size = safeSlides.length
@@ -412,6 +420,9 @@ function HeroSlider({ slides, mounted, onActiveSlideChange, fullBleed = false })
       aria-roledescription="carousel"
       aria-label="Destaques"
     >
+      <div className="sr-only" aria-live="polite" aria-atomic="true">
+        {slideAnnouncement}
+      </div>
       <div className="absolute inset-0 z-0">
         {safeSlides.map((s, i) => (
           <HomeHeroSlideLayer
@@ -480,7 +491,7 @@ function HeroSlider({ slides, mounted, onActiveSlideChange, fullBleed = false })
               )}
             </div>
 
-            <div className="mt-8 flex items-center justify-between gap-4">
+            <div className="mt-5 md:mt-6 flex items-center justify-between gap-4 pb-0.5">
               <div
                 className="flex items-center gap-2"
                 role="tablist"
@@ -492,6 +503,7 @@ function HeroSlider({ slides, mounted, onActiveSlideChange, fullBleed = false })
                     <button
                       key={s.id || i}
                       type="button"
+                      role="tab"
                       onClick={() => goTo(i)}
                       className="h-2.5 rounded-full transition-all duration-300"
                       style={{
@@ -501,14 +513,15 @@ function HeroSlider({ slides, mounted, onActiveSlideChange, fullBleed = false })
                           : 'rgba(255,255,255,.42)',
                         boxShadow: active ? '0 0 0 1px rgba(0,0,0,.20)' : 'none',
                       }}
-                      aria-label={`Slide ${i + 1}`}
-                      aria-current={active ? 'true' : 'false'}
+                      aria-label={`Slide ${i + 1}: ${s.title || 'Destaque'}`}
+                      aria-selected={active}
+                      tabIndex={active ? 0 : -1}
                     />
                   )
                 })}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="hero-carousel-controls">
                 <HeroIconButton ariaLabel="Slide anterior" onClick={prev}>
                   <ChevronLeft className="h-4 w-4" />
                 </HeroIconButton>
@@ -526,7 +539,7 @@ function HeroSlider({ slides, mounted, onActiveSlideChange, fullBleed = false })
                   aria-label={paused ? 'Reproduzir' : 'Pausar'}
                 >
                   {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                  <span className="text-xs font-semibold">
+                  <span className="text-xs font-semibold hidden lg:inline">
                     {paused ? 'Play' : 'Pause'}
                   </span>
                 </button>
@@ -540,20 +553,34 @@ function HeroSlider({ slides, mounted, onActiveSlideChange, fullBleed = false })
         </AnimatePresence>
       </div>
 
+      {valuePills ? (
+        <div
+          className="relative z-10 border-t"
+          style={{
+            borderColor: 'rgba(255,255,255,0.12)',
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.28), rgba(0,0,0,0.42))',
+            backdropFilter: 'blur(12px)',
+          }}
+        >
+          <div className="container-max py-3.5 md:py-4">{valuePills}</div>
+        </div>
+      ) : null}
+
       <div
-        className="absolute bottom-0 left-0 right-0 h-px"
+        className="absolute bottom-0 left-0 right-0 h-px pointer-events-none"
         style={{ background: 'rgba(255,255,255,.14)' }}
       />
     </section>
   )
 }
-export default function PublicHeroSection({ slides, mounted, onActiveSlideChange }) {
+export default function PublicHeroSection({ slides, mounted, onActiveSlideChange, valuePills = null }) {
   return (
     <HeroSlider
       slides={slides}
       mounted={mounted}
       onActiveSlideChange={onActiveSlideChange}
       fullBleed
+      valuePills={valuePills}
     />
   )
 }

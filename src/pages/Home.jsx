@@ -9,45 +9,27 @@ import {
   isSlideHiddenByModuleFlags,
 } from '@/lib/tenantModules'
 
-import MemorialCTA from '@/components/MemorialCTA'
-import ParceirosCTA from '@/components/ParceirosCTA'
 import FaqSection from '@/components/faq/FaqSection.jsx'
 import PublicQuickAccessGrid from '@/components/public/PublicQuickAccessGrid.jsx'
 import PublicHeroSection from '@/components/public/PublicHeroSection.jsx'
 import PublicPlansPreview from '@/components/public/PublicPlansPreview.jsx'
 import PublicClubePreview from '@/components/public/PublicClubePreview.jsx'
 import PublicHowItWorks from '@/components/public/PublicHowItWorks.jsx'
-import PublicTrustStrip from '@/components/public/PublicTrustStrip.jsx'
-
-import CTAButton from '@/components/ui/CTAButton'
-import {
-  Smartphone,
-  Apple,
-  IdCard,
-  QrCode,
-  Gift,
-  MessageCircle,
-  HeartHandshake,
-  ShieldCheck,
-  Users,
-  Clock,
-  Percent,
-  Store,
-  Wallet,
-  Video,
-  HeartPulse,
-  PawPrint,
-  Heart,
-  Smile,
-  BookHeart,
-  Globe,
-} from 'lucide-react'
-import { resolveContractAssetUrl } from '@/lib/branding/tenantContract'
-import { getTenantContract } from '@/lib/tenantContent'
+import PublicAppDownloadSection from '@/components/public/PublicAppDownloadSection.jsx'
+import ParceirosCTA from '@/components/ParceirosCTA.jsx'
+import HeroValuePills from '@/components/public/HeroValuePills.jsx'
+import PublicHomeBand from '@/components/public/PublicHomeBand.jsx'
+import { resolveBrandDisplayName, resolveContractAssetUrl } from '@/lib/branding/tenantContract'
+import { getHomeHeroValuePillsFallback, getTenantContract } from '@/lib/tenantContent'
 import {
   subscribeBrandingRevision,
   getBrandingRevisionSnapshot,
 } from '@/boot/brandingSync'
+import {
+  normalizePartnerSlidePrimary,
+  resolvePartnerPrimaryCta,
+  PARTNER_HOME_SECTION_ID,
+} from '@/lib/partnerFunnel'
 
 /* ===================== constantes de imagem ===================== */
 
@@ -129,76 +111,6 @@ function resolveTenantHeroUrl(raw, contract, assetsBaseFallback) {
   return safeUrl(resolveAssetUrl(r, assetsBaseFallback))
 }
 
-/* ===================== peças utilitárias ===================== */
-
-/* ========================================================================
-   VALUE PILLS – PREMIUM (por slide)
-   ======================================================================== */
-
-const PILL_ICONS = {
-  ShieldCheck,
-  Users,
-  Clock,
-  Percent,
-  Store,
-  Wallet,
-  Video,
-  HeartPulse,
-  PawPrint,
-  Heart,
-  Smile,
-  BookHeart,
-  Globe,
-  IdCard,
-  QrCode,
-  Gift,
-  MessageCircle,
-  HeartHandshake,
-}
-
-function ValuePills({ pills, includeClubeFallbackPill = true }) {
-  const pillBase =
-    'inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[11px] sm:text-xs font-medium ' +
-    'backdrop-blur-md transition-all tracking-wide border'
-
-  const pillStyle = {
-    background:
-      'color-mix(in srgb, var(--primary) 8%, var(--surface) 92%)',
-    color: 'var(--text)',
-    borderColor:
-      'color-mix(in srgb, var(--primary) 26%, var(--c-border) 74%)',
-    boxShadow: '0 10px 30px rgba(15,23,42,0.10)',
-  }
-
-  const safe = Array.isArray(pills) ? pills.filter(Boolean) : []
-
-  // ✅ fallback se tenant ainda não mandar valuePills
-  let fallback = [
-    { icon: 'IdCard', label: 'Carteirinha digital' },
-    { icon: 'QrCode', label: 'PIX & boletos' },
-    { icon: 'Gift', label: 'Clube de benefícios' },
-  ]
-  if (!includeClubeFallbackPill) {
-    fallback = fallback.filter((p) => p.icon !== 'Gift')
-  }
-
-  const list = safe.length ? safe : fallback
-
-  return (
-    <div className="flex flex-wrap gap-2" aria-label="Recursos em destaque">
-      {list.map((p, idx) => {
-        const Icon = PILL_ICONS[p?.icon] || IdCard
-        const label = String(p?.label || '').trim() || 'Benefício'
-        return (
-          <span key={`${p?.icon || 'i'}-${idx}`} className={pillBase} style={pillStyle}>
-            <Icon size={13} /> {label}
-          </span>
-        )
-      })}
-    </div>
-  )
-}
-
 /* ============================== HOME ============================== */
 
 export default function Home() {
@@ -212,8 +124,10 @@ export default function Home() {
   const isLogged = useAuth((s) => s.isLoggedIn())
   const location = useLocation()
 
-  const ANDROID_URL = import.meta.env.VITE_ANDROID_URL || '#'
-  const IOS_URL = import.meta.env.VITE_IOS_URL || '#'
+  const appDisplayName = useMemo(
+    () => resolveBrandDisplayName(tenantContract, empresa) || 'App do Associado',
+    [tenantContract, empresa]
+  )
 
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
@@ -230,11 +144,34 @@ export default function Home() {
   }, [inCapacitorApp])
 
   useEffect(() => {
-    if (location.hash === '#faq') {
+    const hash = location.hash?.replace(/^#/, '')
+    if (hash === 'faq') {
       const el = document.getElementById('home-faq')
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+    if (hash === PARTNER_HOME_SECTION_ID) {
+      const el = document.getElementById(PARTNER_HOME_SECTION_ID)
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }, [location])
+
+  useEffect(() => {
+    if (inCapacitorApp) return
+    const idle =
+      typeof requestIdleCallback === 'function'
+        ? requestIdleCallback
+        : (cb) => setTimeout(cb, 1200)
+    const cancel =
+      typeof cancelIdleCallback === 'function' ? cancelIdleCallback : clearTimeout
+    const id = idle(() => {
+      const link = document.createElement('link')
+      link.rel = 'prefetch'
+      link.href = '/planos'
+      document.head.appendChild(link)
+    })
+    return () => cancel(id)
+  }, [inCapacitorApp])
 
   // ✅ base pública para assets do tenant (do JSON)
   const assetsBase = useMemo(() => {
@@ -268,20 +205,6 @@ export default function Home() {
       HERO_FALLBACKS[0]
     return resolveTenantHeroUrl(raw, tenantContract, assetsBase) || HERO_FALLBACKS[0]
   }, [empresa, assetsBase, tenantContract, brandingRevision])
-
-  const telefoneDigits = useMemo(() => {
-    let t = empresa?.contato?.telefone || ''
-    let digits = String(t).replace(/\D+/g, '')
-    if (!digits) return ''
-    if (!digits.startsWith('55')) digits = '55' + digits
-    return digits
-  }, [empresa])
-
-  const whatsappParceiroHref = useMemo(() => {
-    if (!telefoneDigits) return ''
-    const msg = encodeURIComponent('Olá! Quero ser parceiro.')
-    return `https://wa.me/${telefoneDigits}?text=${msg}`
-  }, [telefoneDigits])
 
   const defaultSlides = useMemo(() => {
     const all = [
@@ -320,11 +243,7 @@ export default function Home() {
           'Ofereça condições especiais para nossos associados e fortaleça sua marca.',
         image: HERO_FALLBACKS[2],
         fallbackImage: HERO_FALLBACKS[2],
-        primary: {
-          label: 'Quero ser parceiro(a)',
-          to: '/parceiros/inscrever',
-          variant: 'primary',
-        },
+        primary: resolvePartnerPrimaryCta(empresa),
         secondary: null,
         focus: 'center',
         showValuePills: false,
@@ -361,7 +280,7 @@ export default function Home() {
             subtitle: s.subtitle || heroSubtitleDefault,
             image: resolved || fb,
             fallbackImage: fb,
-            primary: s.primary || null,
+            primary: normalizePartnerSlidePrimary(s.primary, s.id || i, empresa),
             secondary: s.secondary || null,
             focus: s.focus || s.objectPosition || 'center',
             showValuePills:
@@ -387,10 +306,15 @@ export default function Home() {
     brandingRevision,
   ])
 
+  const heroPillsFallback = useMemo(
+    () => getHomeHeroValuePillsFallback(tenantContract),
+    [tenantContract, brandingRevision]
+  )
+
   // ✅ ValuePills por slide (showValuePills)
   const [activeSlide, setActiveSlide] = useState(null)
   const showPills = activeSlide?.showValuePills !== false
-  const pills = activeSlide?.valuePills || null
+  const pills = activeSlide?.valuePills || heroPillsFallback
 
   return (
     <>
@@ -398,150 +322,55 @@ export default function Home() {
         slides={slides}
         mounted={mounted}
         onActiveSlideChange={setActiveSlide}
+        valuePills={
+          showPills ? (
+            <HeroValuePills
+              pills={pills}
+              includeClubeFallbackPill={isBeneficiosEnabled(empresa)}
+            />
+          ) : null
+        }
       />
 
-      <section className="section">
-        <div className="container-max relative">
-          {showPills && (
-            <div
-              className={[
-                '-mt-6 md:-mt-8 mb-10 md:mb-12 transition-all duration-700',
-                mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
-              ].join(' ')}
-              style={{ transitionDelay: '150ms' }}
-            >
-              <ValuePills
-                pills={pills}
-                includeClubeFallbackPill={isBeneficiosEnabled(empresa)}
-              />
-            </div>
-          )}
+      <PublicHomeBand variant="command" compactTop>
+        <PublicQuickAccessGrid
+          empresa={empresa}
+          isLogged={isLogged}
+          inCapacitorApp={inCapacitorApp}
+          mounted={mounted}
+          compact
+        />
+      </PublicHomeBand>
 
-          <div className={showPills ? 'mt-10 md:mt-12' : ''}>
-            <PublicQuickAccessGrid
-              empresa={empresa}
-              isLogged={isLogged}
-              inCapacitorApp={inCapacitorApp}
-              mounted={mounted}
-            />
-          </div>
+      <PublicHomeBand variant="soft">
+        <PublicPlansPreview mounted={mounted} />
+      </PublicHomeBand>
 
-          <PublicTrustStrip />
+      {isBeneficiosEnabled(empresa) ? (
+        <PublicHomeBand variant="default">
+          <PublicClubePreview empresa={empresa} mounted={mounted} isLogged={isLogged} />
+        </PublicHomeBand>
+      ) : null}
 
-          <PublicPlansPreview mounted={mounted} />
+      <PublicHomeBand variant="muted" className="public-home-band--section-close">
+        <PublicHowItWorks mounted={mounted} />
+      </PublicHomeBand>
 
-          {isBeneficiosEnabled(empresa) && (
-            <PublicClubePreview empresa={empresa} mounted={mounted} isLogged={isLogged} />
-          )}
+      {!inCapacitorApp ? (
+        <PublicHomeBand variant="soft" className="public-home-band--section-open public-home-band--cta-lead">
+          <ParceirosCTA mounted={mounted} />
+        </PublicHomeBand>
+      ) : null}
 
-          <PublicHowItWorks mounted={mounted} />
+      {!inCapacitorApp ? (
+        <PublicHomeBand variant="command" className="public-home-band--cta-follow">
+          <PublicAppDownloadSection mounted={mounted} appName={appDisplayName} />
+        </PublicHomeBand>
+      ) : null}
 
-        {!inCapacitorApp && (
-          <div
-            className={[
-              'relative mt-10 md:mt-12 card p-0 overflow-hidden transition-all duration-700',
-              mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
-            ].join(' ')}
-            style={{ transitionDelay: '380ms' }}
-          >
-            <div className="grid md:grid-cols-2">
-              <div className="p-6 md:p-8 lg:p-10">
-                <h2 className="text-2xl font-extrabold text-[var(--primary)]">
-                  Baixe nosso aplicativo
-                </h2>
-                <p className="mt-2 text-[var(--text)]">
-                  Tenha carteirinha digital, boletos, PIX e benefícios sempre à mão.
-                  Receba notificações e acompanhe seus contratos.
-                </p>
-
-                <div className="mt-5 flex flex-wrap gap-3">
-                  <AppStoreButton
-                    href={ANDROID_URL}
-                    icon={<Smartphone size={16} />}
-                    delay={420}
-                  >
-                    Baixar para Android
-                  </AppStoreButton>
-
-                  <AppStoreButton href={IOS_URL} icon={<Apple size={16} />} delay={450}>
-                    Baixar para iOS
-                  </AppStoreButton>
-                </div>
-              </div>
-
-              <div className="bg-[var(--surface)] flex items-center justify-center p-8 lg:p-10">
-                <div
-                  className="rounded-2xl border bg-[var(--surface)]/70 p-10 text-center shadow-sm"
-                  style={{
-                    boxShadow:
-                      '0 1px 0 rgba(255,255,255,.65) inset, 0 18px 50px rgba(15,23,42,.08)',
-                  }}
-                >
-                  <div className="text-sm font-semibold text-[var(--text)]">
-                    App do Associado
-                  </div>
-                  <div className="mt-1 text-xs text-[var(--text)]">
-                    Carteirinha • Pagamentos • Benefícios
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {isMemorialEnabled(empresa) && (
-          <div className="mt-12 md:mt-16">
-            <MemorialCTA onVisitMemorial={() => (window.location.href = '/memorial')} />
-          </div>
-        )}
-
-        {!inCapacitorApp && (
-          <div className="mt-12 md:mt-16">
-            <ParceirosCTA
-              onBecomePartner={() => (window.location.href = '/parceiros/inscrever')}
-              whatsappHref={whatsappParceiroHref}
-            />
-          </div>
-        )}
-
-        <div className="faq-dark mt-12 md:mt-16" id="home-faq">
-          <FaqSection isLogged={isLogged} areaDest={isLogged ? '/area' : '/login'} />
-        </div>
-        </div>
-      </section>
+      <PublicHomeBand variant="inset" id="home-faq" className="faq-dark">
+        <FaqSection isLogged={isLogged} areaDest={isLogged ? '/area' : '/login'} embedded />
+      </PublicHomeBand>
     </>
-  )
-}
-
-/* ================== Botão das lojas ================== */
-
-function AppStoreButton({ href, icon, children, delay = 0 }) {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => {
-    const t = setTimeout(() => setMounted(true), 10)
-    return () => clearTimeout(t)
-  }, [])
-
-  const disabled = !href || href === '#'
-
-  return (
-    <CTAButton
-      as="a"
-      href={disabled ? undefined : href}
-      target="_blank"
-      rel="noopener noreferrer"
-      variant="outline"
-      size="lg"
-      iconBefore={icon}
-      aria-disabled={disabled ? 'true' : 'false'}
-      className={[
-        'transition-all duration-500',
-        disabled ? 'opacity-60 pointer-events-none' : '',
-        mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
-      ].join(' ')}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </CTAButton>
   )
 }

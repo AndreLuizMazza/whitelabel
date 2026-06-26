@@ -1,109 +1,100 @@
 import { Link } from 'react-router-dom'
 import { ClipboardList, UserPlus, UserSquare2, Headphones } from 'lucide-react'
 
+import PublicPageHeader from '@/components/public/PublicPageHeader.jsx'
+
 const STEPS = [
   {
     icon: ClipboardList,
-    step: '01',
+    step: '1',
     title: 'Escolha seu plano',
-    text: 'Compare opções, valores e benefícios inclusos de forma transparente.',
+    text: 'Compare opções e benefícios.',
     to: '/planos',
     cta: 'Ver planos',
   },
   {
     icon: UserPlus,
-    step: '02',
+    step: '2',
     title: 'Faça sua adesão',
-    text: 'Contrate online com orientação clara em cada etapa do cadastro.',
+    text: 'Contrate online com orientação.',
     to: '/planos',
-    cta: 'Começar adesão',
+    cta: 'Começar',
   },
   {
     icon: UserSquare2,
-    step: '03',
+    step: '3',
     title: 'Acesse sua área',
-    text: 'Consulte contrato, dependentes, pagamentos e carteirinha digital.',
+    text: 'Contrato, pagamentos e carteirinha.',
     to: '/login',
     cta: 'Entrar',
   },
   {
     icon: Headphones,
-    step: '04',
+    step: '4',
     title: 'Conte com nosso time',
-    text: 'Unidades, telefone e WhatsApp para tirar dúvidas quando precisar.',
+    text: 'Unidades, telefone e WhatsApp.',
     to: '/filiais',
-    cta: 'Falar conosco',
+    cta: 'Contato',
   },
 ]
 
 export default function PublicHowItWorks({ mounted = true }) {
   return (
-    <section className="mt-12 md:mt-16" aria-labelledby="home-how-heading">
+    <section aria-labelledby="home-how-heading">
       <div
         className={[
           'transition-all duration-700',
           mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
         ].join(' ')}
       >
-        <div className="text-center max-w-2xl mx-auto">
-          <p
-            className="text-[11px] uppercase tracking-[0.2em] font-semibold"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            Como funciona
-          </p>
-          <h2 id="home-how-heading" className="mt-1 text-2xl md:text-3xl font-black tracking-tight">
-            Simples do início ao acompanhamento
-          </h2>
-          <p className="mt-2 text-sm md:text-base text-[var(--text-muted)]">
-            Quatro passos alinhados ao fluxo real de contratação e autoatendimento.
-          </p>
-        </div>
+        <PublicPageHeader
+          kicker="Como funciona"
+          title="Simples do início ao acompanhamento"
+          description="Quatro passos alinhados ao fluxo real de contratação e autoatendimento."
+          id="home-how-heading"
+          titleAs="h2"
+          align="left"
+          className="mb-4 md:mb-5 [&_.public-lead]:hidden sm:[&_.public-lead]:block"
+        />
 
-        <ol className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {STEPS.map((item, index) => {
+        <ol className="grid grid-cols-2 gap-2 md:gap-3 xl:grid-cols-4 auto-rows-fr">
+          {STEPS.map((item) => {
             const Icon = item.icon
             return (
               <li
                 key={item.step}
-                className="relative rounded-2xl border bg-[var(--surface)] p-5 md:p-6 h-full flex flex-col"
-                style={{ borderColor: 'var(--c-border)' }}
+                className="public-surface-card p-3 md:p-4 flex flex-col h-full"
               >
-                {index < STEPS.length - 1 ? (
+                <div className="flex items-center justify-between gap-2">
                   <span
-                    className="hidden xl:block absolute top-1/2 -right-2 h-px w-4"
-                    style={{ background: 'var(--c-border)' }}
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold"
+                    style={{
+                      background: 'color-mix(in srgb, var(--primary) 12%, var(--surface))',
+                      color: 'var(--primary)',
+                    }}
                     aria-hidden="true"
-                  />
-                ) : null}
-
-                <div className="flex items-center justify-between gap-3">
-                  <span
-                    className="text-[11px] font-bold tracking-[0.18em]"
-                    style={{ color: 'var(--primary)' }}
                   >
-                    PASSO {item.step}
+                    {item.step}
                   </span>
                   <span
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg shrink-0"
                     style={{
-                      background: 'color-mix(in srgb, var(--primary) 10%, var(--surface) 90%)',
+                      background: 'color-mix(in srgb, var(--primary) 10%, var(--surface))',
                       color: 'var(--primary)',
                     }}
                   >
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-4 w-4" aria-hidden="true" />
                   </span>
                 </div>
 
-                <h3 className="mt-4 text-lg font-bold">{item.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-[var(--text-muted)] flex-1">
+                <h3 className="mt-2 text-[13px] md:text-base font-bold leading-snug">{item.title}</h3>
+                <p className="mt-1 text-[11px] md:text-xs leading-snug text-[var(--text-muted)] line-clamp-2 flex-1">
                   {item.text}
                 </p>
 
                 <Link
                   to={item.to}
-                  className="mt-4 inline-flex text-sm font-semibold hover:underline w-fit"
-                  style={{ color: 'var(--primary)' }}
+                  className="public-section-link text-[11px] md:text-xs"
                 >
                   {item.cta}
                 </Link>

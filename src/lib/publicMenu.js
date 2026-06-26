@@ -85,6 +85,9 @@ export const MENU_ESSENTIAL_KEYS = [
 export const MENU_SERVICOS_KEYS = ['segunda-via', 'contatos']
 export const MENU_SUPORTE_KEYS = ['ajuda']
 
+/** Nav desktop: descoberta institucional (serviços ficam no acesso rápido). */
+export const DESKTOP_NAV_KEYS = ['planos', 'produtos', 'beneficios', 'memorial', 'sobre-nos']
+
 /** @param {Record<string, unknown> | null | undefined} empresa */
 export function getFilteredPublicMenu(empresa) {
   return filterMainMenuLinksForTenant(MAIN_MENU_LINKS, empresa)
@@ -108,6 +111,8 @@ export function getGroupedPublicMenu(empresa) {
 /** Links para nav horizontal desktop (sem Home — logo já leva à home). */
 export function getDesktopNavLinks(empresa, { hideKeys = [] } = {}) {
   return getFilteredPublicMenu(empresa).filter(
-    (item) => item.key !== 'home' && !hideKeys.includes(item.key)
+    (item) =>
+      DESKTOP_NAV_KEYS.includes(item.key) &&
+      !hideKeys.includes(item.key)
   )
 }

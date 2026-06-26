@@ -265,3 +265,88 @@ export function getHomeBenefitHighlights(t) {
 
   return [];
 }
+
+/**
+ * Links das lojas de app na home (`content.home.apps`).
+ * @param {unknown} t
+ * @returns {{ android: string, ios: string, previewImage?: string }}
+ */
+export function getHomeAppStoreLinks(t) {
+  const home = getHomeContent(t);
+  const apps = home?.apps && typeof home.apps === "object" ? home.apps : null;
+  if (!apps) return { android: "", ios: "" };
+
+  const android = String(apps.androidStoreUrl || apps.androidUrl || "").trim();
+  const ios = String(apps.iosStoreUrl || apps.iosUrl || "").trim();
+  const previewImage = String(apps.previewImage || "").trim() || undefined;
+
+  return { android, ios, previewImage };
+}
+
+/** Copy editorial para trust strip quando não há stats numéricos. */
+export function getHomeEditorialTrustItems(t) {
+  const about = getAboutRaw(t);
+  const values = normalizeAboutListItems(about?.values);
+  if (values.length >= 2) {
+    return values.slice(0, 3).map((v) => ({
+      title: v.title || "Valor",
+      text: v.text || "",
+    }));
+  }
+  return [
+    { title: "Atendimento humanizado", text: "Equipe preparada para orientar você." },
+    { title: "Transparência", text: "Informações claras sobre planos e canais." },
+    { title: "Benefícios reais", text: "Parceiros e serviços que ampliam seu plano." },
+  ];
+}
+
+const HERO_PILL_VALUE_ICONS = ["HeartHandshake", "ShieldCheck", "Users", "Star", "Globe"];
+
+/**
+ * Pills do hero quando o slide não define `valuePills`.
+ * Prioridade: `content.home.heroPills` → `about.values` → null (fallback do componente).
+ * @param {unknown} t
+ * @returns {Array<{ icon: string, label: string }> | null}
+ */
+export function getHomeHeroValuePillsFallback(t) {
+  const home = getHomeContent(t);
+  const fromHome = home?.heroPills ?? home?.valuePills;
+  if (Array.isArray(fromHome) && fromHome.length > 0) {
+    return fromHome
+      .map((p) => {
+        if (!p || typeof p !== "object") return null;
+        const label = String(p.label || p.title || "").trim();
+        if (!label) return null;
+        return {
+          icon: String(p.icon || "ShieldCheck").trim() || "ShieldCheck",
+          label,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 5);
+  }
+
+  const values = normalizeAboutListItems(getAboutRaw(t)?.values);
+  if (values.length >= 2) {
+    return values.slice(0, 4).map((v, i) => ({
+      icon: HERO_PILL_VALUE_ICONS[i % HERO_PILL_VALUE_ICONS.length],
+      label: v.title || String(v.text || "").split(/[.!]/)[0]?.trim() || "Valor",
+    }));
+  }
+
+  return null;
+}
+
+/** Descrição institucional para footer. */
+export function getFooterInstitutionalBlurb(t) {
+  const about = getAboutRaw(t);
+  const closing = String(about?.closing || "").trim();
+  if (closing) {
+    const first = closing.split(/\n+/)[0]?.trim();
+    if (first) return first;
+  }
+  const seo = t && typeof t === "object" ? t.seo : null;
+  const meta = String(seo?.metaDescription || "").trim();
+  if (meta) return meta;
+  return "";
+}

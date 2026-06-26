@@ -6,8 +6,8 @@ export default function ParceirosCompactCTA({ onPrimary, onSecondary, className 
     <CompactCTA
       className={className}
       icon={Handshake}
-      eyebrow="Rede de Benefícios"
-      title="Seja nosso parceiro"
+      eyebrow="Parcerias comerciais"
+      title="Fortaleça sua marca conosco"
       subtitle="Ofereça condições especiais e receba indicações qualificadas."
       bullets={[
         "Sem custo fixo",

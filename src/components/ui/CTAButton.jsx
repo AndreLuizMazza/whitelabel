@@ -4,42 +4,36 @@ import { Link } from "react-router-dom";
 /**
  * Botão de CTA padronizado, 100% baseado em CSS vars.
  * Variants: 'primary' | 'outline' | 'ghost'
- * as: 'button' | 'link' | 'a'
+ * tone: 'default' | 'onDark' (hero/foto escura)
+ * as: 'button' | 'link' | 'a' | 'span'
  */
 export default function CTAButton({
-  as = "button",           // "button" | "link" | "a"
-  to,                      // quando as="link"
-  href,                    // quando as="a"
+  as = "button",
+  to,
+  href,
   target,
   rel,
   type = "button",
   onClick,
   disabled = false,
   className = "",
-  size = "md",             // "sm" | "md" | "lg"
-  variant = "primary",     // "primary" | "outline" | "ghost"
+  size = "md",
+  variant = "primary",
+  tone = "default",
   iconBefore,
   iconAfter,
   children,
   ...rest
 }) {
-  const sizes = {
-    sm: "h-9 px-3 text-sm",
-    md: "h-11 px-4 text-sm",
-    lg: "h-12 px-5 text-base",
-  };
-
-  const variants = {
-    primary:
-      "bg-[var(--primary)] text-[var(--on-primary)] border border-[color-mix(in_srgb,var(--primary)_70%,transparent)] hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed",
-    outline:
-      "bg-[var(--surface)] text-[var(--primary-dark)] border border-[var(--primary)] hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] disabled:opacity-60 disabled:cursor-not-allowed",
-    ghost:
-      "bg-transparent text-[var(--primary-dark)] border border-transparent hover:bg-[color-mix(in_srgb,var(--primary)_10%,transparent)] disabled:opacity-60 disabled:cursor-not-allowed",
-  };
-
-  const cls =
-    `inline-flex items-center justify-center gap-2 rounded-full font-semibold transition outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] ${sizes[size]} ${variants[variant]} ${className}`;
+  const cls = [
+    "cta-btn",
+    `cta-btn--${size}`,
+    `cta-btn--${variant}`,
+    tone === "onDark" ? "cta-btn--on-dark" : "",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const content = (
     <>
@@ -49,7 +43,6 @@ export default function CTAButton({
     </>
   );
 
-  // ===== Navegação SPA =====
   if (as === "link") {
     return (
       <Link
@@ -64,24 +57,17 @@ export default function CTAButton({
     );
   }
 
-  // ===== Anchor externa (WhatsApp, lojas, etc.) =====
   if (as === "a") {
-    const safeHref = (typeof href === "string" && href.trim()) ? href.trim() : undefined;
-
+    const safeHref = typeof href === "string" && href.trim() ? href.trim() : undefined;
     const effectiveRel =
-      safeHref && target === "_blank"
-        ? (rel || "noopener noreferrer")
-        : rel;
+      safeHref && target === "_blank" ? rel || "noopener noreferrer" : rel;
 
     const handleClick = (e) => {
       if (disabled) {
         e.preventDefault();
         return;
       }
-      // Se não há href (ex.: vamos abrir via onClick/window.open), evita navegação padrão
-      if (!safeHref) {
-        e.preventDefault();
-      }
+      if (!safeHref) e.preventDefault();
       onClick?.(e);
     };
 
@@ -101,7 +87,14 @@ export default function CTAButton({
     );
   }
 
-  // ===== Botão padrão =====
+  if (as === "span") {
+    return (
+      <span className={cls} aria-disabled={disabled ? "true" : undefined} {...rest}>
+        {content}
+      </span>
+    );
+  }
+
   return (
     <button
       type={type}

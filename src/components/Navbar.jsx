@@ -2,7 +2,7 @@
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Menu, X, UserSquare2, User, LogOut } from 'lucide-react'
+import { Menu, X, UserSquare2, User, LogOut, ChevronDown } from 'lucide-react'
 
 import useAuth from '@/store/auth'
 import useTenant from '@/store/tenant'
@@ -36,26 +36,38 @@ function MobileMenuTrigger({ open, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="lg:hidden inline-flex items-center gap-2 rounded-full h-10 px-3.5 border text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] transition-all active:scale-[0.98] shrink-0"
-      style={{
-        borderColor: open
-          ? 'color-mix(in srgb, var(--primary) 55%, transparent)'
-          : 'var(--c-border)',
-        background: open
-          ? 'color-mix(in srgb, var(--primary) 14%, var(--surface))'
-          : 'var(--surface)',
-        color: open ? 'var(--primary)' : 'var(--text)',
-        boxShadow: open
-          ? '0 0 0 1px color-mix(in srgb, var(--primary) 20%, transparent)'
-          : '0 1px 2px rgba(15,23,42,.06)',
-      }}
+      className={'app-topbar__menu-btn' + (open ? ' is-open' : '')}
       aria-label={open ? 'Fechar menu de navegação' : 'Abrir menu de navegação'}
       aria-controls="mobile-menu"
       aria-expanded={open}
     >
       {open ? <X className="h-5 w-5" strokeWidth={2.25} /> : <Menu className="h-5 w-5" strokeWidth={2.25} />}
-      <span>Menu</span>
+      <span className="app-topbar__menu-label">Menu</span>
     </button>
+  )
+}
+
+function ProfileAvatar({ avatarUrl, avatarErro, avatarInitial, nomeExibicao, onError, size = 'md' }) {
+  const dim = size === 'sm' ? 'h-7 w-7 text-[11px]' : 'h-8 w-8 text-xs'
+  if (avatarUrl && !avatarErro) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={nomeExibicao || 'Perfil'}
+        className={`${dim} rounded-full object-cover`}
+        style={{ border: '1px solid color-mix(in srgb, var(--primary) 45%, transparent)' }}
+        onError={onError}
+        referrerPolicy="no-referrer"
+      />
+    )
+  }
+  return (
+    <span
+      className={`inline-flex ${dim} items-center justify-center rounded-full font-semibold`}
+      style={{ background: 'var(--primary)', color: 'var(--on-primary, #fff)' }}
+    >
+      {avatarInitial}
+    </span>
   )
 }
 
@@ -78,6 +90,7 @@ export default function Navbar() {
   }
 
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(false)
   const [elderMode, setElderMode] = useState(() => {
     if (typeof window === 'undefined') return false
     try {
@@ -100,6 +113,16 @@ export default function Navbar() {
 
   /* ===== Conta / Avatar ===== */
   const nomeExibicao = useMemo(() => user?.nome ?? user?.email ?? '', [user])
+  const profileShortName = useMemo(() => {
+    const raw = String(nomeExibicao || 'Minha conta').trim()
+    if (!raw) return 'Minha conta'
+    const parts = raw.split(/\s+/).filter(Boolean)
+    if (parts.length === 1) return parts[0].length > 14 ? `${parts[0].slice(0, 13)}…` : parts[0]
+    const first = parts[0]
+    const last = parts[parts.length - 1]
+    const compact = `${first} ${last.charAt(0)}.`
+    return compact.length > 16 ? `${first.slice(0, 12)}…` : compact
+  }, [nomeExibicao])
 
   const avatarInitial = useMemo(() => {
     const base = user?.nome || user?.email || 'U'
@@ -220,6 +243,15 @@ export default function Navbar() {
     return () => root.removeAttribute('data-mobile-drawer-open')
   }, [mobileOpen])
 
+  // Sombra/reforço visual ao rolar
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const onScroll = () => setIsScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   // Modo idoso
   useEffect(() => {
     const root = document.documentElement
@@ -230,19 +262,8 @@ export default function Navbar() {
     } catch {}
   }, [elderMode])
 
-  const linkClass = ({ isActive }) =>
-    'relative px-3 py-2 flex items-center gap-2 whitespace-nowrap rounded-full text-[13px] xl:text-sm font-medium transition-all duration-200 ' +
-    (isActive
-      ? 'text-[var(--primary)] font-semibold bg-[var(--nav-active-bg)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--primary)_22%,transparent)]'
-      : 'text-[var(--text)] hover:text-[var(--primary)] hover:bg-[var(--nav-hover-bg)]')
-
-  const ActiveBar = ({ isActive }) =>
-    isActive ? (
-      <span
-        className="absolute left-2 top-1/2 -translate-y-1/2 h-5 w-1 rounded-full bg-[var(--primary)]"
-        aria-hidden="true"
-      />
-    ) : null
+  const navLinkClass = (isActive) =>
+    'app-topbar__nav-link' + (isActive ? ' is-active' : '')
 
   function handleLogoClick(e) {
     if (location.pathname === '/') {
@@ -386,8 +407,7 @@ export default function Navbar() {
                   <Link
                     to="/planos"
                     onClick={() => setMobileOpen(false)}
-                    className="flex items-center justify-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold shadow-sm hover:shadow transition"
-                    style={{ background: 'var(--primary)', color: '#fff' }}
+                    className="app-topbar__cta-primary flex w-full items-center justify-center gap-3 px-4 py-3"
                   >
                     Fazer adesão
                   </Link>
@@ -395,8 +415,7 @@ export default function Navbar() {
                   <Link
                     to="/login"
                     onClick={() => setMobileOpen(false)}
-                    className="mt-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium border hover:bg-black/5 dark:hover:bg-white/5 transition"
-                    style={{ borderColor: 'var(--c-border)', color: 'var(--text)' }}
+                    className="app-topbar__cta-secondary mt-2 flex w-full items-center justify-center gap-2 px-4 py-2.5"
                   >
                     <UserSquare2 className="h-5 w-5" />
                     <span>Entrar</span>
@@ -538,8 +557,7 @@ export default function Navbar() {
                   <Link
                     to="/planos"
                     onClick={() => setMobileOpen(false)}
-                    className="w-full flex items-center justify-center rounded-2xl px-4 py-3 font-semibold shadow-sm hover:shadow transition"
-                    style={{ background: 'var(--primary)', color: '#fff' }}
+                    className="app-topbar__cta-primary flex w-full items-center justify-center px-4 py-3"
                   >
                     Fazer adesão
                   </Link>
@@ -555,247 +573,184 @@ export default function Navbar() {
     <header
       ref={headerRef}
       data-app-navbar="true"
-      className="w-full border-b bg-[var(--surface)]/95 backdrop-blur-md sticky top-0 z-40 shadow-sm"
+      className={'app-topbar' + (isScrolled ? ' is-scrolled' : '')}
     >
-      <div className="container-max flex items-center justify-between flex-nowrap py-2.5 lg:py-3 gap-2 lg:gap-4">
+      <div className="app-topbar__inner">
         {/* Logo */}
-        <Link
-          to="/"
-          onClick={handleLogoClick}
-          className="flex items-center h-10 md:h-12 lg:h-14 flex-shrink-0 max-w-[55%]"
-          aria-label={nomeEmpresa}
-        >
-          <img
-            key={logoUrl}
-            src={logoUrl}
-            alt={nomeEmpresa}
-            className="h-10 md:h-12 lg:h-14 w-auto max-w-full object-contain"
-            loading="eager"
-            decoding="async"
-          />
-        </Link>
-
-        {/* Navegação desktop — menu institucional completo */}
-        <div className="hidden lg:flex flex-1 justify-center min-w-0 px-2">
-          <nav
-            className="flex flex-wrap items-center justify-center gap-x-0.5 xl:gap-x-1 gap-y-1 text-[12px] xl:text-[13px]"
-            aria-label="Navegação principal"
+        <div className="app-topbar__brand">
+          <Link
+            to="/"
+            onClick={handleLogoClick}
+            className="app-topbar__logo"
+            aria-label={nomeEmpresa}
           >
-            {desktopNavLinks.map((item) => {
-              if (item.to.startsWith('/#')) {
-                return (
-                  <a
-                    key={item.key}
-                    href={item.to}
-                    className={
-                      linkClass({ isActive: isHashActive(item) }) +
-                      ' px-2 xl:px-2.5 py-1.5'
-                    }
-                  >
-                    <ActiveBar isActive={isHashActive(item)} />
-                    <span>{item.label}</span>
-                  </a>
-                )
-              }
-
-              return (
-                <NavLink
-                  key={item.key}
-                  to={
-                    item.key === 'produtos'
-                      ? getProdutosMenuTo(location.pathname, location.search)
-                      : item.to
-                  }
-                  className={({ isActive }) =>
-                    linkClass({ isActive }) + ' px-2 xl:px-2.5 py-1.5'
-                  }
-                  end={item.exact || item.key === 'produtos'}
-                >
-                  {({ isActive }) => (
-                    <>
-                      <ActiveBar isActive={isActive} />
-                      <span>{item.label}</span>
-                    </>
-                  )}
-                </NavLink>
-              )
-            })}
-          </nav>
+            <img
+              key={logoUrl}
+              src={logoUrl}
+              alt={nomeEmpresa}
+              loading="eager"
+              decoding="async"
+            />
+          </Link>
         </div>
 
-        {/* Ações à direita */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {isLogged && (
-            <div className="flex items-center gap-1">
-              <HeaderNotificationsBell />
-            </div>
-          )}
+        {/* Navegação desktop — centralizada no grid */}
+        <nav className="app-topbar__nav hidden lg:flex" aria-label="Navegação principal">
+          {desktopNavLinks.map((item) => {
+            if (item.to.startsWith('/#')) {
+              return (
+                <a
+                  key={item.key}
+                  href={item.to}
+                  className={navLinkClass(isHashActive(item))}
+                >
+                  {item.label}
+                </a>
+              )
+            }
 
-          <div className="hidden lg:block">
-            <ThemeToggle />
-          </div>
-
-          {!isLogged && (
-            <>
-              <Link
-                to="/planos"
-                className="lg:hidden inline-flex items-center justify-center h-10 px-3.5 rounded-full text-xs font-semibold shadow-sm shrink-0"
-                style={{ background: 'var(--primary)', color: '#fff' }}
-                aria-label="Fazer adesão"
+            return (
+              <NavLink
+                key={item.key}
+                to={
+                  item.key === 'produtos'
+                    ? getProdutosMenuTo(location.pathname, location.search)
+                    : item.to
+                }
+                className={({ isActive }) => navLinkClass(isActive)}
+                end={item.exact || item.key === 'produtos'}
               >
-                Adesão
-              </Link>
+                {item.label}
+              </NavLink>
+            )
+          })}
+        </nav>
 
-              <div className="hidden lg:flex items-center gap-2">
+        {/* Utilitários — colados à direita no mobile */}
+        <div className="app-topbar__utilities">
+          <div className="app-topbar__action-rail">
+            {isLogged && <HeaderNotificationsBell variant="topbar" />}
+
+            <div className="hidden lg:block">
+              <ThemeToggle variant="topbar" />
+            </div>
+
+            {!isLogged && (
+              <>
                 <Link
                   to="/planos"
-                  className="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-semibold shadow-sm hover:shadow transition"
-                  style={{ background: 'var(--primary)', color: '#fff' }}
+                  className="app-topbar__cta-mobile"
                   aria-label="Fazer adesão"
                 >
-                  Fazer adesão
+                  Adesão
                 </Link>
 
-                <Link
-                  to="/login"
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
-                  style={{
-                    borderColor: 'var(--c-border)',
-                    background: 'color-mix(in srgb, var(--surface) 92%, var(--primary) 8%)',
-                    color: 'var(--text)',
-                  }}
-                  aria-label="Entrar"
-                >
-                  <User className="h-4 w-4" />
-                  <span>Entrar</span>
-                </Link>
-              </div>
-            </>
-          )}
+                <span className="app-topbar__rail-divider" aria-hidden="true" />
 
-          {isLogged ? (
-            <div className="relative" ref={profileMenuRef}>
-              {/* Avatar desktop */}
-              <button
-                type="button"
-                onClick={() => setShowProfileMenu((v) => !v)}
-                className="hidden lg:inline-flex items-center gap-2 pl-1 pr-2 py-1.5 rounded-full border text-xs sm:text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)] transition-colors"
-                style={{
-                  borderColor: 'var(--c-border)',
-                  background:
-                    'color-mix(in srgb, var(--surface-elevated, var(--surface)) 90%, var(--primary) 10%)',
-                }}
-                aria-haspopup="menu"
-                aria-expanded={showProfileMenu}
-                aria-label={nomeExibicao || 'Conta do associado'}
-              >
-                {avatarUrl && !avatarErro ? (
-                  <img
-                    src={avatarUrl}
-                    alt={nomeExibicao || 'Perfil'}
-                    className="h-8 w-8 rounded-full object-cover"
-                    style={{
-                      border: '1px solid color-mix(in srgb, var(--primary) 60%, transparent)',
-                    }}
-                    onError={() => setAvatarErro(true)}
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <span
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold"
-                    style={{ background: 'var(--primary)', color: '#fff' }}
-                  >
-                    {avatarInitial}
-                  </span>
-                )}
-
-                <span className="hidden lg:inline max-w-[160px] truncate">
-                  {nomeExibicao || 'Minha conta'}
-                </span>
-              </button>
-
-              {/* Avatar mobile — atalho para área (menu separado) */}
-              <Link
-                to="/area"
-                className="lg:hidden inline-flex items-center justify-center rounded-full border h-10 w-10 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)] shrink-0"
-                aria-label="Área do associado"
-              >
-                {avatarUrl && !avatarErro ? (
-                  <img
-                    src={avatarUrl}
-                    alt={nomeExibicao || 'Perfil'}
-                    className="h-8 w-8 rounded-full object-cover"
-                    onError={() => setAvatarErro(true)}
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <span
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold"
-                    style={{ background: 'var(--primary)', color: '#fff' }}
-                  >
-                    {avatarInitial}
-                  </span>
-                )}
-              </Link>
-
-              {/* Menu de perfil desktop */}
-              {showProfileMenu && (
-                <div
-                  className="absolute right-0 mt-2 w-60 rounded-xl overflow-hidden shadow-xl border z-[45]"
-                  style={{
-                    borderColor: 'var(--c-border-strong, var(--c-border))',
-                    background: 'var(--surface-elevated, var(--surface))',
-                    color: 'var(--text)',
-                  }}
-                  role="menu"
-                >
-                  <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--c-border)' }}>
-                    <p className="text-[11px] uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
-                      Minha conta
-                    </p>
-                    <p className="text-sm font-semibold truncate">{nomeExibicao || 'Associado'}</p>
-                  </div>
-
+                <div className="app-topbar__cta-desktop">
                   <Link
-                    to="/area"
-                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
-                    onClick={() => setShowProfileMenu(false)}
-                    role="menuitem"
+                    to="/login"
+                    className="app-topbar__cta-secondary"
+                    aria-label="Entrar"
                   >
-                    <UserSquare2 size={14} />
-                    <span>Área do associado</span>
+                    <User className="h-4 w-4 shrink-0" strokeWidth={2} />
+                    <span>Entrar</span>
                   </Link>
 
                   <Link
-                    to="/perfil"
-                    className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5"
-                    onClick={() => setShowProfileMenu(false)}
-                    role="menuitem"
+                    to="/planos"
+                    className="app-topbar__cta-primary"
+                    aria-label="Fazer adesão"
                   >
-                    <User size={14} />
-                    <span>Meu perfil</span>
+                    Fazer adesão
                   </Link>
-
-                  <div className="h-px mx-3" style={{ background: 'var(--c-border)' }} />
-
-                  <button
-                    type="button"
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5 text-[var(--danger, #b91c1c)]"
-                    onClick={() => {
-                      setShowProfileMenu(false)
-                      void handleLogout()
-                    }}
-                    role="menuitem"
-                  >
-                    <LogOut size={14} />
-                    <span>Sair</span>
-                  </button>
                 </div>
-              )}
-            </div>
-          ) : null}
+              </>
+            )}
 
-          <MobileMenuTrigger open={mobileOpen} onClick={() => setMobileOpen((v) => !v)} />
+            {isLogged ? (
+              <>
+                <span className="app-topbar__rail-divider" aria-hidden="true" />
+                <div className="hidden lg:block relative" ref={profileMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowProfileMenu((v) => !v)}
+                  className="app-topbar__profile"
+                  aria-haspopup="menu"
+                  aria-expanded={showProfileMenu}
+                  aria-label={nomeExibicao || 'Conta do associado'}
+                >
+                  <ProfileAvatar
+                    avatarUrl={avatarUrl}
+                    avatarErro={avatarErro}
+                    avatarInitial={avatarInitial}
+                    nomeExibicao={nomeExibicao}
+                    onError={() => setAvatarErro(true)}
+                  />
+                  <span className="app-topbar__profile-name">{profileShortName}</span>
+                  <ChevronDown
+                    className={
+                      'app-topbar__profile-chevron' +
+                      (showProfileMenu ? ' is-open' : '')
+                    }
+                    size={15}
+                    strokeWidth={2.25}
+                    aria-hidden="true"
+                  />
+                </button>
+
+                {showProfileMenu && (
+                  <div
+                    className="app-topbar__profile-menu"
+                    role="menu"
+                  >
+                    <div className="app-topbar__profile-menu-head">
+                      <p className="app-topbar__profile-menu-kicker">Minha conta</p>
+                      <p className="app-topbar__profile-menu-name">{nomeExibicao || 'Associado'}</p>
+                    </div>
+
+                    <Link
+                      to="/area"
+                      className="app-topbar__profile-menu-item"
+                      onClick={() => setShowProfileMenu(false)}
+                      role="menuitem"
+                    >
+                      <UserSquare2 size={14} />
+                      <span>Área do associado</span>
+                    </Link>
+
+                    <Link
+                      to="/perfil"
+                      className="app-topbar__profile-menu-item"
+                      onClick={() => setShowProfileMenu(false)}
+                      role="menuitem"
+                    >
+                      <User size={14} />
+                      <span>Meu perfil</span>
+                    </Link>
+
+                    <div className="app-topbar__profile-menu-divider" />
+
+                    <button
+                      type="button"
+                      className="app-topbar__profile-menu-item is-danger"
+                      onClick={() => {
+                        setShowProfileMenu(false)
+                        void handleLogout()
+                      }}
+                      role="menuitem"
+                    >
+                      <LogOut size={14} />
+                      <span>Sair</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+              </>
+            ) : null}
+
+            <MobileMenuTrigger open={mobileOpen} onClick={() => setMobileOpen((v) => !v)} />
+          </div>
         </div>
       </div>
 

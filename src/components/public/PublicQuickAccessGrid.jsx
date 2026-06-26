@@ -1,87 +1,101 @@
 import { Link } from 'react-router-dom'
 import {
   Layers,
-  Receipt,
   UserSquare2,
   Gift,
   MessageCircle,
-  HeartHandshake,
-  ArrowRight,
+  FileText,
 } from 'lucide-react'
 
-import CTAButton from '@/components/ui/CTAButton'
-import { isBeneficiosEnabled, isMemorialEnabled } from '@/lib/tenantModules'
+import ScrollRevealRow from '@/components/ui/ScrollRevealRow'
+import { isBeneficiosEnabled } from '@/lib/tenantModules'
 
-function IconBadge({ children }) {
-  return (
-    <span
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full shrink-0"
-      style={{
-        background: 'color-mix(in srgb, var(--primary) 12%, var(--surface) 88%)',
-        color: 'var(--primary)',
-        border: '1px solid color-mix(in srgb, var(--primary) 28%, var(--c-border))',
-      }}
-      aria-hidden="true"
-    >
-      {children}
-    </span>
-  )
-}
+const PRIORITY_KEYS = ['area', 'segunda-via', 'planos', 'beneficios', 'contato']
+const FEATURED_KEYS = new Set(['area', 'segunda-via'])
 
-function QuickAccessCard({ icon, title, desc, to, cta, mounted, delay = 0 }) {
-  if (!to) return null
-
-  const isExternal = /^https?:\/\//i.test(to)
-  const Wrapper = isExternal ? 'a' : Link
-  const wrapperProps = isExternal
-    ? { href: to, target: '_blank', rel: 'noopener noreferrer' }
-    : { to }
+function MobileChip({ icon, title, to, mounted, delay = 0, featured = false }) {
+  const Wrapper = /^https?:\/\//i.test(to) ? 'a' : Link
+  const wrapperProps =
+    Wrapper === 'a'
+      ? { href: to, target: '_blank', rel: 'noopener noreferrer' }
+      : { to }
 
   return (
     <Wrapper
       {...wrapperProps}
-      className="group block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[color-mix(in_srgb,var(--primary)_60%,black)]"
-      aria-label={`${title}. ${cta}`}
-      title={title}
+      className={[
+        'group shrink-0 snap-start flex flex-col items-center justify-center gap-1.5',
+        'public-surface-card px-2 py-2.5 min-h-[76px] w-[5.25rem]',
+        'transition-all duration-200 active:scale-[0.98]',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2',
+        mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1',
+        featured ? 'border-[color-mix(in_srgb,var(--primary)_35%,var(--c-border))]' : '',
+      ].join(' ')}
+      style={{
+        transitionDelay: `${delay}ms`,
+        background: featured
+          ? 'color-mix(in srgb, var(--primary) 7%, var(--surface))'
+          : undefined,
+      }}
+      aria-label={title}
     >
-      <article
-        className={[
-          'h-full flex flex-col justify-between rounded-2xl',
-          'p-3 sm:p-4 md:p-5',
-          'transition-all duration-500 will-change-transform',
-          'hover:-translate-y-[2px] hover:shadow-md sm:hover:shadow-xl',
-          'hover:bg-[var(--surface)] hover:ring-1 hover:ring-[var(--c-border)]',
-          'active:translate-y-0',
-          mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
-        ].join(' ')}
+      <span
+        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
         style={{
-          transitionDelay: `${delay}ms`,
-          boxShadow: '0 1px 0 rgba(0,0,0,.04), 0 10px 30px rgba(15,23,42,.06)',
+          background: featured
+            ? 'color-mix(in srgb, var(--primary) 88%, var(--surface))'
+            : 'color-mix(in srgb, var(--primary) 10%, var(--surface))',
+          color: featured ? 'var(--on-primary, #fff)' : 'var(--primary)',
         }}
+        aria-hidden="true"
       >
-        <div className="flex items-start gap-2 sm:gap-3">
-          <IconBadge>{icon}</IconBadge>
-          <div className="min-w-0">
-            <h3 className="text-sm sm:text-base md:text-lg font-semibold leading-tight">
-              {title}
-              {isExternal ? <span className="sr-only"> (abre em nova aba)</span> : null}
-            </h3>
-            <p className="mt-1 text-xs sm:text-sm text-[var(--text)] leading-relaxed line-clamp-3">
-              {desc}
-            </p>
-          </div>
-        </div>
+        {icon}
+      </span>
+      <span className="text-[10px] font-semibold leading-tight text-center text-[var(--text)] line-clamp-2 px-0.5">
+        {title}
+      </span>
+    </Wrapper>
+  )
+}
 
-        <div className="mt-3 sm:mt-4 pt-2 border-t border-[var(--c-border)]/50">
-          <CTAButton
-            as="span"
-            iconAfter={<ArrowRight size={14} />}
-            className="w-full justify-center sm:w-auto sm:justify-start text-xs sm:text-sm"
-          >
-            {cta}
-          </CTAButton>
-        </div>
-      </article>
+function DesktopChip({ icon, title, to, mounted, delay = 0, featured = false }) {
+  const Wrapper = /^https?:\/\//i.test(to) ? 'a' : Link
+  const wrapperProps =
+    Wrapper === 'a'
+      ? { href: to, target: '_blank', rel: 'noopener noreferrer' }
+      : { to }
+
+  return (
+    <Wrapper
+      {...wrapperProps}
+      className={[
+        'group inline-flex items-center gap-2 rounded-full border px-3.5 py-2 min-h-[40px]',
+        'transition-all duration-200 hover:shadow-sm active:scale-[0.99]',
+        mounted ? 'opacity-100' : 'opacity-0',
+      ].join(' ')}
+      style={{
+        transitionDelay: `${delay}ms`,
+        borderColor: featured
+          ? 'color-mix(in srgb, var(--primary) 35%, var(--c-border))'
+          : 'var(--c-border)',
+        background: featured
+          ? 'color-mix(in srgb, var(--primary) 8%, var(--surface))'
+          : 'var(--surface)',
+      }}
+    >
+      <span
+        className="inline-flex h-7 w-7 items-center justify-center rounded-full"
+        style={{
+          background: featured
+            ? 'color-mix(in srgb, var(--primary) 85%, var(--surface))'
+            : 'color-mix(in srgb, var(--primary) 10%, var(--surface))',
+          color: featured ? 'var(--on-primary, #fff)' : 'var(--primary)',
+        }}
+        aria-hidden="true"
+      >
+        {icon}
+      </span>
+      <span className="text-[13px] font-semibold whitespace-nowrap">{title}</span>
     </Wrapper>
   )
 }
@@ -91,97 +105,93 @@ export default function PublicQuickAccessGrid({
   isLogged = false,
   inCapacitorApp = false,
   mounted = true,
+  compact = false,
 }) {
   const cards = [
     {
       key: 'area',
-      icon: <UserSquare2 size={22} strokeWidth={2} />,
-      title: 'Área do Associado',
-      desc: 'Acesse contratos, dependentes e pagamentos.',
+      icon: <UserSquare2 size={16} strokeWidth={2.25} />,
+      title: isLogged ? 'Minha área' : 'Área do associado',
+      titleMobile: isLogged ? 'Minha área' : 'Área do associado',
       to: isLogged ? '/area' : '/login',
-      cta: 'Acessar área',
-      delay: 200,
+      delay: 80,
       show: true,
     },
     {
       key: 'segunda-via',
-      icon: <Receipt size={22} strokeWidth={2} />,
-      title: 'Segunda via de Boleto',
-      desc: 'Consulte boletos sem senha.',
+      icon: <FileText size={16} strokeWidth={2.25} />,
+      title: 'Segunda via de boleto',
+      titleMobile: '2ª via',
       to: '/contratos',
-      cta: 'Pesquisar',
-      delay: 230,
+      delay: 110,
       show: !inCapacitorApp,
     },
     {
       key: 'planos',
-      icon: <Layers size={22} strokeWidth={2} />,
-      title: 'Nossos Planos',
-      desc: 'Proteção completa para toda a família.',
+      icon: <Layers size={15} strokeWidth={2.25} />,
+      title: 'Planos',
+      titleMobile: 'Planos',
       to: '/planos',
-      cta: 'Ver planos',
-      delay: 260,
+      delay: 140,
       show: true,
     },
     {
       key: 'beneficios',
-      icon: <Gift size={22} strokeWidth={2} />,
-      title: 'Clube de Benefícios',
-      desc: 'Parceiros com descontos e vantagens.',
+      icon: <Gift size={15} strokeWidth={2.25} />,
+      title: 'Benefícios',
+      titleMobile: 'Benefícios',
       to: '/beneficios',
-      cta: 'Ver parceiros',
-      delay: 290,
+      delay: 170,
       show: !inCapacitorApp && isBeneficiosEnabled(empresa),
     },
     {
-      key: 'memorial',
-      icon: <HeartHandshake size={22} strokeWidth={2} />,
-      title: 'Memorial Online',
-      desc: 'Homenagens interativas e informações das cerimônias.',
-      to: '/memorial',
-      cta: 'Ver Memorial',
-      delay: 320,
-      show: isMemorialEnabled(empresa),
-    },
-    {
       key: 'contato',
-      icon: <MessageCircle size={22} strokeWidth={2} />,
-      title: 'Atendimento',
-      desc: 'Encontre nossas unidades e canais de atendimento.',
+      icon: <MessageCircle size={15} strokeWidth={2.25} />,
+      title: 'Unidades',
+      titleMobile: 'Unidades',
       to: '/filiais',
-      cta: 'Ver unidades',
-      delay: 350,
+      delay: 200,
       show: true,
     },
   ]
 
-  const visible = cards.filter((c) => c.show)
+  const visible = cards
+    .filter((c) => c.show)
+    .sort((a, b) => PRIORITY_KEYS.indexOf(a.key) - PRIORITY_KEYS.indexOf(b.key))
 
   return (
-    <div>
-      <div className="mb-5 md:mb-6">
-        <p
-          className="text-[11px] uppercase tracking-[0.2em] font-semibold"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          Acesso rápido
-        </p>
-        <h2 className="mt-1 text-xl md:text-2xl font-bold text-[var(--text)]">
-          O que você precisa, em um clique
-        </h2>
-      </div>
+    <div className="home-command-strip">
+      <p className="public-kicker mb-2">
+        {compact ? 'Acesso rápido' : 'O que você precisa, em um clique'}
+      </p>
 
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 lg:gap-6">
+      <ScrollRevealRow
+        className="md:hidden"
+        rowClassName="flex gap-2 pb-0.5 -mx-1 px-1 snap-x snap-mandatory"
+      >
         {visible.map((card) => (
-          <QuickAccessCard
+          <MobileChip
+            key={card.key}
+            icon={card.icon}
+            title={card.titleMobile || card.title}
+            to={card.to}
+            mounted={mounted}
+            delay={card.delay}
+            featured={FEATURED_KEYS.has(card.key)}
+          />
+        ))}
+      </ScrollRevealRow>
+
+      <div className="hidden md:flex flex-wrap gap-2">
+        {visible.map((card) => (
+          <DesktopChip
             key={card.key}
             icon={card.icon}
             title={card.title}
-            desc={card.desc}
             to={card.to}
-            cta={card.cta}
             mounted={mounted}
             delay={card.delay}
+            featured={FEATURED_KEYS.has(card.key)}
           />
         ))}
       </div>

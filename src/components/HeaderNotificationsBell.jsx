@@ -7,7 +7,7 @@ import useNotificationsStore from '@/store/notifications'
 import notificationSound from '@/assets/sounds/notifications.wav'
 
 
-export default function HeaderNotificationsBell({ className = '', tone = 'default' }) {
+export default function HeaderNotificationsBell({ className = '', tone = 'default', variant = 'default' }) {
   const [open, setOpen] = useState(false)
   const { items, unread, markAllRead, markAsRead } = useNotificationsStore()
   const navigate = useNavigate()
@@ -89,15 +89,22 @@ export default function HeaderNotificationsBell({ className = '', tone = 'defaul
   }
 
   const isOnDark = tone === 'onDark'
+  const isTopbar = variant === 'topbar'
 
   return (
     <div className={'relative ' + className} ref={wrapperRef}>
       <button
         type="button"
         onClick={handleBellClick}
-        className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border transition active:scale-95"
+        className={
+          isTopbar
+            ? 'app-topbar__icon-btn relative'
+            : 'relative inline-flex h-10 w-10 items-center justify-center rounded-full border transition active:scale-95'
+        }
         style={
-          isOnDark
+          isTopbar
+            ? undefined
+            : isOnDark
             ? {
                 borderColor: 'rgba(255,255,255,0.22)',
                 background: 'rgba(255,255,255,0.14)',
