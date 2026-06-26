@@ -201,3 +201,68 @@ export function normalizeAboutPage(t) {
     ogImageUrl,
   };
 }
+
+/** @param {unknown} t */
+export function getHomeContent(t) {
+  const c = t && typeof t === "object" ? t.content : null;
+  const home = c && typeof c === "object" ? c.home : null;
+  return home && typeof home === "object" ? home : null;
+}
+
+/**
+ * Stats de confiança configuráveis no JSON do tenant (`content.home.trustStats`).
+ * Retorna vazio se não houver dados reais — nunca inventar números.
+ * @param {unknown} t
+ * @returns {{ label: string, value: string, icon?: string }[]}
+ */
+export function getHomeTrustStats(t) {
+  const home = getHomeContent(t);
+  const raw = home?.trustStats;
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const label = String(item.label || "").trim();
+      const value = String(item.value || "").trim();
+      if (!label || !value) return null;
+      const icon = String(item.icon || "").trim();
+      return icon ? { label, value, icon } : { label, value };
+    })
+    .filter(Boolean);
+}
+
+/**
+ * Destaques de benefícios para a home (`content.home.benefits` ou fallback editorial).
+ * @param {unknown} t
+ * @returns {{ title: string, text: string, to?: string, icon?: string }[]}
+ */
+export function getHomeBenefitHighlights(t) {
+  const home = getHomeContent(t);
+  const raw = home?.benefits;
+  if (Array.isArray(raw) && raw.length > 0) {
+    return raw
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const title = String(item.title || "").trim();
+        const text = String(item.text || item.description || "").trim();
+        if (!title || !text) return null;
+        const to = String(item.to || "").trim() || undefined;
+        const icon = String(item.icon || "").trim() || undefined;
+        return to ? { title, text, to, icon } : icon ? { title, text, icon } : { title, text };
+      })
+      .filter(Boolean);
+  }
+
+  const about = getAboutRaw(t);
+  const diffs = normalizeAboutListItems(about?.differentials);
+  if (diffs.length >= 2) {
+    return diffs.slice(0, 4).map((d) => ({
+      title: d.title || "Diferencial",
+      text: d.text,
+      to: "/sobre-nos",
+    }));
+  }
+
+  return [];
+}

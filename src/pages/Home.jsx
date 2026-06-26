@@ -9,12 +9,15 @@ import {
   isSlideHiddenByModuleFlags,
 } from '@/lib/tenantModules'
 
-import PlanosCTA from '@/components/PlanosCTA'
 import MemorialCTA from '@/components/MemorialCTA'
 import ParceirosCTA from '@/components/ParceirosCTA'
 import FaqSection from '@/components/faq/FaqSection.jsx'
 import PublicQuickAccessGrid from '@/components/public/PublicQuickAccessGrid.jsx'
 import PublicHeroSection from '@/components/public/PublicHeroSection.jsx'
+import PublicPlansPreview from '@/components/public/PublicPlansPreview.jsx'
+import PublicBenefitsHighlight from '@/components/public/PublicBenefitsHighlight.jsx'
+import PublicHowItWorks from '@/components/public/PublicHowItWorks.jsx'
+import PublicTrustStrip from '@/components/public/PublicTrustStrip.jsx'
 
 import CTAButton from '@/components/ui/CTAButton'
 import {
@@ -416,12 +419,20 @@ export default function Home() {
 
           <div className={showPills ? 'mt-10 md:mt-12' : ''}>
             <PublicQuickAccessGrid
-            empresa={empresa}
-            isLogged={isLogged}
-            inCapacitorApp={inCapacitorApp}
-            mounted={mounted}
-          />
+              empresa={empresa}
+              isLogged={isLogged}
+              inCapacitorApp={inCapacitorApp}
+              mounted={mounted}
+            />
           </div>
+
+          <PublicTrustStrip />
+
+          <PublicPlansPreview mounted={mounted} />
+
+          <PublicBenefitsHighlight empresa={empresa} mounted={mounted} />
+
+          <PublicHowItWorks mounted={mounted} />
 
         {!inCapacitorApp && (
           <div
@@ -475,10 +486,6 @@ export default function Home() {
             </div>
           </div>
         )}
-
-        <div className="mt-12 md:mt-16">
-          <PlanosCTA onSeePlans={() => (window.location.href = '/planos')} />
-        </div>
 
         {isMemorialEnabled(empresa) && (
           <div className="mt-12 md:mt-16">
