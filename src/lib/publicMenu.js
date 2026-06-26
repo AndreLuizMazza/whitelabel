@@ -179,11 +179,9 @@ export function getGroupedPublicMenu(empresa) {
   return groups
 }
 
-/** Links para nav horizontal desktop (sem Home — logo já leva à home). */
+/** Links para nav horizontal desktop — só rotas internas (externos ficam na action rail). */
 export function getDesktopNavLinks(empresa, { hideKeys = [] } = {}) {
-  const staticLinks = getFilteredPublicMenu(empresa).filter(
+  return getFilteredPublicMenu(empresa).filter(
     (item) => DESKTOP_NAV_KEYS.includes(item.key) && !hideKeys.includes(item.key)
   )
-  const externalLinks = getExternalPublicMenuLinks(empresa)
-  return [...staticLinks, ...externalLinks]
 }

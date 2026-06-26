@@ -419,11 +419,16 @@ html.dark .app-topbar.is-scrolled {
 @media (min-width: 1024px) {
   .app-topbar__inner {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: minmax(7.5rem, auto) minmax(0, 1fr) minmax(0, max-content);
     align-items: center;
-    column-gap: 2rem;
+    column-gap: 1rem;
     min-height: 4.125rem;
     padding-block: 0.75rem;
+  }
+}
+@media (min-width: 1280px) {
+  .app-topbar__inner {
+    column-gap: 1.5rem;
   }
 }
 
@@ -439,7 +444,7 @@ html.dark .app-topbar.is-scrolled {
   }
 }
 .app-topbar__logo {
-  @apply flex items-center h-9 md:h-10 lg:h-11 flex-shrink-0 max-w-[58vw] lg:max-w-[200px];
+  @apply flex items-center h-9 md:h-10 lg:h-11 flex-shrink-0 max-w-[58vw] lg:max-w-[11.5rem] xl:max-w-[12.5rem];
 }
 .app-topbar__logo img {
   @apply h-9 md:h-10 lg:h-11 w-auto max-w-full object-contain;
@@ -455,6 +460,11 @@ html.dark .app-topbar.is-scrolled {
     grid-column: 2;
     justify-self: center;
     display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 0.125rem;
+    max-width: 100%;
+    overflow: hidden;
   }
 }
 .app-topbar__nav-link {
@@ -495,6 +505,26 @@ html.dark .app-topbar.is-scrolled {
     var(--primary) 80%,
     transparent
   );
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .app-topbar__nav-link {
+    padding: 0.4375rem 0.625rem;
+    font-size: 0.75rem;
+  }
+  .app-topbar__nav-link.is-active::after {
+    left: 0.625rem;
+    right: 0.625rem;
+  }
+}
+@media (min-width: 1280px) and (max-width: 1439px) {
+  .app-topbar__nav-link {
+    padding: 0.4375rem 0.75rem;
+    font-size: 0.78125rem;
+  }
+  .app-topbar__nav-link.is-active::after {
+    left: 0.75rem;
+    right: 0.75rem;
+  }
 }
 
 /* Link externo no menu — skin premium (claro/escuro) */
@@ -639,6 +669,14 @@ html.dark .app-topbar__external-icon {
   flex-shrink: 1;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
 }
+@media (min-width: 1024px) {
+  .app-topbar__external-chip {
+    max-width: min(11rem, 16vw);
+    height: 2.25rem;
+    font-size: 0.71875rem;
+    padding-inline: 0.5625rem 0.6875rem;
+  }
+}
 .app-topbar__external-chip:hover {
   border-color: color-mix(in srgb, var(--primary) 42%, var(--c-border));
   background: linear-gradient(
@@ -668,11 +706,6 @@ html.dark .app-topbar__external-chip {
     color-mix(in srgb, var(--primary) 14%, var(--surface)) 100%
   );
   border-color: color-mix(in srgb, var(--primary) 44%, var(--c-border));
-}
-@media (min-width: 1024px) {
-  .app-topbar__external-chip {
-    display: none;
-  }
 }
 
 /* Item externo no drawer mobile */
@@ -725,10 +758,12 @@ html.dark .app-topbar__drawer-link--external {
     justify-self: end;
     margin-left: 0;
     gap: 0;
+    flex: none;
+    max-width: min(100%, 28rem);
   }
 }
 
-/* Ações à direita — layout plano (sem pill container) */
+/* Ações à direita — mobile plano; desktop leading (chip) + trailing (tema, CTAs) */
 .app-topbar__action-rail {
   display: flex;
   align-items: center;
@@ -739,7 +774,33 @@ html.dark .app-topbar__drawer-link--external {
 }
 @media (min-width: 1024px) {
   .app-topbar__action-rail {
+    gap: 0.5rem;
+    flex: none;
+    max-width: 100%;
+  }
+}
+.app-topbar__action-rail-leading {
+  display: contents;
+}
+@media (min-width: 1024px) {
+  .app-topbar__action-rail-leading {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    flex: 0 1 auto;
+    max-width: min(11rem, 16vw);
+    overflow: hidden;
+  }
+}
+.app-topbar__action-rail-trailing {
+  display: contents;
+}
+@media (min-width: 1024px) {
+  .app-topbar__action-rail-trailing {
+    display: inline-flex;
+    align-items: center;
     gap: 0.625rem;
+    flex-shrink: 0;
   }
 }
 
@@ -907,6 +968,21 @@ html.dark .app-topbar__drawer-link--external {
   font-size: 0.8125rem;
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .app-topbar__profile-name,
+  .app-topbar__profile-chevron {
+    display: none;
+  }
+  .app-topbar__profile {
+    max-width: none;
+    padding-inline: 0.1875rem;
+  }
+}
+@media (min-width: 1280px) and (max-width: 1439px) {
+  .app-topbar__profile-name {
+    max-width: 5.5rem;
+  }
 }
 .app-topbar__profile-chevron {
   shrink: 0;

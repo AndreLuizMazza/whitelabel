@@ -288,6 +288,31 @@ export default function Navbar() {
   const featuredExternalLink = externalMenuLinks[0] || null
   const FeaturedExternalIcon = featuredExternalLink?.icon
 
+  function renderFeaturedExternalChip(className = 'app-topbar__external-chip') {
+    if (!featuredExternalLink) return null
+    return (
+      <a
+        href={featuredExternalLink.to}
+        target={featuredExternalLink.openInNewTab ? '_blank' : undefined}
+        rel={featuredExternalLink.openInNewTab ? 'noopener noreferrer' : undefined}
+        className={className}
+        title={featuredExternalLink.label}
+        aria-label={
+          featuredExternalLink.openInNewTab
+            ? `${featuredExternalLink.label} (abre em nova aba)`
+            : featuredExternalLink.label
+        }
+      >
+        {FeaturedExternalIcon ? (
+          <span className="app-topbar__external-icon app-topbar__external-icon--chip" aria-hidden="true">
+            <FeaturedExternalIcon className="h-3 w-3" strokeWidth={2.35} />
+          </span>
+        ) : null}
+        <span className="app-topbar__external-chip__label">{featuredExternalLink.label}</span>
+      </a>
+    )
+  }
+
   const fullMobileMenuBase = useMemo(
     () => getGroupedPublicMenu(empresa),
     [empresa]
@@ -618,26 +643,6 @@ export default function Navbar() {
         {/* Navegação desktop — centralizada no grid */}
         <nav className="app-topbar__nav hidden lg:flex" aria-label="Navegação principal">
           {desktopNavLinks.map((item) => {
-            if (item.external) {
-              return (
-                <a
-                  key={item.key}
-                  href={item.to}
-                  target={item.openInNewTab ? '_blank' : undefined}
-                  rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
-                  className={navLinkClass(false) + ' app-topbar__nav-link--external'}
-                  aria-label={
-                    item.openInNewTab ? `${item.label} (abre em nova aba)` : item.label
-                  }
-                >
-                  <span>{item.label}</span>
-                  <span className="app-topbar__external-icon app-topbar__external-icon--nav" aria-hidden="true">
-                    <ArrowUpRight className="h-3 w-3" strokeWidth={2.5} />
-                  </span>
-                </a>
-              )
-            }
-
             if (item.to.startsWith('/#')) {
               return (
                 <a
@@ -671,26 +676,12 @@ export default function Navbar() {
         <div className="app-topbar__utilities">
           <div className="app-topbar__action-rail">
             {featuredExternalLink ? (
-              <a
-                href={featuredExternalLink.to}
-                target={featuredExternalLink.openInNewTab ? '_blank' : undefined}
-                rel={featuredExternalLink.openInNewTab ? 'noopener noreferrer' : undefined}
-                className="app-topbar__external-chip"
-                aria-label={
-                  featuredExternalLink.openInNewTab
-                    ? `${featuredExternalLink.label} (abre em nova aba)`
-                    : featuredExternalLink.label
-                }
-              >
-                {FeaturedExternalIcon ? (
-                  <span className="app-topbar__external-icon app-topbar__external-icon--chip" aria-hidden="true">
-                    <FeaturedExternalIcon className="h-3 w-3" strokeWidth={2.35} />
-                  </span>
-                ) : null}
-                <span className="app-topbar__external-chip__label">{featuredExternalLink.label}</span>
-              </a>
+              <div className="app-topbar__action-rail-leading">
+                {renderFeaturedExternalChip()}
+              </div>
             ) : null}
 
+            <div className="app-topbar__action-rail-trailing">
             {isLogged && <HeaderNotificationsBell variant="topbar" />}
 
             <div className="hidden lg:block">
@@ -812,6 +803,7 @@ export default function Navbar() {
             ) : null}
 
             <MobileMenuTrigger open={mobileOpen} onClick={() => setMobileOpen((v) => !v)} />
+            </div>
           </div>
         </div>
       </div>
