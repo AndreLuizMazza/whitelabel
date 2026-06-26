@@ -4,7 +4,6 @@ import Navbar from '@/components/Navbar.jsx'
 import Footer from '@/components/Footer.jsx'
 import CookieBanner from '@/components/CookieBanner.jsx'
 import StickyContactDock from '@/components/StickyContactDock.jsx'
-import GlobalShell from '@/layouts/GlobalShell.jsx'
 
 function useHideContactDock(pathname) {
   return (
@@ -36,9 +35,9 @@ export default function PublicLayout() {
   const hideFooter = useHideFooter(pathname)
 
   return (
-    <GlobalShell>
+    <div className="flex min-h-screen flex-col bg-[var(--surface)]">
       <Navbar />
-      <main className="flex-1">
+      <main className="flex-1 min-w-0 w-full">
         <Outlet />
       </main>
       <CookieBanner />
@@ -59,6 +58,6 @@ export default function PublicLayout() {
           autoHideOnScroll
         />
       )}
-    </GlobalShell>
+    </div>
   )
 }

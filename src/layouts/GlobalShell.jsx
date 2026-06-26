@@ -1,20 +1,11 @@
 // src/layouts/GlobalShell.jsx
 import { NavLink, useLocation, Link } from "react-router-dom"
 import {
-  Home,
-  Layers,
-  Package,
-  Gift,
-  HeartHandshake,
-  Building2,
-  FileText,
-  Phone,
   UserSquare2,
   UsersRound,
   Receipt,
   IdCard,
   Settings,
-  HelpCircle,
 } from "lucide-react"
 
 import useAuth from "@/store/auth"
@@ -24,78 +15,15 @@ import ThemeToggle from "@/components/ThemeToggle"
 import HeaderNotificationsBell from "@/components/HeaderNotificationsBell"
 import AppBuildInfo from "@/components/AppBuildInfo.jsx"
 import { getProdutosMenuTo } from "@/lib/produtoUtils"
+import {
+  MAIN_MENU_LINKS,
+  MENU_ESSENTIAL_KEYS,
+  MENU_SERVICOS_KEYS,
+  MENU_SUPORTE_KEYS,
+} from "@/lib/publicMenu"
 
-/**
- * MENU PRINCIPAL – PÚBLICO
- * Referência única para Navbar, sidebar e mobile drawer.
- *
- * Organização premium (BigTech):
- * - Essencial: Home, Planos, Produtos, Benefícios, Memorial
- * - Serviços: 2ª Via, Contatos
- * - Suporte: Ajuda
- */
-export const MAIN_MENU_LINKS = [
-  // Essencial
-  {
-    key: "home",
-    to: "/",
-    label: "Home",
-    icon: Home,
-    exact: true,
-  },
-  {
-    key: "planos",
-    to: "/planos",
-    label: "Planos",
-    icon: Layers,
-  },
-  {
-    key: "produtos",
-    to: "/produtos",
-    label: "Produtos",
-    icon: Package,
-  },
-  {
-    key: "beneficios",
-    to: "/beneficios",
-    label: "Clube de Benefícios",
-    icon: Gift,
-  },
-  {
-    key: "memorial",
-    to: "/memorial",
-    label: "Memorial",
-    icon: HeartHandshake,
-  },
-  {
-    key: "sobre-nos",
-    to: "/sobre-nos",
-    label: "Sobre nós",
-    icon: Building2,
-  },
-
-  // Serviços
-  {
-    key: "segunda-via",
-    to: "/contratos",
-    label: "2ª Via",
-    icon: FileText,
-  },
-  {
-    key: "contatos",
-    to: "/filiais",
-    label: "Contatos",
-    icon: Phone,
-  },
-
-  // Suporte
-  {
-    key: "ajuda",
-    to: "/#faq",
-    label: "Ajuda",
-    icon: HelpCircle,
-  },
-]
+/** @deprecated Import from `@/lib/publicMenu` — re-export for compatibility. */
+export { MAIN_MENU_LINKS } from "@/lib/publicMenu"
 
 /**
  * MENU – ÁREA DO ASSOCIADO (logado)
@@ -132,10 +60,6 @@ export const PRIVATE_MENU_LINKS = [
     icon: Settings,
   },
 ]
-
-const MENU_ESSENTIAL_KEYS = ["home", "planos", "produtos", "beneficios", "memorial", "sobre-nos"]
-const MENU_SERVICOS_KEYS = ["segunda-via", "contatos"]
-const MENU_SUPORTE_KEYS = ["ajuda"]
 
 export default function GlobalShell({ children }) {
   const location = useLocation()

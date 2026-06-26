@@ -9,8 +9,7 @@ import ThemeToggle from './ThemeToggle.jsx'
 import HeaderNotificationsBell from '@/components/HeaderNotificationsBell.jsx'
 import { getAvatarBlobUrl } from '@/lib/profile'
 
-import { MAIN_MENU_LINKS } from '@/layouts/GlobalShell.jsx'
-import { filterMainMenuLinksForTenant } from '@/lib/tenantModules'
+import { getDesktopNavLinks, getGroupedPublicMenu } from '@/lib/publicMenu'
 import { getTenantInitials } from '@/lib/tenantBranding'
 import { useTenantLogoUrl } from '@/lib/tenantLogoRuntime'
 import { getProdutosMenuTo } from '@/lib/produtoUtils'
@@ -219,19 +218,18 @@ export default function Navbar() {
   // No seu GlobalShell: 2ª via = "segunda-via", benefícios = "beneficios"
   const HIDE_IN_CAPACITOR_KEYS = useMemo(() => ['segunda-via', 'beneficios'], [])
 
-  const mainMenuForTenant = useMemo(
-    () => filterMainMenuLinksForTenant(MAIN_MENU_LINKS, empresa),
-    [empresa]
+  const desktopNavLinks = useMemo(
+    () =>
+      getDesktopNavLinks(empresa, {
+        hideKeys: inCapacitorApp ? HIDE_IN_CAPACITOR_KEYS : [],
+      }),
+    [empresa, inCapacitorApp, HIDE_IN_CAPACITOR_KEYS]
   )
 
-  // Links exibidos no DESKTOP: Planos, Produtos, Benefícios, Memorial, Sobre
-  // (no Capacitor: remove Benefícios)
-  const DESKTOP_MENU = mainMenuForTenant
-    .filter((item) => ['planos', 'produtos', 'beneficios', 'memorial', 'sobre-nos'].includes(item.key))
-    .filter((item) => !(inCapacitorApp && item.key === 'beneficios'))
-
-  // Menu mobile — somente navegação pública (área privada fica no AppShell)
-  const fullMobileMenuBase = mainMenuForTenant
+  const fullMobileMenuBase = useMemo(
+    () => getGroupedPublicMenu(empresa),
+    [empresa]
+  )
 
   // ✅ no Capacitor: remove 2ª via + benefícios (mantém divider)
   const fullMobileMenu = useMemo(() => {
@@ -250,9 +248,9 @@ export default function Navbar() {
     <header
       ref={headerRef}
       data-app-navbar="true"
-      className="w-full border-b bg-[var(--surface)] sticky top-0 z-40 shadow-sm"
+      className="w-full border-b bg-[var(--surface)]/95 backdrop-blur-md sticky top-0 z-40 shadow-sm"
     >
-      <div className="container-max flex items-center justify-between flex-nowrap py-3 gap-3 sm:gap-4">
+      <div className="container-max flex items-center justify-between flex-nowrap py-2.5 lg:py-3 gap-2 lg:gap-4">
         {/* Logo */}
         <Link
           to="/"
@@ -270,11 +268,29 @@ export default function Navbar() {
           />
         </Link>
 
-        {/* Navegação desktop – enxuta */}
-        <div className="hidden md:flex flex-1 justify-center min-w-0">
-          <nav className="flex flex-wrap items-center justify-center gap-x-1 lg:gap-x-2 gap-y-1 text-[13px] lg:text-sm">
-            {DESKTOP_MENU.map((item) => {
-              const Icon = item.icon
+        {/* Navegação desktop — menu institucional completo */}
+        <div className="hidden lg:flex flex-1 justify-center min-w-0 px-2">
+          <nav
+            className="flex flex-wrap items-center justify-center gap-x-0.5 xl:gap-x-1 gap-y-1 text-[12px] xl:text-[13px]"
+            aria-label="Navegação principal"
+          >
+            {desktopNavLinks.map((item) => {
+              if (item.to.startsWith('/#')) {
+                return (
+                  <a
+                    key={item.key}
+                    href={item.to}
+                    className={
+                      linkClass({ isActive: isHashActive(item) }) +
+                      ' px-2 xl:px-2.5 py-1.5'
+                    }
+                  >
+                    <ActiveBar isActive={isHashActive(item)} />
+                    <span>{item.label}</span>
+                  </a>
+                )
+              }
+
               return (
                 <NavLink
                   key={item.key}
@@ -283,13 +299,14 @@ export default function Navbar() {
                       ? getProdutosMenuTo(location.pathname, location.search)
                       : item.to
                   }
-                  className={linkClass}
+                  className={({ isActive }) =>
+                    linkClass({ isActive }) + ' px-2 xl:px-2.5 py-1.5'
+                  }
                   end={item.exact || item.key === 'produtos'}
                 >
                   {({ isActive }) => (
                     <>
                       <ActiveBar isActive={isActive} />
-                      <Icon className="h-4 w-4" />
                       <span>{item.label}</span>
                     </>
                   )}
@@ -307,12 +324,12 @@ export default function Navbar() {
             </div>
           )}
 
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
             <ThemeToggle />
           </div>
 
           {!isLogged && (
-            <div className="hidden md:flex items-center gap-2">
+            <div className="hidden lg:flex items-center gap-2">
               <Link
                 to="/planos"
                 className="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-semibold shadow-sm hover:shadow transition"
@@ -344,7 +361,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => setShowProfileMenu((v) => !v)}
-                className="hidden md:inline-flex items-center gap-2 pl-1 pr-2 py-1.5 rounded-full border text-xs sm:text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)] transition-colors"
+                className="hidden lg:inline-flex items-center gap-2 pl-1 pr-2 py-1.5 rounded-full border text-xs sm:text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)] transition-colors"
                 style={{
                   borderColor: 'var(--c-border)',
                   background:
@@ -383,7 +400,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => setMobileOpen((v) => !v)}
-                className="md:hidden inline-flex items-center justify-center rounded-full border h-10 w-10 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
+                className="lg:hidden inline-flex items-center justify-center rounded-full border h-10 w-10 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
                 aria-label="Abrir menu"
               >
                 {avatarUrl && !avatarErro ? (
@@ -461,7 +478,7 @@ export default function Navbar() {
             </div>
           ) : (
             <button
-              className="md:hidden inline-flex items-center justify-center rounded-lg border px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
+              className="lg:hidden inline-flex items-center justify-center rounded-lg border px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
               aria-label="Abrir menu"
               aria-controls="mobile-menu"
               aria-expanded={mobileOpen}
@@ -475,7 +492,7 @@ export default function Navbar() {
 
       {/* Drawer mobile – usa o mesmo menu global do GlobalShell */}
       {mobileOpen && (
-        <div id="mobile-menu" className="fixed inset-0 z-[1200] md:hidden" aria-modal="true" role="dialog">
+        <div id="mobile-menu" className="fixed inset-0 z-[1200] lg:hidden" aria-modal="true" role="dialog">
           <button
             type="button"
             className="absolute inset-0 bg-black/30 backdrop-blur-sm"
@@ -608,7 +625,7 @@ export default function Navbar() {
             </nav>
 
             {/* Aparência (Tema + Modo idoso) */}
-            <div className="border-t px-5 py-3 md:hidden" style={{ borderColor: 'var(--c-border)' }}>
+            <div className="border-t px-5 py-3 lg:hidden" style={{ borderColor: 'var(--c-border)' }}>
               <p className="text-[11px] uppercase tracking-[0.16em] mb-2" style={{ color: 'var(--text-muted)' }}>
                 Aparência
               </p>
