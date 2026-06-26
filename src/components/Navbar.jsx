@@ -2,7 +2,7 @@
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Menu, X, UserSquare2, User, LogOut, ChevronDown } from 'lucide-react'
+import { Menu, X, UserSquare2, User, LogOut, ChevronDown, ArrowUpRight } from 'lucide-react'
 
 import useAuth from '@/store/auth'
 import useTenant from '@/store/tenant'
@@ -10,7 +10,7 @@ import ThemeToggle from './ThemeToggle.jsx'
 import HeaderNotificationsBell from '@/components/HeaderNotificationsBell.jsx'
 import { getAvatarBlobUrl } from '@/lib/profile'
 
-import { getDesktopNavLinks, getGroupedPublicMenu } from '@/lib/publicMenu'
+import { getDesktopNavLinks, getGroupedPublicMenu, getExternalPublicMenuLinks } from '@/lib/publicMenu'
 import { getTenantInitials } from '@/lib/tenantBranding'
 import { useTenantLogoUrl } from '@/lib/tenantLogoRuntime'
 import { getProdutosMenuTo } from '@/lib/produtoUtils'
@@ -284,6 +284,10 @@ export default function Navbar() {
     [empresa, inCapacitorApp, HIDE_IN_CAPACITOR_KEYS]
   )
 
+  const externalMenuLinks = useMemo(() => getExternalPublicMenuLinks(empresa), [empresa])
+  const featuredExternalLink = externalMenuLinks[0] || null
+  const FeaturedExternalIcon = featuredExternalLink?.icon
+
   const fullMobileMenuBase = useMemo(
     () => getGroupedPublicMenu(empresa),
     [empresa]
@@ -444,6 +448,23 @@ export default function Navbar() {
                       <item.icon className="h-5 w-5 text-[var(--primary)] shrink-0" />
                       <span>{item.label}</span>
                     </a>
+                  ) : item.external ? (
+                    <a
+                      key={item.key}
+                      href={item.to}
+                      target={item.openInNewTab ? '_blank' : undefined}
+                      rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+                      onClick={() => setMobileOpen(false)}
+                      className="app-topbar__drawer-link--external flex items-center gap-3 px-5 py-3.5 mx-3 rounded-xl transition-colors"
+                    >
+                  <span className="app-topbar__external-icon app-topbar__external-icon--drawer" aria-hidden="true">
+                    <item.icon className="h-4 w-4" strokeWidth={2.25} />
+                  </span>
+                  <span className="flex-1 min-w-0">{item.label}</span>
+                  <span className="app-topbar__external-icon app-topbar__external-icon--nav" aria-hidden="true">
+                    <ArrowUpRight className="h-3 w-3" strokeWidth={2.5} />
+                  </span>
+                    </a>
                   ) : (
                     <NavLink
                       key={item.key}
@@ -597,6 +618,26 @@ export default function Navbar() {
         {/* Navegação desktop — centralizada no grid */}
         <nav className="app-topbar__nav hidden lg:flex" aria-label="Navegação principal">
           {desktopNavLinks.map((item) => {
+            if (item.external) {
+              return (
+                <a
+                  key={item.key}
+                  href={item.to}
+                  target={item.openInNewTab ? '_blank' : undefined}
+                  rel={item.openInNewTab ? 'noopener noreferrer' : undefined}
+                  className={navLinkClass(false) + ' app-topbar__nav-link--external'}
+                  aria-label={
+                    item.openInNewTab ? `${item.label} (abre em nova aba)` : item.label
+                  }
+                >
+                  <span>{item.label}</span>
+                  <span className="app-topbar__external-icon app-topbar__external-icon--nav" aria-hidden="true">
+                    <ArrowUpRight className="h-3 w-3" strokeWidth={2.5} />
+                  </span>
+                </a>
+              )
+            }
+
             if (item.to.startsWith('/#')) {
               return (
                 <a
@@ -629,6 +670,27 @@ export default function Navbar() {
         {/* Utilitários — colados à direita no mobile */}
         <div className="app-topbar__utilities">
           <div className="app-topbar__action-rail">
+            {featuredExternalLink ? (
+              <a
+                href={featuredExternalLink.to}
+                target={featuredExternalLink.openInNewTab ? '_blank' : undefined}
+                rel={featuredExternalLink.openInNewTab ? 'noopener noreferrer' : undefined}
+                className="app-topbar__external-chip"
+                aria-label={
+                  featuredExternalLink.openInNewTab
+                    ? `${featuredExternalLink.label} (abre em nova aba)`
+                    : featuredExternalLink.label
+                }
+              >
+                {FeaturedExternalIcon ? (
+                  <span className="app-topbar__external-icon app-topbar__external-icon--chip" aria-hidden="true">
+                    <FeaturedExternalIcon className="h-3 w-3" strokeWidth={2.35} />
+                  </span>
+                ) : null}
+                <span className="app-topbar__external-chip__label">{featuredExternalLink.label}</span>
+              </a>
+            ) : null}
+
             {isLogged && <HeaderNotificationsBell variant="topbar" />}
 
             <div className="hidden lg:block">

@@ -292,6 +292,8 @@ function normalizeHomeBandVariant(raw) {
  *   image?: string,
  *   imageAlt?: string,
  *   band: HomeBandVariant,
+ *   showInMenu: boolean,
+ *   menuLabel: string,
  * }} HomeExternalLinkSection
  */
 
@@ -329,6 +331,11 @@ function normalizeHomeExternalLinkSection(item, t, index) {
   const image = imageRaw ? resolveContractAssetUrl(t, imageRaw) : undefined
   const imageAlt = String(item.imageAlt || item.imageCaption || title).trim()
 
+  const showInMenu = item.showInMenu !== false
+  const menuLabel = String(
+    item.menuLabel || item.menuNavLabel || item.kicker || item.ctaLabel || title
+  ).trim()
+
   return {
     id,
     kicker,
@@ -342,6 +349,8 @@ function normalizeHomeExternalLinkSection(item, t, index) {
     image,
     imageAlt,
     band,
+    showInMenu,
+    menuLabel,
   }
 }
 

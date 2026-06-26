@@ -92,8 +92,8 @@ export default function PublicAppDownloadSection({ mounted = true, appName = 'Ap
     <section className="home-app-strip" aria-labelledby="home-app-heading">
       <div
         className={[
-          'home-app-strip__row transition-all duration-700',
-          mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
+          'home-app-strip__row public-home-enter',
+          mounted ? 'is-mounted' : '',
         ].join(' ')}
       >
         <div className="flex items-center gap-3 min-w-0 flex-1">
