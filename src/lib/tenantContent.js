@@ -201,3 +201,245 @@ export function normalizeAboutPage(t) {
     ogImageUrl,
   };
 }
+
+/** @param {unknown} t */
+export function getHomeContent(t) {
+  const c = t && typeof t === "object" ? t.content : null;
+  const home = c && typeof c === "object" ? c.home : null;
+  return home && typeof home === "object" ? home : null;
+}
+
+/**
+ * Stats de confiança configuráveis no JSON do tenant (`content.home.trustStats`).
+ * Retorna vazio se não houver dados reais — nunca inventar números.
+ * @param {unknown} t
+ * @returns {{ label: string, value: string, icon?: string }[]}
+ */
+export function getHomeTrustStats(t) {
+  const home = getHomeContent(t);
+  const raw = home?.trustStats;
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const label = String(item.label || "").trim();
+      const value = String(item.value || "").trim();
+      if (!label || !value) return null;
+      const icon = String(item.icon || "").trim();
+      return icon ? { label, value, icon } : { label, value };
+    })
+    .filter(Boolean);
+}
+
+/**
+ * Destaques de benefícios para a home (`content.home.benefits` ou fallback editorial).
+ * @param {unknown} t
+ * @returns {{ title: string, text: string, to?: string, icon?: string }[]}
+ */
+export function getHomeBenefitHighlights(t) {
+  const home = getHomeContent(t);
+  const raw = home?.benefits;
+  if (Array.isArray(raw) && raw.length > 0) {
+    return raw
+      .map((item) => {
+        if (!item || typeof item !== "object") return null;
+        const title = String(item.title || "").trim();
+        const text = String(item.text || item.description || "").trim();
+        if (!title || !text) return null;
+        const to = String(item.to || "").trim() || undefined;
+        const icon = String(item.icon || "").trim() || undefined;
+        return to ? { title, text, to, icon } : icon ? { title, text, icon } : { title, text };
+      })
+      .filter(Boolean);
+  }
+
+  const about = getAboutRaw(t);
+  const diffs = normalizeAboutListItems(about?.differentials);
+  if (diffs.length >= 2) {
+    return diffs.slice(0, 4).map((d) => ({
+      title: d.title || "Diferencial",
+      text: d.text,
+    }));
+  }
+
+  return [];
+}
+
+/** @typedef {'default'|'soft'|'muted'|'inset'|'command'} HomeBandVariant */
+
+/** @param {unknown} raw @returns {HomeBandVariant} */
+function normalizeHomeBandVariant(raw) {
+  const v = String(raw || 'default').trim().toLowerCase()
+  if (v === 'soft' || v === 'muted' || v === 'inset' || v === 'command') return v
+  return 'default'
+}
+
+/**
+ * Seções configuráveis na home com link externo (`content.home.externalLinks` ou `externalLink`).
+ * Opt-in: `enabled !== false`, `href` http(s), `title` e `ctaLabel` obrigatórios.
+ *
+ * @typedef {{
+ *   id: string,
+ *   kicker?: string,
+ *   title: string,
+ *   subtitle?: string,
+ *   ctaLabel: string,
+ *   href: string,
+ *   openInNewTab: boolean,
+ *   ctaVariant: 'primary'|'outline',
+ *   icon: string,
+ *   image?: string,
+ *   imageAlt?: string,
+ *   band: HomeBandVariant,
+ * }} HomeExternalLinkSection
+ */
+
+/** @param {unknown} item @param {unknown} t @param {number} index @returns {HomeExternalLinkSection | null} */
+function normalizeHomeExternalLinkSection(item, t, index) {
+  if (!item || typeof item !== 'object') return null
+  if (item.enabled === false) return null
+
+  const href = String(item.href || item.url || item.link || item.to || '').trim()
+  if (!href || !/^https?:\/\//i.test(href)) return null
+
+  const title = String(item.title || '').trim()
+  const ctaLabel = String(
+    item.ctaLabel || item.cta?.label || item.buttonLabel || item.primaryLabel || ''
+  ).trim()
+  if (!title || !ctaLabel) return null
+
+  const subtitle = String(item.subtitle || item.description || item.lead || '').trim() || undefined
+  const kicker = String(item.kicker || item.eyebrow || item.tag || item.pill || '').trim() || undefined
+  const idRaw = String(item.id || `external-link-${index + 1}`).trim()
+  const id = idRaw.replace(/[^\w-]/g, '-') || `external-link-${index + 1}`
+
+  const openInNewTab =
+    item.openInNewTab !== false &&
+    item.newTab !== false &&
+    item.openInSameTab !== true
+
+  const ctaVariantRaw = String(item.ctaVariant || item.cta?.variant || 'primary').trim().toLowerCase()
+  const ctaVariant = ctaVariantRaw === 'outline' ? 'outline' : 'primary'
+
+  const icon = String(item.icon || 'ExternalLink').trim() || 'ExternalLink'
+  const band = normalizeHomeBandVariant(item.band || item.bandVariant || item.surface)
+
+  const imageRaw = String(item.image || item.previewImage || item.media || '').trim()
+  const image = imageRaw ? resolveContractAssetUrl(t, imageRaw) : undefined
+  const imageAlt = String(item.imageAlt || item.imageCaption || title).trim()
+
+  return {
+    id,
+    kicker,
+    title,
+    subtitle,
+    ctaLabel,
+    href,
+    openInNewTab,
+    ctaVariant,
+    icon,
+    image,
+    imageAlt,
+    band,
+  }
+}
+
+/**
+ * @param {unknown} t
+ * @returns {HomeExternalLinkSection[]}
+ */
+export function getHomeExternalLinkSections(t) {
+  const home = getHomeContent(t)
+  const raw = home?.externalLinks ?? home?.externalLink
+  const list = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : []
+
+  return list
+    .map((item, index) => normalizeHomeExternalLinkSection(item, t, index))
+    .filter(Boolean)
+}
+
+/**
+ * Links das lojas de app na home (`content.home.apps`).
+ * @param {unknown} t
+ * @returns {{ android: string, ios: string, previewImage?: string }}
+ */
+export function getHomeAppStoreLinks(t) {
+  const home = getHomeContent(t);
+  const apps = home?.apps && typeof home.apps === "object" ? home.apps : null;
+  if (!apps) return { android: "", ios: "" };
+
+  const android = String(apps.androidStoreUrl || apps.androidUrl || "").trim();
+  const ios = String(apps.iosStoreUrl || apps.iosUrl || "").trim();
+  const previewImage = String(apps.previewImage || "").trim() || undefined;
+
+  return { android, ios, previewImage };
+}
+
+/** Copy editorial para trust strip quando não há stats numéricos. */
+export function getHomeEditorialTrustItems(t) {
+  const about = getAboutRaw(t);
+  const values = normalizeAboutListItems(about?.values);
+  if (values.length >= 2) {
+    return values.slice(0, 3).map((v) => ({
+      title: v.title || "Valor",
+      text: v.text || "",
+    }));
+  }
+  return [
+    { title: "Atendimento humanizado", text: "Equipe preparada para orientar você." },
+    { title: "Transparência", text: "Informações claras sobre planos e canais." },
+    { title: "Benefícios reais", text: "Parceiros e serviços que ampliam seu plano." },
+  ];
+}
+
+const HERO_PILL_VALUE_ICONS = ["HeartHandshake", "ShieldCheck", "Users", "Star", "Globe"];
+
+/**
+ * Pills do hero quando o slide não define `valuePills`.
+ * Prioridade: `content.home.heroPills` → `about.values` → null (fallback do componente).
+ * @param {unknown} t
+ * @returns {Array<{ icon: string, label: string }> | null}
+ */
+export function getHomeHeroValuePillsFallback(t) {
+  const home = getHomeContent(t);
+  const fromHome = home?.heroPills ?? home?.valuePills;
+  if (Array.isArray(fromHome) && fromHome.length > 0) {
+    return fromHome
+      .map((p) => {
+        if (!p || typeof p !== "object") return null;
+        const label = String(p.label || p.title || "").trim();
+        if (!label) return null;
+        return {
+          icon: String(p.icon || "ShieldCheck").trim() || "ShieldCheck",
+          label,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 5);
+  }
+
+  const values = normalizeAboutListItems(getAboutRaw(t)?.values);
+  if (values.length >= 2) {
+    return values.slice(0, 4).map((v, i) => ({
+      icon: HERO_PILL_VALUE_ICONS[i % HERO_PILL_VALUE_ICONS.length],
+      label: v.title || String(v.text || "").split(/[.!]/)[0]?.trim() || "Valor",
+    }));
+  }
+
+  return null;
+}
+
+/** Descrição institucional para footer. */
+export function getFooterInstitutionalBlurb(t) {
+  const about = getAboutRaw(t);
+  const closing = String(about?.closing || "").trim();
+  if (closing) {
+    const first = closing.split(/\n+/)[0]?.trim();
+    if (first) return first;
+  }
+  const seo = t && typeof t === "object" ? t.seo : null;
+  const meta = String(seo?.metaDescription || "").trim();
+  if (meta) return meta;
+  return "";
+}

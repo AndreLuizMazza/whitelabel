@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node server/index.js",
-    "predev": "node scripts/theme-build.mjs",
+    "predev": "node scripts/generate-app-meta.mjs && node scripts/theme-build.mjs",
     "dev": "npm run predev && concurrently -k -n FRONT,BFF \"npm:dev:frontend\" \"npm:dev:bff\"",
     "dev:frontend": "vite",
     "dev:bff": "cross-env NODE_ENV=development PORT=8787 nodemon --signal SIGINT server/index.js",
@@ -23,8 +23,10 @@
     "test:branding-sync-logic": "node scripts/test-branding-sync-logic.mjs",
     "test:auth": "vitest run",
     "preview:static": "cross-env VITE_DISABLE_BOOTSTRAP=1 vite preview",
+    "gen:app-meta": "node scripts/generate-app-meta.mjs",
+    "prebuild": "node scripts/generate-app-meta.mjs",
     "build": "vite build",
-    "prebuild:tenant": "node scripts/theme-build.mjs",
+    "prebuild:tenant": "node scripts/generate-app-meta.mjs && node scripts/theme-build.mjs",
     "build:tenant": "npm run prebuild:tenant && vite build"
   },
   "dependencies": {

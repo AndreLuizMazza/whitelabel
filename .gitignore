@@ -10,6 +10,7 @@ dist/
 .vercel/
 .next/
 out/
+src/generated/
 
 # Sistema
 .DS_Store

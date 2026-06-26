@@ -23,6 +23,8 @@ import {
   Cross,
 } from "lucide-react";
 import { safeYmd, isSameDay, isSameMonthDay, addDays } from "@/lib/dateUtils";
+import PublicPageShell from "@/components/public/PublicPageShell.jsx";
+import PublicPageHeader from "@/components/public/PublicPageHeader.jsx";
 
 /* ================= Utils ================= */
 function fmtDate(d) {
@@ -495,7 +497,7 @@ export default function MemorialList() {
   );
 
   return (
-    <div className="container-max py-6 md:py-8">
+    <PublicPageShell>
       <HeroSlider
         slides={heroSlides}
         intervalMs={9000}
@@ -508,6 +510,15 @@ export default function MemorialList() {
           </div>
         }
         className="mb-4"
+      />
+
+      <PublicPageHeader
+        kicker="Memorial online"
+        title="Homenagens e cerimônias"
+        description="Busque por nome, acompanhe datas especiais e deixe sua mensagem de carinho."
+        size="compact"
+        className="mb-4"
+        id="memorial-page-heading"
       />
 
       <div className="mb-5 lg:hidden">{statsBlock}</div>
@@ -651,6 +662,6 @@ export default function MemorialList() {
           )}
         </>
       )}
-    </div>
+    </PublicPageShell>
   );
 }

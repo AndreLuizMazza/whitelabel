@@ -7,8 +7,8 @@ const INTENTS = [
     to: '/criar-conta',
     intent: 'cliente',
     icon: ShieldCheck,
-    title: 'Crie seu acesso digital',
-    subtitle: 'Use o CPF do titular do contrato. Não é uma nova contratação.',
+    title: 'Primeiro acesso do associado',
+    subtitle: 'Já tenho contrato. Crio minha senha com meu CPF - sem nova adesão.',
   },
   {
     key: 'lead',

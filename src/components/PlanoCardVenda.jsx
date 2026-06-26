@@ -51,9 +51,10 @@ export default function PlanoCardVenda({
   precoMensal,
   bestSeller = false,
   onDetails,
-  showTypeBadge = false, // <- opcional (ligamos só na aba "Todos")
+  showTypeBadge = false,
   maxBenefits = 5,
   enableExpand = true,
+  uniformHeight = false,
 }) {
   if (!plano) return null;
 
@@ -71,7 +72,10 @@ export default function PlanoCardVenda({
 
   return (
     <article
-      className="relative flex flex-col rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6 shadow-md transition-all hover:-translate-y-1 hover:shadow-xl"
+      className={[
+        'relative flex flex-col rounded-2xl border border-[var(--c-border)] bg-[var(--c-surface)] p-6 shadow-md public-hover-lift hover:shadow-xl',
+        uniformHeight ? 'h-full w-full' : '',
+      ].join(' ')}
     >
       {/* badge de tipo (apenas quando showTypeBadge = true) */}
       {showTypeBadge && type !== "OUTROS" ? (
@@ -90,7 +94,7 @@ export default function PlanoCardVenda({
       {/* selo destaque */}
       {bestSeller && (
         <span className="absolute -top-3 right-4 rounded-full bg-yellow-400 px-3 py-1 text-xs font-bold text-black shadow">
-          ⭐ Mais vendido
+          ⭐ Mais escolhido
         </span>
       )}
 
@@ -110,7 +114,12 @@ export default function PlanoCardVenda({
       </div>
 
       {/* benefícios (dinâmicos da API) */}
-      <ul className="mb-3 space-y-2 text-sm">
+      <ul
+        className={[
+          'mb-3 space-y-2 text-sm',
+          uniformHeight && !showAllBenefits && beneficiosRest > 0 ? 'min-h-[5.5rem]' : '',
+        ].join(' ')}
+      >
         {(enableExpand && showAllBenefits ? beneficiosAll : beneficiosLimited).map((b, i) => (
           <li key={i} className="flex items-center gap-2">
             <span className="text-[var(--primary)]">✔</span>
@@ -125,9 +134,12 @@ export default function PlanoCardVenda({
           className="mb-5 self-start text-xs font-semibold underline decoration-dotted underline-offset-4 text-[var(--c-muted)] hover:text-[var(--c-text)]"
           aria-expanded={showAllBenefits}
         >
-          {showAllBenefits ? "Ver menos" : `Ver todos (+${beneficiosRest})`}
+          {showAllBenefits ? 'Ver menos' : `Ver todos (+${beneficiosRest})`}
         </button>
       )}
+      {enableExpand && beneficiosRest === 0 && uniformHeight ? (
+        <span className="mb-5 block min-h-[1.25rem]" aria-hidden="true" />
+      ) : null}
 
       {/* extras resumidos */}
       <dl className="mb-6 grid gap-1 text-sm text-[var(--c-text)]">

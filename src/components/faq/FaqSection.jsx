@@ -4,10 +4,11 @@ import { Link } from "react-router-dom"
 import useTenant from "@/store/tenant"
 import { isBeneficiosEnabled } from "@/lib/tenantModules"
 import CTAButton from "@/components/ui/CTAButton"
+import PublicPageHeader from "@/components/public/PublicPageHeader.jsx"
 import FaqItem from "./FaqItem.jsx"
 import { Smartphone, Apple } from "lucide-react"
 
-export default function FaqSection({ isLogged, areaDest }) {
+export default function FaqSection({ isLogged, areaDest, embedded = false }) {
   const empresa = useTenant((s) => s.empresa)
   const showClubeLink = isBeneficiosEnabled(empresa)
 
@@ -116,22 +117,52 @@ export default function FaqSection({ isLogged, areaDest }) {
   }, [FAQ, query])
 
   return (
-    <section className="mt-12 md:mt-16 card p-6 md:p-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <h3 className="text-xl font-extrabold">Dúvidas frequentes</h3>
-        <label className="w-full md:w-80">
-          <span className="block text-xs font-medium mb-1 text-[var(--text)] dark:text-[var(--text)]">Buscar no FAQ</span>
-          <input
-            type="search"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Ex.: 2ª via, senha, app…"
-            className="w-full rounded-lg border px-3 py-2 text-sm bg-[var(--surface)] border-[var(--c-border)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_40%,black)]"
-          />
-        </label>
-      </div>
+    <section
+      className={
+        embedded
+          ? 'public-surface-card p-5 md:p-7'
+          : 'mt-12 md:mt-16 card p-6 md:p-8'
+      }
+      aria-labelledby={embedded ? 'home-faq-heading' : undefined}
+    >
+      {embedded ? (
+        <PublicPageHeader
+          kicker="Ajuda"
+          title="Dúvidas frequentes"
+          description="Respostas rápidas sobre acesso, pagamentos e benefícios."
+          id="home-faq-heading"
+          titleAs="h2"
+          className="mb-4 md:mb-5"
+          actions={
+            <label className="w-full md:w-72">
+              <span className="sr-only">Buscar no FAQ</span>
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar…"
+                className="w-full rounded-lg border px-3 py-2 text-sm bg-[var(--surface)] border-[var(--c-border)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_40%,transparent)]"
+              />
+            </label>
+          }
+        />
+      ) : (
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <h3 className="text-xl font-extrabold">Dúvidas frequentes</h3>
+          <label className="w-full md:w-80">
+            <span className="block text-xs font-medium mb-1 text-[var(--text)]">Buscar no FAQ</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Ex.: 2ª via, senha, app…"
+              className="w-full rounded-lg border px-3 py-2 text-sm bg-[var(--surface)] border-[var(--c-border)] focus:outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_40%,black)]"
+            />
+          </label>
+        </div>
+      )}
 
-      <div className="mt-4 grid gap-3">
+      <div className={embedded ? 'mt-1 grid gap-2.5' : 'mt-4 grid gap-3'}>
         {items.map((item, i) => (
           <FaqItem
             key={item.id || i}
@@ -149,12 +180,15 @@ export default function FaqSection({ isLogged, areaDest }) {
         )}
       </div>
 
-      {/* CTAs de rodapé do FAQ (padronizados) */}
-      <div className="mt-6 flex flex-wrap items-center gap-2">
+      <div className="mt-5 flex flex-wrap items-center gap-2">
         {showClubeLink && (
-          <CTAButton as="link" to="/beneficios" variant="outline">Conhecer benefícios</CTAButton>
+          <CTAButton as="link" to="/beneficios" variant="outline" size="sm">
+            Conhecer benefícios
+          </CTAButton>
         )}
-        <CTAButton as="link" to={isLogged ? "/area" : "/login"}>Abrir área</CTAButton>
+        <CTAButton as="link" to={isLogged ? "/area" : "/login"} size="sm">
+          {isLogged ? 'Abrir área' : 'Entrar na área'}
+        </CTAButton>
       </div>
 
       {/* Schema.org FAQPage para SEO */}

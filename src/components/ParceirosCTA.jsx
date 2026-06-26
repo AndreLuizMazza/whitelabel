@@ -1,134 +1,142 @@
-// src/components/ParceirosCTA.jsx
 import {
-  CheckCircle2, Handshake, Store, Truck, Megaphone,
-  ShieldCheck, Sparkles, ArrowRight, MessageSquare,
-} from "lucide-react";
-import { useMemo } from "react";
-import CTAButton from "@/components/ui/CTAButton";
-import useTenant from "@/store/tenant";
-import {
-  buildWaHref,
-  resolveTenantPhone,
-  resolveGlobalFallback,
-} from "@/lib/whats";
+  CheckCircle2,
+  Handshake,
+  Megaphone,
+  MessageSquare,
+  ShieldCheck,
+  Store,
+  Truck,
+} from 'lucide-react'
+import { useMemo } from 'react'
 
-export default function ParceirosCTA({ onBecomePartner, whatsappHref }) {
-  const empresa = useTenant((s) => s.empresa);
+import CTAButton from '@/components/ui/CTAButton'
+import PublicPageHeader from '@/components/public/PublicPageHeader'
+import useTenant from '@/store/tenant'
+import { resolvePartnerWhatsAppHref } from '@/lib/partnerFunnel'
 
-  // 1) prop whatsappHref tem prioridade
-  // 2) senão, telefone do tenant (fallback para VITE_WHATSAPP/window.__WHATSAPP__)
+const BENEFITS = [
+  { icon: Store, text: 'Divulgação para base ativa' },
+  { icon: Megaphone, text: 'Indicações e campanhas' },
+  { icon: ShieldCheck, text: 'Sem custo fixo' },
+  { icon: Truck, text: 'Novos clientes' },
+]
+
+const PREMIUM_ITEMS = [
+  'Exposição em campanhas digitais',
+  'Destaque no Clube de Benefícios',
+  'Eventos e ativações exclusivas',
+]
+
+const SEGMENTS = [
+  'Farmácias',
+  'Clínicas',
+  'Óticas',
+  'Mercados',
+  'Academias',
+  'Transporte',
+  'Serviços Domésticos',
+]
+
+export default function ParceirosCTA({ mounted = true, onBecomePartner, whatsappHref }) {
+  const empresa = useTenant((s) => s.empresa)
+
   const waLink = useMemo(() => {
     const hrefProp =
-      typeof whatsappHref === "string" && whatsappHref.trim()
-        ? whatsappHref.trim()
-        : "";
-    if (hrefProp) return hrefProp;
+      typeof whatsappHref === 'string' && whatsappHref.trim() ? whatsappHref.trim() : ''
+    if (hrefProp) return hrefProp
+    return resolvePartnerWhatsAppHref(empresa)
+  }, [empresa, whatsappHref])
 
-    const tel = resolveTenantPhone(empresa) || resolveGlobalFallback();
-    return buildWaHref({
-      number: tel,
-      message: "Olá! Gostaria de falar sobre parceria premium.",
-    });
-  }, [empresa, whatsappHref]);
-
-  const hasWa = !!waLink;
-  const commonTitle = hasWa ? undefined : "Telefone da unidade não informado";
+  const hasWa = !!waLink
 
   return (
-    <section id="parceiros" className="py-20 md:py-24">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="grid items-center gap-16 lg:grid-cols-2">
-          {/* Texto principal */}
-          <div className="space-y-8 md:space-y-10">
-            <div
-              className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium shadow-sm ring-1 ring-black/5 dark:ring-white/10"
-              style={{ backgroundColor: "var(--primary-20)", color: "var(--primary-dark)" }}
-            >
-              <Sparkles className="h-4 w-4" /> Benefícios exclusivos para quem se conecta
-            </div>
+    <section id="parceiros" aria-labelledby="home-partners-heading">
+      <div
+        className={[
+          'transition-all duration-700',
+          mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
+        ].join(' ')}
+      >
+        <div className="grid items-start gap-8 lg:grid-cols-2 lg:gap-10">
+          <div className="min-w-0 flex flex-col">
+            <PublicPageHeader
+              kicker="Parcerias comerciais"
+              title="Seja nosso parceiro premium"
+              description="Ofereça condições especiais aos associados e receba indicações, visibilidade e novos clientes."
+              id="home-partners-heading"
+              titleAs="h2"
+              size="compact"
+              className="mb-5 md:mb-6 [&_.public-lead]:hidden sm:[&_.public-lead]:block"
+            />
 
-            <h2
-              className="text-4xl sm:text-5xl font-extrabold tracking-tight"
-              style={{ color: "var(--primary-dark)" }}
-            >
-              Seja nosso parceiro premium
-            </h2>
-
-            <p className="text-lg text-[var(--text)] dark:text-[var(--text)] max-w-prose">
-              Ofereça <strong>condições especiais</strong> aos associados e receba{" "}
-              <em>indicações qualificadas</em>, <em>visibilidade</em> e <em>novos clientes</em>.
-              Parceria transparente e focada em resultado.
-            </p>
-
-            {/* Benefícios */}
-            <ul className="grid gap-4 sm:grid-cols-2">
-              {[
-                { icon: Store, text: "Divulgação para base ativa" },
-                { icon: Megaphone, text: "Indicações e campanhas exclusivas" },
-                { icon: ShieldCheck, text: "Sem custo fixo, paga quem vende" },
-                { icon: Truck, text: "Fluxo constante de novos clientes" },
-              ].map(({ icon: Icon, text }) => (
+            <ul className="grid grid-cols-2 gap-2 md:gap-2.5">
+              {BENEFITS.map(({ icon: Icon, text }) => (
                 <li
                   key={text}
-                  className="flex items-center gap-3 rounded-xl bg-[var(--surface)]/80 dark:bg-[var(--surface)]/40 shadow-sm p-3 border"
-                  style={{ borderColor: "color-mix(in srgb, var(--primary) 24%, transparent)" }}
+                  className="public-surface-card flex items-center gap-2 rounded-lg px-2.5 py-2.5 min-h-[44px] md:min-h-[48px]"
+                  style={{
+                    borderColor: 'color-mix(in srgb, var(--primary) 14%, var(--c-border))',
+                    background: 'color-mix(in srgb, var(--surface) 96%, var(--primary) 4%)',
+                  }}
                 >
-                  <Icon className="h-5 w-5" style={{ color: "var(--primary)" }} />
-                  <span className="text-sm sm:text-base">{text}</span>
+                  <Icon
+                    className="h-3.5 w-3.5 shrink-0"
+                    style={{ color: 'var(--primary)' }}
+                    strokeWidth={2.25}
+                    aria-hidden="true"
+                  />
+                  <span className="text-[11px] md:text-[13px] font-medium leading-tight">{text}</span>
                 </li>
               ))}
             </ul>
 
-            {/* CTAs — MESMO COMPORTAMENTO (abrir WhatsApp) */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-3">
+            <div className="mt-6 md:mt-7">
               <CTAButton
                 as="a"
                 href={hasWa ? waLink : undefined}
-                target={hasWa ? "_blank" : undefined}
-                rel={hasWa ? "noopener noreferrer" : undefined}
+                target={hasWa ? '_blank' : undefined}
+                rel={hasWa ? 'noopener noreferrer' : undefined}
                 size="lg"
-                iconAfter={<ArrowRight size={16} />}
+                className="w-full sm:w-auto justify-center"
+                iconBefore={<MessageSquare size={16} />}
                 disabled={!hasWa}
-                title={commonTitle}
-                // tracking opcional sem bloquear a navegação
-                onClick={() => { try { onBecomePartner?.(); } catch {} }}
+                title={hasWa ? undefined : 'WhatsApp da unidade não configurado'}
+                aria-label={
+                  hasWa
+                    ? 'Quero ser parceiro — abrir WhatsApp com mensagem pronta'
+                    : 'WhatsApp indisponível'
+                }
+                onClick={() => {
+                  try {
+                    onBecomePartner?.()
+                  } catch {}
+                }}
               >
                 Quero ser parceiro(a)
               </CTAButton>
-
-              <CTAButton
-                as="a"
-                href={hasWa ? waLink : undefined}
-                target={hasWa ? "_blank" : undefined}
-                rel={hasWa ? "noopener noreferrer" : undefined}
-                variant="outline"
-                size="lg"
-                iconBefore={<MessageSquare size={16} />}
-                className="sm:ml-1"
-                disabled={!hasWa}
-                title={commonTitle}
-              >
-                Falar com o time
-              </CTAButton>
+              {!hasWa ? (
+                <p className="mt-2 text-[11px] text-[var(--text-muted)]">
+                  Contato por WhatsApp indisponível no momento.
+                </p>
+              ) : null}
             </div>
 
-            {/* Tags */}
-            <div className="pt-4">
-              <p className="text-xs uppercase tracking-wide text-[var(--text)] dark:text-[var(--text)]">
+            <div
+              className="mt-7 md:mt-8 pt-5 md:pt-6 border-t"
+              style={{ borderColor: 'color-mix(in srgb, var(--c-border) 85%, transparent)' }}
+            >
+              <p className="public-kicker normal-case tracking-[0.12em] text-[10px]">
                 Segmentos que buscamos
               </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {[
-                  "Farmácias","Clínicas","Óticas","Mercados",
-                  "Academias","Transporte","Serviços Domésticos",
-                ].map((tag) => (
+              <div className="mt-2.5 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:flex-wrap md:overflow-visible">
+                {SEGMENTS.map((tag) => (
                   <span
                     key={tag}
-                    className="text-xs rounded-full px-3 py-1"
+                    className="shrink-0 text-[10px] md:text-[11px] font-semibold rounded-full px-2.5 py-1 md:px-3 md:py-1"
                     style={{
-                      backgroundColor: "color-mix(in srgb, var(--primary) 10%, transparent)",
-                      color: "var(--primary-dark)",
-                      border: "1px solid var(--primary-33)",
+                      background: 'color-mix(in srgb, var(--primary) 9%, var(--surface))',
+                      color: 'var(--primary)',
+                      border: '1px solid color-mix(in srgb, var(--primary) 20%, var(--c-border))',
                     }}
                   >
                     {tag}
@@ -138,59 +146,40 @@ export default function ParceirosCTA({ onBecomePartner, whatsappHref }) {
             </div>
           </div>
 
-          {/* Card lateral */}
-          <aside className="order-first lg:order-last">
-            <div
-              className="relative rounded-3xl border bg-[var(--surface)]/80 dark:bg-[var(--surface)]/50 p-8 shadow-xl"
-              style={{ borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)" }}
-            >
-              <div className="flex items-center gap-3">
+          <aside className="hidden md:block min-w-0">
+            <div className="public-surface-card p-4 lg:p-5">
+              <div className="flex items-center gap-2.5">
                 <div
-                  className="h-12 w-12 rounded-2xl grid place-items-center"
-                  style={{ backgroundColor: "var(--primary-20)", color: "var(--primary-dark)" }}
+                  className="h-9 w-9 rounded-lg grid place-items-center shrink-0"
+                  style={{
+                    background: 'color-mix(in srgb, var(--primary) 12%, var(--surface))',
+                    color: 'var(--primary)',
+                  }}
                 >
-                  <Handshake className="h-6 w-6" />
+                  <Handshake className="h-4 w-4" strokeWidth={2.25} />
                 </div>
-                <div>
-                  <p className="text-base font-semibold">Rede de Benefícios Premium</p>
-                  <p className="text-xs text-[var(--text)] dark:text-[var(--text)]">
-                    Empresas selecionadas e verificadas
-                  </p>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold leading-snug">Rede de Benefícios Premium</p>
+                  <p className="text-[11px] text-[var(--text-muted)]">Empresas selecionadas</p>
                 </div>
               </div>
 
-              <div className="mt-6 space-y-3">
-                {[
-                  "Exposição em campanhas digitais",
-                  "Destaque no Clube de Benefícios",
-                  "Eventos e ativações exclusivas",
-                ].map((item) => (
-                  <div
-                    key={item}
-                    className="flex items-start gap-3 rounded-xl border p-3 bg-[var(--surface)]/80 dark:bg-[var(--surface)]/40"
-                    style={{ borderColor: "color-mix(in srgb, var(--primary) 22%, transparent)" }}
-                  >
-                    <CheckCircle2 className="h-5 w-5" style={{ color: "var(--primary)" }} />
-                    <p className="text-sm">{item}</p>
-                  </div>
+              <ul className="mt-3 space-y-1.5">
+                {PREMIUM_ITEMS.map((item) => (
+                  <li key={item} className="flex items-start gap-2 text-[12px] leading-snug">
+                    <CheckCircle2
+                      className="h-3.5 w-3.5 shrink-0 mt-0.5"
+                      style={{ color: 'var(--primary)' }}
+                      strokeWidth={2.25}
+                    />
+                    {item}
+                  </li>
                 ))}
-              </div>
-
-              <div
-                className="mt-6 rounded-2xl border border-dashed p-4 text-sm"
-                style={{ borderColor: "var(--primary-66)" }}
-              >
-                <p className="font-semibold">Critérios para participação</p>
-                <ul className="mt-2 list-disc pl-5 space-y-1 text-[var(--text)] dark:text-[var(--text)]">
-                  <li>Possuir CNPJ ativo</li>
-                  <li>Oferecer desconto real aos associados</li>
-                  <li>Manter qualidade de atendimento</li>
-                </ul>
-              </div>
+              </ul>
             </div>
           </aside>
         </div>
       </div>
     </section>
-  );
+  )
 }

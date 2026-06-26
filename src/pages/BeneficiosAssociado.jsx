@@ -26,7 +26,7 @@ export default function BeneficiosAssociado() {
 
   useEffect(() => {
     setPageSEO({
-      title: 'Clube de parceiros',
+      title: 'Clube de benefícios',
       description: 'Parceiros e descontos exclusivos para associados.',
       robots: 'noindex, nofollow',
     })
@@ -52,7 +52,7 @@ export default function BeneficiosAssociado() {
   return (
     <div className="w-full max-w-6xl mx-auto pb-4 -mt-1">
       <MemberSubpageNav to="/area" label="Início" compact />
-      <MemberSubpageHeader title="Clube de parceiros" meta={headerMeta} compact />
+      <MemberSubpageHeader title="Clube de benefícios" meta={headerMeta} compact />
 
       <ClubeParceirosList variant="member" detailBase="/area/beneficios" showIntro={false} />
 

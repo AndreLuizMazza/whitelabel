@@ -12,7 +12,7 @@ function readThemeChoice() {
   return resolveTheme()
 }
 
-export default function ThemeToggle({ className = '', tone = 'default' }) {
+export default function ThemeToggle({ className = '', tone = 'default', variant = 'default' }) {
   const [isDark, setIsDark] = useState(readEffectiveDark)
 
   const syncFromDom = useCallback(() => {
@@ -51,14 +51,21 @@ export default function ThemeToggle({ className = '', tone = 'default' }) {
   }
 
   const isOnDark = tone === 'onDark'
+  const isTopbar = variant === 'topbar'
 
   return (
     <button
       type="button"
       onClick={toggleMode}
-      className={`relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition active:scale-95 ${className}`}
+      className={
+        isTopbar
+          ? `app-topbar__icon-btn active:scale-95 ${className}`.trim()
+          : `relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border transition active:scale-95 ${className}`.trim()
+      }
       style={
-        isOnDark
+        isTopbar
+          ? undefined
+          : isOnDark
           ? {
               borderColor: 'rgba(255,255,255,0.22)',
               background: 'rgba(255,255,255,0.14)',

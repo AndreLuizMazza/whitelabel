@@ -26,6 +26,7 @@ import {
 } from "@/lib/lgpdAccountDeletion";
 import { displayCPF } from "@/lib/cpf";
 import Skeleton from "@/components/ui/Skeleton.jsx";
+import { formatAppBuildDateTime, getAppVersionLabel } from "@/lib/appVersion.js";
 
 function GroupLabel({ children, id }) {
   return (
@@ -345,6 +346,24 @@ export default function Perfil() {
           <p className="px-1 mt-2 text-[13px] leading-relaxed" style={{ color: "var(--text-muted)" }}>
             A solicitação é formalizada por e-mail ao prestador. O processamento ocorre fora deste aplicativo.
           </p>
+        </section>
+
+        <section aria-labelledby="sec-app" className="pb-2">
+          <GroupLabel id="sec-app">Sobre o app</GroupLabel>
+          <div
+            className="rounded-[10px] border px-4 py-3"
+            style={{
+              borderColor: "var(--separator, var(--c-border))",
+              background: "var(--surface)",
+            }}
+          >
+            <p className="text-[17px] font-medium leading-snug" style={{ color: "var(--text)" }}>
+              {getAppVersionLabel()}
+            </p>
+            <p className="text-[13px] mt-1 leading-snug" style={{ color: "var(--text-muted)" }}>
+              Build {formatAppBuildDateTime()}
+            </p>
+          </div>
         </section>
 
         <section aria-labelledby="sec-sessao" className="md:hidden">

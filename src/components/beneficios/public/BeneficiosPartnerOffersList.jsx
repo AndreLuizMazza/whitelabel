@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, BadgePercent } from 'lucide-react'
 import OfferMediaSurface from '@/components/beneficios/OfferMediaSurface'
+import ScrollRevealRow from '@/components/ui/ScrollRevealRow'
 
-function CompactOfferCard({ offer, ctaTo, ctaState }) {
+function CompactOfferCard({ offer, ctaTo, ctaState, ctaLabel }) {
   return (
     <article
-      className="flex shrink-0 snap-start flex-col w-[min(220px,72vw)] overflow-hidden rounded-[16px]"
+      className="flex shrink-0 snap-start flex-col w-[min(210px,74vw)] overflow-hidden rounded-[16px]"
       style={{
         border: '0.5px solid var(--separator, var(--c-border))',
         background: 'var(--surface)',
@@ -56,7 +57,7 @@ function CompactOfferCard({ offer, ctaTo, ctaState }) {
       >
         <span className="inline-flex items-center gap-1">
           <BadgePercent size={13} strokeWidth={2.25} />
-          Ver na área do associado
+          {ctaLabel || 'Ver na área do associado'}
         </span>
         <ArrowRight size={14} strokeWidth={2.5} />
       </Link>
@@ -81,10 +82,10 @@ function OffersSkeleton() {
 export default function BeneficiosPartnerOffersList({
   offers = [],
   loading = false,
-  isLogged = false,
+  ctaTo = '/login',
+  ctaState = { from: { pathname: '/area/beneficios' } },
+  ctaLabel = 'Ver na área do associado',
 }) {
-  const ctaTo = isLogged ? '/area/beneficios' : '/login'
-  const ctaState = isLogged ? undefined : { from: { pathname: '/area/beneficios' } }
 
   if (loading) {
     return (
@@ -97,17 +98,18 @@ export default function BeneficiosPartnerOffersList({
   if (!offers.length) return null
 
   return (
-    <section aria-label="Ofertas de parceiros" className="mt-4">
-      <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <section aria-label="Ofertas de parceiros" className="mt-4 min-w-0">
+      <ScrollRevealRow rowClassName="flex gap-3 px-1 pb-2 snap-x snap-mandatory -mx-1">
         {offers.map((offer) => (
           <CompactOfferCard
             key={offer.offerKey}
             offer={offer}
             ctaTo={ctaTo}
             ctaState={ctaState}
+            ctaLabel={ctaLabel}
           />
         ))}
-      </div>
+      </ScrollRevealRow>
     </section>
   )
 }

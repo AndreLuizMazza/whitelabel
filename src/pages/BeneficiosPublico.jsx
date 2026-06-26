@@ -6,8 +6,11 @@ import useTenant from '@/store/tenant'
 import { setPageSEO } from '@/lib/seo'
 import { resolveBrandDisplayName } from '@/lib/branding/tenantContract'
 import useParceirosPreview from '@/hooks/useParceirosPreview'
+import useMemberAreaLink from '@/hooks/useMemberAreaLink'
 import BeneficiosPartnerLogoStrip from '@/components/beneficios/public/BeneficiosPartnerLogoStrip'
 import BeneficiosPartnerOffersList from '@/components/beneficios/public/BeneficiosPartnerOffersList'
+import PublicPageShell from '@/components/public/PublicPageShell.jsx'
+import PublicPageHeader from '@/components/public/PublicPageHeader.jsx'
 
 export default function BeneficiosPublico() {
   const empresa = useTenant((s) => s.empresa)
@@ -25,19 +28,20 @@ export default function BeneficiosPublico() {
 
   useEffect(() => {
     setPageSEO({
-      title: 'Clube de parceiros',
-      description: `Descontos e vantagens com parceiros ${brandName}. Prévia da rede na vitrine comercial.`,
+      title: 'Clube de benefícios',
+      description: `Catálogo completo do clube ${brandName} — parceiros, ofertas e vantagens para associados.`,
     })
   }, [brandName])
 
   const showPartnerContent = showPreview && !error && (loading || hasPreview)
-  const memberTo = isLogged ? '/area/beneficios' : '/login'
-  const memberState = isLogged ? undefined : { from: { pathname: '/area/beneficios' } }
+  const memberLink = useMemberAreaLink('/area/beneficios')
+
+  const pageDescription =
+    'Explore a rede completa de parceiros e ofertas. Na home você vê uma prévia — aqui está o catálogo ampliado.'
 
   return (
-    <section className="section !py-4 md:!py-8 pb-5">
-      <div className="container-max max-w-5xl">
-        {isLogged ? (
+    <PublicPageShell maxWidth="narrow">
+      {memberLink.isLogged && !memberLink.checking ? (
           <div
             className="mb-3 rounded-xl border px-3 py-2 flex items-center justify-between gap-2 sm:gap-3"
             style={{
@@ -46,54 +50,65 @@ export default function BeneficiosPublico() {
             }}
           >
             <p className="text-xs sm:text-sm leading-snug min-w-0" style={{ color: 'var(--text)' }}>
-              Detalhes completos na área do associado.
+              {memberLink.hasMemberAccess
+                ? 'Detalhes completos na área do associado.'
+                : 'Contrate um plano para acessar parceiros e ofertas completas.'}
             </p>
             <Link
-              to="/area/beneficios"
+              to={memberLink.to}
+              state={memberLink.state}
               className="btn-primary text-xs sm:text-sm shrink-0 justify-center h-9 px-3"
             >
-              Meu clube
-              <ArrowRight size={14} />
+              {memberLink.hasMemberAccess ? (
+                <>
+                  Meu clube
+                  <ArrowRight size={14} />
+                </>
+              ) : (
+                'Ver planos'
+              )}
             </Link>
           </div>
         ) : null}
 
-        {showPartnerContent ? (
+      <PublicPageHeader
+        kicker="Clube de benefícios"
+        title="Catálogo completo de parceiros"
+        description={pageDescription}
+        id="beneficios-page-heading"
+        actions={
+          <Link
+            to="/"
+            className="text-sm font-semibold inline-flex items-center min-h-[36px] hover:underline"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            Voltar à home
+          </Link>
+        }
+      />
+
+      {showPartnerContent ? (
           <>
             <div
-              className="rounded-[20px] border p-3 sm:p-4 md:p-5"
+              className="rounded-[20px] border p-3 sm:p-4 md:p-5 min-w-0"
               style={{
                 borderColor: 'var(--c-border)',
                 background:
                   'linear-gradient(160deg, color-mix(in srgb, var(--primary) 4%, var(--surface)), var(--surface))',
               }}
             >
-              <div className="mb-2.5 sm:mb-3 flex items-end justify-between gap-2">
-                <div className="min-w-0">
-                  <h1 className="text-[20px] sm:text-2xl font-bold tracking-tight leading-tight">
-                    Clube de parceiros
-                  </h1>
-                  {!loading && hasPreview ? (
-                    <p
-                      className="text-[12px] sm:text-[13px] mt-0.5 truncate"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                      Rede {brandName}
-                    </p>
-                  ) : null}
-                </div>
-                {!isLogged ? (
-                  <Link
-                    to="/planos"
-                    className="text-[13px] font-semibold shrink-0 min-h-[36px] inline-flex items-center active:opacity-70"
-                    style={{ color: 'var(--primary)' }}
+              <div className="mb-2.5 sm:mb-3">
+                {!loading && hasPreview ? (
+                  <p
+                    className="text-[12px] sm:text-[13px] truncate"
+                    style={{ color: 'var(--text-muted)' }}
                   >
-                    Associar-se
-                  </Link>
+                    Rede {brandName}
+                  </p>
                 ) : null}
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <p
                   className="px-1 mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
                   style={{ color: 'var(--text-muted)' }}
@@ -103,7 +118,7 @@ export default function BeneficiosPublico() {
                 <BeneficiosPartnerLogoStrip partners={partners} loading={loading} />
               </div>
 
-              <div className="mt-3 sm:mt-4">
+              <div className="mt-3 sm:mt-4 min-w-0">
                 {loading || hasOffers ? (
                   <p
                     className="px-1 mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
@@ -112,7 +127,19 @@ export default function BeneficiosPublico() {
                     Ofertas
                   </p>
                 ) : null}
-                <BeneficiosPartnerOffersList offers={offers} loading={loading} isLogged={isLogged} />
+                <BeneficiosPartnerOffersList
+                  offers={offers}
+                  loading={loading}
+                  ctaTo={memberLink.to}
+                  ctaState={memberLink.state}
+                  ctaLabel={
+                    memberLink.hasMemberAccess
+                      ? 'Ver na área do associado'
+                      : memberLink.isLogged
+                        ? 'Contratar para acessar'
+                        : 'Ver na área do associado'
+                  }
+                />
               </div>
 
               {!loading && hasPreview && !hasOffers ? (
@@ -125,15 +152,15 @@ export default function BeneficiosPublico() {
               ) : null}
             </div>
 
-            <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row gap-2">
+            <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row gap-2 sm:items-center">
               {!isLogged ? (
-                <Link to="/planos" className="btn-primary justify-center h-11 text-sm flex-1">
+                <Link to="/planos" className="btn-primary justify-center h-11 text-sm sm:w-auto w-full">
                   Quero me associar
                 </Link>
               ) : null}
               <Link
                 to="/servicos-digitais"
-                className="btn-outline justify-center gap-2 h-11 text-sm flex-1 sm:flex-none sm:min-w-[180px]"
+                className="btn-outline justify-center gap-2 h-11 text-sm sm:flex-none sm:min-w-[180px]"
               >
                 <Smartphone size={15} />
                 Serviços digitais
@@ -142,13 +169,15 @@ export default function BeneficiosPublico() {
 
             <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 justify-center md:justify-start text-[13px]">
               <Link
-                to={memberTo}
-                state={memberState}
+                to={memberLink.to}
+                state={memberLink.state}
                 className="font-semibold inline-flex items-center gap-1 min-h-[40px] active:opacity-70"
                 style={{ color: 'var(--primary)' }}
               >
-                {isLogged ? (
+                {memberLink.hasMemberAccess ? (
                   'Área do associado'
+                ) : memberLink.isLogged ? (
+                  'Contratar plano'
                 ) : (
                   <>
                     <LogIn size={14} />
@@ -167,38 +196,7 @@ export default function BeneficiosPublico() {
             </div>
           </>
         ) : (
-          <div className="min-h-[50dvh] flex flex-col">
-            <header className="mb-4 text-center md:text-left">
-              <p
-                className="text-xs font-semibold uppercase tracking-wide"
-                style={{ color: 'var(--primary)' }}
-              >
-                Clube de parceiros
-              </p>
-              <h1 className="mt-1.5 text-2xl md:text-3xl font-bold tracking-tight">
-                Descontos perto de você
-              </h1>
-              <p
-                className="mt-2 text-sm leading-relaxed max-w-2xl"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                Prévia da rede {brandName} — estabelecimentos locais com condições exclusivas para
-                associados.
-              </p>
-              <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center md:justify-start">
-                <Link to="/planos" className="btn-primary justify-center h-11 text-sm">
-                  Quero me associar
-                </Link>
-                <Link
-                  to="/servicos-digitais"
-                  className="btn-outline justify-center gap-2 h-11 text-sm"
-                >
-                  <Smartphone size={15} />
-                  Serviços digitais
-                </Link>
-              </div>
-            </header>
-
+          <div className="min-h-[40dvh] flex flex-col">
             <div
               className="flex-1 flex flex-col items-center justify-center rounded-[20px] border p-6 sm:p-8 text-center"
               style={{ borderColor: 'var(--c-border)', background: 'var(--surface)' }}
@@ -212,15 +210,30 @@ export default function BeneficiosPublico() {
               </Link>
             </div>
 
+            <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center md:justify-start">
+              <Link to="/planos" className="btn-primary justify-center h-11 text-sm">
+                Quero me associar
+              </Link>
+              <Link
+                to="/servicos-digitais"
+                className="btn-outline justify-center gap-2 h-11 text-sm"
+              >
+                <Smartphone size={15} />
+                Serviços digitais
+              </Link>
+            </div>
+
             <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1 justify-center md:justify-start text-[13px]">
               <Link
-                to={memberTo}
-                state={memberState}
+                to={memberLink.to}
+                state={memberLink.state}
                 className="font-semibold inline-flex items-center gap-1 min-h-[40px] active:opacity-70"
                 style={{ color: 'var(--primary)' }}
               >
-                {isLogged ? (
+                {memberLink.hasMemberAccess ? (
                   'Área do associado'
+                ) : memberLink.isLogged ? (
+                  'Contratar plano'
                 ) : (
                   <>
                     <LogIn size={14} />
@@ -231,7 +244,6 @@ export default function BeneficiosPublico() {
             </div>
           </div>
         )}
-      </div>
-    </section>
+    </PublicPageShell>
   )
 }

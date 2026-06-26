@@ -72,8 +72,8 @@ function registerCopy(intent) {
   if (intent === "cliente") {
     return {
       banner:
-        "Você já é cliente. Este cadastro cria seu acesso digital — não contrata um novo plano.",
-      panelTitle: "Crie seu acesso digital",
+        "Você já é associado. Este cadastro é o seu primeiro acesso — cria a senha, não contrata um novo plano.",
+      panelTitle: "Primeiro acesso do associado",
       panelSubtitle: "Use o mesmo CPF do titular do contrato.",
       step3Title: "Proteja sua conta",
       step3Subtitle: "Crie uma senha difícil de adivinhar.",
@@ -90,7 +90,7 @@ function registerCopy(intent) {
       crossLink: {
         to: "/criar-conta",
         state: { intent: "cliente" },
-        label: "Já é cliente? Crie seu acesso digital",
+        label: "Já é associado? Primeiro acesso",
       },
     };
   }
@@ -103,7 +103,7 @@ function registerCopy(intent) {
     crossLink: {
       to: "/criar-conta",
       state: { intent: "cliente" },
-      label: "Já é cliente? Crie seu acesso digital",
+      label: "Já é associado? Primeiro acesso",
     },
   };
 }

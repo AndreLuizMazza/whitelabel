@@ -1,115 +1,33 @@
 {
   "slug": "provida",
-  "v": 1,
-
+  "v": 2,
   "assetsBaseUrl": "https://whitelabel.progem.com.br/arquivos/70/",
-
-"vars": {
-    "--primary": "#DC2626",
-    "--primary-dark": "#991B1B",
-    "--primary-light": "#F87171",
-
-    "--secondary": "#16A34A",
-    "--secondary-dark": "#15803D",
-    "--secondary-light": "#4ADE80",
-
-    "--on-primary": "#FFFFFF",
-
-    "--surface": "#FFFFFF",
-    "--surface-alt": "#F9FAFB",
-
-    "--text": "#0F172A",
-    "--text-muted": "#64748B",
-
-    "--c-border": "rgba(15,23,42,0.06)",
-
-    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 8%, transparent)",
-    "--nav-active-bg": "color-mix(in srgb, var(--primary) 14%, transparent)",
-    "--nav-active-color": "#DC2626",
-
-    "--highlight": "#16A34A",
-
-    "--button-hover": "color-mix(in srgb, var(--primary) 18%, #000000)",
-
-    "--success": "#16A34A",
-    "--success-soft": "color-mix(in srgb, #16A34A 12%, transparent)",
-
-    "--card-bg": "#FFFFFF",
-    "--card-border": "rgba(15,23,42,0.04)",
-
-    "--shadow-soft": "0 4px 20px rgba(0,0,0,0.04)"
-  },
-
-  "varsDark": {
-    "--surface": "#0A0A0B",
-    "--surface-alt": "#121214",
-
-    "--text": "#F8FAFC",
-    "--text-muted": "#CBD5F5",
-
-    "--c-border": "rgba(255,255,255,0.08)",
-
-    "--primary": "#EF4444",
-    "--primary-dark": "#B91C1C",
-    "--primary-light": "#FCA5A5",
-
-    "--secondary": "#22C55E",
-    "--secondary-dark": "#16A34A",
-    "--secondary-light": "#86EFAC",
-
-    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 14%, transparent)",
-    "--nav-active-bg": "color-mix(in srgb, var(--primary) 22%, transparent)",
-    "--nav-active-color": "#FFFFFF",
-
-    "--highlight": "#22C55E",
-
-    "--button-hover": "color-mix(in srgb, var(--primary) 28%, #000000)",
-
-    "--success": "#22C55E",
-    "--success-soft": "color-mix(in srgb, #22C55E 18%, transparent)",
-
-    "--card-bg": "#141416",
-    "--card-border": "rgba(255,255,255,0.06)",
-
-    "--shadow-soft": "0 6px 30px rgba(0,0,0,0.25)"
-  },
-
-
   "brand": {
     "name": "Provida",
     "legalName": "Provida",
     "shortName": "Provida",
-
     "logo": "logo.png",
     "logoDark": "logo-dark.png",
-
     "favicon": "icons/favicon.png",
     "faviconSvg": "icons/favicon.svg",
-
     "appleTouchIcon": "icons/apple-touch-icon.png",
-
     "pwaIcon192": "icons/icon-192.png",
     "pwaIcon512": "icons/icon-512.png",
     "maskableIcon512": "icons/icon-maskable-512.png",
-
     "ogImage": "icons/og-image.png",
-
     "pushIcon": "icons/push-icon.png",
     "pushBadge": "icons/push-badge.png"
   },
-
   "shell": {
     "title": "Provida",
     "titleTemplate": "%s • Provida",
     "themeColor": "#DC2626",
-    "backgroundColor": "#FFFFFF"
+    "backgroundColor": "#ffffff"
   },
-
   "seo": {
     "metaTitle": "Provida",
     "metaDescription": "Cuidado e proteção para quem você ama. Assistência familiar completa com planos acessíveis e atendimento humanizado para garantir tranquilidade em todos os momentos."
   },
-
   "pwa": {
     "name": "Provida",
     "shortName": "Provida",
@@ -119,17 +37,188 @@
     "startUrl": "/",
     "scope": "/"
   },
-
   "routing": {
     "primaryDomain": "planoprovida.com.br"
   },
-
-  "logo": "logo.png",
-
+  "vars": {
+    "--primary": "#DC2626",
+    "--primary-dark": "#B91C1C",
+    "--primary-light": "#EF4444",
+    "--secondary": "#6B7280",
+    "--on-primary": "#FFFFFF",
+    "--surface": "#FFFFFF",
+    "--surface-alt": "#F7F7F7",
+    "--text": "#111827",
+    "--text-muted": "#6B7280",
+    "--c-border": "rgba(17,24,39,0.08)",
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 10%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 18%, transparent)",
+    "--nav-active-color": "#DC2626",
+    "--highlight": "#16A34A",
+    "--button-hover": "color-mix(in srgb, var(--primary) 25%, #000000)"
+  },
+  "varsDark": {
+    "--surface": "#0B0B0C",
+    "--surface-alt": "#141416",
+    "--text": "#F9FAFB",
+    "--text-muted": "#D1D5DB",
+    "--c-border": "rgba(255,255,255,0.14)",
+    "--primary": "#EF4444",
+    "--primary-dark": "#DC2626",
+    "--primary-light": "#F87171",
+    "--secondary": "#9CA3AF",
+    "--nav-hover-bg": "color-mix(in srgb, var(--primary) 16%, transparent)",
+    "--nav-active-bg": "color-mix(in srgb, var(--primary) 28%, transparent)",
+    "--nav-active-color": "#FFFFFF",
+    "--highlight": "#22C55E",
+    "--button-hover": "color-mix(in srgb, var(--primary) 35%, #000000)"
+  },
   "heroTitle": "Cuidado e proteção para quem você ama",
   "heroSubtitle": "Assistência familiar completa com planos acessíveis e atendimento humanizado para garantir tranquilidade em todos os momentos.",
-
+  "heroImage": "planos.jpg",
+  "heroSlides": [
+    {
+      "id": "familia",
+      "tag": "Assistência familiar",
+      "title": "Proteção e tranquilidade para sua família",
+      "subtitle": "Planos completos de assistência familiar, com benefícios exclusivos e atendimento humanizado em todos os momentos.",
+      "image": "planos.jpg",
+      "primary": {
+        "label": "Ver planos familiares",
+        "to": "/planos",
+        "variant": "primary"
+      },
+      "secondary": {
+        "label": "Área do associado",
+        "to": "/login",
+        "variant": "outline"
+      },
+      "showValuePills": true,
+      "valuePills": [
+        {
+          "icon": "ShieldCheck",
+          "label": "Cobertura completa"
+        },
+        {
+          "icon": "Users",
+          "label": "Para toda a família"
+        },
+        {
+          "icon": "Clock",
+          "label": "Atendimento 24h"
+        }
+      ]
+    },
+    {
+      "id": "beneficios",
+      "tag": "Clube de Benefícios",
+      "title": "Vantagens exclusivas para quem é associado",
+      "subtitle": "Descontos, parcerias e benefícios especiais em saúde, serviços e comércios conveniados, pensados para facilitar o dia a dia da sua família.",
+      "image": "descontos.jpg",
+      "primary": {
+        "label": "Conhecer benefícios",
+        "to": "/beneficios",
+        "variant": "primary"
+      },
+      "showValuePills": true,
+      "valuePills": [
+        {
+          "icon": "Percent",
+          "label": "Descontos reais"
+        },
+        {
+          "icon": "Store",
+          "label": "Parceiros locais"
+        },
+        {
+          "icon": "Wallet",
+          "label": "Economia mensal"
+        }
+      ]
+    },
+    {
+      "id": "memorial",
+      "tag": "Homenagens & lembranças",
+      "title": "Memorial online para homenagens",
+      "subtitle": "Um espaço digital para registrar mensagens, homenagens e acompanhar informações das cerimônias com respeito e simplicidade.",
+      "image": "memorial.jpg",
+      "primary": {
+        "label": "Acessar Memorial",
+        "to": "/memorial",
+        "variant": "primary"
+      },
+      "secondary": null,
+      "showValuePills": true,
+      "valuePills": [
+        {
+          "icon": "BookHeart",
+          "label": "Homenagens"
+        },
+        {
+          "icon": "MessageCircle",
+          "label": "Mensagens"
+        },
+        {
+          "icon": "Globe",
+          "label": "Acesso online"
+        }
+      ]
+    }
+  ],
+  "content": {
+    "about": {
+      "enabled": true,
+      "photo": "sobre/sobre-nos.jpg",
+      "title": "Quem somos",
+      "description": "Há mais de uma década cuidamos de famílias com proximidade, respeito e excelência no atendimento.\n\nAcreditamos que assistência de verdade combina proteção, benefícios e pessoas preparadas para ajudar quando mais importa.",
+      "mission": "Oferecer assistência e benefícios que tragam tranquilidade e dignidade às famílias que confiam em nós.",
+      "vision": "Ser referência regional em assistência familiar, reconhecida pela qualidade humana e pela inovação nos serviços.",
+      "values": [
+        {
+          "title": "Humanização",
+          "text": "Cada atendimento é pensado para acolher e orientar com empatia."
+        },
+        {
+          "title": "Transparência",
+          "text": "Informações claras, contratos e canais de contato acessíveis."
+        },
+	      {
+	        "title": "Comprometimento",
+          "text": "Compromisso com a comunidade."
+        }
+      ],
+      "differentials": [
+        {
+          "title": "Rede e benefícios",
+          "text": "Clube de vantagens e parcerias que ampliam o valor do plano."
+        },
+        {
+          "title": "Memorial digital",
+          "text": "Espaço respeitoso para homenagens e memórias, quando necessário."
+        }
+      ],
+      "closing": "Estamos ao seu lado nos momentos do dia a dia e nos que pedem cuidado especial. Fale connosco: a nossa equipa explica o plano certo para a sua realidade.",
+      "galleryTitle": "Ambiente e estrutura",
+      "gallery": [
+        {
+          "image": "sobre/sobre-nos2.jpg",
+          "caption": "Presença e acolhimento nas nossas unidades."
+        },
+        {
+          "image": "sobre/sobre-nos3.jpg",
+          "caption": "Presença e acolhimento nas nossas unidades."
+        },
+	      {
+          "image": "sobre/sobre-nos4.jpg",
+          "caption": "Presença e acolhimento nas nossas unidades."
+        }
+      ],
+      "seo": {
+        "metaTitle": "Sobre nós — Provida",
+        "metaDescription": "Conheça a nossa história, missão e valores. Assistência familiar com atendimento humanizado.",
+        "ogImage": "sobre/og-sobre.png"
+      }
+    }
+  },
   "domain": "planoprovida.com.br"
 }
-
-

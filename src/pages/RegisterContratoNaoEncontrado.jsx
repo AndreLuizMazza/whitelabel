@@ -56,13 +56,13 @@ export default function RegisterContratoNaoEncontrado() {
         <div className="mt-5 flex flex-col gap-2.5">
           <Button
             type="button"
-            onClick={() => navigate('/area', { replace: true })}
+            onClick={() => navigate('/planos', { replace: true, state: { onboarding: true } })}
             variant="primary"
             size="lg"
             full
             className="min-h-[48px] rounded-xl"
           >
-            Ir para minha área
+            Ver planos e contratar
           </Button>
           <Button
             type="button"

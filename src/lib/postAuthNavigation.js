@@ -41,16 +41,26 @@ export function parseAuthReturnUrl(rawFrom, fallback = POST_AUTH_DEFAULT) {
   return fallback
 }
 
+/** Rotas da área do associado (exigem contrato vinculado ao CPF). */
+export function isMemberAreaPath(path) {
+  if (!path || typeof path !== 'string') return false
+  const base = path.split('?')[0].split('#')[0]
+  if (base === MEMBER_HOME || base.startsWith('/area/')) return true
+  if (base === '/perfil' || base.startsWith('/perfil/')) return true
+  if (base === '/carteirinha' || base.startsWith('/carteirinha/')) return true
+  return false
+}
+
 /**
  * Destinos que devem ser respeitados literalmente (deep links).
- * /planos e /area não são deep links — roteamento depende de contrato.
+ * Rotas /area/* exigem contrato — tratadas em resolvePostAuthDestination.
  */
 export function isDeepLinkDestination(path) {
   if (!path || typeof path !== 'string') return false
   const base = path.split('?')[0].split('#')[0]
   if (base === POST_AUTH_DEFAULT || base === MEMBER_HOME) return false
+  if (isMemberAreaPath(path)) return false
   if (base.startsWith('/cadastro') || base.startsWith('/confirmacao')) return true
-  if (base.startsWith('/area/')) return true
   if (base.startsWith('/contratos/')) return true
   return false
 }
@@ -87,23 +97,50 @@ export async function fetchContratosForCpf(cpf) {
 }
 
 /**
+ * Redirecionamento na entrada (/, /login) para usuário já autenticado.
+ * Retorna null quando deve permanecer na rota atual (ex.: home pública sem contrato).
+ */
+export async function resolveAuthenticatedEntryDestination(pathname) {
+  if (pathname !== '/' && pathname !== '/login') return null
+
+  const cpf = await fetchAuthenticatedCpf()
+  const contratos = cpf ? await fetchContratosForCpf(cpf) : []
+  const hasContrato = Array.isArray(contratos) && contratos.length > 0
+
+  if (pathname === '/') {
+    if (hasContrato) {
+      return { path: MEMBER_HOME, state: undefined }
+    }
+    return null
+  }
+
+  return resolvePostAuthDestination({ rawFrom: pathname })
+}
+
+/**
  * Resolve destino pós-login/cadastro com base em deep link ou contratos.
  */
 export async function resolvePostAuthDestination({ rawFrom, intent } = {}) {
   const explicitPath = parseAuthReturnUrl(rawFrom, '')
 
-  if (explicitPath && isDeepLinkDestination(explicitPath)) {
+  const cpf = await fetchAuthenticatedCpf()
+  const contratos = cpf ? await fetchContratosForCpf(cpf) : []
+  const hasContrato = Array.isArray(contratos) && contratos.length > 0
+
+  if (explicitPath && isMemberAreaPath(explicitPath)) {
+    if (hasContrato) {
+      return { path: explicitPath, state: undefined }
+    }
+    // Sem contrato: não entra no app — continua fluxo abaixo
+  } else if (explicitPath && isDeepLinkDestination(explicitPath)) {
     return { path: explicitPath, state: undefined }
   }
 
-  const cpf = await fetchAuthenticatedCpf()
-  const contratos = cpf ? await fetchContratosForCpf(cpf) : []
-
   if (contratos === null) {
-    return { path: MEMBER_HOME, state: undefined }
+    return { path: POST_AUTH_DEFAULT, state: { onboarding: true } }
   }
 
-  if (contratos.length > 0) {
+  if (hasContrato) {
     return { path: MEMBER_HOME, state: undefined }
   }
 
