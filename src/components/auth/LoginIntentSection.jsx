@@ -8,7 +8,7 @@ const INTENTS = [
     intent: 'cliente',
     icon: ShieldCheck,
     title: 'Primeiro acesso do associado',
-    subtitle: 'Já tenho contrato. Crio minha senha com o CPF do titular - sem nova adesão.',
+    subtitle: 'Já tenho contrato. Crio minha senha com meu CPF - sem nova adesão.',
   },
   {
     key: 'lead',
