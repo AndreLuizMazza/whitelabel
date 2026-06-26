@@ -22,6 +22,30 @@ const ICONS = {
   Sparkles,
 }
 
+function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function resolveBenefitTileRoute({ title, text, to }, empresa) {
+  const explicit = String(to || '').trim()
+  if (explicit && explicit !== '/sobre-nos') return explicit
+
+  const haystack = normalizeText(`${title} ${text}`)
+  if (/(beneficio|beneficios|clube|rede|parceir|vantagen)/.test(haystack) && isBeneficiosEnabled(empresa)) {
+    return '/beneficios'
+  }
+  if (/memorial/.test(haystack) && isMemorialEnabled(empresa)) {
+    return '/memorial'
+  }
+  if (/plano/.test(haystack)) return '/planos'
+  if (/(filial|unidade|atendimento|contato)/.test(haystack)) return '/filiais'
+
+  return explicit || '/sobre-nos'
+}
+
 function buildModuleFallbackTiles(empresa) {
   const tiles = [
     {
@@ -69,7 +93,7 @@ export default function PublicBenefitsHighlight({ empresa, mounted = true }) {
         icon: ICONS[item.icon] || ShieldCheck,
         title: item.title,
         text: item.text,
-        to: item.to || '/planos',
+        to: resolveBenefitTileRoute(item, empresa),
       }))
     }
     return buildModuleFallbackTiles(empresa)

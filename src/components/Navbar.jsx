@@ -1,6 +1,7 @@
 // src/components/Navbar.jsx
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useMemo, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Menu, X, UserSquare2, User, LogOut } from 'lucide-react'
 
 import useAuth from '@/store/auth'
@@ -23,6 +24,39 @@ function isCapacitorRuntime() {
   if (typeof cap.isNativePlatform === 'function') return !!cap.isNativePlatform()
   if (typeof cap.getPlatform === 'function') return cap.getPlatform() !== 'web'
   return true
+}
+
+function getPortalRoot() {
+  if (typeof document === 'undefined') return null
+  return document.body
+}
+
+function MobileMenuTrigger({ open, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="lg:hidden inline-flex items-center gap-2 rounded-full h-10 px-3.5 border text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] transition-all active:scale-[0.98] shrink-0"
+      style={{
+        borderColor: open
+          ? 'color-mix(in srgb, var(--primary) 55%, transparent)'
+          : 'var(--c-border)',
+        background: open
+          ? 'color-mix(in srgb, var(--primary) 14%, var(--surface))'
+          : 'var(--surface)',
+        color: open ? 'var(--primary)' : 'var(--text)',
+        boxShadow: open
+          ? '0 0 0 1px color-mix(in srgb, var(--primary) 20%, transparent)'
+          : '0 1px 2px rgba(15,23,42,.06)',
+      }}
+      aria-label={open ? 'Fechar menu de navegação' : 'Abrir menu de navegação'}
+      aria-controls="mobile-menu"
+      aria-expanded={open}
+    >
+      {open ? <X className="h-5 w-5" strokeWidth={2.25} /> : <Menu className="h-5 w-5" strokeWidth={2.25} />}
+      <span>Menu</span>
+    </button>
+  )
 }
 
 export default function Navbar() {
@@ -197,14 +231,17 @@ export default function Navbar() {
   }, [elderMode])
 
   const linkClass = ({ isActive }) =>
-    'relative pl-4 pr-3 py-2 flex items-center gap-2 whitespace-nowrap rounded-md transition-colors duration-150 ' +
+    'relative px-3 py-2 flex items-center gap-2 whitespace-nowrap rounded-full text-[13px] xl:text-sm font-medium transition-all duration-200 ' +
     (isActive
-      ? 'text-[var(--nav-active-color)] font-semibold bg-[var(--nav-active-bg)]'
-      : 'text-[var(--text)] hover:text-[var(--text)] hover:bg-[var(--nav-hover-bg)]')
+      ? 'text-[var(--primary)] font-semibold bg-[var(--nav-active-bg)] shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--primary)_22%,transparent)]'
+      : 'text-[var(--text)] hover:text-[var(--primary)] hover:bg-[var(--nav-hover-bg)]')
 
   const ActiveBar = ({ isActive }) =>
     isActive ? (
-      <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded bg-[var(--primary)]" />
+      <span
+        className="absolute left-2 top-1/2 -translate-y-1/2 h-5 w-1 rounded-full bg-[var(--primary)]"
+        aria-hidden="true"
+      />
     ) : null
 
   function handleLogoClick(e) {
@@ -243,6 +280,276 @@ export default function Navbar() {
     if (!item.to.startsWith('/#')) return false
     return location.pathname === '/' && location.hash === item.to.replace('/', '')
   }
+
+  const portalRoot = getPortalRoot()
+
+  const mobileDrawer =
+    mobileOpen && portalRoot
+      ? createPortal(
+          <div
+            id="mobile-menu"
+            className="fixed inset-0 z-[2000] lg:hidden"
+            aria-modal="true"
+            role="dialog"
+            aria-label="Menu de navegação"
+          >
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/45 backdrop-blur-[3px] transition-opacity"
+              onClick={() => setMobileOpen(false)}
+              aria-label="Fechar menu"
+            />
+
+            <div
+              className="absolute inset-y-0 right-0 w-[min(100vw-1rem,22rem)] max-w-[92vw] bg-[var(--surface)] flex flex-col shadow-2xl rounded-l-3xl overflow-hidden border-l"
+              style={{
+                borderColor: 'var(--c-border)',
+                boxShadow: '0 24px 80px rgba(15,23,42,.28)',
+              }}
+              data-bottom-avoid="true"
+            >
+              <div
+                className="flex items-center gap-4 px-5 py-5 border-b"
+                style={{ borderColor: 'var(--c-border)' }}
+              >
+                <div
+                  className={(elderMode ? 'h-20 w-20' : 'h-16 w-16') + ' rounded-full overflow-hidden border shrink-0'}
+                  style={{ borderColor: 'var(--c-border)' }}
+                >
+                  {isLogged && avatarUrl && !avatarErro ? (
+                    <img
+                      src={avatarUrl}
+                      alt={nomeExibicao || 'Perfil'}
+                      className="h-full w-full object-cover"
+                      onError={() => setAvatarErro(true)}
+                    />
+                  ) : (
+                    <span
+                      className={
+                        (elderMode ? 'text-2xl' : 'text-xl') +
+                        ' inline-flex h-full w-full items-center justify-center font-semibold'
+                      }
+                      style={{ background: 'var(--primary)', color: '#fff' }}
+                    >
+                      {isLogged ? avatarInitial : tenantInitials}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col min-w-0 flex-1">
+                  {isLogged ? (
+                    <>
+                      <p
+                        className={
+                          'font-semibold leading-tight truncate ' + (elderMode ? 'text-lg' : 'text-base')
+                        }
+                      >
+                        {nomeExibicao || 'Associado'}
+                      </p>
+                      <p
+                        className={
+                          'mt-1 truncate uppercase tracking-[0.18em] ' +
+                          (elderMode ? 'text-[12px]' : 'text-[11px]')
+                        }
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        {empresa?.nomeFantasia || 'Minha Empresa'}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p
+                        className="text-sm font-semibold leading-tight truncate"
+                        style={{ color: 'var(--primary)' }}
+                      >
+                        {empresa?.nomeFantasia || 'Minha Empresa'}
+                      </p>
+                      <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                        Planos, benefícios e atendimento
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  className="rounded-full p-2 hover:bg-black/5 dark:hover:bg-white/10 shrink-0"
+                  onClick={() => setMobileOpen(false)}
+                  aria-label="Fechar menu"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {!isLogged && (
+                <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--c-border)' }}>
+                  <Link
+                    to="/planos"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center justify-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold shadow-sm hover:shadow transition"
+                    style={{ background: 'var(--primary)', color: '#fff' }}
+                  >
+                    Fazer adesão
+                  </Link>
+
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileOpen(false)}
+                    className="mt-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium border hover:bg-black/5 dark:hover:bg-white/5 transition"
+                    style={{ borderColor: 'var(--c-border)', color: 'var(--text)' }}
+                  >
+                    <UserSquare2 className="h-5 w-5" />
+                    <span>Entrar</span>
+                  </Link>
+                </div>
+              )}
+
+              <nav className="flex-1 overflow-y-auto text-sm py-2" aria-label="Menu principal">
+                {fullMobileMenu.map((item, i) =>
+                  item.divider ? (
+                    <div
+                      key={'div-' + i}
+                      className="my-3 mx-5 border-t border-dashed border-[var(--c-border)]"
+                    />
+                  ) : item.to.startsWith('/#') ? (
+                    <a
+                      key={item.key}
+                      href={item.to}
+                      onClick={() => setMobileOpen(false)}
+                      className={`flex items-center gap-3 px-5 py-3.5 mx-3 rounded-xl transition-colors ${
+                        isHashActive(item)
+                          ? 'bg-[var(--nav-active-bg)] text-[var(--primary)] font-semibold'
+                          : 'hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10'
+                      }`}
+                    >
+                      <item.icon className="h-5 w-5 text-[var(--primary)] shrink-0" />
+                      <span>{item.label}</span>
+                    </a>
+                  ) : (
+                    <NavLink
+                      key={item.key}
+                      to={
+                        item.key === 'produtos'
+                          ? getProdutosMenuTo(location.pathname, location.search)
+                          : item.to
+                      }
+                      end={item.exact || item.key === 'produtos'}
+                      onClick={() => setMobileOpen(false)}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-5 py-3.5 mx-3 rounded-xl transition-colors ${
+                          isActive
+                            ? 'bg-[var(--nav-active-bg)] text-[var(--primary)] font-semibold'
+                            : 'hover:bg-black/5 dark:hover:bg-white/5 active:bg-black/10'
+                        }`
+                      }
+                    >
+                      <item.icon className="h-5 w-5 text-[var(--primary)] shrink-0" />
+                      <span>{item.label}</span>
+                    </NavLink>
+                  )
+                )}
+              </nav>
+
+              <div className="border-t px-5 py-3" style={{ borderColor: 'var(--c-border)' }}>
+                <p
+                  className="text-[11px] uppercase tracking-[0.16em] mb-2"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  Aparência
+                </p>
+
+                <div className="space-y-2">
+                  <div
+                    className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl border"
+                    style={{ borderColor: 'var(--c-border)' }}
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-xs font-medium">Tema</span>
+                      <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                        Claro / Escuro automático
+                      </span>
+                    </div>
+                    <ThemeToggle />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setElderMode((v) => !v)}
+                    className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl text-xs sm:text-sm border hover:bg-black/5 dark:hover:bg-white/5"
+                    style={{ borderColor: 'var(--c-border)' }}
+                    aria-pressed={elderMode}
+                  >
+                    <div className="flex flex-col text-left">
+                      <span className="font-medium">Modo idoso</span>
+                      <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                        Letras maiores e mais contraste
+                      </span>
+                    </div>
+                    <span
+                      className="px-2 py-0.5 rounded-full text-[11px] font-medium"
+                      style={{
+                        background: elderMode
+                          ? 'color-mix(in srgb, var(--primary) 20%, var(--surface) 80%)'
+                          : 'transparent',
+                        color: elderMode ? 'var(--primary)' : 'var(--text-muted)',
+                        border: elderMode
+                          ? '1px solid color-mix(in srgb, var(--primary) 50%, transparent)'
+                          : '1px solid transparent',
+                      }}
+                    >
+                      {elderMode ? 'Ativado' : 'Desativado'}
+                    </span>
+                  </button>
+                </div>
+
+                <AppBuildInfo variant="compact" className="mt-3 px-3 text-[10px] tabular-nums opacity-70" />
+              </div>
+
+              {isLogged ? (
+                <div className="border-t px-5 py-4" style={{ borderColor: 'var(--c-border)' }}>
+                  <Link
+                    to="/area"
+                    onClick={() => setMobileOpen(false)}
+                    className="mb-2 flex items-center gap-3 px-4 py-3 text-sm rounded-xl font-medium hover:bg-black/5 dark:hover:bg-white/5"
+                  >
+                    <UserSquare2 className="h-5 w-5 text-[var(--primary)]" />
+                    <span>Área do associado</span>
+                  </Link>
+                  <button
+                    type="button"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm rounded-xl font-medium hover:bg-black/5 dark:hover:bg-white/5 text-[var(--danger, #b91c1c)]"
+                    onClick={() => {
+                      setMobileOpen(false)
+                      void handleLogout()
+                    }}
+                  >
+                    <LogOut className="h-5 w-5" />
+                    <span>Sair</span>
+                  </button>
+                </div>
+              ) : (
+                <div
+                  className="border-t px-5 py-4"
+                  style={{
+                    borderColor: 'var(--c-border)',
+                    background: 'color-mix(in srgb, var(--surface) 92%, var(--primary) 8%)',
+                  }}
+                >
+                  <Link
+                    to="/planos"
+                    onClick={() => setMobileOpen(false)}
+                    className="w-full flex items-center justify-center rounded-2xl px-4 py-3 font-semibold shadow-sm hover:shadow transition"
+                    style={{ background: 'var(--primary)', color: '#fff' }}
+                  >
+                    Fazer adesão
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>,
+          portalRoot
+        )
+      : null
 
   return (
     <header
@@ -329,30 +636,41 @@ export default function Navbar() {
           </div>
 
           {!isLogged && (
-            <div className="hidden lg:flex items-center gap-2">
+            <>
               <Link
                 to="/planos"
-                className="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-semibold shadow-sm hover:shadow transition"
+                className="lg:hidden inline-flex items-center justify-center h-10 px-3.5 rounded-full text-xs font-semibold shadow-sm shrink-0"
                 style={{ background: 'var(--primary)', color: '#fff' }}
                 aria-label="Fazer adesão"
               >
-                Fazer adesão
+                Adesão
               </Link>
 
-              <Link
-                to="/login"
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
-                style={{
-                  borderColor: 'var(--c-border)',
-                  background: 'color-mix(in srgb, var(--surface) 92%, var(--primary) 8%)',
-                  color: 'var(--text)',
-                }}
-                aria-label="Entrar"
-              >
-                <User className="h-4 w-4" />
-                <span>Entrar</span>
-              </Link>
-            </div>
+              <div className="hidden lg:flex items-center gap-2">
+                <Link
+                  to="/planos"
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-semibold shadow-sm hover:shadow transition"
+                  style={{ background: 'var(--primary)', color: '#fff' }}
+                  aria-label="Fazer adesão"
+                >
+                  Fazer adesão
+                </Link>
+
+                <Link
+                  to="/login"
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-full border text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
+                  style={{
+                    borderColor: 'var(--c-border)',
+                    background: 'color-mix(in srgb, var(--surface) 92%, var(--primary) 8%)',
+                    color: 'var(--text)',
+                  }}
+                  aria-label="Entrar"
+                >
+                  <User className="h-4 w-4" />
+                  <span>Entrar</span>
+                </Link>
+              </div>
+            </>
           )}
 
           {isLogged ? (
@@ -396,12 +714,11 @@ export default function Navbar() {
                 </span>
               </button>
 
-              {/* Avatar mobile -> abre drawer */}
-              <button
-                type="button"
-                onClick={() => setMobileOpen((v) => !v)}
-                className="lg:hidden inline-flex items-center justify-center rounded-full border h-10 w-10 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
-                aria-label="Abrir menu"
+              {/* Avatar mobile — atalho para área (menu separado) */}
+              <Link
+                to="/area"
+                className="lg:hidden inline-flex items-center justify-center rounded-full border h-10 w-10 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)] shrink-0"
+                aria-label="Área do associado"
               >
                 {avatarUrl && !avatarErro ? (
                   <img
@@ -419,7 +736,7 @@ export default function Navbar() {
                     {avatarInitial}
                   </span>
                 )}
-              </button>
+              </Link>
 
               {/* Menu de perfil desktop */}
               {showProfileMenu && (
@@ -476,243 +793,13 @@ export default function Navbar() {
                 </div>
               )}
             </div>
-          ) : (
-            <button
-              className="lg:hidden inline-flex items-center justify-center rounded-lg border px-3 py-2 outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface)]"
-              aria-label="Abrir menu"
-              aria-controls="mobile-menu"
-              aria-expanded={mobileOpen}
-              onClick={() => setMobileOpen((v) => !v)}
-            >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          )}
+          ) : null}
+
+          <MobileMenuTrigger open={mobileOpen} onClick={() => setMobileOpen((v) => !v)} />
         </div>
       </div>
 
-      {/* Drawer mobile – usa o mesmo menu global do GlobalShell */}
-      {mobileOpen && (
-        <div id="mobile-menu" className="fixed inset-0 z-[1200] lg:hidden" aria-modal="true" role="dialog">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-            onClick={() => setMobileOpen(false)}
-            aria-label="Fechar menu"
-          />
-
-          <div
-            className="absolute inset-y-0 right-0 w-80 max-w-[85%] bg-[var(--surface)] flex flex-col shadow-2xl rounded-l-2xl overflow-hidden z-[1201]"
-            data-bottom-avoid="true"
-          >
-            {/* HEADER PREMIUM */}
-            <div className="flex items-center gap-4 px-5 py-5 border-b" style={{ borderColor: 'var(--c-border)' }}>
-              <div
-                className={(elderMode ? 'h-20 w-20' : 'h-16 w-16') + ' rounded-full overflow-hidden border'}
-                style={{ borderColor: 'var(--c-border)' }}
-              >
-                {isLogged && avatarUrl && !avatarErro ? (
-                  <img src={avatarUrl} alt={nomeExibicao || 'Perfil'} className="h-full w-full object-cover" onError={() => setAvatarErro(true)} />
-                ) : (
-                  <span
-                    className={(elderMode ? 'text-2xl' : 'text-xl') + ' inline-flex h-full w-full items-center justify-center font-semibold'}
-                    style={{ background: 'var(--primary)', color: '#fff' }}
-                  >
-                    {isLogged ? avatarInitial : tenantInitials}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex flex-col min-w-0 flex-1">
-                {isLogged ? (
-                  <>
-                    <p className={'font-semibold leading-tight truncate ' + (elderMode ? 'text-lg' : 'text-base')}>
-                      {nomeExibicao || 'Associado'}
-                    </p>
-                    <p
-                      className={'mt-1 truncate uppercase tracking-[0.18em] ' + (elderMode ? 'text-[12px]' : 'text-[11px]')}
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                      {empresa?.nomeFantasia || 'Minha Empresa'}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm font-semibold leading-tight truncate" style={{ color: 'var(--primary)' }}>
-                      {empresa?.nomeFantasia || 'Minha Empresa'}
-                    </p>
-                    <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-                      Acesse planos e faça sua adesão
-                    </p>
-                  </>
-                )}
-              </div>
-
-              <button
-                className="rounded-full p-1.5 hover:bg-black/5 dark:hover:bg-white/10"
-                onClick={() => setMobileOpen(false)}
-                aria-label="Fechar menu"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* CTA (não logado) – topo do drawer */}
-            {!isLogged && (
-              <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--c-border)' }}>
-                <Link
-                  to="/planos"
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center justify-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold shadow-sm hover:shadow transition"
-                  style={{ background: 'var(--primary)', color: '#fff' }}
-                >
-                  Fazer adesão
-                </Link>
-
-                <Link
-                  to="/login"
-                  onClick={() => setMobileOpen(false)}
-                  className="mt-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium border hover:bg-black/5 dark:hover:bg-white/5 transition"
-                  style={{ borderColor: 'var(--c-border)', color: 'var(--text)' }}
-                >
-                  <UserSquare2 className="h-5 w-5" />
-                  <span>Entrar</span>
-                </Link>
-              </div>
-            )}
-
-            {/* Menu público */}
-            <nav className="flex-1 overflow-y-auto text-sm py-2">
-              {fullMobileMenu.map((item, i) =>
-                item.divider ? (
-                  <div key={'div-' + i} className="my-3 mx-5 border-t border-dashed border-[var(--c-border)]" />
-                ) : item.to.startsWith('/#') ? (
-                  <a
-                    key={item.key}
-                    href={item.to}
-                    onClick={() => setMobileOpen(false)}
-                    className={`flex items-center gap-3 px-5 py-3 mx-3 rounded-lg ${
-                      isHashActive(item)
-                        ? 'bg-[var(--nav-active-bg)] text-[var(--primary)] font-semibold'
-                        : 'hover:bg-black/5 dark:hover:bg-white/5'
-                    }`}
-                  >
-                    <item.icon className="h-5 w-5 text-[var(--primary)]" />
-                    <span>{item.label}</span>
-                  </a>
-                ) : (
-                  <NavLink
-                    key={item.key}
-                    to={
-                      item.key === 'produtos'
-                        ? getProdutosMenuTo(location.pathname, location.search)
-                        : item.to
-                    }
-                    end={item.exact || item.key === 'produtos'}
-                    onClick={() => setMobileOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-5 py-3 mx-3 rounded-lg ${
-                        isActive
-                          ? 'bg-[var(--nav-active-bg)] text-[var(--primary)] font-semibold'
-                          : 'hover:bg-black/5 dark:hover:bg-white/5'
-                      }`
-                    }
-                  >
-                    <item.icon className="h-5 w-5 text-[var(--primary)]" />
-                    <span>{item.label}</span>
-                  </NavLink>
-                )
-              )}
-            </nav>
-
-            {/* Aparência (Tema + Modo idoso) */}
-            <div className="border-t px-5 py-3 lg:hidden" style={{ borderColor: 'var(--c-border)' }}>
-              <p className="text-[11px] uppercase tracking-[0.16em] mb-2" style={{ color: 'var(--text-muted)' }}>
-                Aparência
-              </p>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border" style={{ borderColor: 'var(--c-border)' }}>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-medium">Tema</span>
-                    <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                      Claro / Escuro automático
-                    </span>
-                  </div>
-                  <ThemeToggle />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setElderMode((v) => !v)}
-                  className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-xs sm:text-sm border hover:bg-black/5 dark:hover:bg-white/5"
-                  style={{ borderColor: 'var(--c-border)' }}
-                  aria-pressed={elderMode}
-                >
-                  <div className="flex flex-col text-left">
-                    <span className="font-medium">Modo idoso</span>
-                    <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                      Letras maiores e mais contraste
-                    </span>
-                  </div>
-                  <span
-                    className="px-2 py-0.5 rounded-full text-[11px] font-medium"
-                    style={{
-                      background: elderMode
-                        ? 'color-mix(in srgb, var(--primary) 20%, var(--surface) 80%)'
-                        : 'transparent',
-                      color: elderMode ? 'var(--primary)' : 'var(--text-muted)',
-                      border: elderMode
-                        ? '1px solid color-mix(in srgb, var(--primary) 50%, transparent)'
-                        : '1px solid transparent',
-                    }}
-                  >
-                    {elderMode ? 'Ativado' : 'Desativado'}
-                  </span>
-                </button>
-              </div>
-
-              <AppBuildInfo
-                variant="compact"
-                className="mt-3 px-3 text-[10px] tabular-nums opacity-70"
-              />
-            </div>
-
-            {!isLogged && (
-              <div
-                className="border-t px-5 py-4"
-                style={{
-                  borderColor: 'var(--c-border)',
-                  background: 'color-mix(in srgb, var(--surface) 92%, var(--primary) 8%)',
-                }}
-              >
-                <Link
-                  to="/planos"
-                  onClick={() => setMobileOpen(false)}
-                  className="w-full flex items-center justify-center rounded-2xl px-4 py-3 font-semibold shadow-sm hover:shadow transition"
-                  style={{ background: 'var(--primary)', color: '#fff' }}
-                >
-                  Fazer adesão
-                </Link>
-              </div>
-            )}
-
-            {isLogged && (
-              <div className="border-t px-5 py-4" style={{ borderColor: 'var(--c-border)' }}>
-                <button
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm rounded-lg font-medium hover:bg-black/5 dark:hover:bg-white/5 text-[var(--danger, #b91c1c)]"
-                  onClick={() => {
-                    setMobileOpen(false)
-                    void handleLogout()
-                  }}
-                >
-                  <LogOut className="h-5 w-5" />
-                  <span>Sair</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {mobileDrawer}
     </header>
   )
 }

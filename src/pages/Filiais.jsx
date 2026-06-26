@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { MapPin, Phone, Mail, Building2 } from 'lucide-react'
 import api from '@/lib/api'
+import PublicPageShell from '@/components/public/PublicPageShell.jsx'
+import PublicPageHeader from '@/components/public/PublicPageHeader.jsx'
 
 /** -------------------- Helpers -------------------- */
 function maskCnpj(v) {
@@ -204,12 +206,13 @@ export default function Filiais() {
   )
 
   return (
-    <section className="section">
-      <div className="container-max max-w-7xl">
-        <header className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold">Nossas Unidades</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Endereços, contatos e mapa.</p>
-        </header>
+    <PublicPageShell maxWidth="wide">
+      <PublicPageHeader
+        kicker="Atendimento"
+        title="Nossas unidades"
+        description="Endereços, contatos e mapa das filiais disponíveis para você."
+        id="filiais-page-heading"
+      />
 
         {loading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -235,7 +238,6 @@ export default function Filiais() {
             ))}
           </div>
         )}
-      </div>
-    </section>
+    </PublicPageShell>
   )
 }

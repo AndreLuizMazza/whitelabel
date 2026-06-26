@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, BadgePercent } from 'lucide-react'
 import OfferMediaSurface from '@/components/beneficios/OfferMediaSurface'
+import HorizontalScrollRow from '@/components/ui/HorizontalScrollRow'
 
 function CompactOfferCard({ offer, ctaTo, ctaState, ctaLabel }) {
   return (
@@ -97,8 +98,8 @@ export default function BeneficiosPartnerOffersList({
   if (!offers.length) return null
 
   return (
-    <section aria-label="Ofertas de parceiros" className="mt-4">
-      <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <section aria-label="Ofertas de parceiros" className="mt-4 min-w-0">
+      <HorizontalScrollRow className="flex gap-3 px-1 pb-2 snap-x snap-mandatory -mx-1">
         {offers.map((offer) => (
           <CompactOfferCard
             key={offer.offerKey}
@@ -108,7 +109,7 @@ export default function BeneficiosPartnerOffersList({
             ctaLabel={ctaLabel}
           />
         ))}
-      </div>
+      </HorizontalScrollRow>
     </section>
   )
 }

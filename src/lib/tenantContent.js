@@ -260,7 +260,6 @@ export function getHomeBenefitHighlights(t) {
     return diffs.slice(0, 4).map((d) => ({
       title: d.title || "Diferencial",
       text: d.text,
-      to: "/sobre-nos",
     }));
   }
 

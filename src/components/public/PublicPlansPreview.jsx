@@ -1,8 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRight, Layers } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 
 import PlanoCardVenda from '@/components/PlanoCardVenda.jsx'
-import CTAButton from '@/components/ui/CTAButton'
 import usePublicPlanos from '@/hooks/usePublicPlanos.js'
 
 export default function PublicPlansPreview({ mounted = true, limit = 3 }) {
@@ -46,43 +45,38 @@ export default function PublicPlansPreview({ mounted = true, limit = 3 }) {
         </div>
 
         {loading ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="plans-preview-track flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {Array.from({ length: limit }).map((_, i) => (
               <div
                 key={i}
-                className="h-72 animate-pulse rounded-2xl border border-[var(--c-border)] bg-[var(--surface-alt,var(--surface))]"
+                className="shrink-0 snap-start w-[min(300px,85vw)] sm:w-auto sm:shrink h-72 animate-pulse rounded-2xl border border-[var(--c-border)] bg-[var(--surface-alt,var(--surface))]"
               />
             ))}
           </div>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="plans-preview-track flex items-stretch gap-4 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-2 lg:grid-cols-3 sm:overflow-visible [scrollbar-width:none] sm:[scrollbar-width:thin] [&::-webkit-scrollbar]:hidden sm:[&::-webkit-scrollbar]:block">
             {planos.map((p) => (
-              <PlanoCardVenda
+              <div
                 key={p.id}
-                plano={p}
-                precoMensal={p.precoMensal}
-                maxBenefits={4}
-                enableExpand={false}
-                onDetails={() => navigate(`/planos/${p.id}`)}
-              />
+                className="shrink-0 snap-start w-[min(300px,85vw)] sm:w-auto sm:shrink flex"
+              >
+                <PlanoCardVenda
+                  plano={p}
+                  precoMensal={p.precoMensal}
+                  bestSeller={p.bestSeller}
+                  maxBenefits={3}
+                  enableExpand
+                  uniformHeight
+                  onDetails={() => navigate(`/planos/${p.id}`)}
+                />
+              </div>
             ))}
           </div>
         )}
 
-        <div className="mt-8 flex flex-col items-center gap-3 text-center">
-          <CTAButton
-            as={Link}
-            to="/planos"
-            iconBefore={<Layers size={16} />}
-            iconAfter={<ArrowRight size={16} />}
-            size="lg"
-          >
-            Comparar todos os planos
-          </CTAButton>
-          <p className="text-xs text-[var(--text-muted)]">
-            Sem fidelidade • Adesão online • Suporte humano
-          </p>
-        </div>
+        <p className="mt-6 text-center text-xs text-[var(--text-muted)]">
+          Sem fidelidade • Adesão online • Suporte humano
+        </p>
       </div>
     </section>
   )

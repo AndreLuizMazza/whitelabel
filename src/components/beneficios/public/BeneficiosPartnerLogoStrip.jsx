@@ -1,4 +1,5 @@
 import StoryRingLogo, { STORY_RING_OUTER } from '@/components/beneficios/StoryRingLogo'
+import HorizontalScrollRow from '@/components/ui/HorizontalScrollRow'
 
 function StripSkeleton() {
   return (
@@ -35,8 +36,8 @@ export default function BeneficiosPartnerLogoStrip({ partners = [], loading = fa
   if (!partners.length) return null
 
   return (
-    <div
-      className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    <HorizontalScrollRow
+      className="flex gap-3 px-1 pb-1 snap-x snap-mandatory -mx-1"
       role="list"
       aria-label="Logos dos parceiros"
     >
@@ -56,6 +57,6 @@ export default function BeneficiosPartnerLogoStrip({ partners = [], loading = fa
           </span>
         </div>
       ))}
-    </div>
+    </HorizontalScrollRow>
   )
 }

@@ -12,6 +12,37 @@
 .container-max { @apply max-w-6xl mx-auto px-4; }
 .section { @apply py-10 md:py-14; }
 
+/* Faixa horizontal — scroll no desktop (wheel/arrastar) e mobile (touch) */
+.horizontal-scroll-row {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  scrollbar-width: none;
+  cursor: grab;
+}
+.horizontal-scroll-row:active {
+  cursor: grabbing;
+}
+@media (min-width: 768px) {
+  .horizontal-scroll-row {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--primary) 40%, transparent) transparent;
+  }
+  .horizontal-scroll-row::-webkit-scrollbar {
+    height: 6px;
+  }
+  .horizontal-scroll-row::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 35%, var(--c-border));
+  }
+  .horizontal-scroll-row::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
 /* ---------------- Botões: 100% dirigidos por CSS vars do tenant ---------------- */
 /* Botão base neutro (usado em alguns componentes) */
 .btn,

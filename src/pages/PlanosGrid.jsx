@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import api from "@/lib/api.js";
 import PlanoCardVenda from "@/components/PlanoCardVenda.jsx";
-import { getMensal } from "@/lib/planUtils.js";
+import { getMensal, markFeaturedPlans } from "@/lib/planUtils.js";
+import PublicPageShell from "@/components/public/PublicPageShell.jsx";
+import PublicPageHeader from "@/components/public/PublicPageHeader.jsx";
 import useAuth from "@/store/auth";
 import {
   fetchAuthenticatedCpf,
@@ -184,15 +186,8 @@ export default function PlanosGrid() {
     return byTab.filter((p) => p._nameN.includes(nq));
   }, [byTab, q]);
 
-  // marca 2º mais caro como "Mais vendido"
-  const marcados = useMemo(() => {
-    if (!byQuery.length) return [];
-    const desc = [...byQuery].sort(
-      (a, b) => (b.precoMensal || 0) - (a.precoMensal || 0)
-    );
-    const secondId = desc[1]?.id;
-    return byQuery.map((p) => ({ ...p, bestSeller: p.id === secondId }));
-  }, [byQuery]);
+  // Marca plano em destaque (metadata API ou 2º mais caro)
+  const marcados = useMemo(() => markFeaturedPlans(byQuery), [byQuery]);
 
   // ordenar barato -> caro
   const planosOrdenados = useMemo(
@@ -201,27 +196,26 @@ export default function PlanosGrid() {
   );
 
   return (
-    <section className="section">
-      <div className="container-max">
-        {showOnboardingBanner ? (
-          <div
-            className="mb-5 rounded-2xl px-4 py-3 text-[15px] leading-snug"
-            style={{
-              background: 'color-mix(in srgb, var(--primary) 10%, var(--grouped-bg, var(--surface-alt)))',
-              color: 'var(--text)',
-            }}
-            role="status"
-          >
-            Conta criada. Escolha seu plano para continuar.
-          </div>
-        ) : null}
-
-        <div className="mb-6">
-          <h2 className="text-3xl font-black tracking-tight">Planos</h2>
-          <p className="mt-1 text-[var(--c-muted)]">
-            Escolha seu plano e conclua a contratação em minutos. Sem complicação.
-          </p>
+    <PublicPageShell>
+      {showOnboardingBanner ? (
+        <div
+          className="mb-5 rounded-2xl px-4 py-3 text-[15px] leading-snug"
+          style={{
+            background: 'color-mix(in srgb, var(--primary) 10%, var(--grouped-bg, var(--surface-alt)))',
+            color: 'var(--text)',
+          }}
+          role="status"
+        >
+          Conta criada. Escolha seu plano para continuar.
         </div>
+      ) : null}
+
+      <PublicPageHeader
+        kicker="Nossos planos"
+        title="Planos"
+        description="Escolha seu plano e conclua a contratação em minutos. Sem complicação."
+        id="planos-page-heading"
+      />
 
         {/* Sub-navbar (tabs + busca) */}
         <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -292,7 +286,7 @@ export default function PlanosGrid() {
               }.`}
             </p>
             {q ? (
-              <p className="mt-1 text-sm text-[var(--c-muted)]">
+              <p className="mt-1 text-sm text-[var(--text-muted)]">
                 {shouldShowTabs
                   ? "Tente limpar o filtro de busca ou mudar a categoria."
                   : "Tente limpar o filtro de busca."}
@@ -314,7 +308,6 @@ export default function PlanosGrid() {
             />
           ))}
         </div>
-      </div>
-    </section>
+    </PublicPageShell>
   );
 }

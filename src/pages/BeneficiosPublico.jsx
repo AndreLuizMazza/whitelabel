@@ -9,6 +9,8 @@ import useParceirosPreview from '@/hooks/useParceirosPreview'
 import useMemberAreaLink from '@/hooks/useMemberAreaLink'
 import BeneficiosPartnerLogoStrip from '@/components/beneficios/public/BeneficiosPartnerLogoStrip'
 import BeneficiosPartnerOffersList from '@/components/beneficios/public/BeneficiosPartnerOffersList'
+import PublicPageShell from '@/components/public/PublicPageShell.jsx'
+import PublicPageHeader from '@/components/public/PublicPageHeader.jsx'
 
 export default function BeneficiosPublico() {
   const empresa = useTenant((s) => s.empresa)
@@ -34,10 +36,11 @@ export default function BeneficiosPublico() {
   const showPartnerContent = showPreview && !error && (loading || hasPreview)
   const memberLink = useMemberAreaLink('/area/beneficios')
 
+  const pageDescription = `Prévia da rede ${brandName} — estabelecimentos locais com condições exclusivas para associados.`
+
   return (
-    <section className="section !py-4 md:!py-8 pb-5">
-      <div className="container-max max-w-5xl">
-        {memberLink.isLogged && !memberLink.checking ? (
+    <PublicPageShell maxWidth="narrow">
+      {memberLink.isLogged && !memberLink.checking ? (
           <div
             className="mb-3 rounded-xl border px-3 py-2 flex items-center justify-between gap-2 sm:gap-3"
             style={{
@@ -67,42 +70,46 @@ export default function BeneficiosPublico() {
           </div>
         ) : null}
 
-        {showPartnerContent ? (
+      <PublicPageHeader
+        kicker="Clube de parceiros"
+        title="Descontos perto de você"
+        description={pageDescription}
+        id="beneficios-page-heading"
+        actions={
+          !isLogged && showPartnerContent ? (
+            <Link
+              to="/planos"
+              className="text-sm font-semibold inline-flex items-center min-h-[36px] hover:underline"
+              style={{ color: 'var(--primary)' }}
+            >
+              Associar-se
+            </Link>
+          ) : null
+        }
+      />
+
+      {showPartnerContent ? (
           <>
             <div
-              className="rounded-[20px] border p-3 sm:p-4 md:p-5"
+              className="rounded-[20px] border p-3 sm:p-4 md:p-5 min-w-0"
               style={{
                 borderColor: 'var(--c-border)',
                 background:
                   'linear-gradient(160deg, color-mix(in srgb, var(--primary) 4%, var(--surface)), var(--surface))',
               }}
             >
-              <div className="mb-2.5 sm:mb-3 flex items-end justify-between gap-2">
-                <div className="min-w-0">
-                  <h1 className="text-[20px] sm:text-2xl font-bold tracking-tight leading-tight">
-                    Clube de parceiros
-                  </h1>
-                  {!loading && hasPreview ? (
-                    <p
-                      className="text-[12px] sm:text-[13px] mt-0.5 truncate"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                      Rede {brandName}
-                    </p>
-                  ) : null}
-                </div>
-                {!isLogged ? (
-                  <Link
-                    to="/planos"
-                    className="text-[13px] font-semibold shrink-0 min-h-[36px] inline-flex items-center active:opacity-70"
-                    style={{ color: 'var(--primary)' }}
+              <div className="mb-2.5 sm:mb-3">
+                {!loading && hasPreview ? (
+                  <p
+                    className="text-[12px] sm:text-[13px] truncate"
+                    style={{ color: 'var(--text-muted)' }}
                   >
-                    Associar-se
-                  </Link>
+                    Rede {brandName}
+                  </p>
                 ) : null}
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <p
                   className="px-1 mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
                   style={{ color: 'var(--text-muted)' }}
@@ -112,7 +119,7 @@ export default function BeneficiosPublico() {
                 <BeneficiosPartnerLogoStrip partners={partners} loading={loading} />
               </div>
 
-              <div className="mt-3 sm:mt-4">
+              <div className="mt-3 sm:mt-4 min-w-0">
                 {loading || hasOffers ? (
                   <p
                     className="px-1 mb-1.5 text-[11px] font-semibold uppercase tracking-[0.14em]"
@@ -190,38 +197,7 @@ export default function BeneficiosPublico() {
             </div>
           </>
         ) : (
-          <div className="min-h-[50dvh] flex flex-col">
-            <header className="mb-4 text-center md:text-left">
-              <p
-                className="text-xs font-semibold uppercase tracking-wide"
-                style={{ color: 'var(--primary)' }}
-              >
-                Clube de parceiros
-              </p>
-              <h1 className="mt-1.5 text-2xl md:text-3xl font-bold tracking-tight">
-                Descontos perto de você
-              </h1>
-              <p
-                className="mt-2 text-sm leading-relaxed max-w-2xl"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                Prévia da rede {brandName} — estabelecimentos locais com condições exclusivas para
-                associados.
-              </p>
-              <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center md:justify-start">
-                <Link to="/planos" className="btn-primary justify-center h-11 text-sm">
-                  Quero me associar
-                </Link>
-                <Link
-                  to="/servicos-digitais"
-                  className="btn-outline justify-center gap-2 h-11 text-sm"
-                >
-                  <Smartphone size={15} />
-                  Serviços digitais
-                </Link>
-              </div>
-            </header>
-
+          <div className="min-h-[40dvh] flex flex-col">
             <div
               className="flex-1 flex flex-col items-center justify-center rounded-[20px] border p-6 sm:p-8 text-center"
               style={{ borderColor: 'var(--c-border)', background: 'var(--surface)' }}
@@ -232,6 +208,19 @@ export default function BeneficiosPublico() {
               </p>
               <Link to="/planos" className="btn-primary mt-5 justify-center h-11 text-sm">
                 Conhecer planos
+              </Link>
+            </div>
+
+            <div className="mt-4 flex flex-col sm:flex-row gap-2 justify-center md:justify-start">
+              <Link to="/planos" className="btn-primary justify-center h-11 text-sm">
+                Quero me associar
+              </Link>
+              <Link
+                to="/servicos-digitais"
+                className="btn-outline justify-center gap-2 h-11 text-sm"
+              >
+                <Smartphone size={15} />
+                Serviços digitais
               </Link>
             </div>
 
@@ -256,7 +245,6 @@ export default function BeneficiosPublico() {
             </div>
           </div>
         )}
-      </div>
-    </section>
+    </PublicPageShell>
   )
 }

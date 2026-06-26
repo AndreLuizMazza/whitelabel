@@ -15,7 +15,7 @@ import FaqSection from '@/components/faq/FaqSection.jsx'
 import PublicQuickAccessGrid from '@/components/public/PublicQuickAccessGrid.jsx'
 import PublicHeroSection from '@/components/public/PublicHeroSection.jsx'
 import PublicPlansPreview from '@/components/public/PublicPlansPreview.jsx'
-import PublicBenefitsHighlight from '@/components/public/PublicBenefitsHighlight.jsx'
+import PublicClubePreview from '@/components/public/PublicClubePreview.jsx'
 import PublicHowItWorks from '@/components/public/PublicHowItWorks.jsx'
 import PublicTrustStrip from '@/components/public/PublicTrustStrip.jsx'
 
@@ -430,7 +430,9 @@ export default function Home() {
 
           <PublicPlansPreview mounted={mounted} />
 
-          <PublicBenefitsHighlight empresa={empresa} mounted={mounted} />
+          {isBeneficiosEnabled(empresa) && (
+            <PublicClubePreview empresa={empresa} mounted={mounted} isLogged={isLogged} />
+          )}
 
           <PublicHowItWorks mounted={mounted} />
 
