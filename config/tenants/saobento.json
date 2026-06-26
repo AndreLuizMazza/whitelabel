@@ -178,7 +178,7 @@
   "content": {
     "home": {
       "apps": {
-        "androidStoreUrl": "",
+        "androidStoreUrl": "https://play.google.com/store/apps/details?id=br.com.awis.amorimfilho&pli=1",
         "iosStoreUrl": ""
       },
       "externalLinks": [
