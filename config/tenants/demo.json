@@ -180,7 +180,21 @@
       "apps": {
         "androidStoreUrl": "",
         "iosStoreUrl": ""
-      }
+      },
+      "externalLinks": [
+        {
+          "enabled": true,
+          "id": "telemedicina",
+          "kicker": "Serviço digital",
+          "title": "Telemedicina 24 horas",
+          "subtitle": "Consultas online com praticidade, onde você estiver.",
+          "ctaLabel": "Acessar plataforma",
+          "href": "https://exemplo.seudominio.com.br/telemedicina",
+          "openInNewTab": true,
+          "icon": "Video",
+          "band": "default"
+        }
+      ]
     },
     "about": {
       "enabled": true,

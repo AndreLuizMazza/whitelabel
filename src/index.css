@@ -256,7 +256,8 @@ html.dark .public-surface-card {
 }
 
 #parceiros,
-#home-faq {
+#home-faq,
+[id^='external-link-'] {
   scroll-margin-top: 5.5rem;
 }
 /* ---------------- CTAs — contraste garantido claro/escuro ---------------- */

@@ -16,11 +16,12 @@ import PublicPlansPreview from '@/components/public/PublicPlansPreview.jsx'
 import PublicClubePreview from '@/components/public/PublicClubePreview.jsx'
 import PublicHowItWorks from '@/components/public/PublicHowItWorks.jsx'
 import PublicAppDownloadSection from '@/components/public/PublicAppDownloadSection.jsx'
+import PublicHomeExternalLinkSection from '@/components/public/PublicHomeExternalLinkSection.jsx'
 import ParceirosCTA from '@/components/ParceirosCTA.jsx'
 import HeroValuePills from '@/components/public/HeroValuePills.jsx'
 import PublicHomeBand from '@/components/public/PublicHomeBand.jsx'
 import { resolveBrandDisplayName, resolveContractAssetUrl } from '@/lib/branding/tenantContract'
-import { getHomeHeroValuePillsFallback, getTenantContract } from '@/lib/tenantContent'
+import { getHomeHeroValuePillsFallback, getHomeExternalLinkSections, getTenantContract } from '@/lib/tenantContent'
 import {
   subscribeBrandingRevision,
   getBrandingRevisionSnapshot,
@@ -311,6 +312,11 @@ export default function Home() {
     [tenantContract, brandingRevision]
   )
 
+  const externalLinkSections = useMemo(
+    () => getHomeExternalLinkSections(tenantContract),
+    [tenantContract, brandingRevision]
+  )
+
   // ✅ ValuePills por slide (showValuePills)
   const [activeSlide, setActiveSlide] = useState(null)
   const showPills = activeSlide?.showValuePills !== false
@@ -355,6 +361,20 @@ export default function Home() {
       <PublicHomeBand variant="muted" className="public-home-band--section-close">
         <PublicHowItWorks mounted={mounted} />
       </PublicHomeBand>
+
+      {externalLinkSections.map((section, index) => (
+        <PublicHomeBand
+          key={section.id}
+          variant={section.band}
+          className={
+            index === 0 && externalLinkSections.length > 0
+              ? 'public-home-band--section-open'
+              : ''
+          }
+        >
+          <PublicHomeExternalLinkSection section={section} mounted={mounted} />
+        </PublicHomeBand>
+      ))}
 
       {!inCapacitorApp ? (
         <PublicHomeBand variant="soft" className="public-home-band--section-open public-home-band--cta-lead">

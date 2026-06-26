@@ -266,6 +266,99 @@ export function getHomeBenefitHighlights(t) {
   return [];
 }
 
+/** @typedef {'default'|'soft'|'muted'|'inset'|'command'} HomeBandVariant */
+
+/** @param {unknown} raw @returns {HomeBandVariant} */
+function normalizeHomeBandVariant(raw) {
+  const v = String(raw || 'default').trim().toLowerCase()
+  if (v === 'soft' || v === 'muted' || v === 'inset' || v === 'command') return v
+  return 'default'
+}
+
+/**
+ * Seções configuráveis na home com link externo (`content.home.externalLinks` ou `externalLink`).
+ * Opt-in: `enabled !== false`, `href` http(s), `title` e `ctaLabel` obrigatórios.
+ *
+ * @typedef {{
+ *   id: string,
+ *   kicker?: string,
+ *   title: string,
+ *   subtitle?: string,
+ *   ctaLabel: string,
+ *   href: string,
+ *   openInNewTab: boolean,
+ *   ctaVariant: 'primary'|'outline',
+ *   icon: string,
+ *   image?: string,
+ *   imageAlt?: string,
+ *   band: HomeBandVariant,
+ * }} HomeExternalLinkSection
+ */
+
+/** @param {unknown} item @param {unknown} t @param {number} index @returns {HomeExternalLinkSection | null} */
+function normalizeHomeExternalLinkSection(item, t, index) {
+  if (!item || typeof item !== 'object') return null
+  if (item.enabled === false) return null
+
+  const href = String(item.href || item.url || item.link || item.to || '').trim()
+  if (!href || !/^https?:\/\//i.test(href)) return null
+
+  const title = String(item.title || '').trim()
+  const ctaLabel = String(
+    item.ctaLabel || item.cta?.label || item.buttonLabel || item.primaryLabel || ''
+  ).trim()
+  if (!title || !ctaLabel) return null
+
+  const subtitle = String(item.subtitle || item.description || item.lead || '').trim() || undefined
+  const kicker = String(item.kicker || item.eyebrow || item.tag || item.pill || '').trim() || undefined
+  const idRaw = String(item.id || `external-link-${index + 1}`).trim()
+  const id = idRaw.replace(/[^\w-]/g, '-') || `external-link-${index + 1}`
+
+  const openInNewTab =
+    item.openInNewTab !== false &&
+    item.newTab !== false &&
+    item.openInSameTab !== true
+
+  const ctaVariantRaw = String(item.ctaVariant || item.cta?.variant || 'primary').trim().toLowerCase()
+  const ctaVariant = ctaVariantRaw === 'outline' ? 'outline' : 'primary'
+
+  const icon = String(item.icon || 'ExternalLink').trim() || 'ExternalLink'
+  const band = normalizeHomeBandVariant(item.band || item.bandVariant || item.surface)
+
+  const imageRaw = String(item.image || item.previewImage || item.media || '').trim()
+  const image = imageRaw ? resolveContractAssetUrl(t, imageRaw) : undefined
+  const imageAlt = String(item.imageAlt || item.imageCaption || title).trim()
+
+  return {
+    id,
+    kicker,
+    title,
+    subtitle,
+    ctaLabel,
+    href,
+    openInNewTab,
+    ctaVariant,
+    icon,
+    image,
+    imageAlt,
+    band,
+  }
+}
+
+/**
+ * @param {unknown} t
+ * @returns {HomeExternalLinkSection[]}
+ */
+export function getHomeExternalLinkSections(t) {
+  const home = getHomeContent(t)
+  const raw = home?.externalLinks ?? home?.externalLink
+  const list = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? [raw] : []
+
+  return list
+    .map((item, index) => normalizeHomeExternalLinkSection(item, t, index))
+    .filter(Boolean)
+}
+
 /**
  * Links das lojas de app na home (`content.home.apps`).
  * @param {unknown} t

@@ -104,7 +104,7 @@
     {
       "id": "familia",
       "tag": "Assistência familiar",
-      "title": "Proteção e tranquilidade para sua família",
+      "title": "Proteção e tranquilidade para sua família em todos os momentos",
       "subtitle": "Planos completos de assistência familiar, com benefícios exclusivos e atendimento humanizado em todos os momentos.",
       "image": "planos.png",
       "primary": { "label": "Ver planos familiares", "to": "/planos", "variant": "primary" },
@@ -176,6 +176,26 @@
   ],
 
   "content": {
+    "home": {
+      "apps": {
+        "androidStoreUrl": "",
+        "iosStoreUrl": ""
+      },
+      "externalLinks": [
+        {
+          "enabled": true,
+          "id": "telemedicina",
+          "kicker": "Serviço digital",
+          "title": "Telemedicina 24 horas",
+          "subtitle": "Consultas online com praticidade, onde você estiver.",
+          "ctaLabel": "Acessar plataforma",
+          "href": "https://exemplo.seudominio.com.br/telemedicina",
+          "openInNewTab": true,
+          "icon": "Video",
+          "band": "default"
+        }
+      ]
+    },
     "about": {
       "enabled": true,
       "photo": "sobre/hero-sobre.jpg",
