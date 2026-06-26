@@ -154,7 +154,12 @@ html.dark .public-surface-card {
 .public-home-band {
   --home-band-bg: var(--surface);
   background: var(--home-band-bg);
-  contain: layout style;
+  min-width: 0;
+}
+@media (min-width: 768px) {
+  .public-home-band {
+    contain: layout style;
+  }
 }
 .public-home-band__inner {
   @apply py-6 md:py-8;
@@ -256,15 +261,25 @@ html.dark .public-surface-card {
   margin-top: 0;
 }
 
-/* Entrada de seções — sem transform no mobile (ghost layers em WebView Android) */
-.public-home-enter {
-  opacity: 0;
+/* Entrada de seções — desativada no mobile (ghost layers / artefatos em WebView Android) */
+@media (max-width: 767px), (hover: none) and (pointer: coarse) {
+  .public-home-enter,
+  .public-home-enter.is-mounted {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
 }
-.public-home-enter.is-mounted {
-  opacity: 1;
-  transition: opacity 0.45s ease;
+@media (min-width: 768px) and (hover: hover) {
+  .public-home-enter {
+    opacity: 0;
+  }
+  .public-home-enter.is-mounted {
+    opacity: 1;
+    transition: opacity 0.45s ease;
+  }
 }
-@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+@media (min-width: 768px) and (hover: hover) and (prefers-reduced-motion: no-preference) {
   .public-home-enter {
     transform: translate3d(0, 8px, 0);
   }
@@ -282,13 +297,28 @@ html.dark .public-surface-card {
   }
 }
 
-/* Grid "Como funciona" — auto-rows-fr colapsa linhas em alguns WebViews Android */
+/* Grid "Como funciona" — evita colapso de linhas em WebViews Android */
 .home-how-steps {
   grid-auto-rows: auto;
 }
 .home-how-steps > li {
-  min-height: 8.25rem;
   align-self: stretch;
+}
+@media (min-width: 640px) {
+  .home-how-steps > li {
+    min-height: 8.25rem;
+  }
+}
+@media (max-width: 767px) {
+  .public-home-band--section-close .public-home-band__inner {
+    @apply pb-8;
+  }
+  .public-home-band--section-open .public-home-band__inner {
+    @apply pt-8;
+  }
+  .public-home-band--cta-lead .public-home-band__inner {
+    @apply pb-10;
+  }
 }
 
 #parceiros,
@@ -1149,12 +1179,66 @@ a.btn-light:hover {
 
 /* ---------------- Footer institucional premium ---------------- */
 .site-footer {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--surface-alt, var(--surface)) 88%, var(--primary) 12%) 0%,
-    var(--surface) 100%
-  );
+  background: var(--surface);
   border-top: 1px solid color-mix(in srgb, var(--c-border) 90%, var(--primary) 10%);
+}
+@media (min-width: 768px) {
+  .site-footer {
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-alt, var(--surface)) 88%, var(--primary) 12%) 0%,
+      var(--surface) 100%
+    );
+  }
+}
+.site-footer__cta-banner {
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--c-border));
+  background: var(--surface);
+}
+@media (min-width: 768px) {
+  .site-footer__cta-banner {
+    background: color-mix(in srgb, var(--surface) 88%, var(--primary) 12%);
+  }
+}
+.site-footer__cta-banner-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  width: 100%;
+}
+@media (min-width: 480px) {
+  .site-footer__cta-banner-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: auto;
+  }
+}
+.site-footer__cta-banner-actions .site-footer__cta,
+.site-footer__cta-banner-actions .site-footer__contact-pill {
+  width: 100%;
+  justify-content: center;
+}
+@media (min-width: 480px) {
+  .site-footer__cta-banner-actions .site-footer__cta,
+  .site-footer__cta-banner-actions .site-footer__contact-pill {
+    width: auto;
+  }
+}
+.site-footer__contact-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.site-footer__nav-mobile {
+  min-width: 0;
+}
+.site-footer__legal-bar {
+  background: var(--surface-alt, var(--surface));
+}
+@media (min-width: 768px) {
+  .site-footer__legal-bar {
+    background: color-mix(in srgb, var(--surface-alt, var(--surface)) 92%, var(--text) 8%);
+  }
 }
 .site-footer__cta {
   display: inline-flex;

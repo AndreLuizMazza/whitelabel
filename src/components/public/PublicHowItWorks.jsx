@@ -52,7 +52,7 @@ export default function PublicHowItWorks({ mounted = true }) {
           className="mb-4 md:mb-5 [&_.public-lead]:hidden sm:[&_.public-lead]:block"
         />
 
-        <ol className="home-how-steps grid grid-cols-2 gap-2 md:gap-3 xl:grid-cols-4">
+        <ol className="home-how-steps grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:gap-3 xl:grid-cols-4">
           {STEPS.map((item) => {
             const Icon = item.icon
             return (

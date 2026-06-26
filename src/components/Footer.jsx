@@ -144,13 +144,7 @@ export default function Footer() {
   return (
     <footer className="site-footer w-full mt-10 md:mt-16">
       <div className="container-max pt-10 md:pt-12 pb-8">
-        <div
-          className="flex flex-col gap-5 rounded-2xl border px-5 py-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-7"
-          style={{
-            borderColor: 'color-mix(in srgb, var(--primary) 18%, var(--c-border))',
-            background: 'color-mix(in srgb, var(--surface) 88%, var(--primary) 12%)',
-          }}
-        >
+        <div className="site-footer__cta-banner flex flex-col gap-5 rounded-2xl px-5 py-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-7">
           <div className="max-w-xl">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">
               Pronto para começar?
@@ -162,7 +156,7 @@ export default function Footer() {
               Contrate online em minutos ou fale com nossa equipe de atendimento.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2.5">
+          <div className="site-footer__cta-banner-actions">
             <Link to="/planos" className="site-footer__cta">
               Ver planos
             </Link>
@@ -187,7 +181,7 @@ export default function Footer() {
             )}
             <p className="mt-4 text-sm leading-relaxed text-[var(--text-muted)] max-w-sm">{footerBlurb}</p>
 
-            <div className="mt-5 flex flex-wrap gap-2">
+            <div className="site-footer__contact-row mt-5">
               {telefone && (
                 <a href={`tel:${telefone}`} className="site-footer__contact-pill">
                   <Phone className="h-3.5 w-3.5" aria-hidden="true" />
@@ -214,7 +208,7 @@ export default function Footer() {
             </div>
           </div>
 
-          <div className="lg:col-span-8 grid gap-0 md:grid-cols-3 md:gap-8">
+          <div className="site-footer__nav-mobile lg:col-span-8 grid gap-0 md:grid-cols-3 md:gap-8">
             <FooterNavGroup title="Institucional" items={institucional} />
             <FooterNavGroup title="Serviços" items={servicos} />
 
@@ -305,7 +299,7 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="border-t border-[color-mix(in_srgb,var(--c-border)_60%,transparent)] bg-[color-mix(in_srgb,var(--surface-alt,var(--surface))_92%,var(--text)_8%)]">
+      <div className="site-footer__legal-bar border-t border-[color-mix(in_srgb,var(--c-border)_60%,transparent)]">
         <div className="container-max py-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="site-footer__fine-print flex flex-col gap-1.5">
             <span>

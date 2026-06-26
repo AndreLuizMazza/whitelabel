@@ -64,7 +64,7 @@ export default function ParceirosCTA({ mounted = true, onBecomePartner, whatsapp
               className="mb-5 md:mb-6 [&_.public-lead]:hidden sm:[&_.public-lead]:block"
             />
 
-            <ul className="grid grid-cols-2 gap-2 md:gap-2.5">
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:gap-2.5">
               {BENEFITS.map(({ icon: Icon, text }) => (
                 <li
                   key={text}

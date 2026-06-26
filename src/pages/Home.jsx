@@ -130,8 +130,15 @@ export default function Home() {
     [tenantContract, empresa]
   )
 
-  const [mounted, setMounted] = useState(false)
+  const [mounted, setMounted] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia('(max-width: 767px)').matches
+  })
   useEffect(() => {
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      setMounted(true)
+      return undefined
+    }
     const t = setTimeout(() => setMounted(true), 10)
     return () => clearTimeout(t)
   }, [])
