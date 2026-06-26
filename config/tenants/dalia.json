@@ -158,6 +158,25 @@
     }
   ],
 
+  "content": {
+    "home": {
+      "externalLinks": [
+        {
+          "enabled": true,
+          "id": "velorio-online",
+          "kicker": "Velório online",
+          "title": "Acompanhe a cerimônia com respeito, onde você estiver",
+          "subtitle": "Para familiares e amigos que não podem estar presentes, o velório online da Dalia Cerimonial permite participar das homenagens com dignidade, discrição e acolhimento — em tempo real ou quando for possível.",
+          "ctaLabel": "Acessar velório online",
+          "href": "https://adiau.com.br/daliacerimonial",
+          "openInNewTab": true,
+          "icon": "Video",
+          "band": "muted"
+        }
+      ]
+    }
+  },
+
   "domain": "daliacerimonial.com.br"
 }
 
