@@ -31,12 +31,7 @@ export default function PublicHomeExternalLinkSection({ section, mounted = true 
 
   return (
     <section id={section.id} aria-labelledby={headingId}>
-      <div
-        className={[
-          'transition-all duration-700',
-          mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
-        ].join(' ')}
-      >
+      <div className={['public-home-enter', mounted ? 'is-mounted' : ''].join(' ')}>
         <div className="grid items-center gap-6 lg:grid-cols-2 lg:gap-10">
           <div className="min-w-0">
             <PublicPageHeader

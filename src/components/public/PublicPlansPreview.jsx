@@ -17,12 +17,7 @@ export default function PublicPlansPreview({ mounted = true, limit = 3 }) {
 
   return (
     <section aria-labelledby="home-plans-heading">
-      <div
-        className={[
-          'transition-all duration-700',
-          mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
-        ].join(' ')}
-      >
+      <div className={['public-home-enter', mounted ? 'is-mounted' : ''].join(' ')}>
         <PublicPageHeader
           kicker="Nossos planos"
           title="Escolha a proteção ideal para você"

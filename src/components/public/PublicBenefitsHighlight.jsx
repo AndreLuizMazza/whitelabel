@@ -105,8 +105,8 @@ export default function PublicBenefitsHighlight({ empresa, mounted = true }) {
     <section className="mt-12 md:mt-16" aria-labelledby="home-benefits-heading">
       <div
         className={[
-          'rounded-3xl border p-6 md:p-10 transition-all duration-700',
-          mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
+          'rounded-3xl border p-6 md:p-10 public-home-enter',
+          mounted ? 'is-mounted' : '',
         ].join(' ')}
         style={{
           borderColor: 'color-mix(in srgb, var(--primary) 18%, var(--c-border))',

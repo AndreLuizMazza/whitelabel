@@ -389,8 +389,8 @@ function HeroSlider({ slides, mounted, onActiveSlideChange, fullBleed = false, v
         fullBleed
           ? 'w-full min-h-[300px] md:min-h-[440px] lg:min-h-[520px] rounded-none'
           : 'rounded-3xl ring-1 mb-10 md:mb-12 min-h-[260px] md:min-h-[360px] lg:min-h-[420px]',
-        'transition-all duration-700',
-        mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
+        'public-home-enter',
+        mounted ? 'is-mounted' : '',
       ].join(' ')}
       style={
         fullBleed

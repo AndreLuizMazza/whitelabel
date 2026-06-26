@@ -27,12 +27,7 @@ export default function PublicClubePreview({ empresa, mounted = true, isLogged =
 
   return (
     <section aria-labelledby="home-clube-heading">
-      <div
-        className={[
-          'transition-all duration-700',
-          mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
-        ].join(' ')}
-      >
+      <div className={['public-home-enter', mounted ? 'is-mounted' : ''].join(' ')}>
         <PublicPageHeader
           kicker="Clube de benefícios"
           title="Descontos perto de você"

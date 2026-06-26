@@ -41,12 +41,7 @@ const STEPS = [
 export default function PublicHowItWorks({ mounted = true }) {
   return (
     <section aria-labelledby="home-how-heading">
-      <div
-        className={[
-          'transition-all duration-700',
-          mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
-        ].join(' ')}
-      >
+      <div className={['public-home-enter', mounted ? 'is-mounted' : ''].join(' ')}>
         <PublicPageHeader
           kicker="Como funciona"
           title="Simples do início ao acompanhamento"
@@ -57,13 +52,13 @@ export default function PublicHowItWorks({ mounted = true }) {
           className="mb-4 md:mb-5 [&_.public-lead]:hidden sm:[&_.public-lead]:block"
         />
 
-        <ol className="grid grid-cols-2 gap-2 md:gap-3 xl:grid-cols-4 auto-rows-fr">
+        <ol className="home-how-steps grid grid-cols-2 gap-2 md:gap-3 xl:grid-cols-4">
           {STEPS.map((item) => {
             const Icon = item.icon
             return (
               <li
                 key={item.step}
-                className="public-surface-card p-3 md:p-4 flex flex-col h-full"
+                className="public-surface-card p-3 md:p-4 flex flex-col"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span
